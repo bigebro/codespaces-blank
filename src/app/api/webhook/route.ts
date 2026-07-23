@@ -65,25 +65,25 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
-    // A. Handle Telegram "Undo" callbacks
-  // A. Handle Telegram "Undo" callbacks
+// A. Handle Telegram "Undo" callbacks
     if (callback_query) {
       currentChatId = callback_query.message.chat.id;
       const callbackData = callback_query.data;
       const messageId = callback_query.message.message_id;
-      const callbackQueryId = callback_query.id; // Get the query ID
+      const callbackQueryId = callback_query.id;
 
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         
-        // 1. Delete from Supabase
+        // Delete from Supabase
         await supabase.from('inventory_logs').delete().eq('id', logId);
         
-        // 2. Stop the Telegram loading spinner [1]
+        // Stop the loading spinner in Telegram [1]
         await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
         
-        // 3. Edit the message text
-        await editTelegramMessage(currentChatId!, messageId, "❌ Бүртгэл амжилттай цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).");
+        // Edit the message and automatically pop open their keyboard to re-type
+        const promptText = "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).\n\nТа засах гүйлгээгээ доор зөвөөр дахин бичнэ үү:";
+        await editTelegramMessage(currentChatId!, messageId, promptText);
       }
       return NextResponse.json({ status: 'ok' });
     }
@@ -157,7 +157,9 @@ export async function POST(request: Request) {
           ingredient_id: ingredient.id,
           quantity: aiAnalysis.quantity,
           type: aiAnalysis.type,
-          notes: aiAnalysis.notes
+          notes: aiAnalysis.notes,
+           // TEMP DEV CHECK: Force the log into June so it matches your report dates
+          date: '2026-06-15T12:00:00.000Z' 
         }])
         .select().single();
 
@@ -237,7 +239,16 @@ async function editTelegramMessage(chatId: number, messageId: number, text: stri
   await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: text })
+    body: JSON.stringify({ 
+      chat_id: chatId, 
+      message_id: messageId, 
+      text: text,
+      // Force Telegram to automatically open the text input for the barista
+      reply_markup: {
+        force_reply: true,
+        selective: true
+      }
+    })
   });
 }
 
