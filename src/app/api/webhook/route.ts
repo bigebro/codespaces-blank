@@ -65,8 +65,7 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
-// 
- // A. Handle Telegram "Undo" callbacks
+// A. Handle Telegram "Undo" callbacks
     if (callback_query) {
       currentChatId = callback_query.message.chat.id;
       const callbackData = callback_query.data;
@@ -76,17 +75,25 @@ export async function POST(request: Request) {
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         
-        // 1. Delete the incorrect row from Supabase
-        await supabase.from('inventory_logs').delete().eq('id', logId);
+        // 1. Delete from Supabase and capture any database errors
+        const { error: deleteError } = await supabase
+          .from('inventory_logs')
+          .delete()
+          .eq('id', logId);
+
+        // 2. If Supabase blocked the delete, throw the error explicitly so the catch block handles it!
+        if (deleteError) {
+          throw new Error(`Supabase Database Error: ${deleteError.message} (Code: ${deleteError.code})`);
+        }
         
-        // 2. Stop the Telegram loading spinner [1]
+        // 3. Stop the Telegram loading spinner [1]
         await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
         
-        // 3. Edit original message to remove buttons and show confirmation
+        // 4. Edit original message to remove buttons and show confirmation
         const deletedText = "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).";
         await editTelegramMessage(currentChatId!, messageId, deletedText);
 
-        // 4. Send a NEW message that safely forces their keyboard to open [1, 3]
+        // 5. Send a NEW message that safely forces their keyboard to open [1, 3]
         const promptText = "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:";
         await sendTelegramMessageWithForceReply(currentChatId!, promptText);
       }
