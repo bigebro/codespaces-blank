@@ -65,7 +65,8 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
-// A. Handle Telegram "Undo" callbacks
+// 
+ // A. Handle Telegram "Undo" callbacks
     if (callback_query) {
       currentChatId = callback_query.message.chat.id;
       const callbackData = callback_query.data;
@@ -75,15 +76,19 @@ export async function POST(request: Request) {
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         
-        // Delete from Supabase
+        // 1. Delete the incorrect row from Supabase
         await supabase.from('inventory_logs').delete().eq('id', logId);
         
-        // Stop the loading spinner in Telegram [1]
+        // 2. Stop the Telegram loading spinner [1]
         await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
         
-        // Edit the message and automatically pop open their keyboard to re-type
-        const promptText = "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).\n\nТа засах гүйлгээгээ доор зөвөөр дахин бичнэ үү:";
-        await editTelegramMessage(currentChatId!, messageId, promptText);
+        // 3. Edit original message to remove buttons and show confirmation
+        const deletedText = "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).";
+        await editTelegramMessage(currentChatId!, messageId, deletedText);
+
+        // 4. Send a NEW message that safely forces their keyboard to open [1, 3]
+        const promptText = "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:";
+        await sendTelegramMessageWithForceReply(currentChatId!, promptText);
       }
       return NextResponse.json({ status: 'ok' });
     }
@@ -233,6 +238,7 @@ async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: 
   });
 }
 
+// 1. Safe message editor (Only clears the inline button, does not use force_reply)
 async function editTelegramMessage(chatId: number, messageId: number, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`;
@@ -243,7 +249,21 @@ async function editTelegramMessage(chatId: number, messageId: number, text: stri
       chat_id: chatId, 
       message_id: messageId, 
       text: text,
-      // Force Telegram to automatically open the text input for the barista
+      reply_markup: { inline_keyboard: [] } // Clears the Undo button safely
+    })
+  });
+}
+
+// 2. New message sender that safely pops open the barista's keyboard [1, 3]
+async function sendTelegramMessageWithForceReply(chatId: number, text: string) {
+  if (!chatId) return;
+  const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      chat_id: chatId, 
+      text: text,
       reply_markup: {
         force_reply: true,
         selective: true
