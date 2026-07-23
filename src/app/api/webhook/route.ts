@@ -66,14 +66,23 @@ export async function POST(request: Request) {
     const { message, callback_query } = payload;
 
     // A. Handle Telegram "Undo" callbacks
+  // A. Handle Telegram "Undo" callbacks
     if (callback_query) {
       currentChatId = callback_query.message.chat.id;
       const callbackData = callback_query.data;
       const messageId = callback_query.message.message_id;
+      const callbackQueryId = callback_query.id; // Get the query ID
 
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
+        
+        // 1. Delete from Supabase
         await supabase.from('inventory_logs').delete().eq('id', logId);
+        
+        // 2. Stop the Telegram loading spinner [1]
+        await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
+        
+        // 3. Edit the message text
         await editTelegramMessage(currentChatId!, messageId, "❌ Бүртгэл амжилттай цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).");
       }
       return NextResponse.json({ status: 'ok' });
@@ -229,5 +238,14 @@ async function editTelegramMessage(chatId: number, messageId: number, text: stri
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: text })
+  });
+}
+
+async function answerTelegramCallback(callbackQueryId: string, text: string) {
+  const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callback_query_id: callbackQueryId, text: text })
   });
 }

@@ -49,9 +49,14 @@ function getSimilarity(s1: string, s2: string): number {
 export async function GET(request: Request) {
   try {
     // 1. Read date parameters from the URL (Defaults to June 2026 for your active test)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const defaultStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
+    const defaultEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999)).toISOString();
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
-    const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
+    const startDate = searchParams.get('startDate') ||  defaultStart;
+    const endDate = searchParams.get('endDate') || defaultEnd;
 
     // 2. Fetch master structural data
     const { data: rawIngredients } = await supabase.from('ingredients').select('*');
