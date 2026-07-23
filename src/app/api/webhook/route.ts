@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics`);
       const analyticsData = await response.json();
       // 2. Format the payload exactly as your system prompt expects (NEW_DATA: prefix)
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
       const aiResponse = await model.generateContent({
