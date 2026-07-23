@@ -18,9 +18,9 @@ const AI_SYSTEM_PROMPT = `
   ТОХИОЛДОЛ Б (Хэрэглэгч асуулт асуух үед - Чатлах / Зөвлөх):
   - ТАЙЛАНГИЙН ЗАГВАРЫГ ДАХИН БИТГИЙ БИЧ, ХООСОН ЗАГВАР БҮҮ ҮЗҮҮЛ.
   - [ЧАТНЫ САНАХ ОЙН ДҮРЭМ]: Өмнөх чатны түүхэнд "өгөгдөл дутуу байна" гэж хэлсэн байсан ч түүгээр ХАТУУ ҮГҮЙСГЭЖ, зөвхөн одоо ирсэн хамгийн сүүлийн CONTEXT_DATA-г уншиж шинээр бодож хариул.
-  - Ирсэн өгөгдөл дэх all_recipes (бүх 73 ундаа хоолны бүтэн жор), menu_performance (бодит борлуулалт, ашиг), болон all_inventory_data (нийт 72+ барааны бодит зөрүү, үнэ, нэгж) датаг бүрэн ашиглаж асуултад шууд хариул.
+  - Ирсэн өгөгдөл дэх all_recipes (бүх 73 ундаа хоолны бүтэн жор), menu_performance (бодит борлуулалт, ашиг), болон all_inventory_data (нийт 72+ барааны бодит зөрүү, үнэ, нэгж) датаг бүрэн ашиглаж асуултад шууд хариул [2, 3].
   - Ирсэн өгөгдөл дэх "underpoured_only" (зөвхөн дутуу хийгдсэн/илүүдэлтэй бараанууд) болон "wasted_only" (зөвхөн хаягдал/алдагдалтай бараанууд) массивыг ашиглаж асуултад шууд хариулна. "all_inventory_data" массивыг ашиглаж өөрөө шүүх гэж оролдож болохгүй.
-  - Хэрэглэгч үйл ажиллагааны зардлын (OPEX) задаргааг асуувал, opex_details доторх бүх гүйлгээнүүдийг нэг бүрчлэн нэрлэж, маш тодорхой хариулна уу.
+  - Хэрэглэгч үйл ажиллагааны зардлын (OPEX) задаргааг асуувал, opex_details доторх бүх гүйлгээнүүдийг нэг бүрчлэн нэрлэж, маш тодорхой хариулна уу [1, 3].
 
   ---
   📊 САНХҮҮГИЙН ТАЙЛАН (Тохиолдол А):
@@ -51,7 +51,7 @@ const AI_SYSTEM_PROMPT = `
   • Efficiency: [efficiency]
 
   💡 ДҮГНЭЛТ:
-  [Товч дүгнэлт бичээд асуулт асууж болохыг сануул. Ажилчдын хоол, түүхий эдийн өөрчлөлтийг системд бүртгэж хэвшсэн нь маш сайн ахиц болохыг онцлон дүгнээрэй.]
+  [Товч дүгнэлт бичээд асуулт асууж болохыг сануул. Ажилчдын хоол, түүхий эдийн өөрчлөлтийг системд бүртгэж хэвшсэн нь маш сайн ахиц болохыг онцлон дүгнээрэй [3].]
 
   "Хаягдалтай (wasted_only) барааны тоо хэмжээг харуулахдаа зөвхөн тайлагнагдаагүй цэвэр алдагдал болох gap хувьсагчийн утгыг ашиглана. Харин Дутуу хийгдсэн (underpoured_only) барааны хувьд raw_physical_gap хувьсагчийн утгыг ашиглана."
 
@@ -59,7 +59,6 @@ const AI_SYSTEM_PROMPT = `
 `;
 
 export async function POST(request: Request) {
-  // FIXED: Declare currentChatId outside the try-catch block so the error handler can see it!
   let currentChatId: number | null = null;
 
   try {
@@ -87,12 +86,12 @@ export async function POST(request: Request) {
 
     // 1. Handle "/start" command (Welcome Message)
     if (incomingText === "/start") {
-      const welcomeText = "Сайн байна уу? 'SF Coffee' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЭнэхүү ботоор дамжуулан ажилчид өдөр тутмын зардлыг бүртгэх боломжтой.\n\nЖишээ:\n• 'Хаягдал: Сүү 500'\n• 'Оройн хоолонд 2 өндөг орлоо'\n\nЭзэн та тайлан харах бол /report гэж бичнэ үү.";
+      const welcomeText = "Сайн байна уу? 'SF Coffee' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЭнэхүү ботоор дамжуулан өдөр тутмын үйл ажиллагааг удирдах, асуулт асууж зөвлөгөө авах боломжтой.\n\nЗаавар:\n• Үлдэгдэл зарлага бүртгэх: 'Хаягдал: Сүү 500'\n• Ажилтны хоол бүртгэх: 'Оройн хоолонд 2 өндөг орлоо'\n• Тайлан харах: /report\n• Асуулт асуух: Шууд чатлах хэлбэрээр асууна уу.";
       await sendTelegramMessage(currentChatId, welcomeText);
       return NextResponse.json({ status: 'ok' });
     }
 
-    // 2. Handle "/report" or "Тайлан харах" commands
+    // 2. Handle "/report" or "Тайлан харах" commands (Case A)
     if (incomingText === "/report" || incomingText.toLowerCase() === "тайлан харах") {
       await sendTelegramMessage(currentChatId, "⏳ Санхүүгийн үзүүлэлтүүдийг бодож байна, түр хүлээнэ үү...");
 
@@ -102,8 +101,8 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics`);
       const analyticsData = await response.json();
 
-      // FIXED: Switched back to Gemini 2.5 Flash!
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      // FIXED: Switched from deprecated gemini-2.5-flash to active gemini-1.5-flash [1]
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
       const aiResponse = await model.generateContent({
@@ -157,16 +156,36 @@ export async function POST(request: Request) {
 
       const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiLog.type}\n• Бараа: ${aiLog.item_name}\n• Хэмжээ: ${Math.abs(aiLog.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiLog.notes}`;
       await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
+      return NextResponse.json({ status: 'ok' });
     }
 
+    // 4. Default Fallback Handler for Conversational Queries (Case B - Chatting / Advisory) [1]
+    // Fetch live inventory data and pass the request with the prompt payload.
+    const reqUrl = new URL(request.url);
+    const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+    
+    const response = await fetch(`${baseUrl}/api/analytics`);
+    const analyticsData = await response.json();
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${incomingText}`;
+
+    const aiResponse = await model.generateContent({
+      contents: [
+        { role: 'user', parts: [{ text: `System: ${AI_SYSTEM_PROMPT}\n\nInput Data: ${promptPayload}` }] }
+      ]
+    });
+
+    const replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); 
+    await sendTelegramMessage(currentChatId, replyText);
+
     return NextResponse.json({ status: 'ok' });
+
   } catch (error: any) {
     console.error("Webhook processing failed:", error);
-    // FIXED: currentChatId is now safely accessed in the catch block
     if (currentChatId) {
       await sendTelegramMessage(currentChatId, `⚠️ Уучлаарай, системд алдаа гарлаа: ${error.message}`);
     }
-    // FIXED: Always returns 200 OK so Telegram doesn't retry infinitely
     return NextResponse.json({ status: 'ok' });
   }
 }
