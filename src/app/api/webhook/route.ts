@@ -83,13 +83,16 @@ export async function POST(request: Request) {
     const incomingText = message.text.trim();
 
     // B. Handle "/report" or "Тайлан харах" commands (Runs your full analytics logic live!)
+    
     if (incomingText === "/report" || incomingText.toLowerCase() === "тайлан харах") {
       await sendTelegramMessage(chatId, "⏳ Санхүүгийн үзүүлэлтүүдийг бодож байна, түр хүлээнэ үү...");
 
-      // 1. Call your own API internally to get the 100% complete June dataset
-      const response = await fetch(`${request.headers.get('origin')}/api/analytics`);
+      // FIXED: Construct the base URL dynamically using request.url to bypass null origin errors
+      const reqUrl = new URL(request.url);
+      const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+      
+      const response = await fetch(`${baseUrl}/api/analytics`);
       const analyticsData = await response.json();
-
       // 2. Format the payload exactly as your system prompt expects (NEW_DATA: prefix)
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
