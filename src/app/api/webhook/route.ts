@@ -59,41 +59,50 @@ const AI_SYSTEM_PROMPT = `
 `;
 
 export async function POST(request: Request) {
+  // FIXED: Declare currentChatId outside the try-catch block so the error handler can see it!
+  let currentChatId: number | null = null;
+
   try {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
     // A. Handle Telegram "Undo" callbacks
     if (callback_query) {
+      currentChatId = callback_query.message.chat.id;
       const callbackData = callback_query.data;
-      const chatId = callback_query.message.chat.id;
       const messageId = callback_query.message.message_id;
 
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         await supabase.from('inventory_logs').delete().eq('id', logId);
-        await editTelegramMessage(chatId, messageId, "❌ Бүртгэл амжилттай цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).");
+        await editTelegramMessage(currentChatId!, messageId, "❌ Бүртгэл амжилттай цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).");
       }
       return NextResponse.json({ status: 'ok' });
     }
 
     if (!message || !message.text) return NextResponse.json({ status: 'ok' });
 
-    const chatId = message.chat.id;
+    currentChatId = message.chat.id;
     const incomingText = message.text.trim();
 
-    // B. Handle "/report" or "Тайлан харах" commands (Runs your full analytics logic live!)
-    
-    if (incomingText === "/report" || incomingText.toLowerCase() === "тайлан харах") {
-      await sendTelegramMessage(chatId, "⏳ Санхүүгийн үзүүлэлтүүдийг бодож байна, түр хүлээнэ үү...");
+    // 1. Handle "/start" command (Welcome Message)
+    if (incomingText === "/start") {
+      const welcomeText = "Сайн байна уу? 'SF Coffee' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЭнэхүү ботоор дамжуулан ажилчид өдөр тутмын зардлыг бүртгэх боломжтой.\n\nЖишээ:\n• 'Хаягдал: Сүү 500'\n• 'Оройн хоолонд 2 өндөг орлоо'\n\nЭзэн та тайлан харах бол /report гэж бичнэ үү.";
+      await sendTelegramMessage(currentChatId, welcomeText);
+      return NextResponse.json({ status: 'ok' });
+    }
 
-      // FIXED: Construct the base URL dynamically using request.url to bypass null origin errors
+    // 2. Handle "/report" or "Тайлан харах" commands
+    if (incomingText === "/report" || incomingText.toLowerCase() === "тайлан харах") {
+      await sendTelegramMessage(currentChatId, "⏳ Санхүүгийн үзүүлэлтүүдийг бодож байна, түр хүлээнэ үү...");
+
       const reqUrl = new URL(request.url);
       const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
       
       const response = await fetch(`${baseUrl}/api/analytics`);
       const analyticsData = await response.json();
-      // 2. Format the payload exactly as your system prompt expects (NEW_DATA: prefix)
+
+      // FIXED: Switched back to Gemini 2.5 Flash!
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
@@ -103,12 +112,12 @@ export async function POST(request: Request) {
         ]
       });
 
-      const reportText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); // Strip markdown stars
-      await sendTelegramMessage(chatId, reportText);
+      const reportText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); 
+      await sendTelegramMessage(currentChatId, reportText);
       return NextResponse.json({ status: 'ok' });
     }
 
-    // C. Handle Spoilage / Waste logs (Conversational AI parsing)
+    // 3. Handle Spoilage / Waste logs
     if (incomingText.toLowerCase().includes("хаягдал") || incomingText.toLowerCase().includes("орлоо") || incomingText.toLowerCase().includes("авав")) {
       const { data: ingredients } = await supabase.from('ingredients').select('name');
       const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
@@ -116,7 +125,7 @@ export async function POST(request: Request) {
       const aiLog = await parseOperationalText(incomingText, allowedNames);
 
       if (!aiLog || !aiLog.item_name) {
-        await sendTelegramMessage(chatId, "❌ Алдаа: Бичсэн өгөгдлийг систем ойлгосонгүй. Жишээ: 'Хаягдал: Сүү 500'");
+        await sendTelegramMessage(currentChatId, "❌ Алдаа: Бичсэн өгөгдлийг систем ойлгосонгүй. Жишээ: 'Хаягдал: Сүү 500'");
         return NextResponse.json({ status: 'ok' });
       }
 
@@ -127,7 +136,7 @@ export async function POST(request: Request) {
         .single();
 
       if (!ingredient) {
-        await sendTelegramMessage(chatId, `❌ Алдаа: '${aiLog.item_name}' олдсонгүй.`);
+        await sendTelegramMessage(currentChatId, `❌ Алдаа: '${aiLog.item_name}' олдсонгүй.`);
         return NextResponse.json({ status: 'ok' });
       }
 
@@ -142,22 +151,28 @@ export async function POST(request: Request) {
         .select().single();
 
       if (logError || !log) {
-        await sendTelegramMessage(chatId, "❌ Алдаа: Хадгалж чадсангүй.");
+        await sendTelegramMessage(currentChatId, "❌ Алдаа: Хадгалж чадсангүй.");
         return NextResponse.json({ status: 'ok' });
       }
 
       const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiLog.type}\n• Бараа: ${aiLog.item_name}\n• Хэмжээ: ${Math.abs(aiLog.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiLog.notes}`;
-      await sendTelegramMessageWithUndo(chatId, confirmText, log.id);
+      await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
     }
 
     return NextResponse.json({ status: 'ok' });
   } catch (error: any) {
     console.error("Webhook processing failed:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // FIXED: currentChatId is now safely accessed in the catch block
+    if (currentChatId) {
+      await sendTelegramMessage(currentChatId, `⚠️ Уучлаарай, системд алдаа гарлаа: ${error.message}`);
+    }
+    // FIXED: Always returns 200 OK so Telegram doesn't retry infinitely
+    return NextResponse.json({ status: 'ok' });
   }
 }
 
-async function sendTelegramMessage(chatId: number, text: string) {
+async function sendTelegramMessage(chatId: number | null, text: string) {
+  if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   await fetch(url, {
     method: 'POST',
@@ -167,6 +182,7 @@ async function sendTelegramMessage(chatId: number, text: string) {
 }
 
 async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: string) {
+  if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   await fetch(url, {
     method: 'POST',
@@ -184,6 +200,7 @@ async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: 
 }
 
 async function editTelegramMessage(chatId: number, messageId: number, text: string) {
+  if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`;
   await fetch(url, {
     method: 'POST',
