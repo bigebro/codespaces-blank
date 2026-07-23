@@ -3,7 +3,7 @@ import { GoogleGenerativeAI  } from '@google/generative-ai';
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function parseOperationalText(text: string, ingredientsList: string[]) {
-  const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const systemPrompt = `
     You are an expert F&B operations assistant. Your job is to parse unstructured text messages written by baristas or cooks in Mongolian or English, and convert them into a structured JSON log.

@@ -101,8 +101,8 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics`);
       const analyticsData = await response.json();
 
-      // FIXED: Switched from deprecated gemini-2.5-flash to active gemini-1.5-flash [1]
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
       const aiResponse = await model.generateContent({
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
     const response = await fetch(`${baseUrl}/api/analytics`);
     const analyticsData = await response.json();
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${incomingText}`;
 
     const aiResponse = await model.generateContent({
