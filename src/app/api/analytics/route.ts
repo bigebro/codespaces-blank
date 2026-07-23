@@ -96,18 +96,19 @@ export async function GET(request: Request) {
     const master: Record<string, any> = {};
     const menuPerformance: any[] = []; 
 
-    rawIngredients.forEach((ing: any) => {
-      const nameKey = cleanString(ing.name);
-      master[nameKey] = {
-        name: nameKey,
-        start: 0,
-        purchased: 0,
-        end: 0, 
-        theoretical: 0,
-        unit_price: parseFloat(ing.unit_price) || 0,
-        unit: ing.unit
-      };
-    });
+rawIngredients.forEach((ing: any) => {
+  const nameKey = cleanString(ing.name);
+  master[nameKey] = {
+    name: nameKey,
+    start: 0,
+    purchased: 0,
+    // FALLBACK: Default the ending stock to the live Postgres current_stock
+    end: parseFloat(ing.current_stock) || 0, 
+    theoretical: 0,
+    unit_price: parseFloat(ing.unit_price) || 0,
+    unit: ing.unit
+  };
+});
 
     rawInventoryLogs.forEach((log: any) => {
       const cost = parseFloat(log.total_cost) || 0;
@@ -314,8 +315,8 @@ export async function GET(request: Request) {
       });
     }
 
-    const adjustedCogs = (rawActualCogs - totalLoggedSpoilage - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
-    const adjustedOpex = (totalOpex + totalLoggedSpoilage + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
+    const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
+    const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
     const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
 
     return NextResponse.json({
