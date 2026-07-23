@@ -35,7 +35,7 @@ const AI_SYSTEM_PROMPT = `
   [Энд top_expensive доторх 3 барааны нэр, төлөв, зөрүүг бич. Жишээ: Beef patty: Over, зөрүү: 19 pc (₮66,500)]
 
   [НЭМЭЛТ САНХҮҮГИЙН ДҮРЭМ (CFO Rules for Price Recommendations)]:
-  1. Ундаа, кофе, шүүсний (Beverages) хувьд боломжит эрүүл Бохир Ашиг (Gross Margin) нь 75% - 85% байна (Өртөг нь 15% - 25% байх ёстой). Хэрэв ундааны өртөг 25%-иас дээш гарвал үнийг нэмэх санал гаргана.
+  1. Ундаа, кофе, шүүсний (Beverages) хувьд боломжит эрүүл Бохир Ашиг (Gross Margin) нь 75% - 85% baйна (Өртөг нь 15% - 25% байх ёстой). Хэрэв ундааны өртөг 25%-иас дээш гарвал үнийг нэмэх санал гаргана.
   2. Хоол, сэндвич, десертийн (Food) хувьд боломжит эрүүл Бохир Ашиг нь 60% - 70% байна (Өртөг нь 30% - 40% байх ёстой). Хэрэв хоолны өртөг 40%-иас дээш гарвал үнийг нэмэх санал гаргана.
   3. Үнийг нэмэх санал гаргахдаа үнийг шууд огцом биш, хэрэглэгчдийг үргээхгүйгээр хамгийн багадаа 500₮ - 1000₮-ийн хооронд үе шаттайгаар нэмэхийг зөвлөнө.
   
@@ -101,7 +101,6 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics`);
       const analyticsData = await response.json();
 
-    
       const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
@@ -116,77 +115,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-   // 3. Detect operational intents (Waste, Purchases, Staff Meals, and Testing)
-const lowercaseMsg = incomingText.toLowerCase();
-const isOperationalLog = 
-  lowercaseMsg.includes("хаягдал") || 
-  lowercaseMsg.includes("мууд") || 
-  lowercaseMsg.includes("асгар") || 
-  lowercaseMsg.includes("орлоо") || 
-  lowercaseMsg.includes("авав") || 
-  lowercaseMsg.includes("авсан") || 
-  lowercaseMsg.includes("татан авалт") || 
-  lowercaseMsg.includes("хоолонд") || 
-  lowercaseMsg.includes("турш");
+    // 3. Process with AI Router (Classifies whether message is a transaction or chat query)
+    const { data: ingredients } = await supabase.from('ingredients').select('name');
+    const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
 
-if (isOperationalLog) {
-  const { data: ingredients } = await supabase.from('ingredients').select('name');
-  const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
+    const aiAnalysis = await parseOperationalText(incomingText, allowedNames);
 
-  // 1. Pass to operational natural language parser
-  const aiLog = await parseOperationalText(incomingText, allowedNames);
-  
-  // 2. If the AI itself flagged a language or formatting error
-  if (!aiLog || aiLog.success === false) {
-    const fallbackErrorMsg = "❌ Уучлаарай, бичсэн өгөгдлийг систем ойлгосонгүй.\n\nЗөвхөн Монгол хэлээр бүртгэнэ үү. Жишээ:\n• 'Хаягдал: Сүү 500'\n• 'Татан авалт: Сүү 10, Нийт 58000'\n• 'Хоолонд 2 өндөг орлоо'";
-    
-    await sendTelegramMessage(
-      currentChatId, 
-      aiLog?.error_message || fallbackErrorMsg
-    );
-    return NextResponse.json({ status: 'ok' });
-  }
+    // If classified as a log transaction (waste, purchase, staff meal, testing)
+    if (aiAnalysis && aiAnalysis.is_transaction === true) {
+      if (aiAnalysis.success === false) {
+        const fallbackErrorMsg = "❌ Уучлаарай, бичсэн өгөгдлийг систем ойлгосонгүй.\n\nЗөвхөн Монгол хэлээр бүртгэнэ үү. Жишээ:\n• 'Хаягдал: Сүү 500'\n• 'Татан авалт: Сүү 10, Нийт 58000'\n• 'Хоолонд 2 өндөг орлоо'";
+        await sendTelegramMessage(currentChatId, aiAnalysis.error_message || fallbackErrorMsg);
+        return NextResponse.json({ status: 'ok' });
+      }
 
-  // 3. Find the ingredient
-  const { data: ingredient } = await supabase
-    .from('ingredients')
-    .select('id, unit, unit_price')
-    .eq('name', aiLog.item_name)
-    .single();
+      // Fetch the matching ingredient ID from the DB
+      const { data: ingredient } = await supabase
+        .from('ingredients')
+        .select('id, unit, unit_price')
+        .eq('name', aiAnalysis.item_name)
+        .single();
 
-  if (!ingredient) {
-    await sendTelegramMessage(
-      currentChatId, 
-      `❌ Алдаа: '${aiLog.item_name}' нэртэй түүхий эд олдсонгүй. Та агуулахын бүртгэлтэй нэрсийг шалгана уу.`
-    );
-    return NextResponse.json({ status: 'ok' });
-  }
+      if (!ingredient) {
+        await sendTelegramMessage(currentChatId, `❌ Алдаа: '${aiAnalysis.item_name}' нэртэй түүхий эд олдсонгүй.`);
+        return NextResponse.json({ status: 'ok' });
+      }
 
-  // 4. Save to Database if validation passes
-  const { data: log, error: logError } = await supabase
-    .from('inventory_logs')
-    .insert([{
-      ingredient_id: ingredient.id,
-      quantity: aiLog.quantity,
-      type: aiLog.type,
-      notes: aiLog.notes
-    }])
-    .select().single();
+      // Save operational log to Supabase
+      const { data: log, error: logError } = await supabase
+        .from('inventory_logs')
+        .insert([{
+          ingredient_id: ingredient.id,
+          quantity: aiAnalysis.quantity,
+          type: aiAnalysis.type,
+          notes: aiAnalysis.notes
+        }])
+        .select().single();
 
-  if (logError || !log) {
-    await sendTelegramMessage(currentChatId, "❌ Алдаа: Системд хадгалж чадсангүй.");
-    return NextResponse.json({ status: 'ok' });
-  }
+      if (logError || !log) {
+        await sendTelegramMessage(currentChatId, "❌ Алдаа: Системд хадгалж чадсангүй.");
+        return NextResponse.json({ status: 'ok' });
+      }
 
-  // 5. Display clean output with Undo action
-  const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiLog.type}\n• Бараа: ${aiLog.item_name}\n• Хэмжээ: ${Math.abs(aiLog.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiLog.notes || 'Тэмдэглэл байхгүй'}`;
-  
-  await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
-  return NextResponse.json({ status: 'ok' });
-}
+      // Send operational confirmation with Undo action
+      const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || 'Тэмдэглэл байхгүй'}`;
+      
+      await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
+      return NextResponse.json({ status: 'ok' });
+    }
 
-    // 4. Default Fallback Handler for Conversational Queries (Case B - Chatting / Advisory) [1]
-    // Fetch live inventory data and pass the request with the prompt payload.
+    // 4. Default Fallback Handler for Conversational Queries (Case B - Chatting / Advisory)
     const reqUrl = new URL(request.url);
     const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
     

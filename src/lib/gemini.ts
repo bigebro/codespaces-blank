@@ -6,37 +6,33 @@ export async function parseOperationalText(text: string, ingredientsList: string
   const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const systemPrompt = `
-    You are an expert F&B operations assistant. Your job is to parse unstructured text messages written by baristas or cooks in Mongolian or English, and convert them into a structured JSON log.
-    
-    You must map the ingredient mentioned to one of these exact allowed ingredient names:
+    You are an expert F&B operations assistant and router. Your job is to classify and parse incoming messages written by baristas or cooks.
+
+    You must respond strictly with a JSON object.
+
+    First, classify if the message is a transaction attempt (the user is explicitly logging/recording waste, a purchase, a staff meal, or testing) or a general conversation (asking a question, greeting you, or requesting a report).
+
+    Keys you must return in JSON:
+    - "is_transaction": (boolean. Set to true ONLY if the message is a command to record/log an operation. Set to false if it is a question, greeting, chat, or report request)
+    - "success": (boolean. Set to true if is_transaction is true AND you successfully parsed the entry. Set to false if language is unreadable, gibberish, or has errors)
+    - "error_message": (string or null. Mongolian error message if success is false)
+    - "item_name": (string or null. Must match one of the allowed ingredients list exactly)
+    - "quantity": (number or null. Negative for waste/meals/testing, positive for purchases)
+    - "type": (string or null. Either "spoilage", "purchase", "testing", or "staff_meal")
+    - "notes": (string or null. Brief description in Mongolian)
+
+    Allowed ingredients list:
     [${ingredientsList.join(', ')}]
 
     Rules:
-    1. LANGUAGE & VALIDATION CHECK:
-       - The input message MUST be written in Mongolian or English. If the language is unsupported, completely unreadable, or gibberish, return JSON with "success": false and a helpful error message in Mongolian in "error_message".
-       - If the message does not contain any recognizable operational intent (like waste, purchase, staff meal, or testing), set "success": false and provide a helpful instructions message in "error_message".
+    1. Standardize units: "литр/l" to "ml" (multiply by 1000), "кг/kg" to "gram" (multiply by 1000).
+    2. Spoilage/Waste (e.g., "асгав", "асгарсан", "муудсан"): quantity must be NEGATIVE, type must be "spoilage".
+    3. Purchase (e.g., "авав", "авсан", "татан авалт"): quantity must be POSITIVE, type must be "purchase".
+    4. Staff Meal (e.g., "хоолонд орсон", "хооллосон"): quantity must be NEGATIVE, type must be "staff_meal".
+    5. Testing (e.g., "туршилт", "амталгаа"): quantity must be NEGATIVE, type must be "testing".
 
-    2. INGREDIENT MATCHING:
-       - Try your best to match the ingredient to the allowed list. 
-       - If you cannot find a reasonable match, set "success": false and set "error_message" to "Уучлаарай, '[user's item]' нэртэй түүхий эд бүртгэгдээгүй байна."
-
-    3. COMMAND MAPPING & QUANTITY:
-       - Spoilage / Waste (e.g., "крем асгарчихлаа", "хаягдал сүү", "муудсан өндөг"): Quantity must be NEGATIVE. Type must be "spoilage".
-       - Purchase (e.g., "Сүү авлаа", "bought milk", "татан авалт"): Quantity must be POSITIVE. Type must be "purchase".
-       - Staff Meal (e.g., "оройн хоолонд", "ажилчид хооллов"): Quantity must be NEGATIVE. Type must be "staff_meal".
-       - Testing (e.g., "туршилтанд", "амталгаанд"): Quantity must be NEGATIVE. Type must be "testing".
-
-    4. Standardize units: "литр/l" to "ml" (multiply by 1000), "кг/kg" to "gram" (multiply by 1000).
-
-    5. Respond ONLY with a clean JSON object containing these exact keys:
-       - "success": (boolean)
-       - "error_message": (string or null, Mongolian error description if success is false)
-       - "item_name": (string or null, must match allowed list exactly)
-       - "quantity": (number or null, negative for waste/meals, positive for purchases)
-       - "type": (string or null, "spoilage", "purchase", "testing", or "staff_meal")
-       - "notes": (string or null, brief explanation of the event in Mongolian)
-
-    Example: "Оройн хоолонд 2 өндөг хэрэглэв" -> {"success": true, "error_message": null, "item_name": "Eggs", "quantity": -2, "type": "staff_meal", "notes": "Оройн хоолонд хэрэглэсэн"}
+    Example 1: "10 л сүү асгав" -> {"is_transaction": true, "success": true, "error_message": null, "item_name": "Milk", "quantity": -10000, "type": "spoilage", "notes": "10 литр сүү асгасан"}
+    Example 2: "Сүүний хаягдал сүүлийн үед яагаад өндөр байна?" -> {"is_transaction": false, "success": true, "error_message": null, "item_name": null, "quantity": null, "type": null, "notes": null}
   `;
 
   const response = await model.generateContent({
@@ -49,8 +45,9 @@ export async function parseOperationalText(text: string, ingredientsList: string
   } catch (e) {
     console.error("Failed to parse Gemini response:", responseText);
     return {
+      is_transaction: false,
       success: false,
-      error_message: "Уучлаарай, системийн алдаа гарлаа. Гүйлгээг уншиж чадсангүй.",
+      error_message: "Уучлаарай, гүйлгээг уншиж чадсангүй.",
       item_name: null,
       quantity: null,
       type: null,
