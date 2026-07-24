@@ -65,23 +65,30 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
-// A. Handle Telegram "Undo" callbacks
+    // A. Handle Telegram "Undo" callbacks
     if (callback_query) {
-      currentChatId = callback_query.message.chat.id;
+      // SAFE CHAT ID RESOLUTION: Fallback to sender ID if message is missing [1, 3]
+      const chatId = callback_query.message?.chat?.id || callback_query.from?.id;
+      currentChatId = chatId;
+      
       const callbackData = callback_query.data;
-      const messageId = callback_query.message.message_id;
+      const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
 
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         
-        // 1. Delete from Supabase and capture any database errors
+        // 1. SAFETY CHECK: Check if the log ID is invalid
+        if (!logId || logId === "undefined" || logId === "null") {
+          throw new Error("Цуцлах гүйлгээний ID олдсонгүй эсвэл хүчингүй байна (undefined). Supabase-д бичих үед SELECT эрх хаалттай байж магадгүй.");
+        }
+
+        // 2. Delete from Supabase and capture errors
         const { error: deleteError } = await supabase
           .from('inventory_logs')
           .delete()
           .eq('id', logId);
 
-        // 2. If Supabase blocked the delete, throw the error explicitly so the catch block handles it!
         if (deleteError) {
           throw new Error(`Supabase Database Error: ${deleteError.message} (Code: ${deleteError.code})`);
         }
@@ -170,13 +177,19 @@ export async function POST(request: Request) {
           quantity: aiAnalysis.quantity,
           type: aiAnalysis.type,
           notes: aiAnalysis.notes,
-           // TEMP DEV CHECK: Force the log into June so it matches your report dates
-          date: '2026-06-15T12:00:00.000Z' 
+          date: '2026-06-15T12:00:00.000Z' // Forced dev testing date
         }])
-        .select().single();
+        .select()
+        .single();
 
-      if (logError || !log) {
-        await sendTelegramMessage(currentChatId, "❌ Алдаа: Системд хадгалж чадсангүй.");
+      if (logError) {
+        await sendTelegramMessage(currentChatId, `❌ Supabase хадгалах алдаа: ${logError.message}`);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // 3. Check if Supabase returned a valid row ID
+      if (!log || !log.id) {
+        await sendTelegramMessage(currentChatId, "⚠️ Анхаар: Өгөгдлийг хадгалсан боловч буцааж уншиж чадсангүй (Supabase RLS-ийн SELECT эрхийг шалгана уу). Буцаах (Undo) товч ажиллахгүй.");
         return NextResponse.json({ status: 'ok' });
       }
 
@@ -216,7 +229,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 'ok' });
   }
 }
-
 async function sendTelegramMessage(chatId: number | null, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
