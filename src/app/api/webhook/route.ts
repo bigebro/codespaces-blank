@@ -131,7 +131,7 @@ export async function POST(request: Request) {
       const reqUrl = new URL(request.url);
       const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
       
-      const response = await fetch(`${baseUrl}/api/analytics`);
+     const response = await fetch(`${baseUrl}/api/analytics`, { cache: 'no-store' });
       const analyticsData = await response.json();
 
       const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
