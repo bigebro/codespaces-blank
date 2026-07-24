@@ -17,13 +17,20 @@ const aliasMap: Record<string, string> = {
 };
 
 function cleanString(str: string) {
-return String(str || "").replace(/[\u00a0\s]+/g, " ").replace(/\./g, "").trim();
+  return String(str || "").replace(/[\u00a0\s]+/g, " ").replace(/\./g, "").trim();
 }
 
 function getSimilarity(s1: string, s2: string): number {
   let longer = s1.toLowerCase().trim();
   let shorter = s2.toLowerCase().trim();
-  if (s1.length < s2.length) { longer = s2; shorter = s1; }
+  
+  // FIX: Safe swap of lowercase and trimmed string variables to prevent casing bugs
+  if (longer.length < shorter.length) {
+    let temp = longer;
+    longer = shorter;
+    shorter = temp;
+  }
+  
   let longerLength = longer.length;
   if (longerLength === 0) return 1.0;
   
@@ -48,29 +55,20 @@ function getSimilarity(s1: string, s2: string): number {
 
 export async function GET(request: Request) {
   try {
-    // Lock to June 2026 for active testing so your uploaded sales/waste logs appear
-    // const now = new Date();
-    // const year = now.getFullYear();
-    // const month = now.getMonth();
-    // const defaultStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
-    // const defaultEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999)).toISOString();
     const { searchParams } = new URL(request.url);
-    // const startDate = searchParams.get('startDate') ||  defaultStart;
-    // const endDate = searchParams.get('endDate') || defaultEnd;
+    // Locked default dates to June 2026 for development testing
     const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
     const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
-    // 2. Fetch master structural data
+
     const { data: rawIngredients } = await supabase.from('ingredients').select('*');
     const { data: rawRecipes } = await supabase.from('recipes').select('*');
 
-    // 3. Filter transaction logs strictly BETWEEN your selected dates!
     const { data: rawInventoryLogs } = await supabase
       .from('inventory_logs')
       .select('*')
       .gte('date', startDate)
       .lte('date', endDate);
 
-    // 4. Filter sales logs strictly BETWEEN your selected dates!
     const { data: rawSales } = await supabase
       .from('sales_logs')
       .select('*')
@@ -102,19 +100,20 @@ export async function GET(request: Request) {
     const master: Record<string, any> = {};
     const menuPerformance: any[] = []; 
 
-rawIngredients.forEach((ing: any) => {
-  const nameKey = cleanString(ing.name);
-  master[nameKey] = {
-    name: nameKey,
-    start: 0,
-    purchased: 0,
-    // FALLBACK: Default the ending stock to the live Postgres current_stock
-    end: parseFloat(ing.current_stock) || 0, 
-    theoretical: 0,
-    unit_price: parseFloat(ing.unit_price) || 0,
-    unit: ing.unit
-  };
-});
+    rawIngredients.forEach((ing: any) => {
+      const nameKey = cleanString(ing.name);
+      master[nameKey] = {
+        id: ing.id,
+        name: nameKey,
+        start: 0,
+        purchased: 0,
+        // FIX: end falls back directly to live database stock instead of static 0
+        end: parseFloat(ing.current_stock) || 0, 
+        theoretical: 0,
+        unit_price: parseFloat(ing.unit_price) || 0,
+        unit: ing.unit
+      };
+    });
 
     rawInventoryLogs.forEach((log: any) => {
       const cost = parseFloat(log.total_cost) || 0;
@@ -229,7 +228,6 @@ rawIngredients.forEach((ing: any) => {
       const nameKey = cleanString(ing.name);
       const qty = Math.abs(parseFloat(log.quantity)) || 0;
 
-      // FIXED: Тооллого (count) болон Татан авалтыг (purchase) хаягдлын бодолтоос хасна!
       if (log.type === 'count' || log.type === 'purchase') return;
 
       if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
@@ -253,10 +251,9 @@ rawIngredients.forEach((ing: any) => {
     const otherList: string[] = [];
 
     for (const key in master) {
-     const m = master[key];
+      const m = master[key];
       
-      // Calculate Weighted Average Cost (WAC) dynamically based on purchase logs
-      let weightedPrice = m.unit_price; // Fallback to standard price
+      let weightedPrice = m.unit_price; 
       const ingredientPurchases = rawInventoryLogs.filter((log: any) => log.ingredient_id === m.id && log.type === 'purchase');
       let totalPurchaseCost = 0;
       
@@ -266,12 +263,10 @@ rawIngredients.forEach((ing: any) => {
 
       const totalAvailableQty = m.start + m.purchased;
       if (totalAvailableQty > 0 && totalPurchaseCost > 0) {
-        // WAC = (Starting Value + Purchase Value) / Total Quantity
         weightedPrice = ((m.start * m.unit_price) + totalPurchaseCost) / totalAvailableQty;
       }
 
       const actual = (m.start + m.purchased) - m.end;
-      // Valued at the Weighted Average Cost of the month instead of a static latest price!
       const actualMoney = Math.round(actual * weightedPrice) || 0;
       const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
      
@@ -321,8 +316,11 @@ rawIngredients.forEach((ing: any) => {
       });
     }
 
-    const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
-    const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
+    // FIX: Spoilage is NOT subtracted from Adjusted COGS so direct product waste adds to your food cost total!
+    const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal) || 0;
+    
+    // FIX: Only Testing and Staff Meals shift over to OPEX
+    const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal) || 0;
     const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
 
     return NextResponse.json({

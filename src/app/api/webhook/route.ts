@@ -17,7 +17,7 @@ const AI_SYSTEM_PROMPT = `
 
   ТОХИОЛДОЛ Б (Хэрэглэгч асуулт асуух үед - Чатлах / Зөвлөх):
   - ТАЙЛАНГИЙН ЗАГВАРЫГ ДАХИН БИТГИЙ БИЧ, ХООСОН ЗАГВАР БҮҮ ҮЗҮҮЛ.
-  - [ЧАТНЫ САНАХ ОЙН ДҮРЭМ]: Өмнөх чатны түүхэнд "өгөгдөл дутуу байна" гэж хэлсэн байсан ч түүгээр ХАТУУ ҮГҮЙСГЭЖ, зөвхөн одоо ирсэн хамгийн сүүлийн CONTEXT_DATA-г уншиж шинээр бодож хариул.
+  - [ЧАТНЫ САНАХ ОЙН ДҮРЭМ]: Өмнөх чатны түүхэнд "өгөгдөл дутуу байна" гэж хэлсэн байсан ч түүгээр ХАТУУ ҮГҮЙСГЭЖ, зөвхөн одоо исэн хамгийн сүүлийн CONTEXT_DATA-г уншиж шинээр бодож хариул.
   - Ирсэн өгөгдөл дэх all_recipes (бүх 73 ундаа хоолны бүтэн жор), menu_performance (бодит борлуулалт, ашиг), болон all_inventory_data (нийт 72+ барааны бодит зөрүү, үнэ, нэгж) датаг бүрэн ашиглаж асуултад шууд хариул [2, 3].
   - Ирсэн өгөгдөл дэх "underpoured_only" (зөвхөн дутуу хийгдсэн/илүүдэлтэй бараанууд) болон "wasted_only" (зөвхөн хаягдал/алдагдалтай бараанууд) массивыг ашиглаж асуултад шууд хариулна. "all_inventory_data" массивыг ашиглаж өөрөө шүүх гэж оролдож болохгүй.
   - Хэрэглэгч үйл ажиллагааны зардлын (OPEX) задаргааг асуувал, opex_details доторх бүх гүйлгээнүүдийг нэг бүрчлэн нэрлэж, маш тодорхой хариулна уу [1, 3].
@@ -65,42 +65,47 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
-    // A. Handle Telegram "Undo" callbacks
+    // A. Handle Telegram "Undo" callbacks (With Live Telegram Debugger) [3]
     if (callback_query) {
-      // SAFE CHAT ID RESOLUTION: Fallback to sender ID if message is missing [1, 3]
       const chatId = callback_query.message?.chat?.id || callback_query.from?.id;
       currentChatId = chatId;
       
+      await sendTelegramMessage(chatId, "🔍 [DEBUG 1] callback_query хүлээн авлаа.");
+
       const callbackData = callback_query.data;
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
 
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
+        await sendTelegramMessage(chatId, `🔍 [DEBUG 2] Цуцлах лог ID: ${logId}`);
         
-        // 1. SAFETY CHECK: Check if the log ID is invalid
         if (!logId || logId === "undefined" || logId === "null") {
-          throw new Error("Цуцлах гүйлгээний ID олдсонгүй эсвэл хүчингүй байна (undefined). Supabase-д бичих үед SELECT эрх хаалттай байж магадгүй.");
+          await sendTelegramMessage(chatId, "❌ [DEBUG 3] Алдаа: Цуцлах гүйлгээний ID олдсонгүй (undefined). Supabase-д бичих үед SELECT эрх хаалттай байж магадгүй.");
+          return NextResponse.json({ status: 'ok' });
         }
 
-        // 2. Delete from Supabase and capture errors
+        // Delete from Supabase and capture errors
         const { error: deleteError } = await supabase
           .from('inventory_logs')
           .delete()
           .eq('id', logId);
 
         if (deleteError) {
-          throw new Error(`Supabase Database Error: ${deleteError.message} (Code: ${deleteError.code})`);
+          await sendTelegramMessage(chatId, `❌ [DEBUG 4] Supabase Устгах алдаа: ${deleteError.message}`);
+          return NextResponse.json({ status: 'ok' });
         }
         
-        // 3. Stop the Telegram loading spinner [1]
+        await sendTelegramMessage(chatId, "✅ [DEBUG 5] Supabase-ээс амжилттай устгагдлаа. Текст шинэчилж байна...");
+        
+        // Stop the loading spinner [1]
         await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
         
-        // 4. Edit original message to remove buttons and show confirmation
+        // Edit original message safely to remove buttons
         const deletedText = "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).";
         await editTelegramMessage(currentChatId!, messageId, deletedText);
 
-        // 5. Send a NEW message that safely forces their keyboard to open [1, 3]
+        // Send a NEW message forcing their keyboard open [1, 3]
         const promptText = "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:";
         await sendTelegramMessageWithForceReply(currentChatId!, promptText);
       }
@@ -112,7 +117,7 @@ export async function POST(request: Request) {
     currentChatId = message.chat.id;
     const incomingText = message.text.trim();
 
-    // 1. Handle "/start" command (Welcome Message)
+    // 1. Handle "/start" command
     if (incomingText === "/start") {
       const welcomeText = "Сайн байна уу? 'SF Coffee' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЭнэхүү ботоор дамжуулан өдөр тутмын үйл ажиллагааг удирдах, асуулт асууж зөвлөгөө авах боломжтой.\n\nЗаавар:\n• Үлдэгдэл зарлага бүртгэх: 'Хаягдал: Сүү 500'\n• Ажилтны хоол бүртгэх: 'Оройн хоолонд 2 өндөг орлоо'\n• Тайлан харах: /report\n• Асуулт асуух: Шууд чатлах хэлбэрээр асууна уу.";
       await sendTelegramMessage(currentChatId, welcomeText);
@@ -143,13 +148,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-    // 3. Process with AI Router (Classifies whether message is a transaction or chat query)
+    // 3. Process with AI Router
     const { data: ingredients } = await supabase.from('ingredients').select('name');
     const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
 
     const aiAnalysis = await parseOperationalText(incomingText, allowedNames);
 
-    // If classified as a log transaction (waste, purchase, staff meal, testing)
     if (aiAnalysis && aiAnalysis.is_transaction === true) {
       if (aiAnalysis.success === false) {
         const fallbackErrorMsg = "❌ Уучлаарай, бичсэн өгөгдлийг систем ойлгосонгүй.\n\nЗөвхөн Монгол хэлээр бүртгэнэ үү. Жишээ:\n• 'Хаягдал: Сүү 500'\n• 'Татан авалт: Сүү 10, Нийт 58000'\n• 'Хоолонд 2 өндөг орлоо'";
@@ -157,7 +161,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // Fetch the matching ingredient ID from the DB
+      // Fetch ingredient ID from the DB
       const { data: ingredient } = await supabase
         .from('ingredients')
         .select('id, unit, unit_price')
@@ -177,7 +181,7 @@ export async function POST(request: Request) {
           quantity: aiAnalysis.quantity,
           type: aiAnalysis.type,
           notes: aiAnalysis.notes,
-          date: '2026-06-15T12:00:00.000Z' // Forced dev testing date
+          date: '2026-06-15T12:00:00.000Z' // Forced testing date
         }])
         .select()
         .single();
@@ -187,20 +191,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 3. Check if Supabase returned a valid row ID
       if (!log || !log.id) {
         await sendTelegramMessage(currentChatId, "⚠️ Анхаар: Өгөгдлийг хадгалсан боловч буцааж уншиж чадсангүй (Supabase RLS-ийн SELECT эрхийг шалгана уу). Буцаах (Undo) товч ажиллахгүй.");
         return NextResponse.json({ status: 'ok' });
       }
 
-      // Send operational confirmation with Undo action
+      // Send confirmation with Undo action
       const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || 'Тэмдэглэл байхгүй'}`;
       
       await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
       return NextResponse.json({ status: 'ok' });
     }
 
-    // 4. Default Fallback Handler for Conversational Queries (Case B - Chatting / Advisory)
+    // 4. Default Fallback Handler (Case B)
     const reqUrl = new URL(request.url);
     const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
     
@@ -229,6 +232,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 'ok' });
   }
 }
+
 async function sendTelegramMessage(chatId: number | null, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
@@ -257,7 +261,6 @@ async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: 
   });
 }
 
-// 1. Safe message editor (Only clears the inline button, does not use force_reply)
 async function editTelegramMessage(chatId: number, messageId: number, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`;
@@ -268,12 +271,11 @@ async function editTelegramMessage(chatId: number, messageId: number, text: stri
       chat_id: chatId, 
       message_id: messageId, 
       text: text,
-      reply_markup: { inline_keyboard: [] } // Clears the Undo button safely
+      reply_markup: { inline_keyboard: [] }
     })
   });
 }
 
-// 2. New message sender that safely pops open the barista's keyboard [1, 3]
 async function sendTelegramMessageWithForceReply(chatId: number, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
