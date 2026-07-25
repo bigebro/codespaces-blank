@@ -87,6 +87,7 @@ export async function GET(request: Request) {
     let totalLoggedTesting = 0;
     let totalLoggedStaffMeal = 0;
     let totalLoggedOther = 0;
+    let totalUnexplainedWaste = 0;
 
     const opexDetails = [
       { category: "Тогтмол зардал", item: "Rent & Utilities (Түрээс, ашиглалт)", cost: 1200000 },
@@ -285,7 +286,7 @@ export async function GET(request: Request) {
       const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
       const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
       const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
-
+      totalUnexplainedWaste += unexplainedImpact;
       totalLoggedSpoilage += Math.round(itemLogs.spoilage * m.unit_price) || 0;
       totalLoggedTesting += Math.round(itemLogs.testing * m.unit_price) || 0;
       totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
@@ -345,6 +346,7 @@ const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + to
       wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact),
       opex_details: opexDetails,
       total_waste_loss: totalWasteLoss || 0,
+      total_unexplained_waste: totalUnexplainedWaste || 0,
       total_surplus_savings: totalSurplusSavings || 0,
       total_logged_spoilage: totalLoggedSpoilage || 0,
       total_logged_testing: totalLoggedTesting || 0,

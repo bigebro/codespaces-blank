@@ -41,11 +41,11 @@ const AI_SYSTEM_PROMPT = `
   
   ⚠️ ХАЯГДАЛ БА ЧАНАР (Зөвхөн тайлагдсан хасалт хийгдсэн бодит зөрүүг харуулна):
   • Бодит нийт алдагдал (Waste): [total_waste_loss]₮
-    - Баристагийн үл мэдэгдэх хаягдал (Шалтгаангүй алдагдал): [unexplained_waste]₮
-    - Муудаж асгарсан (Logged Spoilage): [logged_spoilage]₮
-    - Туршилт, Сэмпл (Logged Testing): [logged_testing]₮
-    - Ажилтны хэрэглээ (Staff Meals): [logged_staff_meal]₮
-    - Үйл ажиллагааны зохицуулалт (Other): [logged_other]₮
+    - Баристагийн үл мэдэгдэх хаягдал (Шалтгаангүй алдагдал): [total_unexplained_waste]₮
+    - Муудаж асгарсан (Logged Spoilage): [total_logged_spoilage]₮
+    - Туршилт, Сэмпл (Logged Testing): [total_logged_testing]₮
+    - Ажилтны хэрэглээ (Staff Meals): [total_logged_staff_meal]₮
+    - Үйл ажиллагааны зохицуулалт (Other): [total_logged_other]₮
   • Чанарын эрсдэл (Under-poured): [total_surplus_savings]₮
     (Топ 3: [top_underpoured_list])
   • Efficiency: [efficiency]
