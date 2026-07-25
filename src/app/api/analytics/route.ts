@@ -316,12 +316,12 @@ export async function GET(request: Request) {
         is_under: rawGap < -0.1
       });
     }
+// Spoilage stays inside COGS (adding to your food cost).
+// Testing, Staff Meals, and Other are subtracted and moved to OPEX [3].
+const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
 
-    // Spoilage (Waste) stays inside COGS. Testing, Staff Meals, and Other are subtracted [3]
-    const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
-    
-    // Testing, Staff Meals, and Other shift to OPEX [3]
-    const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
+// OPEX increases by the shifted logs [3].
+const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
     const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
 
     return NextResponse.json({
