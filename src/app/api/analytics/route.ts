@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
-export const dynamic = 'force-dynamic';
+
 const aliasMap: Record<string, string> = {
   "матча латте": "matcha latte",
   "салями сэндвич": "salami sandwich",
@@ -24,7 +24,6 @@ function getSimilarity(s1: string, s2: string): number {
   let longer = s1.toLowerCase().trim();
   let shorter = s2.toLowerCase().trim();
   
-  // FIX: Safe swap of lowercase and trimmed string variables to prevent casing bugs
   if (longer.length < shorter.length) {
     let temp = longer;
     longer = shorter;
@@ -56,7 +55,6 @@ function getSimilarity(s1: string, s2: string): number {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    // Locked default dates to June 2026 for development testing
     const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
     const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
 
@@ -107,8 +105,7 @@ export async function GET(request: Request) {
         name: nameKey,
         start: 0,
         purchased: 0,
-        // FIX: end falls back directly to live database stock instead of static 0
-        end: parseFloat(ing.current_stock) || 0, 
+        end: parseFloat(ing.current_stock) || 0, // Fallback to live stock [1]
         theoretical: 0,
         unit_price: parseFloat(ing.unit_price) || 0,
         unit: ing.unit
@@ -267,7 +264,11 @@ export async function GET(request: Request) {
       }
 
       const actual = (m.start + m.purchased) - m.end;
-      const actualMoney = Math.round(actual * weightedPrice) || 0;
+      
+      // SAFE COGS SAFEGUARD: Prevent unbacked database stock levels from generating negative consumption [1]
+      const safeActual = (actual < 0 && m.start === 0 && m.purchased === 0) ? 0 : actual;
+      
+      const actualMoney = Math.round(safeActual * weightedPrice) || 0;
       const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
      
       rawActualCogs += actualMoney;
@@ -316,11 +317,11 @@ export async function GET(request: Request) {
       });
     }
 
-    // FIX: Spoilage is NOT subtracted from Adjusted COGS so direct product waste adds to your food cost total!
-    const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal) || 0;
+    // Spoilage (Waste) stays inside COGS. Testing, Staff Meals, and Other are subtracted [3]
+    const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
     
-    // FIX: Only Testing and Staff Meals shift over to OPEX
-    const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal) || 0;
+    // Testing, Staff Meals, and Other shift to OPEX [3]
+    const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
     const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
 
     return NextResponse.json({
