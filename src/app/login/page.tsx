@@ -156,7 +156,7 @@ if (!mounted) {
 
     
   </div>
-{/* Dynamic Business Name Input for Signup [3] */}
+{/* Dynamic Business Name Input for Signup  */}
 {isSignUp && (
   <div>
     <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Бизнесийн Нэр (Салбар)</label>
