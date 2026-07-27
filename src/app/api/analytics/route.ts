@@ -58,25 +58,24 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
     const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
 
-    const { data: rawIngredients } = await supabase.from('ingredients').select('*');
-    const { data: rawRecipes } = await supabase.from('recipes').select('*');
+   // 1. Fetch using 'let' so we can overwrite [3]
+    let { data: rawIngredients } = await supabase.from('ingredients').select('*');
+    let { data: rawRecipes } = await supabase.from('recipes').select('*');
+    let { data: rawInventoryLogs } = await supabase.from('inventory_logs').select('*').gte('date', startDate).lte('date', endDate);
+    let { data: rawSales } = await supabase.from('sales_logs').select('*').gte('date', startDate).lte('date', endDate);
 
-    const { data: rawInventoryLogs } = await supabase
-      .from('inventory_logs')
-      .select('*')
-      .gte('date', startDate)
-      .lte('date', endDate);
-
-    const { data: rawSales } = await supabase
-      .from('sales_logs')
-      .select('*')
-      .gte('date', startDate)
-      .lte('date', endDate);
-
+    // 2. Safety guard check
     if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
       return NextResponse.json({ error: "Failed to fetch necessary database tables" }, { status: 400 });
     }
 
+    // 3. Secure multi-tenant filter (Overwrites the arrays directly so your existing loops work) [2, 3]
+    const clientId = searchParams.get('clientId') || 'SF Coffee';
+    rawIngredients = rawIngredients.filter((ing: any) => ing.client_id === clientId);
+    rawRecipes = rawRecipes.filter((rec: any) => rec.client_id === clientId);
+    rawInventoryLogs = rawInventoryLogs.filter((log: any) => log.client_id === clientId);
+    rawSales = rawSales.filter((sale: any) => sale.client_id === clientId);
+    
     let totalRevenue = 0;
     let totalOpex = 2200000; 
     let rawActualCogs = 0;

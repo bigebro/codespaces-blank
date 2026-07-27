@@ -25,6 +25,13 @@ import {
   FileSpreadsheet,
   UploadCloud
 } from 'lucide-react';
+// 1. Add these imports at the top of your page.tsx
+import { useRouter } from 'next/navigation';
+
+
+
+
+
 
 const SUPABASE_URL = "https://fcpwvualdbuakrwmqgmg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcHd2dWFsZGJ1YWtyd21xZ21nIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDE4MDQzOCwiZXhwIjoyMDk5NzU2NDM4fQ.iDX_3sL-Sk1Z5oK2zSvW32saZBoY5f5f4XBu_dTQA-U";
@@ -32,6 +39,10 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function Home() {
+    //  add session checking state
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [userClient, setUserClient] = useState<string>('SF Coffee');
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import'>('dashboard');
   const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
@@ -75,6 +86,7 @@ function Home() {
   const [kitchenPasteText, setKitchenPasteText] = useState(''); // NEW
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(''); // NEW: Holds the total purchase cost
+
   // June 2026 Demo Data
   const demoStats: Record<string, any> = {
     "SF Coffee": {
@@ -129,7 +141,44 @@ function Home() {
     ]
   };
 
-  const fetchDatabaseData = async () => {
+  const handleSignOut = async () => {
+  setLoading(true);
+  try {
+    await supabase.auth.signOut();
+    router.push('/login');
+  } catch (err) {
+    console.error("Sign out failed:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const checkUserSession = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    // Redirect unauthenticated browsers to your new login page [2]
+    router.push('/login');
+  } else {
+    setUser(session.user);
+    // Read the client_id assigned to this user from their profiles/metadata [2, 3]
+    const assignedClient = session.user.user_metadata?.client_id || 'SF Coffee';
+    setUserClient(assignedClient);
+    
+    // Fetch only this branch's data securely
+    fetchDatabaseData(assignedClient);
+  }
+};
+
+useEffect(() => {
+  checkUserSession();
+}, []);
+
+
+
+
+  
+const fetchDatabaseData = async (clientId: string = 'SF Coffee') => {
     try {
       const { data: ingData } = await supabase.from('ingredients').select('*').order('name', { ascending: true });
       const { data: recData } = await supabase.from('recipes').select('*');
@@ -152,8 +201,8 @@ function Home() {
         setUniqueProducts(products as string[]);
       }
 
-      // Fetch live calculated analytics from API
-      const res = await fetch('/api/analytics');
+      // Fetch live calculated analytics and pass the user's specific branch name securely [2]
+      const res = await fetch(`/api/analytics?clientId=${encodeURIComponent(clientId)}`, { cache: 'no-store' });
       if (res.ok) {
         const analData = await res.json();
         setLiveAnalytics(analData);
@@ -652,13 +701,16 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
+       
       <div className="max-w-7xl mx-auto p-4 md:p-8">
-        
+         
         {/* Header Control Panel */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-slate-900">
+           
           <div>
             <div className="flex items-center gap-3">
               <Building className="h-7 w-7 text-emerald-400" />
+              
               <select 
                 value={activeClient} 
                 onChange={(e) => setActiveClient(e.target.value as any)}
@@ -668,10 +720,11 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                 <option value="Cafe B" className="bg-slate-950 text-white font-bold text-base">Cafe B (Ulaanbaatar)</option>
               </select>
             </div>
+            {/* Displays logged-in user profile details to resolve TS warnings */}
+       
             <p className="text-slate-400 mt-1 text-xs">SaaS Multi-Tenant Database: Active System</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+     <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
               <button 
                 onClick={() => setUserRole('owner')}
@@ -694,6 +747,22 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               </button>
             </div>
           </div>
+          {user && (
+  <div className="flex items-center gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-900">
+    <div className="text-right">
+      <p className="text-emerald-400 font-bold text-xs uppercase tracking-wider">Нэвтэрсэн хэрэглэгч</p>
+      <p className="text-slate-400 text-xs mt-0.5">{user.email}</p>
+    </div>
+    <button 
+      onClick={handleSignOut}
+      disabled={loading}
+      className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-3 py-1.5 rounded-lg text-xs font-bold transition"
+    >
+      {loading ? "Түр хүлээнэ үү..." : "Гарах (Log Out)"}
+    </button>
+  </div>
+)}
+     
         </div>
 
         {/* Navigation Tabs */}
@@ -1339,6 +1408,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
     </div>
   );
 }
+
 
 // FIXED: Exporting the component dynamically with SSR disabled AND suppressHydrationWarning on the loader container [3]
 const HomeExport = dynamic(() => Promise.resolve(Home), {

@@ -117,6 +117,66 @@ export async function POST(request: Request) {
     currentChatId = message.chat.id;
     const incomingText = message.text.trim();
 
+     // 1. TENANT LOOKUP: Check which cafe branch this Telegram user belongs to [3]
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('client_id')
+      .eq('telegram_chat_id', currentChatId)
+      .single();
+
+    // 2. If the Telegram user is not linked to any cafe tenant
+    if (!userProfile && incomingText !== "/start" && !incomingText.startsWith("/link")) {
+      const linkPrompt = `❌ Төхөөрөмж холбогдоогүй байна.\n\nТа системд холбогдохын тулд дараах тушаалаар бүртгүүлнэ үү:\n\n/link [Таны бүртгэлтэй имэйл] [нууц үг]\n\nЖишээ: /link bigeeonline@gmail.com 123456`;
+      await sendTelegramMessage(currentChatId, linkPrompt);
+      return NextResponse.json({ status: 'ok' });
+    }
+
+    const tenantClientId = userProfile?.client_id || 'SF Coffee'; // Fallback to default
+
+    // 3. Handle "/link" command for easy onboarding
+    if (incomingText.startsWith("/link")) {
+      const parts = incomingText.split(" ");
+      if (parts.length < 3) {
+        await sendTelegramMessage(currentChatId, "❌ Алдаа: Формат буруу байна. Жишээ: /link email@example.com password123");
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      const emailInput = parts[1].trim();
+      const passwordInput = parts[2].trim();
+
+      await sendTelegramMessage(currentChatId, "⏳ Бүртгэлийг баталгаажуулж байна...");
+
+      // Authenticate their email/password with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: emailInput,
+        password: passwordInput
+      });
+
+      if (authError || !authData.user) {
+        await sendTelegramMessage(currentChatId, "❌ Алдаа: Имэйл эсвэл нууц үг буруу байна.");
+        return NextResponse.json({ status: 'ok' });
+      }
+
+        await supabase
+        .from('profiles')
+        .update({ telegram_chat_id: null })
+        .eq('telegram_chat_id', currentChatId);
+
+      // Map their Telegram Chat ID to their Profile [3]
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ telegram_chat_id: currentChatId })
+        .eq('id', authData.user.id);
+
+      if (updateError) {
+        await sendTelegramMessage(currentChatId, "❌ Холбоход алдаа гарлаа. Профайлыг шинэчилж чадсангүй.");
+      } else {
+        await sendTelegramMessage(currentChatId, `✅ Амжилттай холбогдлоо!\n\nТаны бүртгэл: ${emailInput}\nСалбар: ${authData.user.user_metadata?.client_id || 'SF Coffee'}`);
+      }
+      return NextResponse.json({ status: 'ok' });
+    }
+    
+
     // 1. Handle "/start" command
     if (incomingText === "/start") {
       const welcomeText = "Сайн байна уу? 'SF Coffee' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЭнэхүү ботоор дамжуулан өдөр тутмын үйл ажиллагааг удирдах, асуулт асууж зөвлөгөө авах боломжтой.\n\nЗаавар:\n• Үлдэгдэл зарлага бүртгэх: 'Хаягдал: Сүү 500'\n• Ажилтны хоол бүртгэх: 'Оройн хоолонд 2 өндөг орлоо'\n• Тайлан харах: /report\n• Асуулт асуух: Шууд чатлах хэлбэрээр асууна уу.";
@@ -202,6 +262,8 @@ export async function POST(request: Request) {
       await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
       return NextResponse.json({ status: 'ok' });
     }
+
+    
 
     // 4. Default Fallback Handler (Case B)
     const reqUrl = new URL(request.url);
