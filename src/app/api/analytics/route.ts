@@ -76,6 +76,15 @@ export async function GET(request: Request) {
     rawInventoryLogs = rawInventoryLogs.filter((log: any) => log.client_id === clientId);
     rawSales = rawSales.filter((sale: any) => sale.client_id === clientId);
     
+      const salesByDay: Record<string, any[]> = {};
+    rawSales.forEach((s: any) => {
+      if (!s.date) return;
+      const day = new Date(s.date).toISOString().split('T')[0];
+      if (!salesByDay[day]) salesByDay[day] = [];
+      salesByDay[day].push(s);
+    });
+
+
     let totalRevenue = 0;
     let totalOpex = 2200000; 
     let rawActualCogs = 0;
@@ -106,9 +115,14 @@ export async function GET(request: Request) {
         start: 0,
         purchased: 0,
         end: parseFloat(ing.current_stock) || 0, // Fallback to live stock [1]
+           // ADD THIS: Holds your active, live stock today on July 29th [1]
+        live_stock: parseFloat(ing.current_stock) || 0, 
         theoretical: 0,
         unit_price: parseFloat(ing.unit_price) || 0,
-        unit: ing.unit
+        unit: ing.unit,
+        par_level: parseFloat(ing.par_level) || 0,
+        lead_time_days: parseInt(ing.lead_time_days) || 1,
+        days_of_supply: parseInt(ing.days_of_supply) || 3
       };
     });
 
@@ -249,7 +263,36 @@ export async function GET(request: Request) {
 
     for (const key in master) {
       const m = master[key];
+// 1. Calculate Daily Peak Usage for this specific ingredient [3]
+      let maxDailyUsage = 0;
+      for (const day in salesByDay) {
+        let usageForDay = 0;
+        salesByDay[day].forEach((sale: any) => {
+          const pName = cleanString(sale.product_name);
+          const qtySold = parseInt(sale.quantity_sold) || 0;
+          // Look up how much of this ingredient the recipe requires [1]
+          const recipeAmount = allRecipesMap[pName.toLowerCase()]?.[m.name] || 0;
+          usageForDay += (qtySold * recipeAmount);
+        });
+        if (usageForDay > maxDailyUsage) {
+          maxDailyUsage = usageForDay;
+        }
+      }
+
+      // 2. Your Exact Max-Min Safety Stock Formula [3]
+      const avgDailyUsage = m.theoretical / 30; // 30-day average usage
+      const avgLeadTime = m.lead_time_days || 1;
+      const maxLeadTime = avgLeadTime + 2; // Assuming a maximum 2-day supplier delay [3]
+
+      const safetyStock = (maxDailyUsage * maxLeadTime) - (avgDailyUsage * avgLeadTime);
       
+      // 3. Fallback: If no manual par level is set in the DB, use the dynamic Max-Min Par Level [3]
+      const dynamicParLevel = (avgDailyUsage * avgLeadTime) + Math.max(0, safetyStock);
+      const activeParLevel = m.par_level > 0 ? m.par_level : dynamicParLevel;
+
+      // 4. Calculate your dynamic suggested order using the active Par Level [3]
+      const suggestedOrder = (avgDailyUsage * m.days_of_supply) + activeParLevel - m.live_stock;
+      const finalSuggestion = Math.max(0, Math.round(suggestedOrder * 100) / 100);
       let weightedPrice = m.unit_price; 
       const ingredientPurchases = rawInventoryLogs.filter((log: any) => log.ingredient_id === m.id && log.type === 'purchase');
       let totalPurchaseCost = 0;
@@ -300,6 +343,11 @@ export async function GET(request: Request) {
 
       fullInventory.push({
         name: m.name,
+        par_level: Math.round(activeParLevel * 100) / 100, 
+        lead_time_days: m.lead_time_days,
+        days_of_supply: m.days_of_supply,
+        suggested_order: finalSuggestion, // Passes the calculation to the UI
+        is_low: m.end < activeParLevel,
         theoretical: Math.round(m.theoretical * 100) / 100 || 0,
         raw_physical_gap: Math.abs(Math.round(rawGap * 100) / 100) || 0,
         raw_physical_impact: Math.abs(impact) || 0,

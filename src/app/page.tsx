@@ -86,7 +86,20 @@ function Home() {
   const [kitchenPasteText, setKitchenPasteText] = useState(''); // NEW
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(''); // NEW: Holds the total purchase cost
+  const handleIngredientUpdate = async (id: string, column: string, value: string) => {
+  const parsedVal = parseFloat(value) || 0;
+    
+    // Update local React state instantly so the UI feels snappy [2]
+    setIngredients(prev => prev.map(ing => 
+      ing.id === id ? { ...ing, [column]: parsedVal } : ing
+    ));
 
+    // Update Supabase securely in the background [3]
+    await supabase
+      .from('ingredients')
+      .update({ [column]: parsedVal })
+      .eq('id', id);
+  };
   // June 2026 Demo Data
   const demoStats: Record<string, any> = {
     "SF Coffee": {
@@ -1163,6 +1176,9 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                       <th className="py-3 px-4">Барааны Нэр</th>
                       <th className="py-3 px-4">Нэгж</th>
                       <th className="py-3 px-4 text-right">Стандарт Өртөг</th>
+                        <th className="py-3 px-4 text-right">Хэвийн Нөөц (Par)</th>
+                        <th className="py-3 px-4 text-right">Нийлүүлэх (Lead Days)</th>
+                        <th className="py-3 px-4 text-right">Захиалга (Suggestion)</th>
                       <th className="py-3 px-4 text-right">Бодит тоолсон үлдэгдэл</th>
                     </tr>
                   </thead>
@@ -1171,9 +1187,34 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                       <tr key={ing.id} className="hover:bg-slate-900/20 transition-all duration-150">
                         <td className="py-3 px-4 font-bold text-slate-200">{ing.name}</td>
                         <td className="py-3 px-4 text-slate-400">{ing.unit}</td>
+                        
                         <td className="py-3 px-4 text-right text-slate-300">
                           {parseFloat(ing.unit_price).toLocaleString()}
-                        </td>
+                        </td>{/* 1. EDITABLE PAR LEVEL INPUT [2] */}
+                      <td className="py-2 px-4 text-right">
+                        <input 
+                          type="number"
+                          step="any"
+                          value={ing.par_level !== undefined ? ing.par_level : 0}
+                          onChange={(e) => handleIngredientUpdate(ing.id, 'par_level', e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-right text-white focus:outline-none focus:border-emerald-500 font-bold text-xs w-24"
+                        />
+                      </td>
+
+                      {/* 2. EDITABLE LEAD TIME INPUT [2] */}
+                      <td className="py-2 px-4 text-right">
+                        <input 
+                          type="number"
+                          value={ing.lead_time_days !== undefined ? ing.lead_time_days : 1}
+                          onChange={(e) => handleIngredientUpdate(ing.id, 'lead_time_days', e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-right text-white focus:outline-none focus:border-emerald-500 font-bold text-xs w-16"
+                        />
+                      </td>
+
+                      {/* 3. CALCULATED ORDER SUGGESTION (Pulls from your live API payload) [2, 3] */}
+                      <td className="py-3.5 px-4 text-right font-black text-blue-400">
+                        {liveAnalytics?.all_inventory_data?.find((i: any) => i.name === ing.name)?.suggested_order || 0} {ing.unit}
+                      </td>
                         <td className="py-2 px-4 text-right">
                           <input 
                             type="number" 
@@ -1379,6 +1420,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                       <th className="py-3 px-4">Барааны Нэр</th>
                       <th className="py-3 px-4">Нэгж</th>
                       <th className="py-3 px-4 text-right">Стандарт Өртөг</th>
+              
                       <th className="py-3 px-4 text-right">Бодит Үлдэгдэл</th>
                     </tr>
                   </thead>
@@ -1390,6 +1432,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                         <td className="py-3.5 px-4 text-right text-slate-300">
                           {parseFloat(ing.unit_price).toLocaleString()}₮
                         </td>
+                        
                         <td className={`py-3.5 px-4 text-right font-black ${
                           parseFloat(ing.current_stock) <= 50 ? 'text-rose-400 bg-rose-500/5' : 'text-slate-100'
                         }`}>
