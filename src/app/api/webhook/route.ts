@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
-import { parseOperationalText } from '../../../lib/gemini';
+import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
@@ -115,6 +115,86 @@ export async function POST(request: Request) {
     if (!message || !message.text) return NextResponse.json({ status: 'ok' });
 
     currentChatId = message.chat.id;
+
+   // ШИНЭ: ЗУРАГ ЯВУУЛСАН ЭСЭХИЙГ ШАЛГАХ (E-BARIMT СКАЙНЕР)
+    if (message.photo && message.photo.length > 0) {
+      await sendTelegramMessage(currentChatId, "📸 Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...");
+      
+      try {
+        // 1. Get the highest quality photo from Telegram
+        const photo = message.photo[message.photo.length - 1];
+        const fileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getFile?file_id=${photo.file_id}`);
+        const fileData = await fileRes.json();
+        const filePath = fileData.result.file_path;
+        
+        // 2. Download the image and convert to Base64 for Gemini
+        const imageRes = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${filePath}`);
+        const arrayBuffer = await imageRes.arrayBuffer();
+        const base64Image = Buffer.from(arrayBuffer).toString('base64');
+
+        // 3. Get tenant info
+        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+
+        const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
+        const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
+
+        // 4. Send to Gemini Vision
+        const aiAnalysis = await parseReceiptImage(base64Image, allowedNames);
+
+        if (!aiAnalysis || aiAnalysis.success === false) {
+          await sendTelegramMessage(currentChatId, aiAnalysis?.error_message || "❌ Зургийг таньж чадсангүй.");
+          return NextResponse.json({ status: 'ok' });
+        }
+
+        // 5. Insert all parsed items into the database
+        let successMessage = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
+        const logsToInsert: any[] = [];
+
+        for (const item of aiAnalysis.purchases) {
+          const ing = ingredients?.find((i: any) => i.name === item.item_name);
+          if (ing) {
+            logsToInsert.push({
+              client_id: tenantClientId,
+              ingredient_id: ing.id,
+              quantity: Math.abs(item.quantity),
+              type: 'purchase',
+              total_cost: item.total_cost || 0,
+              notes: item.notes || "E-Barimt Scan",
+              date: new Date().toISOString()
+            });
+            successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit} (${item.total_cost}₮)\n`;
+          } else {
+             // Non-food / Unmatched item (OPEX)
+             logsToInsert.push({
+              client_id: tenantClientId,
+              non_food_item: item.item_name,
+              quantity: Math.abs(item.quantity),
+              type: 'purchase',
+              total_cost: item.total_cost || 0,
+              notes: "E-Barimt Scan (OPEX)",
+              date: new Date().toISOString()
+            });
+            successMessage += `• ${item.item_name} (Бусад): ${item.quantity} ширхэг (${item.total_cost}₮)\n`;
+          }
+        }
+
+        if (logsToInsert.length > 0) {
+          await supabase.from('inventory_logs').insert(logsToInsert);
+        }
+
+        await sendTelegramMessage(currentChatId, successMessage);
+        return NextResponse.json({ status: 'ok' });
+
+      } catch (err) {
+        console.error("Photo Error:", err);
+        await sendTelegramMessage(currentChatId, "❌ Зураг унших үед системийн алдаа гарлаа.");
+        return NextResponse.json({ status: 'ok' });
+      }
+    }
+
+
+
     const incomingText = message.text.trim();
 
      // 1. TENANT LOOKUP: Check which cafe branch this Telegram user belongs to [3]

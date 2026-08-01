@@ -55,3 +55,47 @@ export async function parseOperationalText(text: string, ingredientsList: string
     };
   }
 }
+
+export async function parseReceiptImage(base64Image: string, ingredientsList: string[]) {
+  const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
+
+  const systemPrompt = `
+    You are an expert F&B data entry assistant. Read the provided receipt or invoice image.
+    Extract the purchased items, their quantities, and total costs.
+    Map the extracted items ONLY to the closest match in this allowed ingredients list: [${ingredientsList.join(', ')}].
+    If an item clearly does not match any food ingredient, you can keep its original name (it will be logged as non-food OPEX).
+    
+    Respond STRICTLY with a JSON object containing an array "purchases":
+    {
+      "success": true,
+      "error_message": null,
+      "purchases": [
+        {
+          "item_name": "Milk",
+          "quantity": 10,
+          "total_cost": 35000,
+          "notes": "E-barimt scan"
+        }
+      ]
+    }
+    If you cannot read the image at all, set "success": false and explain in "error_message" in Mongolian.
+  `;
+
+  try {
+    const response = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: systemPrompt },
+          { inlineData: { data: base64Image, mimeType: "image/jpeg" } }
+        ]
+      }]
+    });
+
+    const responseText = response.response.text();
+    return JSON.parse(responseText.replace(/```json|```/g, "").trim());
+  } catch (e) {
+    console.error("Failed to parse receipt image:", e);
+    return { success: false, error_message: "Зургийг уншиж чадсангүй. Арай тод дарж дахин илгээнэ үү." };
+  }
+}
