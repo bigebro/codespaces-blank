@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function parseOperationalText(text: string, ingredientsList: string[]) {
-  const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
+  const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const systemPrompt = `
     You are an expert F&B operations assistant and router. Your job is to classify and parse incoming messages written by baristas or cooks.

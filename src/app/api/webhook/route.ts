@@ -112,10 +112,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-    if (!message || !message.text) return NextResponse.json({ status: 'ok' });
+
+   if (!message || (!message.text && !message.photo)) return NextResponse.json({ status: 'ok' });
 
     currentChatId = message.chat.id;
 
+    
    // ШИНЭ: ЗУРАГ ЯВУУЛСАН ЭСЭХИЙГ ШАЛГАХ (E-BARIMT СКАЙНЕР)
     if (message.photo && message.photo.length > 0) {
       await sendTelegramMessage(currentChatId, "📸 Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...");
@@ -195,7 +197,7 @@ export async function POST(request: Request) {
 
 
 
-    const incomingText = message.text.trim();
+        const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
 
      // 1. TENANT LOOKUP: Check which cafe branch this Telegram user belongs to [3]
     const { data: userProfile } = await supabase
