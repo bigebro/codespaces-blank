@@ -163,7 +163,8 @@ export async function POST(request: Request) {
               type: 'purchase',
               total_cost: item.total_cost || 0,
               notes: item.notes || "E-Barimt Scan",
-              date: new Date().toISOString()
+              // date: new Date().toISOString()
+              date:'2026-06-15T12:00:00.000Z'
             });
             successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit} (${item.total_cost}₮)\n`;
           } else {
@@ -175,7 +176,8 @@ export async function POST(request: Request) {
               type: 'purchase',
               total_cost: item.total_cost || 0,
               notes: "E-Barimt Scan (OPEX)",
-              date: new Date().toISOString()
+              // date: new Date().toISOString()
+               date: '2026-06-15T12:00:00.000Z' 
             });
             successMessage += `• ${item.item_name} (Бусад): ${item.quantity} ширхэг (${item.total_cost}₮)\n`;
           }
