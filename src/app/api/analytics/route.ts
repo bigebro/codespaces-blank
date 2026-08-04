@@ -361,7 +361,8 @@ export async function GET(request: Request) {
         unit: m.unit,
         price: m.unit_price || 0,
         is_waste: unexplainedGap > 0.1,
-        is_under: rawGap < -0.1
+        is_under: rawGap < -0.1,
+        live_stock: m.live_stock
       });
     }
 // Spoilage stays inside COGS (adding to your food cost).

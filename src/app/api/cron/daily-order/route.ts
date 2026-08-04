@@ -39,9 +39,9 @@ export async function GET(request: Request) {
       if (lowItems && lowItems.length > 0) {
         let alertMessage = `🚨 **ӨГЛӨӨНИЙ САНУУЛГА: АГУУЛАХЫН НӨӨЦ БАГАССАН БАЙНА**\n\nТаны өнөөдрийн үйл ажиллагааг тасалдуулахгүйн тулд дараах бараануудыг яаралтай захиалахыг санал болгож байна:\n\n`;
         
-        lowItems.forEach((item: any) => {
-          alertMessage += `🛒 **${item.name}**\n - Үлдэгдэл: ${item.end} ${item.unit}\n - Захиалах хэмжээ: ${item.suggested_order} ${item.unit}\n\n`;
-        });
+       lowItems.forEach((item: any) => {
+  alertMessage += `🛒 **${item.name}**\n - Үлдэгдэл: ${Math.round(item.live_stock * 10) / 10} ${item.unit}\n - Захиалах хэмжээ: ${item.suggested_order} ${item.unit}\n\n`;
+});
 
         alertMessage += `*(Дээрх хэмжээг таны сүүлийн 30 хоногийн борлуулалтын хурдад тулгуурлан систем автоматаар бодож гаргав)*`;
 
