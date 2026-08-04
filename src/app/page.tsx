@@ -842,7 +842,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Бохир ашиг</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-emerald-400">
-                  {isLive && liveAnalytics ? `${liveAnalytics.financial_ladder.gross_margin}%` : `${demoStats[activeClient].grossMargin}`}
+                  {isLive && liveAnalytics ? `${liveAnalytics.financial_ladder.gross_margin}` : `${demoStats[activeClient].grossMargin}`}
                 </p>
               </div>
 
