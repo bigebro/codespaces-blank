@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function parseOperationalText(text: string, ingredientsList: string[]) {
-  const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const systemPrompt = `
     You are an expert F&B operations assistant and router. Your job is to classify and parse incoming messages written by baristas or cooks.
@@ -30,7 +30,7 @@ export async function parseOperationalText(text: string, ingredientsList: string
     3. Purchase (e.g., "авав", "авсан", "татан авалт"): quantity must be POSITIVE, type must be "purchase".
     4. Staff Meal (e.g., "хоолонд орсон", "хооллосон"): quantity must be NEGATIVE, type must be "staff_meal".
     5. Testing (e.g., "туршилт", "амталгаа"): quantity must be NEGATIVE, type must be "testing".
-
+    6. Count / Audit (e.g., "Тооллого хийлээ", "үлдэгдэл байна", "тооллого"): Quantity must be POSITIVE (the exact amount left). Type must be "count".
     Example 1: "10 л сүү асгав" -> {"is_transaction": true, "success": true, "error_message": null, "item_name": "Milk", "quantity": -10000, "type": "spoilage", "notes": "10 литр сүү асгасан"}
     Example 2: "Сүүний хаягдал сүүлийн үед яагаад өндөр байна?" -> {"is_transaction": false, "success": true, "error_message": null, "item_name": null, "quantity": null, "type": null, "notes": null}
   `;
