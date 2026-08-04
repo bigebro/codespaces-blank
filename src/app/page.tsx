@@ -46,7 +46,7 @@ function Home() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import'>('dashboard');
   const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
-  const [activeClient, setActiveClient] = useState<'SF Coffee' | 'Cafe B'>('SF Coffee');
+const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
 
   // Database States
   const [ingredients, setIngredients] = useState<any[]>([]);
@@ -729,7 +729,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                 onChange={(e) => setActiveClient(e.target.value as any)}
                 className="bg-transparent border-0 text-2xl font-black text-white focus:outline-none focus:ring-0 cursor-pointer p-0"
               >
-                <option value="SF Coffee" className="bg-slate-950 text-white font-bold text-base">SF Coffee (MUST Branch)</option>
+                <option value={userClient} className="bg-slate-950 text-white font-bold text-base">{userClient}</option>
                 <option value="Cafe B" className="bg-slate-950 text-white font-bold text-base">Cafe B (Ulaanbaatar)</option>
               </select>
             </div>
