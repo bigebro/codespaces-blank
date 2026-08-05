@@ -385,7 +385,7 @@ async function sendTelegramMessage(chatId: number | null, text: string) {
   await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: text })
+    body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: "Markdown" })
   });
 }
 
