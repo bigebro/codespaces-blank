@@ -292,6 +292,86 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
+    const lowercaseMsg = incomingText.toLowerCase();
+
+    // 1. ЭЭЛЖ ЭХЛЭХ ЛОГИК (☀️ Ээлж эхлэх товчийг мэдэрнэ)
+    if (incomingText === "/shift_start" || lowercaseMsg === "ээлж эхлэх" || lowercaseMsg === "☀️ ээлж эхлэх") {
+      // Идэвхтэй ээлж байгаа эсэхийг шалгах
+      const { data: activeShift } = await supabase
+        .from('shifts')
+        .select('id')
+        .eq('telegram_chat_id', currentChatId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (activeShift) {
+        const errorText = "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой ажил дуусах үед доорх цэсний '🌙 Ээлж хаах' товчийг ашиглан ээлжээ хаана уу.";
+        await sendTelegramMessageWithMenu(currentChatId, errorText);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // Шинэ идэвхтэй ээлж нээх
+      await supabase
+        .from('shifts')
+        .insert([{
+          client_id: tenantClientId,
+          telegram_chat_id: currentChatId,
+          is_active: true
+        }]);
+
+      const startConfirmText = "Сайн байна уу? Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе! Ажил дуусах үед ээлжээ цэснээс заавал хааж хэвшээрэй.";
+      await sendTelegramMessageWithMenu(currentChatId, startConfirmText);
+      return NextResponse.json({ status: 'ok' });
+    }
+
+    // 2. ЭЭЛЖ ХААХ ЛОГИК (🌙 Ээлж хаах товчийг мэдэрч, дуусч буй барааг тоолуулна)
+    if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
+      // Идэвхтэй ээлж байгаа эсэхийг шалгах
+      const { data: activeShift } = await supabase
+        .from('shifts')
+        .select('id')
+        .eq('telegram_chat_id', currentChatId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!activeShift) {
+        const noShiftText = "Алдаа: Идэвхтэй ээлж олдсонгүй. Та эхлээд доорх цэсний '☀️ Ээлж эхлэх' товчоор ээлжээ эхлүүлнэ үү.";
+        await sendTelegramMessageWithMenu(currentChatId, noShiftText);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // Сарын тайлангийн endpoint-оос агуулахын датаг унших
+      const reqUrl = new URL(request.url);
+      const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+      const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
+      const analyticsData = await response.json();
+
+      // Массив дотроос нөөц нь доод хэмжээнээсээ буурсан бараануудыг шүүж авах
+      const lowItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_low);
+
+      // Идэвхтэй ээлжийг хаах (is_active-ийг false болгоно)
+      await supabase
+        .from('shifts')
+        .update({ is_active: false, end_time: new Date().toISOString() })
+        .eq('id', activeShift.id);
+
+      if (lowItems && lowItems.length > 0) {
+        // Нөөц дуусч байгаа бараа байвал тэдгээрийг тоолохыг шаардана
+        let listText = "Ээлж хаагдахад бэлэн боллоо.\n\nЗахиалга тасалдуулахгүйн тулд дараах нөөц нь багассан бараануудын үлдэгдлийг заавал нүдээр шалгаж, тоолж бүртгүүлнэ үү:\n\n";
+        lowItems.slice(0, 5).forEach((item: any) => {
+          listText += `• ${item.name} (Одоогоор: ${Math.round(item.live_stock * 10) / 10} ${item.unit})\n`;
+        });
+        listText += `\nЗагвар: "Тооллого: Сүү 3л, Кофе 1.5кг" гэж бичиж илгээнэ үү.`;
+        
+        await sendTelegramMessageWithMenu(currentChatId, listText);
+      } else {
+        // Бүх бараа хэвийн үед шууд хаана
+        const closeConfirmText = "Ээлж амжилттай хаагдлаа. Агуулахын бүх барааны нөөц хэвийн байна. Сайхан амраарай!";
+        await sendTelegramMessageWithMenu(currentChatId, closeConfirmText);
+      }
+      return NextResponse.json({ status: 'ok' });
+    }
+
     // 3. Process with AI Router
     const { data: ingredients } = await supabase.from('ingredients').select('name');
     const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
@@ -389,6 +469,32 @@ async function sendTelegramMessage(chatId: number | null, text: string) {
   });
 }
 
+// Баристагийн утасны доод хэсэгт ээлж эхлэх, хаах товчийг байнга харуулдаг ухаалаг цэс
+async function sendTelegramMessageWithMenu(chatId: number | null, text: string) {
+  if (!chatId) return;
+  const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text,
+      reply_markup: {
+        keyboard: [
+          [
+            { text: "☀️ Ээлж эхлэх" },
+            { text: "🌙 Ээлж хаах" }
+          ],
+          [
+            { text: "📊 Тайлан харах" }
+          ]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
+      }
+    })
+  });
+}
 async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
@@ -447,3 +553,4 @@ async function answerTelegramCallback(callbackQueryId: string, text: string) {
     body: JSON.stringify({ callback_query_id: callbackQueryId, text: text })
   });
 }
+
