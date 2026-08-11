@@ -324,7 +324,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-    // 2. ЭЭЛЖ ХААХ ЛОГИК (🌙 Ээлж хаах товчийг мэдэрч, дуусч буй барааг тоолуулна)
+    // 2. ЭЭЛЖ ХААХ ЛОГИК (🌙 Ээлж хаах товчийг мэдэрч, барааг тоолуулна)
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
       // Идэвхтэй ээлж байгаа эсэхийг шалгах
       const { data: activeShift } = await supabase
@@ -346,25 +346,28 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
       const analyticsData = await response.json();
 
-    
-    
-const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
-  i.is_critical === true && i.live_stock <= (i.par_level * 1.5)
-) || [];
+      // 1. Захирлын заавал тоол гэсэн чухал бараануудыг шүүж авах (Нөөц нь багассан үед л)
+      const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
+        i.is_critical === true && i.live_stock <= (i.par_level * 1.5)
+      ) || [];
 
       // 2. Чухал БИШ бараанууд дотроос "Хамгийн удаан тоологдоогүй" 5 барааг шүүж авах
       const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
-      // last_counted_at хугацаагаар нь хуучнаас нь шинэ рүү нь эрэмбэлэх
       const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => {
         const dateA = new Date(a.last_counted_at || '2000-01-01').getTime();
         const dateB = new Date(b.last_counted_at || '2000-01-01').getTime();
         return dateA - dateB;
       });
-      // Хамгийн удаан тоологдоогүй эхний 5 барааг тасдаж авах
       const cycleItems = sortedCycleItems.slice(0, 5);
 
       // 3. Чухал бараанууд болон Ээлжийн 5 барааг хооронд нь нэгтгэх
       const finalItemsToCount = [...criticalItems, ...cycleItems];
+
+      // 4. Идэвхтэй ээлжийг хаах (Энэ мөр таны кодонд устсан байсныг нэмлээ)
+      await supabase
+        .from('shifts')
+        .update({ is_active: false, end_time: new Date().toISOString() })
+        .eq('id', activeShift.id);
 
       if (finalItemsToCount.length > 0) {
         let listText = "🛑 Ээлж хаагдахад бэлэн боллоо.\n\nАгуулахын зөрүү үүсэхээс сэргийлж дараах бараануудын бодит үлдэгдлийг заавал нүдээр шалгаж, тоолж бүртгүүлнэ үү:\n\n";
@@ -374,11 +377,15 @@ const criticalItems = analyticsData.all_inventory_data?.filter((i: any) =>
         });
         
         listText += `\nЗагвар: "Тооллого: Сүү 3л, Аяга 50ш" гэж бичиж илгээнэ үү.`;
-        
         await sendTelegramMessageWithMenu(currentChatId, listText);
+      } else {
+        // Бүх бараа хэвийн үед шууд хаана
+        const closeConfirmText = "🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!";
+        await sendTelegramMessageWithMenu(currentChatId, closeConfirmText);
       }
+      
+      return NextResponse.json({ status: 'ok' });
     }
-
     // 3. Process with AI Router
     const { data: ingredients } = await supabase.from('ingredients').select('name');
     const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
