@@ -445,7 +445,7 @@ const criticalItems = analyticsData.all_inventory_data?.filter((i: any) =>
     const analyticsData = await response.json();
 
     // FIX B: Use the ultra-fast 1.5-flash model to prevent Vercel timeouts [1]
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${incomingText}`;
 
     const aiResponse = await model.generateContent({
