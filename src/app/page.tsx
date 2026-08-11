@@ -1176,7 +1176,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                     <tr className="border-b border-slate-900 text-slate-400 text-xs font-bold uppercase tracking-wider sticky top-0 bg-slate-950 z-10">
                       <th className="py-3 px-4">Барааны Нэр</th>
                       <th className="py-3 px-4">Нэгж</th>
-                       <th className="py-3 px-4 text-center">Өдөр бүр тоолох (A-Class)</th> {/* ЭНЭ МӨРИЙГ НЭМНЭ */}
+                       <th className="py-3 px-4 text-center">Өдөр бүр тоолох (A-Class)</th> 
                       <th className="py-3 px-4 text-right">Стандарт Өртөг</th>
                         <th className="py-3 px-4 text-right">Хэвийн Нөөц (Par)</th>
                         <th className="py-3 px-4 text-right">Нийлүүлэх (Lead Days)</th>
