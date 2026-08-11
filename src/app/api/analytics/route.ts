@@ -117,6 +117,7 @@ export async function GET(request: Request) {
         end: parseFloat(ing.current_stock) || 0, // Fallback to live stock [1]
            // ADD THIS: Holds your active, live stock today on July 29th [1]
         live_stock: parseFloat(ing.current_stock) || 0, 
+         is_critical: ing.is_critical || false, 
         theoretical: 0,
         unit_price: parseFloat(ing.unit_price) || 0,
         unit: ing.unit,
@@ -348,6 +349,7 @@ export async function GET(request: Request) {
         days_of_supply: m.days_of_supply,
         suggested_order: finalSuggestion, // Passes the calculation to the UI
         is_low: m.end < activeParLevel,
+        is_critical: m.is_critical,
         theoretical: Math.round(m.theoretical * 100) / 100 || 0,
         raw_physical_gap: Math.abs(Math.round(rawGap * 100) / 100) || 0,
         raw_physical_impact: Math.abs(impact) || 0,

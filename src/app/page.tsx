@@ -86,18 +86,19 @@ const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
   const [kitchenPasteText, setKitchenPasteText] = useState(''); // NEW
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(''); // NEW: Holds the total purchase cost
-  const handleIngredientUpdate = async (id: string, column: string, value: string) => {
-  const parsedVal = parseFloat(value) || 0;
+  const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
+ 
+    const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
     
-    // Update local React state instantly so the UI feels snappy [2]
+ 
+    // UI-ийг шууд өөрчлөх
     setIngredients(prev => prev.map(ing => 
-      ing.id === id ? { ...ing, [column]: parsedVal } : ing
+      ing.id === id ? { ...ing, [column]: finalVal } : ing
     ));
-
     // Update Supabase securely in the background [3]
     await supabase
       .from('ingredients')
-      .update({ [column]: parsedVal })
+      .update({ [column]: finalVal })
       .eq('id', id);
   };
   // June 2026 Demo Data
@@ -1175,6 +1176,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                     <tr className="border-b border-slate-900 text-slate-400 text-xs font-bold uppercase tracking-wider sticky top-0 bg-slate-950 z-10">
                       <th className="py-3 px-4">Барааны Нэр</th>
                       <th className="py-3 px-4">Нэгж</th>
+                       <th className="py-3 px-4 text-center">Өдөр бүр тоолох (A-Class)</th> {/* ЭНЭ МӨРИЙГ НЭМНЭ */}
                       <th className="py-3 px-4 text-right">Стандарт Өртөг</th>
                         <th className="py-3 px-4 text-right">Хэвийн Нөөц (Par)</th>
                         <th className="py-3 px-4 text-right">Нийлүүлэх (Lead Days)</th>
@@ -1187,7 +1189,15 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                       <tr key={ing.id} className="hover:bg-slate-900/20 transition-all duration-150">
                         <td className="py-3 px-4 font-bold text-slate-200">{ing.name}</td>
                         <td className="py-3 px-4 text-slate-400">{ing.unit}</td>
-                        
+                        {/* ЭНЭ ШИНЭ CHECKBOX-ИЙГ НЭМНЭ */}
+                        <td className="py-2 px-4 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={ing.is_critical || false}
+                            onChange={(e) => handleIngredientUpdate(ing.id, 'is_critical', e.target.checked)}
+                            className="w-5 h-5 accent-emerald-500 bg-slate-900 border-slate-700 rounded cursor-pointer"
+                          />
+                        </td>
                         <td className="py-3 px-4 text-right text-slate-300">
                           {parseFloat(ing.unit_price).toLocaleString()}
                         </td>{/* 1. EDITABLE PAR LEVEL INPUT [2] */}

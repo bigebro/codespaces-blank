@@ -346,30 +346,37 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
       const analyticsData = await response.json();
 
-      // Массив дотроос нөөц нь доод хэмжээнээсээ буурсан бараануудыг шүүж авах
-      const lowItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_low);
+    
+    
+const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
+  i.is_critical === true && i.live_stock <= (i.par_level * 1.5)
+) || [];
 
-      // Идэвхтэй ээлжийг хаах (is_active-ийг false болгоно)
-      await supabase
-        .from('shifts')
-        .update({ is_active: false, end_time: new Date().toISOString() })
-        .eq('id', activeShift.id);
+      // 2. Чухал БИШ бараанууд дотроос "Хамгийн удаан тоологдоогүй" 5 барааг шүүж авах
+      const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
+      // last_counted_at хугацаагаар нь хуучнаас нь шинэ рүү нь эрэмбэлэх
+      const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => {
+        const dateA = new Date(a.last_counted_at || '2000-01-01').getTime();
+        const dateB = new Date(b.last_counted_at || '2000-01-01').getTime();
+        return dateA - dateB;
+      });
+      // Хамгийн удаан тоологдоогүй эхний 5 барааг тасдаж авах
+      const cycleItems = sortedCycleItems.slice(0, 5);
 
-      if (lowItems && lowItems.length > 0) {
-        // Нөөц дуусч байгаа бараа байвал тэдгээрийг тоолохыг шаардана
-        let listText = "Ээлж хаагдахад бэлэн боллоо.\n\nЗахиалга тасалдуулахгүйн тулд дараах нөөц нь багассан бараануудын үлдэгдлийг заавал нүдээр шалгаж, тоолж бүртгүүлнэ үү:\n\n";
-        lowItems.slice(0, 5).forEach((item: any) => {
-          listText += `• ${item.name} (Одоогоор: ${Math.round(item.live_stock * 10) / 10} ${item.unit})\n`;
+      // 3. Чухал бараанууд болон Ээлжийн 5 барааг хооронд нь нэгтгэх
+      const finalItemsToCount = [...criticalItems, ...cycleItems];
+
+      if (finalItemsToCount.length > 0) {
+        let listText = "🛑 Ээлж хаагдахад бэлэн боллоо.\n\nАгуулахын зөрүү үүсэхээс сэргийлж дараах бараануудын бодит үлдэгдлийг заавал нүдээр шалгаж, тоолж бүртгүүлнэ үү:\n\n";
+        
+        finalItemsToCount.forEach((item: any) => {
+          listText += `• ${item.name} (Системд: ${Math.round(item.live_stock * 10) / 10} ${item.unit})\n`;
         });
-        listText += `\nЗагвар: "Тооллого: Сүү 3л, Кофе 1.5кг" гэж бичиж илгээнэ үү.`;
+        
+        listText += `\nЗагвар: "Тооллого: Сүү 3л, Аяга 50ш" гэж бичиж илгээнэ үү.`;
         
         await sendTelegramMessageWithMenu(currentChatId, listText);
-      } else {
-        // Бүх бараа хэвийн үед шууд хаана
-        const closeConfirmText = "Ээлж амжилттай хаагдлаа. Агуулахын бүх барааны нөөц хэвийн байна. Сайхан амраарай!";
-        await sendTelegramMessageWithMenu(currentChatId, closeConfirmText);
       }
-      return NextResponse.json({ status: 'ok' });
     }
 
     // 3. Process with AI Router
@@ -429,20 +436,20 @@ export async function POST(request: Request) {
 
     
 
-    // 4. Default Fallback Handler (Case B)
+   // 4. Default Fallback Handler (Case B - Chatting / Advisory)
     const reqUrl = new URL(request.url);
     const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
     
-    const response = await fetch(`${baseUrl}/api/analytics`);
+    // FIX A: Pass the active tenant ID and bypass the database cache securely [2]
+    const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
     const analyticsData = await response.json();
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+    // FIX B: Use the ultra-fast 1.5-flash model to prevent Vercel timeouts [1]
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${incomingText}`;
 
     const aiResponse = await model.generateContent({
-      contents: [
-        { role: 'user', parts: [{ text: `System: ${AI_SYSTEM_PROMPT}\n\nInput Data: ${promptPayload}` }] }
-      ]
+      contents: [{ role: 'user', parts: [{ text: `System: ${AI_SYSTEM_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
     });
 
     const replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); 
