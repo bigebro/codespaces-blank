@@ -78,29 +78,32 @@ export async function POST(request: Request) {
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
       
-      // 1. Тоолох барааны товч дарах үед (NEW)
+     // 1. Тоолох барааны товч дарах үед (gamified with units)
       if (callbackData.startsWith("cnt_")) {
         const itemName = callbackData.replace("cnt_", "");
-        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэд байна вэ?\n(Зөвхөн тоогоор бичнэ үү)`;
-        await sendTelegramMessageWithForceReply(currentChatId!, promptText);
+        
+        // Fetch profile to get tenant id and unit
+        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+        
+        const { data: ing } = await supabase.from('ingredients').select('unit').eq('name', itemName).eq('client_id', tenantClientId).maybeSingle();
+        const unitStr = ing?.unit || 'ш';
+
+        // Асуухдаа нэгжийг нь (ml, gram) хамт харуулна
+        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Зөвхөн тоогоор бичнэ үү)`;
+        await sendTelegramMessageWithForceReply(currentChatId, promptText);
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 2. Тоолж дуусаад 'Ээлж хаах' ногоон товч дарах үед (NEW)
-      if (callbackData === "close_shift_final") {
-        await supabase.from('shifts')
-          .update({ is_active: false, end_time: new Date().toISOString() })
-          .eq('telegram_chat_id', currentChatId)
-          .eq('is_active', true);
-        
-        await answerTelegramCallback(callbackQueryId, "Ээлж хаагдлаа");
-        await editTelegramMessage(currentChatId!, messageId, "✅ Ээлжийн тооллого хийгдэж, ээлж амжилттай хаагдлаа.");
-        await sendTelegramMessageWithMenu(currentChatId!, "🌙 Таны ээлж хаагдсан. Сайхан амраарай!");
+      // 2. Тоологдсон ногоон товч дарах үед (Ignore)
+      if (callbackData === "ignore") {
+        await answerTelegramCallback(callbackQueryId, "✅ Энэ бараа аль хэдийн тоологдсон байна.");
         return NextResponse.json({ status: 'ok' });
       }
-        // Дутуу байх үед хаах товч дарвал (NEW UI Gamification)
+      
+      // 3. Дутуу үед хаах товч дарвал (Locked)
       if (callbackData === "close_shift_locked") {
-        await answerTelegramCallback(callbackQueryId, "⚠️ Уучлаарай, 📝 тэмдэгтэй үлдсэн барааг тоолж дуусгана уу!");
+        await answerTelegramCallback(callbackQueryId, "⚠️ Уучлаарай, 📝 тэмдэгтэй үлдсэн бараануудыг тоолж дуусгана уу!");
         return NextResponse.json({ status: 'ok' });
       }
       // 3. Undo (Буцаах) товч дарах үед (Таны код хэвээрээ)
@@ -219,12 +222,11 @@ export async function POST(request: Request) {
 
 
         const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
-  
-     // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД
-    if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл хэд байна вэ?")) {
+// B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгалж, цэсийг шинэчлэх)
+    if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл хэдэн")) {
       const match = message.reply_to_message.text.match(/\[ (.*?) \]/);
       if (match && match[1]) {
-        const itemName = match[1];
+        const itemName = match[1].trim();
         const qty = parseFloat(incomingText);
 
         if (isNaN(qty)) {
@@ -234,10 +236,11 @@ export async function POST(request: Request) {
 
         const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
+
         const { data: ingredient } = await supabase.from('ingredients').select('id, unit').eq('name', itemName).eq('client_id', tenantClientId).single();
         
         if (ingredient) {
-          // 1. Log the count
+          // 1. Хадгалах (inventory_logs)
           await supabase.from('inventory_logs').insert([{
             client_id: tenantClientId,
             ingredient_id: ingredient.id,
@@ -247,40 +250,41 @@ export async function POST(request: Request) {
             date: new Date().toISOString()
           }]);
 
-          // 2. IMPORTANT: Update the master ingredient last_counted_at so it doesn't ask again!
+          // 2. Үндсэн үлдэгдэл шинэчлэх (ingredients)
           await supabase.from('ingredients')
             .update({ current_stock: qty, last_counted_at: new Date().toISOString() })
             .eq('id', ingredient.id);
 
-          // 3. Update the shift checklist (Turn 📝 into ✅)
-          const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
+          // 3. Чеклифтийг шинэчлэх (✅ болгох)
+          const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
           
           if (activeShift && activeShift.closing_checklist) {
-            let checklist = activeShift.closing_checklist;
-            let itemInList = checklist.find((i: any) => i.name === itemName);
+            let checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
+            
+            let itemInList = checklist.find((i: any) => i.name.trim() === itemName);
             if (itemInList) itemInList.done = true;
 
             await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
 
-            // 4. Check if they won the game (everything is counted)
             const allDone = checklist.every((i: any) => i.done === true);
             
             if (allDone) {
               await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
-              await sendTelegramMessageWithMenu(currentChatId, `🎉 **Баяр хүргэе!**\n\nТа [${itemName}] барааг (${qty} ${ingredient.unit}) бүртгэж дууслаа.\nБүх даалгавар биелж, ээлж амжилттай хаагдлаа. Сайхан амраарай!`);
+              await sendTelegramMessageWithMenu(currentChatId, `🎉 **Баяр хүргэе!**\n\n[${itemName}] амжилттай бүртгэгдлээ (${qty} ${ingredient.unit}).\n\nБүх даалгавар биелж, ээлж амжилттай хаагдлаа. Сайхан амраарай!`);
             } else {
-              // Re-generate the UI with updated ✅ buttons
               let buttons = checklist.map((item: any) => {
                 if (item.done) {
-                  return [{ text: `✅ ${item.name} (Тоолсон)`, callback_data: `ignore` }];
+                  return [{ text: `✅ ${item.name} (Тоолов: ${item.unit})`, callback_data: `ignore` }];
                 } else {
                   return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
                 }
               });
               buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
               
-              await sendTelegramMessageWithInlineKeyboard(currentChatId, `👍 [${itemName}] бүртгэгдлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`, buttons);
+              await sendTelegramMessageWithInlineKeyboard(currentChatId, `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`, buttons);
             }
+          } else {
+             await sendTelegramMessageWithMenu(currentChatId, `👍 [${itemName}] бүртгэгдлээ. Гэхдээ ээлжийн даалгавар олдсонгүй. Дахин "🌙 Ээлж хаах" дарна уу.`);
           }
         }
       }
@@ -410,7 +414,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-// Ээлж хаах логик (The Intelligent Shift Closer with Buttons)
+// Ээлж хаах логик (The Intelligent Shift Closer with Gamification)
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
       const { data: activeShift } = await supabase
         .from('shifts')
@@ -425,6 +429,7 @@ export async function POST(request: Request) {
       }
 
       let checklist = activeShift.closing_checklist || [];
+      if (typeof checklist === 'string') checklist = JSON.parse(checklist);
 
       // Үүсгэсэн чек-лист байхгүй бол ШИНЭЭР үүсгэнэ (Freeze state)
       if (checklist.length === 0) {
@@ -433,7 +438,7 @@ export async function POST(request: Request) {
         const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
         const analyticsData = await response.json();
 
-        // 12 цагийн дотор тоолсон бол дахиж шаардахгүй
+        // 12 цагийн дотор тоолсон бол дахиж шаардахгүй (Game Logic)
         const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
 
         const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
@@ -458,7 +463,7 @@ export async function POST(request: Request) {
           done: false
         }));
 
-        // Хадгалах (Freeze)
+        // Хадгалах (Freeze the checklist so it doesn't shuffle)
         await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
       }
 
@@ -466,7 +471,7 @@ export async function POST(request: Request) {
         // ТЕЛЕГРАМ ТОВЧЛУУРУУД ҮҮСГЭХ
         let buttons = checklist.map((item: any) => {
           if (item.done) {
-            return [{ text: `✅ ${item.name} (Тоолсон)`, callback_data: `ignore` }];
+            return [{ text: `✅ ${item.name} (Тоолов: ${item.unit})`, callback_data: `ignore` }];
           } else {
             return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
           }
@@ -644,7 +649,7 @@ async function editTelegramMessage(chatId: number | null, messageId: number, tex
   });
 }
 
-async function sendTelegramMessageWithForceReply(chatId: number, text: string) {
+async function sendTelegramMessageWithForceReply(chatId: number | null, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   await fetch(url, {
