@@ -223,10 +223,11 @@ export async function POST(request: Request) {
 
         const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
 // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгалж, цэсийг шинэчлэх)
-    if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл хэдэн")) {
-      const match = message.reply_to_message.text.match(/\[ (.*?) \]/);
+   // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгалж, цэсийг шинэчлэх)
+    if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл")) {
+      const match = message.reply_to_message.text.match(/\[(.*?)\]/);
       if (match && match[1]) {
-        const itemName = match[1].trim();
+        const itemName = match[1].trim(); // Removes extra spaces
         const qty = parseFloat(incomingText);
 
         if (isNaN(qty)) {
@@ -237,55 +238,74 @@ export async function POST(request: Request) {
         const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-        const { data: ingredient } = await supabase.from('ingredients').select('id, unit').eq('name', itemName).eq('client_id', tenantClientId).single();
+        // 1. Ухаалаг хайлт (Case-insensitive)
+        const { data: ingredient, error: ingErr } = await supabase
+          .from('ingredients')
+          .select('id, unit, name')
+          .eq('client_id', tenantClientId)
+          .ilike('name', itemName) // Том жижиг үсэг харгалзахгүй олно
+          .maybeSingle();
         
-        if (ingredient) {
-          // 1. Хадгалах (inventory_logs)
-          await supabase.from('inventory_logs').insert([{
-            client_id: tenantClientId,
-            ingredient_id: ingredient.id,
-            quantity: qty,
-            type: 'count',
-            notes: 'Ээлж хаалтын тооллого',
-            date: new Date().toISOString()
-          }]);
+        if (ingErr || !ingredient) {
+          await sendTelegramMessage(currentChatId, `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй. Хадгалж чадсангүй.`);
+          return NextResponse.json({ status: 'ok' });
+        }
 
-          // 2. Үндсэн үлдэгдэл шинэчлэх (ingredients)
-          await supabase.from('ingredients')
-            .update({ current_stock: qty, last_counted_at: new Date().toISOString() })
-            .eq('id', ingredient.id);
+        // 2. Лог бүртгэх
+        const { error: logErr } = await supabase.from('inventory_logs').insert([{
+          client_id: tenantClientId,
+          ingredient_id: ingredient.id,
+          quantity: qty,
+          type: 'count',
+          notes: 'Ээлж хаалтын тооллого',
+          date: new Date().toISOString()
+        }]);
 
-          // 3. Чеклифтийг шинэчлэх (✅ болгох)
-          const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        if (logErr) {
+          await sendTelegramMessage(currentChatId, `❌ Лог хадгалахад алдаа гарлаа: ${logErr.message}`);
+          return NextResponse.json({ status: 'ok' });
+        }
+
+        // 3. Үндсэн үлдэгдэл шинэчлэх (Dashboard дээр харагдах утга)
+        const { error: updErr } = await supabase.from('ingredients')
+          .update({ current_stock: qty, last_counted_at: new Date().toISOString() })
+          .eq('id', ingredient.id);
+
+        if (updErr) {
+          await sendTelegramMessage(currentChatId, `❌ Үлдэгдэл шинэчлэхэд алдаа гарлаа: ${updErr.message}`);
+          return NextResponse.json({ status: 'ok' });
+        }
+
+        // 4. Чек-листийг шинэчлэх (✅ болгох)
+        const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        
+        if (activeShift && activeShift.closing_checklist) {
+          let checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
           
-          if (activeShift && activeShift.closing_checklist) {
-            let checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
-            
-            let itemInList = checklist.find((i: any) => i.name.trim() === itemName);
-            if (itemInList) itemInList.done = true;
+          let itemInList = checklist.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
+          if (itemInList) itemInList.done = true;
 
-            await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+          await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
 
-            const allDone = checklist.every((i: any) => i.done === true);
-            
-            if (allDone) {
-              await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
-              await sendTelegramMessageWithMenu(currentChatId, `🎉 **Баяр хүргэе!**\n\n[${itemName}] амжилттай бүртгэгдлээ (${qty} ${ingredient.unit}).\n\nБүх даалгавар биелж, ээлж амжилттай хаагдлаа. Сайхан амраарай!`);
-            } else {
-              let buttons = checklist.map((item: any) => {
-                if (item.done) {
-                  return [{ text: `✅ ${item.name} (Тоолов: ${item.unit})`, callback_data: `ignore` }];
-                } else {
-                  return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
-                }
-              });
-              buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
-              
-              await sendTelegramMessageWithInlineKeyboard(currentChatId, `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`, buttons);
-            }
+          const allDone = checklist.every((i: any) => i.done === true);
+          
+          if (allDone) {
+            await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+            await sendTelegramMessageWithMenu(currentChatId, `🎉 **Баяр хүргэе!**\n\n[${itemName}] амжилттай бүртгэгдлээ (${qty} ${ingredient.unit}).\n\nБүх даалгавар биелж, ээлж амжилттай хаагдлаа. Сайхан амраарай!`);
           } else {
-             await sendTelegramMessageWithMenu(currentChatId, `👍 [${itemName}] бүртгэгдлээ. Гэхдээ ээлжийн даалгавар олдсонгүй. Дахин "🌙 Ээлж хаах" дарна уу.`);
+            let buttons = checklist.map((item: any) => {
+              if (item.done) {
+                return [{ text: `✅ ${item.name} (Тоолов: ${item.unit})`, callback_data: `ignore` }];
+              } else {
+                return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
+              }
+            });
+            buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
+            
+            await sendTelegramMessageWithInlineKeyboard(currentChatId, `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`, buttons);
           }
+        } else {
+           await sendTelegramMessageWithMenu(currentChatId, `👍 [${itemName}] бүртгэгдлээ. Гэхдээ ээлжийн даалгавар олдсонгүй. Дахин "🌙 Ээлж хаах" дарна уу.`);
         }
       }
       return NextResponse.json({ status: 'ok' });
