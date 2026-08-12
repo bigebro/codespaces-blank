@@ -67,6 +67,8 @@ export async function POST(request: Request) {
 
   // A. Handle Telegram "Undo" & "Count" callbacks
     if (callback_query) {
+
+      
       const chatId = callback_query.message?.chat?.id || callback_query.from?.id;
       currentChatId = chatId;
       
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
       const callbackData = callback_query.data;
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
-
+      
       // 1. Тоолох барааны товч дарах үед (NEW)
       if (callbackData.startsWith("cnt_")) {
         const itemName = callbackData.replace("cnt_", "");
@@ -96,7 +98,11 @@ export async function POST(request: Request) {
         await sendTelegramMessageWithMenu(currentChatId!, "🌙 Таны ээлж хаагдсан. Сайхан амраарай!");
         return NextResponse.json({ status: 'ok' });
       }
-
+        // Дутуу байх үед хаах товч дарвал (NEW UI Gamification)
+      if (callbackData === "close_shift_locked") {
+        await answerTelegramCallback(callbackQueryId, "⚠️ Уучлаарай, 📝 тэмдэгтэй үлдсэн барааг тоолж дуусгана уу!");
+        return NextResponse.json({ status: 'ok' });
+      }
       // 3. Undo (Буцаах) товч дарах үед (Таны код хэвээрээ)
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
@@ -213,9 +219,10 @@ export async function POST(request: Request) {
 
 
         const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
-            // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгална)
-         if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл хэд байна вэ?")) {
-      const match = message.reply_to_message.text.match(/\[ (.*?) \]/); // Хаалтан дотроос нэрийг ялгаж авна
+  
+     // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД
+    if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл хэд байна вэ?")) {
+      const match = message.reply_to_message.text.match(/\[ (.*?) \]/);
       if (match && match[1]) {
         const itemName = match[1];
         const qty = parseFloat(incomingText);
@@ -227,11 +234,10 @@ export async function POST(request: Request) {
 
         const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
-
         const { data: ingredient } = await supabase.from('ingredients').select('id, unit').eq('name', itemName).eq('client_id', tenantClientId).single();
         
         if (ingredient) {
-          // Тооллогыг өгөгдлийн санд шууд 'count' төрлөөр хадгалах
+          // 1. Log the count
           await supabase.from('inventory_logs').insert([{
             client_id: tenantClientId,
             ingredient_id: ingredient.id,
@@ -240,7 +246,42 @@ export async function POST(request: Request) {
             notes: 'Ээлж хаалтын тооллого',
             date: new Date().toISOString()
           }]);
-          await sendTelegramMessage(currentChatId, `👍 ${itemName}: ${qty} ${ingredient.unit} бүртгэгдлээ. Дээд талын цэснээс дараагийн бараагаа сонгоно уу.`);
+
+          // 2. IMPORTANT: Update the master ingredient last_counted_at so it doesn't ask again!
+          await supabase.from('ingredients')
+            .update({ current_stock: qty, last_counted_at: new Date().toISOString() })
+            .eq('id', ingredient.id);
+
+          // 3. Update the shift checklist (Turn 📝 into ✅)
+          const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
+          
+          if (activeShift && activeShift.closing_checklist) {
+            let checklist = activeShift.closing_checklist;
+            let itemInList = checklist.find((i: any) => i.name === itemName);
+            if (itemInList) itemInList.done = true;
+
+            await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+
+            // 4. Check if they won the game (everything is counted)
+            const allDone = checklist.every((i: any) => i.done === true);
+            
+            if (allDone) {
+              await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+              await sendTelegramMessageWithMenu(currentChatId, `🎉 **Баяр хүргэе!**\n\nТа [${itemName}] барааг (${qty} ${ingredient.unit}) бүртгэж дууслаа.\nБүх даалгавар биелж, ээлж амжилттай хаагдлаа. Сайхан амраарай!`);
+            } else {
+              // Re-generate the UI with updated ✅ buttons
+              let buttons = checklist.map((item: any) => {
+                if (item.done) {
+                  return [{ text: `✅ ${item.name} (Тоолсон)`, callback_data: `ignore` }];
+                } else {
+                  return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
+                }
+              });
+              buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
+              
+              await sendTelegramMessageWithInlineKeyboard(currentChatId, `👍 [${itemName}] бүртгэгдлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`, buttons);
+            }
+          }
         }
       }
       return NextResponse.json({ status: 'ok' });
@@ -369,63 +410,80 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-  // Ээлж хаах логик (The Intelligent Shift Closer with Buttons)
+// Ээлж хаах логик (The Intelligent Shift Closer with Buttons)
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
       const { data: activeShift } = await supabase
         .from('shifts')
-        .select('id')
+        .select('*')
         .eq('telegram_chat_id', currentChatId)
         .eq('is_active', true)
         .maybeSingle();
 
       if (!activeShift) {
-        const noShiftText = "Алдаа: Идэвхтэй ээлж олдсонгүй. Та эхлээд доорх цэсний '☀️ Ээлж эхлэх' товчоор ээлжээ эхлүүлнэ үү.";
-        await sendTelegramMessageWithMenu(currentChatId, noShiftText);
+        await sendTelegramMessageWithMenu(currentChatId, "Алдаа: Идэвхтэй ээлж олдсонгүй. '☀️ Ээлж эхлэх' товчоор эхлүүлнэ үү.");
         return NextResponse.json({ status: 'ok' });
       }
 
-      const reqUrl = new URL(request.url);
-      const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
-      const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
-      const analyticsData = await response.json();
+      let checklist = activeShift.closing_checklist || [];
 
-      const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
-        i.is_critical === true && i.live_stock <= (i.par_level * 1.5)
-      ) || [];
+      // Үүсгэсэн чек-лист байхгүй бол ШИНЭЭР үүсгэнэ (Freeze state)
+      if (checklist.length === 0) {
+        const reqUrl = new URL(request.url);
+        const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+        const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
+        const analyticsData = await response.json();
 
-      const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
-      const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => {
-        const dateA = new Date(a.last_counted_at || '2000-01-01').getTime();
-        const dateB = new Date(b.last_counted_at || '2000-01-01').getTime();
-        return dateA - dateB;
-      });
-      const cycleItems = sortedCycleItems.slice(0, 5);
+        // 12 цагийн дотор тоолсон бол дахиж шаардахгүй
+        const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
 
-      const finalItemsToCount = [...criticalItems, ...cycleItems];
+        const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
+          i.is_critical === true && 
+          i.live_stock <= (i.par_level * 1.5) &&
+          (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
+        ) || [];
 
-      if (finalItemsToCount.length > 0) {
-        // ТЕЛЕГРАМ ТОВЧЛУУРУУД (INLINE BUTTONS) ҮҮСГЭХ
-        let buttons = finalItemsToCount.map((item: any) => ([{
-          text: `📝 ${item.name} তোলো (Системд: ${Math.round(((item.live_stock ?? 0) as number) * 10) / 10} ${item.unit})`,
-          callback_data: `cnt_${item.name}`
-        }]));
+        const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
+        const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => {
+          const dateA = new Date(a.last_counted_at || '2000-01-01').getTime();
+          const dateB = new Date(b.last_counted_at || '2000-01-01').getTime();
+          return dateA - dateB;
+        });
         
-        // Хамгийн доор ээлж хаах ногоон товч нэмэх
-        buttons.push([{ text: "🏁 Тоолж дууссан, Ээлж хаах", callback_data: "close_shift_final" }]);
+        const finalItemsToCount = [...criticalItems, ...sortedCycleItems.slice(0, 5)];
 
-        const text = "🛑 Ээлж хаагдахад бэлэн боллоо.\n\nАгуулахын зөрүү үүсэхээс сэргийлж доорх товчнууд дээр дарж бодит үлдэгдлийг тоогоор оруулна уу:";
+        checklist = finalItemsToCount.map((i: any) => ({
+          name: i.name,
+          unit: i.unit,
+          live_stock: i.live_stock,
+          done: false
+        }));
+
+        // Хадгалах (Freeze)
+        await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+      }
+
+      if (checklist.length > 0) {
+        // ТЕЛЕГРАМ ТОВЧЛУУРУУД ҮҮСГЭХ
+        let buttons = checklist.map((item: any) => {
+          if (item.done) {
+            return [{ text: `✅ ${item.name} (Тоолсон)`, callback_data: `ignore` }];
+          } else {
+            return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
+          }
+        });
         
-        // Товчлууртай мессеж явуулах (Энэ функц таны файлын хамгийн доор байх ёстой)
-        await sendTelegramMessageWithInlineKeyboard(currentChatId, text, buttons);
+        // Бүгд тоологдсон эсэхийг шалгах
+        const allDone = checklist.every((i: any) => i.done === true);
+        if (allDone) {
+          buttons.push([{ text: "🏁 Бүх тооллого дууссан, Ээлж хаах", callback_data: "close_shift_final" }]);
+        } else {
+          buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
+        }
+
+        await sendTelegramMessageWithInlineKeyboard(currentChatId, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
       } else {
-        // Тоолох зүйл байхгүй бол шууд хаана
-        await supabase
-          .from('shifts')
-          .update({ is_active: false, end_time: new Date().toISOString() })
-          .eq('id', activeShift.id);
-          
-        const closeConfirmText = "🌙 Ээлж амжилттай хаагдлаа. Агуулахын бүх барааны нөөц хэвийн байна. Сайхан амраарай!";
-        await sendTelegramMessageWithMenu(currentChatId, closeConfirmText);
+        await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+        await sendTelegramMessageWithMenu(currentChatId, "🌙 Тоолох шаардлагатай бараа алга байна. Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
       }
       
       return NextResponse.json({ status: 'ok' });
