@@ -17,7 +17,7 @@ const aliasMap: Record<string, string> = {
 };
 
 function cleanString(str: string) {
-  return String(str || "").replace(/[\u00a0\s]+/g, " ").replace(/\./g, "").trim();
+  return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
 }
 
 function getSimilarity(s1: string, s2: string): number {

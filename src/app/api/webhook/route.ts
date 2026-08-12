@@ -78,19 +78,25 @@ export async function POST(request: Request) {
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
       
-     // 1. Тоолох барааны товч дарах үед (gamified with units)
+   // 1. Тоолох барааны товч дарах үед (Shows actual system stock in the prompt)
       if (callbackData.startsWith("cnt_")) {
         const itemName = callbackData.replace("cnt_", "");
         
-        // Fetch profile to get tenant id and unit
-        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
-        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+        // Fetch the active shift checklist to get the frozen live_stock value
+        const { data: activeShift } = await supabase.from('shifts').select('closing_checklist').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        let systemStock = 0;
+        let unitStr = "ш";
         
-        const { data: ing } = await supabase.from('ingredients').select('unit').eq('name', itemName).eq('client_id', tenantClientId).maybeSingle();
-        const unitStr = ing?.unit || 'ш';
+        if (activeShift && activeShift.closing_checklist) {
+          const checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
+          const item = checklist.find((i: any) => i.name.trim().toLowerCase() === itemName.trim().toLowerCase());
+          if (item) {
+            systemStock = parseFloat(item.live_stock) || 0;
+            unitStr = item.unit || "ш";
+          }
+        }
 
-        // Асуухдаа нэгжийг нь (ml, gram) хамт харуулна
-        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Зөвхөн тоогоор бичнэ үү)`;
+        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Систем дээрх үлдэгдэл: ${Math.round(systemStock * 10)/10} ${unitStr})\n\nЗөвхөн тоогоор бичнэ үү:`;
         await sendTelegramMessageWithForceReply(currentChatId, promptText);
         return NextResponse.json({ status: 'ok' });
       }
@@ -222,12 +228,12 @@ export async function POST(request: Request) {
 
 
         const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
-// B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгалж, цэсийг шинэчлэх)
+
    // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгалж, цэсийг шинэчлэх)
     if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл")) {
       const match = message.reply_to_message.text.match(/\[(.*?)\]/);
       if (match && match[1]) {
-        const itemName = match[1].trim(); // Removes extra spaces
+        const itemName = match[1].trim(); 
         const qty = parseFloat(incomingText);
 
         if (isNaN(qty)) {
@@ -238,16 +244,16 @@ export async function POST(request: Request) {
         const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-  // 1. Case-insensitive lookup using in-memory JavaScript matching
-        const { data: allIngs } = await supabase.from('ingredients').select('id, unit, name');
+        // Fetch ingredients for this client and match them
+        const { data: allIngs } = await supabase.from('ingredients').select('id, unit, name').eq('client_id', tenantClientId);
         const ingredient = allIngs?.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
         
         if (!ingredient) {
-          await sendTelegramMessage(currentChatId, `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй. Хадгалж чадсангүй.`);
+          await sendTelegramMessage(currentChatId, `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй.`);
           return NextResponse.json({ status: 'ok' });
         }
 
-        // 2. Лог бүртгэх
+        // 1. Log the count (Your DB trigger will automatically update current_stock)
         const { error: logErr } = await supabase.from('inventory_logs').insert([{
           client_id: tenantClientId,
           ingredient_id: ingredient.id,
@@ -258,21 +264,16 @@ export async function POST(request: Request) {
         }]);
 
         if (logErr) {
-          await sendTelegramMessage(currentChatId, `❌ Лог хадгалахад алдаа гарлаа: ${logErr.message}`);
+          await sendTelegramMessage(currentChatId, `❌ Хадгалахад алдаа: ${logErr.message}`);
           return NextResponse.json({ status: 'ok' });
         }
 
-        // 3. Үндсэн үлдэгдэл шинэчлэх (Dashboard дээр харагдах утга)
-        const { error: updErr } = await supabase.from('ingredients')
-          .update({ current_stock: qty, last_counted_at: new Date().toISOString() })
+        // 2. Set the last counted timestamp for tracking
+        await supabase.from('ingredients')
+          .update({ last_counted_at: new Date().toISOString() })
           .eq('id', ingredient.id);
 
-        if (updErr) {
-          await sendTelegramMessage(currentChatId, `❌ Үлдэгдэл шинэчлэхэд алдаа гарлаа: ${updErr.message}`);
-          return NextResponse.json({ status: 'ok' });
-        }
-
-        // 4. Чек-листийг шинэчлэх (✅ болгох)
+        // 3. Update active shift checklist state
         const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
         
         if (activeShift && activeShift.closing_checklist) {
@@ -291,9 +292,9 @@ export async function POST(request: Request) {
           } else {
             let buttons = checklist.map((item: any) => {
               if (item.done) {
-                return [{ text: `✅ ${item.name} (Тоолов: ${item.unit})`, callback_data: `ignore` }];
+                return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
               } else {
-                return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
+                return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
               }
             });
             buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
@@ -306,7 +307,6 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ status: 'ok' });
     }
-
      // 1. TENANT LOOKUP: Check which cafe branch this Telegram user belongs to [3]
     const { data: userProfile } = await supabase
       .from('profiles')
