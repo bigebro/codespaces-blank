@@ -238,15 +238,11 @@ export async function POST(request: Request) {
         const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-        // 1. Ухаалаг хайлт (Case-insensitive)
-        const { data: ingredient, error: ingErr } = await supabase
-          .from('ingredients')
-          .select('id, unit, name')
-          .eq('client_id', tenantClientId)
-          .ilike('name', itemName) // Том жижиг үсэг харгалзахгүй олно
-          .maybeSingle();
+  // 1. Case-insensitive lookup using in-memory JavaScript matching
+        const { data: allIngs } = await supabase.from('ingredients').select('id, unit, name');
+        const ingredient = allIngs?.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
         
-        if (ingErr || !ingredient) {
+        if (!ingredient) {
           await sendTelegramMessage(currentChatId, `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй. Хадгалж чадсангүй.`);
           return NextResponse.json({ status: 'ok' });
         }
@@ -461,9 +457,9 @@ export async function POST(request: Request) {
         // 12 цагийн дотор тоолсон бол дахиж шаардахгүй (Game Logic)
         const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
 
+       // Critical items will always appear on the checklist unless counted in the last 12 hours
         const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
           i.is_critical === true && 
-          i.live_stock <= (i.par_level * 1.5) &&
           (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
         ) || [];
 
