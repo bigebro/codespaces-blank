@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { message, callback_query } = payload;
 
-    // A. Handle Telegram "Undo" callbacks (With Live Telegram Debugger) [3]
+  // A. Handle Telegram "Undo" & "Count" callbacks
     if (callback_query) {
       const chatId = callback_query.message?.chat?.id || callback_query.from?.id;
       currentChatId = chatId;
@@ -76,6 +76,28 @@ export async function POST(request: Request) {
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
 
+      // 1. Тоолох барааны товч дарах үед (NEW)
+      if (callbackData.startsWith("cnt_")) {
+        const itemName = callbackData.replace("cnt_", "");
+        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэд байна вэ?\n(Зөвхөн тоогоор бичнэ үү)`;
+        await sendTelegramMessageWithForceReply(currentChatId!, promptText);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // 2. Тоолж дуусаад 'Ээлж хаах' ногоон товч дарах үед (NEW)
+      if (callbackData === "close_shift_final") {
+        await supabase.from('shifts')
+          .update({ is_active: false, end_time: new Date().toISOString() })
+          .eq('telegram_chat_id', currentChatId)
+          .eq('is_active', true);
+        
+        await answerTelegramCallback(callbackQueryId, "Ээлж хаагдлаа");
+        await editTelegramMessage(currentChatId!, messageId, "✅ Ээлжийн тооллого хийгдэж, ээлж амжилттай хаагдлаа.");
+        await sendTelegramMessageWithMenu(currentChatId!, "🌙 Таны ээлж хаагдсан. Сайхан амраарай!");
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // 3. Undo (Буцаах) товч дарах үед (Таны код хэвээрээ)
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         await sendTelegramMessage(chatId, `🔍 [DEBUG 2] Цуцлах лог ID: ${logId}`);
@@ -85,11 +107,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ status: 'ok' });
         }
 
-        // Delete from Supabase and capture errors
-        const { error: deleteError } = await supabase
-          .from('inventory_logs')
-          .delete()
-          .eq('id', logId);
+        const { error: deleteError } = await supabase.from('inventory_logs').delete().eq('id', logId);
 
         if (deleteError) {
           await sendTelegramMessage(chatId, `❌ [DEBUG 4] Supabase Устгах алдаа: ${deleteError.message}`);
@@ -97,21 +115,16 @@ export async function POST(request: Request) {
         }
         
         await sendTelegramMessage(chatId, "✅ [DEBUG 5] Supabase-ээс амжилттай устгагдлаа. Текст шинэчилж байна...");
-        
-        // Stop the loading spinner [1]
         await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
         
-        // Edit original message safely to remove buttons
         const deletedText = "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).";
         await editTelegramMessage(currentChatId!, messageId, deletedText);
 
-        // Send a NEW message forcing their keyboard open [1, 3]
         const promptText = "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:";
         await sendTelegramMessageWithForceReply(currentChatId!, promptText);
       }
       return NextResponse.json({ status: 'ok' });
     }
-
 
    if (!message || (!message.text && !message.photo)) return NextResponse.json({ status: 'ok' });
 
@@ -200,6 +213,38 @@ export async function POST(request: Request) {
 
 
         const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
+            // B. БАРИСТА ЗӨВХӨН ТОО БИЧИЖ ХАРИУЛАХ ҮЕД (Шууд агуулахад хадгална)
+         if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл хэд байна вэ?")) {
+      const match = message.reply_to_message.text.match(/\[ (.*?) \]/); // Хаалтан дотроос нэрийг ялгаж авна
+      if (match && match[1]) {
+        const itemName = match[1];
+        const qty = parseFloat(incomingText);
+
+        if (isNaN(qty)) {
+          await sendTelegramMessage(currentChatId, "❌ Алдаа: Зөвхөн тоо бичнэ үү!");
+          return NextResponse.json({ status: 'ok' });
+        }
+
+        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+
+        const { data: ingredient } = await supabase.from('ingredients').select('id, unit').eq('name', itemName).eq('client_id', tenantClientId).single();
+        
+        if (ingredient) {
+          // Тооллогыг өгөгдлийн санд шууд 'count' төрлөөр хадгалах
+          await supabase.from('inventory_logs').insert([{
+            client_id: tenantClientId,
+            ingredient_id: ingredient.id,
+            quantity: qty,
+            type: 'count',
+            notes: 'Ээлж хаалтын тооллого',
+            date: new Date().toISOString()
+          }]);
+          await sendTelegramMessage(currentChatId, `👍 ${itemName}: ${qty} ${ingredient.unit} бүртгэгдлээ. Дээд талын цэснээс дараагийн бараагаа сонгоно уу.`);
+        }
+      }
+      return NextResponse.json({ status: 'ok' });
+    }
 
      // 1. TENANT LOOKUP: Check which cafe branch this Telegram user belongs to [3]
     const { data: userProfile } = await supabase
@@ -324,9 +369,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-    // 2. ЭЭЛЖ ХААХ ЛОГИК (🌙 Ээлж хаах товчийг мэдэрч, барааг тоолуулна)
+  // Ээлж хаах логик (The Intelligent Shift Closer with Buttons)
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
-      // Идэвхтэй ээлж байгаа эсэхийг шалгах
       const { data: activeShift } = await supabase
         .from('shifts')
         .select('id')
@@ -340,18 +384,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // Сарын тайлангийн endpoint-оос агуулахын датаг унших
       const reqUrl = new URL(request.url);
       const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
       const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
       const analyticsData = await response.json();
 
-      // 1. Захирлын заавал тоол гэсэн чухал бараануудыг шүүж авах (Нөөц нь багассан үед л)
       const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
         i.is_critical === true && i.live_stock <= (i.par_level * 1.5)
       ) || [];
 
-      // 2. Чухал БИШ бараанууд дотроос "Хамгийн удаан тоологдоогүй" 5 барааг шүүж авах
       const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
       const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => {
         const dateA = new Date(a.last_counted_at || '2000-01-01').getTime();
@@ -360,27 +401,30 @@ export async function POST(request: Request) {
       });
       const cycleItems = sortedCycleItems.slice(0, 5);
 
-      // 3. Чухал бараанууд болон Ээлжийн 5 барааг хооронд нь нэгтгэх
       const finalItemsToCount = [...criticalItems, ...cycleItems];
 
-      // 4. Идэвхтэй ээлжийг хаах (Энэ мөр таны кодонд устсан байсныг нэмлээ)
-      await supabase
-        .from('shifts')
-        .update({ is_active: false, end_time: new Date().toISOString() })
-        .eq('id', activeShift.id);
-
       if (finalItemsToCount.length > 0) {
-        let listText = "🛑 Ээлж хаагдахад бэлэн боллоо.\n\nАгуулахын зөрүү үүсэхээс сэргийлж дараах бараануудын бодит үлдэгдлийг заавал нүдээр шалгаж, тоолж бүртгүүлнэ үү:\n\n";
+        // ТЕЛЕГРАМ ТОВЧЛУУРУУД (INLINE BUTTONS) ҮҮСГЭХ
+        let buttons = finalItemsToCount.map((item: any) => ([{
+          text: `📝 ${item.name} তোলো (Системд: ${Math.round(((item.live_stock ?? 0) as number) * 10) / 10} ${item.unit})`,
+          callback_data: `cnt_${item.name}`
+        }]));
         
-        finalItemsToCount.forEach((item: any) => {
-          listText += `• ${item.name} (Системд: ${Math.round(item.live_stock * 10) / 10} ${item.unit})\n`;
-        });
+        // Хамгийн доор ээлж хаах ногоон товч нэмэх
+        buttons.push([{ text: "🏁 Тоолж дууссан, Ээлж хаах", callback_data: "close_shift_final" }]);
+
+        const text = "🛑 Ээлж хаагдахад бэлэн боллоо.\n\nАгуулахын зөрүү үүсэхээс сэргийлж доорх товчнууд дээр дарж бодит үлдэгдлийг тоогоор оруулна уу:";
         
-        listText += `\nЗагвар: "Тооллого: Сүү 3л, Аяга 50ш" гэж бичиж илгээнэ үү.`;
-        await sendTelegramMessageWithMenu(currentChatId, listText);
+        // Товчлууртай мессеж явуулах (Энэ функц таны файлын хамгийн доор байх ёстой)
+        await sendTelegramMessageWithInlineKeyboard(currentChatId, text, buttons);
       } else {
-        // Бүх бараа хэвийн үед шууд хаана
-        const closeConfirmText = "🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!";
+        // Тоолох зүйл байхгүй бол шууд хаана
+        await supabase
+          .from('shifts')
+          .update({ is_active: false, end_time: new Date().toISOString() })
+          .eq('id', activeShift.id);
+          
+        const closeConfirmText = "🌙 Ээлж амжилттай хаагдлаа. Агуулахын бүх барааны нөөц хэвийн байна. Сайхан амраарай!";
         await sendTelegramMessageWithMenu(currentChatId, closeConfirmText);
       }
       
@@ -509,7 +553,7 @@ async function sendTelegramMessageWithMenu(chatId: number | null, text: string) 
     })
   });
 }
-async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: string) {
+async function sendTelegramMessageWithUndo(chatId: number | null, text: string, logId: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   await fetch(url, {
@@ -527,7 +571,7 @@ async function sendTelegramMessageWithUndo(chatId: number, text: string, logId: 
   });
 }
 
-async function editTelegramMessage(chatId: number, messageId: number, text: string) {
+async function editTelegramMessage(chatId: number | null, messageId: number, text: string) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`;
   await fetch(url, {
@@ -565,6 +609,16 @@ async function answerTelegramCallback(callbackQueryId: string, text: string) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ callback_query_id: callbackQueryId, text: text })
+  });
+}
+
+// Товчлууртай жагсаалт илгээх туслах функц
+async function sendTelegramMessageWithInlineKeyboard(chatId: number | null, text: string, inline_keyboard: any[]) {
+  const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: text, reply_markup: { inline_keyboard } })
   });
 }
 
