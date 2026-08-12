@@ -489,13 +489,13 @@ export async function POST(request: Request) {
 
       if (checklist.length > 0) {
         // ТЕЛЕГРАМ ТОВЧЛУУРУУД ҮҮСГЭХ
-        let buttons = checklist.map((item: any) => {
-          if (item.done) {
-            return [{ text: `✅ ${item.name} (Тоолов: ${item.unit})`, callback_data: `ignore` }];
-          } else {
-            return [{ text: `📝 ${item.name} тоолох`, callback_data: `cnt_${item.name}` }];
-          }
-        });
+      let buttons = checklist.map((item: any) => {
+              if (item.done) {
+                return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
+              } else {
+                return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
+              }
+            });
         
         // Бүгд тоологдсон эсэхийг шалгах
         const allDone = checklist.every((i: any) => i.done === true);
