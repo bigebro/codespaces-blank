@@ -112,6 +112,20 @@ export async function POST(request: Request) {
         await answerTelegramCallback(callbackQueryId, "⚠️ Уучлаарай, 📝 тэмдэгтэй үлдсэн бараануудыг тоолж дуусгана уу!");
         return NextResponse.json({ status: 'ok' });
       }
+
+      // 2. Тоолож дуусаад 'Ээлж хаах' ногоон товч дарах үед (Calculates Scorecard)
+      if (callbackData === "close_shift_final") {
+        const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        await answerTelegramCallback(callbackQueryId, "Ээлж хаагдлаа");
+        await editTelegramMessage(currentChatId, messageId, "✅ Чек-лист тооллого амжилттай хийгдэж дууслаа.");
+        
+        if (activeShift) {
+          await generateShiftScorecard(activeShift, currentChatId);
+        } else {
+          await sendTelegramMessageWithMenu(currentChatId, "🌙 Таны ээлж хаагдсан. Сайхан амраарай!");
+        }
+        return NextResponse.json({ status: 'ok' });
+      }
       // 3. Undo (Буцаах) товч дарах үед (Таны код хэвээрээ)
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
@@ -286,9 +300,9 @@ export async function POST(request: Request) {
 
           const allDone = checklist.every((i: any) => i.done === true);
           
-          if (allDone) {
-            await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
-            await sendTelegramMessageWithMenu(currentChatId, `🎉 **Баяр хүргэе!**\n\n[${itemName}] амжилттай бүртгэгдлээ (${qty} ${ingredient.unit}).\n\nБүх даалгавар биелж, ээлж амжилттай хаагдлаа. Сайхан амраарай!`);
+         if (allDone) {
+            await sendTelegramMessage(currentChatId, `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\nЧек-лист 100% биеллээ! 🎉`);
+            await generateShiftScorecard(activeShift, currentChatId);
           } else {
             let buttons = checklist.map((item: any) => {
               if (item.done) {
@@ -701,3 +715,79 @@ async function sendTelegramMessageWithInlineKeyboard(chatId: number | null, text
   });
 }
 
+
+async function generateShiftScorecard(activeShift: any, chatId: number | null) {
+  if (!chatId) return; // Safe early return
+
+  const tenantClientId = activeShift.client_id;
+  const startTime = activeShift.start_time;
+  const endTime = new Date().toISOString();
+  const role = activeShift.character_role || "Бариста ☕";
+
+  // 1. Fetch inventory logs logged during this shift's timeframe
+  const { data: logs } = await supabase
+    .from('inventory_logs')
+    .select('quantity, type, ingredient_id, total_cost')
+    .eq('client_id', tenantClientId)
+    .gte('date', startTime)
+    .lte('date', endTime);
+
+  // 2. Fetch all ingredients to map prices
+  const { data: ingredients } = await supabase
+    .from('ingredients')
+    .select('id, name, unit_price, unit')
+    .eq('client_id', tenantClientId);
+
+  let totalWasteCost = 0;
+  let itemsCounted = 0;
+
+  if (logs && ingredients) {
+    logs.forEach((log: any) => {
+      if (log.type === 'count') {
+        itemsCounted++;
+      } else if (['spoilage', 'testing', 'staff_meal', 'other'].includes(log.type)) {
+        const ing = ingredients.find((i: any) => i.id === log.ingredient_id);
+        if (ing) {
+          const price = parseFloat(ing.unit_price) || 0;
+          totalWasteCost += Math.abs(log.quantity) * price;
+        }
+      }
+    });
+  }
+
+  // 3. Calculate Gamified XP Score
+  let xpEarned = 10; // 10 XP base for completing shift
+  xpEarned += itemsCounted * 5; // +5 XP per counted item
+  if (totalWasteCost === 0) {
+    xpEarned += 30; // +30 XP "Zero Waste" perfect shift bonus!
+  }
+
+  // 4. Update the Shift record in database
+  await supabase
+    .from('shifts')
+    .update({
+      is_active: false,
+      end_time: endTime,
+      earned_xp: (activeShift.earned_xp || 0) + xpEarned
+    })
+    .eq('id', activeShift.id);
+
+  // 5. Calculate shift duration
+  const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+  const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  // 6. Send Scorecard Telegram Message
+  const scorecardText = `🏆 **ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН (Scorecard)**\n\n` +
+    `👤 **Дүр:** ${role}\n` +
+    `⏱ **Хугацаа:** ${hours} цаг ${minutes} минут\n` +
+    `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
+    `🗑 **Хаягдал зардлын хэмжээ:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
+    `🌟 **Ээлжинд цуглуулсан оноо:**\n` +
+    `• Үндсэн XP: +10 XP\n` +
+    `• Тооллогын XP: +${itemsCounted * 5} XP\n` +
+    (totalWasteCost === 0 ? `• "Zero Waste" урамшуулал: +30 XP 💎\n` : '') +
+    `\n🥇 **Нийт авсан оноо:** +${xpEarned} XP`;
+
+  await sendTelegramMessageWithMenu(chatId, scorecardText);
+}
