@@ -430,13 +430,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // Шинэ идэвхтэй ээлж нээх
+      // Ажилтны нэрийг Telegram-аас автоматаар авах
+       const workerName = message.from?.first_name || "Ажилтан";
+
+      // Шинэ идэвхтэй ээлж нээх (Нэртэй нь хамт хадгалах)
       await supabase
         .from('shifts')
         .insert([{
           client_id: tenantClientId,
           telegram_chat_id: currentChatId,
-          is_active: true
+          is_active: true,
+          character_role: workerName
         }]);
 
         const startConfirmText = "✅ Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе!";
@@ -484,7 +488,7 @@ export async function POST(request: Request) {
           return dateA - dateB;
         });
         
-        const finalItemsToCount = [...criticalItems, ...sortedCycleItems.slice(0, 5)];
+       const finalItemsToCount = [...criticalItems, ...sortedCycleItems].slice(0, 5);
 
         checklist = finalItemsToCount.map((i: any) => ({
           name: i.name,
