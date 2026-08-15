@@ -430,11 +430,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // Ажилтны нэрийг Telegram-аас автоматаар авах
-       const workerName = message.from?.first_name || "Ажилтан";
+     // Ажилтны нэрийг Telegram-аас автоматаар авах
+      const workerName = message.from?.first_name || message.chat?.first_name || "Ажилтан";
 
-      // Шинэ идэвхтэй ээлж нээх (Нэртэй нь хамт хадгалах)
-      await supabase
+      // Шинэ идэвхтэй ээлж нээх
+      const { error: insertError } = await supabase
         .from('shifts')
         .insert([{
           client_id: tenantClientId,
@@ -443,7 +443,13 @@ export async function POST(request: Request) {
           character_role: workerName
         }]);
 
-        const startConfirmText = "✅ Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе!";
+      // Хэрэв датабэйс рүү хадгалж чадахгүй бол алдааг шууд дэлгэцэнд харуулна
+      if (insertError) {
+        await sendTelegramMessage(currentChatId, `❌ Ээлж эхлүүлж чадсангүй.\nАлдаа: ${insertError.message}`);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      const startConfirmText = "✅ Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе!";
       await sendTelegramMessageWithMenu(currentChatId, startConfirmText);
       return NextResponse.json({ status: 'ok' });
     }
