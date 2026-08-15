@@ -729,18 +729,26 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
   const role = activeShift.character_role || "Бариста ☕";
 
   // 1. Fetch inventory logs logged during this shift's timeframe
-  const { data: logs } = await supabase
+  const { data: logs, error: logsErr } = await supabase
     .from('inventory_logs')
     .select('quantity, type, ingredient_id, total_cost')
     .eq('client_id', tenantClientId)
     .gte('date', startTime)
     .lte('date', endTime);
 
+  if (logsErr) {
+    await sendTelegramMessage(chatId, `⚠️ Анхаар: Хаягдлын лог уншихад алдаа гарлаа: ${logsErr.message}`);
+  }
+
   // 2. Fetch all ingredients to map prices
-  const { data: ingredients } = await supabase
+  const { data: ingredients, error: ingErr } = await supabase
     .from('ingredients')
     .select('id, name, unit_price, unit')
     .eq('client_id', tenantClientId);
+
+  if (ingErr) {
+    await sendTelegramMessage(chatId, `⚠️ Анхаар: Түүхий эд, үнийн мэдээлэл уншихад алдаа гарлаа: ${ingErr.message}`);
+  }
 
   let totalWasteCost = 0;
   let itemsCounted = 0;
@@ -766,34 +774,23 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
     xpEarned += 30; // +30 XP "Zero Waste" perfect shift bonus!
   }
 
-  // 4. Update the Shift record in database
-  await supabase
+  // 4. Update the Shift record in database (CATCHES SILENT DB ERRORS)
+  const { error: updateError } = await supabase
     .from('shifts')
     .update({
       is_active: false,
       end_time: endTime,
-      // earned_xp: (activeShift.earned_xp || 0) + xpEarned
+      earned_xp: (activeShift.earned_xp || 0) + xpEarned // Restored XP update
     })
     .eq('id', activeShift.id);
 
-  // 5. Calculate shift duration
-  // const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-  // const hours = Math.floor(durationMs / (1000 * 60 * 60));
-  // const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  // If Supabase rejects the update, it will print the red error here
+  if (updateError) {
+     await sendTelegramMessage(chatId, `❌ ДАТАБЕЙС АЛДАА: Ээлжийг хааж чадсангүй.\nШалтгаан: ${updateError.message}\n(Та Supabase RLS Update policy-гоо шалгана уу)`);
+     return;
+  }
 
-  // // 6. Send Scorecard Telegram Message
-  // const scorecardText = `🏆 **ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН (Scorecard)**\n\n` +
-  //   `👤 **Дүр:** ${role}\n` +
-  //   `⏱ **Хугацаа:** ${hours} цаг ${minutes} минут\n` +
-  //   `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
-  //   `🗑 **Хаягдал зардлын хэмжээ:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
-  //   `🌟 **Ээлжинд цуглуулсан оноо:**\n` +
-  //   `• Үндсэн XP: +10 XP\n` +
-  //   `• Тооллогын XP: +${itemsCounted * 5} XP\n` +
-  //   (totalWasteCost === 0 ? `• "Zero Waste" урамшуулал: +30 XP 💎\n` : '') +
-  //   `\n🥇 **Нийт авсан оноо:** +${xpEarned} XP`;
-
-  // Send a simple, clean completion message
+  // 5. Send a simple, clean completion message
   await sendTelegramMessageWithMenu(
     chatId, 
     `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа, сайхан амраарай!`
