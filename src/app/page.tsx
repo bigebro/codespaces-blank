@@ -44,10 +44,13 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [userClient, setUserClient] = useState<string>('SF Coffee');
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import'>('dashboard');
+const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'>('dashboard');
   const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
 const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
-
+const [tasks, setTasks] = useState<any[]>([]);
+const [newTaskName, setNewTaskName] = useState('');
+const [newTaskRole, setNewTaskRole] = useState('Бариста ☕');
+const [newTaskWeight, setNewTaskWeight] = useState('');
   // Database States
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -86,6 +89,7 @@ const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
   const [kitchenPasteText, setKitchenPasteText] = useState(''); // NEW
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(''); // NEW: Holds the total purchase cost
+  
   const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
  
     const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
@@ -198,6 +202,8 @@ const fetchDatabaseData = async (clientId: string = 'SF Coffee') => {
       const { data: recData } = await supabase.from('recipes').select('*');
       const { data: logData } = await supabase.from('inventory_logs').select('*');
       const { data: saleData } = await supabase.from('sales_logs').select('*');
+      const { data: taskData } = await supabase.from('tasks').select('*');
+      if (taskData) setTasks(taskData);
       
       if (ingData) {
         setIngredients(ingData);
@@ -815,6 +821,12 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               >
                 📥 Бөөнөөр Импортлох (Excel Paste)
               </button>
+              <button 
+                onClick={() => setActiveTab('tasks')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'tasks' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                📋 Ажлын Даалгавар (Tasks)
+              </button>
             </>
           )}
         </div>
@@ -1322,7 +1334,58 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
             </div>
           </div>
         )}
+        {/* TASK MANAGEMENT TAB */}
+        {activeTab === 'tasks' && userRole === 'owner' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-1 h-fit">
+              <h3 className="text-lg font-bold mb-4 text-emerald-400">Шинэ даалгавар үүсгэх</h3>
+              <form onSubmit={async (e) => {
+                e.preventDefault(); setLoading(true);
+                await supabase.from('tasks').insert([{ client_id: activeClient, role: newTaskRole, task_name: newTaskName, weight: parseInt(newTaskWeight) || 10 }]);
+                setNewTaskName(''); setNewTaskWeight('');
+                await fetchDatabaseData(activeClient);
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-2">Үүрэг (Role)</label>
+                  <select value={newTaskRole} onChange={e => setNewTaskRole(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold">
+                    <option value="Бариста ☕">Бариста ☕</option>
+                    <option value="Тогооч 🍳">Тогооч 🍳</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-2">Даалгаврын нэр</label>
+                  <input type="text" required value={newTaskName} onChange={e => setNewTaskName(e.target.value)} placeholder="Жнь: Кофены машин угаах" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-2">Ачааллын жин (Оноо 1-100)</label>
+                  <input type="number" required value={newTaskWeight} onChange={e => setNewTaskWeight(e.target.value)} placeholder="Жнь: 15" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm"/>
+                </div>
+                <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl">Даалгавар Нэмэх</button>
+              </form>
+            </div>
 
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
+              <h3 className="text-lg font-bold mb-4">Бүртгэлтэй Даалгаврууд</h3>
+              <table className="w-full text-left">
+                <thead className="text-slate-400 text-xs border-b border-slate-800">
+                  <tr><th className="pb-3">Үүрэг</th><th className="pb-3">Нэр</th><th className="pb-3">Ачаалал</th><th className="pb-3 text-right">Үйлдэл</th></tr>
+                </thead>
+                <tbody className="text-sm divide-y divide-slate-800/50">
+                  {tasks.filter(t => t.client_id === activeClient).map(t => (
+                    <tr key={t.id}>
+                      <td className="py-3 text-slate-300">{t.role}</td>
+                      <td className="py-3 font-semibold">{t.task_name}</td>
+                      <td className="py-3 text-blue-400 font-bold">{t.weight} pts</td>
+                      <td className="py-3 text-right">
+                        <button onClick={async () => { await supabase.from('tasks').delete().eq('id', t.id); fetchDatabaseData(activeClient); }} className="text-rose-400 text-xs">Устгах</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {/* NEW: HORIZONTAL SPREADSHEET AUDIT PASTE CONTAINER */}
         {activeTab === 'import' && userRole === 'owner' && (
           <div className="mt-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">

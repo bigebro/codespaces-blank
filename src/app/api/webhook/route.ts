@@ -439,7 +439,7 @@ export async function POST(request: Request) {
           is_active: true
         }]);
 
-      const startConfirmText = "Сайн байна уу? Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе! Ажил дуусах үед ээлжээ цэснээс заавал хааж хэвшээрэй.";
+        const startConfirmText = "✅ Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе!";
       await sendTelegramMessageWithMenu(currentChatId, startConfirmText);
       return NextResponse.json({ status: 'ok' });
     }
@@ -497,31 +497,31 @@ export async function POST(request: Request) {
         await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
       }
 
-      if (checklist.length > 0) {
-        // ТЕЛЕГРАМ ТОВЧЛУУРУУД ҮҮСГЭХ
-      let buttons = checklist.map((item: any) => {
-              if (item.done) {
-                return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
-              } else {
-                return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
-              }
-            });
-        
-        // Бүгд тоологдсон эсэхийг шалгах
+    if (checklist.length > 0) {
+        // FIX: Хэрэв бүгд тоологдсон бол шууд хүчээр хаана (Loop-д орохгүй)
         const allDone = checklist.every((i: any) => i.done === true);
         if (allDone) {
-          buttons.push([{ text: "🏁 Бүх тооллого дууссан, Ээлж хаах", callback_data: "close_shift_final" }]);
-        } else {
-          buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
+          await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+          await sendTelegramMessageWithMenu(currentChatId, "🌙 Бүх тооллого дууссан байна. Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
+          return NextResponse.json({ status: 'ok' });
         }
+
+        // ТЕЛЕГРАМ ТОВЧЛУУРУУД ҮҮСГЭХ
+        let buttons = checklist.map((item: any) => {
+          if (item.done) {
+            return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
+          } else {
+            return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
+          }
+        });
+        
+        buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
 
         await sendTelegramMessageWithInlineKeyboard(currentChatId, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
       } else {
         await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
         await sendTelegramMessageWithMenu(currentChatId, "🌙 Тоолох шаардлагатай бараа алга байна. Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
       }
-      
-      return NextResponse.json({ status: 'ok' });
     }
     // 3. Process with AI Router
     const { data: ingredients } = await supabase.from('ingredients').select('name');
@@ -768,26 +768,30 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
     .update({
       is_active: false,
       end_time: endTime,
-      earned_xp: (activeShift.earned_xp || 0) + xpEarned
+      // earned_xp: (activeShift.earned_xp || 0) + xpEarned
     })
     .eq('id', activeShift.id);
 
   // 5. Calculate shift duration
-  const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-  const hours = Math.floor(durationMs / (1000 * 60 * 60));
-  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  // const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+  // const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  // const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
 
-  // 6. Send Scorecard Telegram Message
-  const scorecardText = `🏆 **ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН (Scorecard)**\n\n` +
-    `👤 **Дүр:** ${role}\n` +
-    `⏱ **Хугацаа:** ${hours} цаг ${minutes} минут\n` +
-    `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
-    `🗑 **Хаягдал зардлын хэмжээ:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
-    `🌟 **Ээлжинд цуглуулсан оноо:**\n` +
-    `• Үндсэн XP: +10 XP\n` +
-    `• Тооллогын XP: +${itemsCounted * 5} XP\n` +
-    (totalWasteCost === 0 ? `• "Zero Waste" урамшуулал: +30 XP 💎\n` : '') +
-    `\n🥇 **Нийт авсан оноо:** +${xpEarned} XP`;
+  // // 6. Send Scorecard Telegram Message
+  // const scorecardText = `🏆 **ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН (Scorecard)**\n\n` +
+  //   `👤 **Дүр:** ${role}\n` +
+  //   `⏱ **Хугацаа:** ${hours} цаг ${minutes} минут\n` +
+  //   `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
+  //   `🗑 **Хаягдал зардлын хэмжээ:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
+  //   `🌟 **Ээлжинд цуглуулсан оноо:**\n` +
+  //   `• Үндсэн XP: +10 XP\n` +
+  //   `• Тооллогын XP: +${itemsCounted * 5} XP\n` +
+  //   (totalWasteCost === 0 ? `• "Zero Waste" урамшуулал: +30 XP 💎\n` : '') +
+  //   `\n🥇 **Нийт авсан оноо:** +${xpEarned} XP`;
 
-  await sendTelegramMessageWithMenu(chatId, scorecardText);
+  // Send a simple, clean completion message
+  await sendTelegramMessageWithMenu(
+    chatId, 
+    `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа, сайхан амраарай!`
+  );
 }
