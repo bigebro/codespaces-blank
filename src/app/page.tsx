@@ -1339,11 +1339,26 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-1 h-fit">
               <h3 className="text-lg font-bold mb-4 text-emerald-400">Шинэ даалгавар үүсгэх</h3>
-              <form onSubmit={async (e) => {
-                e.preventDefault(); setLoading(true);
-                await supabase.from('tasks').insert([{ client_id: activeClient, role: newTaskRole, task_name: newTaskName, weight: parseInt(newTaskWeight) || 10 }]);
-                setNewTaskName(''); setNewTaskWeight('');
-                await fetchDatabaseData(activeClient);
+         <form onSubmit={async (e) => {
+                e.preventDefault(); 
+                setLoading(true);
+                
+                // Fetch the exact error from Supabase
+                const { error } = await supabase.from('tasks').insert([{ 
+                  client_id: activeClient, 
+                  role: newTaskRole, 
+                  task_name: newTaskName, 
+                  weight: parseInt(newTaskWeight) || 10 
+                }]);
+                
+                if (error) {
+                  alert(`Датэбэйс алдаа: ${error.message}\n(Та Supabase-д 'tasks' хүснэгтээ зөв үүсгэсэн эсэхээ шалгана уу)`);
+                } else {
+                  setNewTaskName(''); 
+                  setNewTaskWeight('');
+                  await fetchDatabaseData(activeClient);
+                }
+                setLoading(false);
               }} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-2">Үүрэг (Role)</label>
