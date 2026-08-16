@@ -101,6 +101,62 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
+      // Role Selection Callback (Finds tasks assigned to this role)
+      if (callbackData.startsWith("role_")) {
+        const selectedRole = callbackData === "role_barista" ? "Бариста ☕" : "Тогооч 🍳";
+        const firstName = callback_query.from?.first_name || "Ажилтан";
+        const fullNameRole = `${selectedRole} (${firstName})`;
+
+        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+
+        // Load tasks specifically assigned to this role on the Web Dashboard [3]
+        const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', selectedRole).eq('is_active', true);
+        const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
+
+        // Update the active shift with their chosen role and tasks [3]
+        await supabase.from('shifts').update({
+          character_role: fullNameRole,
+          daily_tasks_checklist: taskChecklist
+        }).eq('telegram_chat_id', currentChatId).eq('is_active', true);
+
+        await answerTelegramCallback(callbackQueryId, `${selectedRole} сонгогдлоо!`);
+        
+        let taskText = taskChecklist.length > 0 
+          ? `\n\n📌 **Өнөөдрийн даалгаврууд:**\n` + taskChecklist.map((t, i) => `${i+1}. ${t.name}`).join('\n')
+          : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
+
+        await editTelegramMessage(currentChatId, messageId, `✅ **Үүрэг сонгогдлоо!**\n\nТаны дүр: **${fullNameRole}**${taskText}\n\nАжилдаа амжилт хүсье!`);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // Task Toggle Click (Trello Style Checkbox)
+      if (callbackData.startsWith("tsk_")) {
+        const index = parseInt(callbackData.replace("tsk_", ""));
+        const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
+        if (!activeShift) return NextResponse.json({ status: 'ok' });
+
+        let tasks = typeof activeShift.daily_tasks_checklist === 'string' ? JSON.parse(activeShift.daily_tasks_checklist) : activeShift.daily_tasks_checklist;
+        tasks[index].done = !tasks[index].done;
+        
+        await supabase.from('shifts').update({ daily_tasks_checklist: tasks }).eq('id', activeShift.id);
+
+        let buttons = tasks.map((t: any, i: number) => {
+            return [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }];
+        });
+        buttons.push([{ text: "➔ Дараагийн алхам: Тооллого хийх", callback_data: "go_to_inventory" }]);
+
+        await editTelegramMessage(currentChatId, messageId, "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:", buttons);
+        return NextResponse.json({ status: 'ok' });
+      }
+
+      // Proceed to Inventory Click
+      if (callbackData === "go_to_inventory") {
+        await answerTelegramCallback(callbackQueryId, "Тооллого руу шилжиж байна...");
+        await generateInventoryChecklist(currentChatId, messageId);
+        return NextResponse.json({ status: 'ok' });
+      }
+
       // 2. Тоологдсон ногоон товч дарах үед (Ignore)
       if (callbackData === "ignore") {
         await answerTelegramCallback(callbackQueryId, "✅ Энэ бараа аль хэдийн тоологдсон байна.");
@@ -414,124 +470,63 @@ export async function POST(request: Request) {
 
     const lowercaseMsg = incomingText.toLowerCase();
 
-    // 1. ЭЭЛЖ ЭХЛЭХ ЛОГИК (☀️ Ээлж эхлэх товчийг мэдэрнэ)
+   
+  // 1. ЭЭЛЖ ЭХЛЭХ ЛОГИК (Shows role buttons at start)
     if (incomingText === "/shift_start" || lowercaseMsg === "ээлж эхлэх" || lowercaseMsg === "☀️ ээлж эхлэх") {
-      // Идэвхтэй ээлж байгаа эсэхийг шалгах
-      const { data: activeShift } = await supabase
-        .from('shifts')
-        .select('id')
-        .eq('telegram_chat_id', currentChatId)
-        .eq('is_active', true)
-        .maybeSingle();
-
+      const { data: activeShift } = await supabase.from('shifts').select('id').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
       if (activeShift) {
-        const errorText = "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой ажил дуусах үед доорх цэсний '🌙 Ээлж хаах' товчийг ашиглан ээлжээ хаана уу.";
-        await sendTelegramMessageWithMenu(currentChatId, errorText);
+        await sendTelegramMessageWithMenu(currentChatId, "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой ажил дуусах үед доорх цэсний '🌙 Ээлж хаах' товчийг ашиглан ээлжээ хаана уу.");
         return NextResponse.json({ status: 'ok' });
       }
 
-     // Ажилтны нэрийг Telegram-аас автоматаар авах
-      const workerName = message.from?.first_name || message.chat?.first_name || "Ажилтан";
+      // Create the active shift first
+      await supabase.from('shifts').insert([{
+        client_id: tenantClientId,
+        telegram_chat_id: currentChatId,
+        is_active: true
+      }]);
 
-      // Шинэ идэвхтэй ээлж нээх
-      const { error: insertError } = await supabase
-        .from('shifts')
-        .insert([{
-          client_id: tenantClientId,
-          telegram_chat_id: currentChatId,
-          is_active: true,
-          character_role: workerName
-        }]);
+      // Ask them what they are working as today
+      const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: currentChatId,
+          text: "🎮 **Шинэ ээлж эхэллээ!**\n\nТа өнөөдөр ямар үүрэгтэй (Role) ажиллах вэ?",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "☕ Бариста", callback_data: `role_barista` }, { text: "🍳 Тогооч", callback_data: `role_chef` }]
+            ]
+          }
+        })
+      });
 
-      // Хэрэв датабэйс рүү хадгалж чадахгүй бол алдааг шууд дэлгэцэнд харуулна
-      if (insertError) {
-        await sendTelegramMessage(currentChatId, `❌ Ээлж эхлүүлж чадсангүй.\nАлдаа: ${insertError.message}`);
-        return NextResponse.json({ status: 'ok' });
-      }
-
-      const startConfirmText = "✅ Таны өнөөдрийн ээлж амжилттай эхэллээ. Ажлын бүтээмж өндөр, сайхан өдрийг хүсэн ерөөе!";
-      await sendTelegramMessageWithMenu(currentChatId, startConfirmText);
       return NextResponse.json({ status: 'ok' });
     }
-
-// Ээлж хаах логик (The Intelligent Shift Closer with Gamification)
+// Ээлж хаах логик (Checks Tasks first, then moves to Inventory counts)
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
-      const { data: activeShift } = await supabase
-        .from('shifts')
-        .select('*')
-        .eq('telegram_chat_id', currentChatId)
-        .eq('is_active', true)
-        .maybeSingle();
-
+      const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
       if (!activeShift) {
         await sendTelegramMessageWithMenu(currentChatId, "Алдаа: Идэвхтэй ээлж олдсонгүй. '☀️ Ээлж эхлэх' товчоор эхлүүлнэ үү.");
         return NextResponse.json({ status: 'ok' });
       }
 
-      let checklist = activeShift.closing_checklist || [];
-      if (typeof checklist === 'string') checklist = JSON.parse(checklist);
+      let tasks = activeShift.daily_tasks_checklist || [];
+      if (typeof tasks === 'string') tasks = JSON.parse(tasks);
 
-      // Үүсгэсэн чек-лист байхгүй бол ШИНЭЭР үүсгэнэ (Freeze state)
-      if (checklist.length === 0) {
-        const reqUrl = new URL(request.url);
-        const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
-        const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
-        const analyticsData = await response.json();
-
-        // 12 цагийн дотор тоолсон бол дахиж шаардахгүй (Game Logic)
-        const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
-
-       // Critical items will always appear on the checklist unless counted in the last 12 hours
-        const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => 
-          i.is_critical === true && 
-          (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
-        ) || [];
-
-        const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
-        const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => {
-          const dateA = new Date(a.last_counted_at || '2000-01-01').getTime();
-          const dateB = new Date(b.last_counted_at || '2000-01-01').getTime();
-          return dateA - dateB;
+      // If there are tasks assigned to this role, show them FIRST
+      if (tasks.length > 0) {
+        let buttons = tasks.map((t: any, i: number) => {
+            return [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }];
         });
-        
-       const finalItemsToCount = [...criticalItems, ...sortedCycleItems].slice(0, 5);
-
-        checklist = finalItemsToCount.map((i: any) => ({
-          name: i.name,
-          unit: i.unit,
-          live_stock: i.live_stock,
-          done: false
-        }));
-
-        // Хадгалах (Freeze the checklist so it doesn't shuffle)
-        await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
-      }
-
-    if (checklist.length > 0) {
-        // FIX: Хэрэв бүгд тоологдсон бол шууд хүчээр хаана (Loop-д орохгүй)
-        const allDone = checklist.every((i: any) => i.done === true);
-        if (allDone) {
-          await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
-          await sendTelegramMessageWithMenu(currentChatId, "🌙 Бүх тооллого дууссан байна. Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
-          return NextResponse.json({ status: 'ok' });
-        }
-
-        // ТЕЛЕГРАМ ТОВЧЛУУРУУД ҮҮСГЭХ
-        let buttons = checklist.map((item: any) => {
-          if (item.done) {
-            return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
-          } else {
-            return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
-          }
-        });
-        
-        buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
-
-        await sendTelegramMessageWithInlineKeyboard(currentChatId, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
+        buttons.push([{ text: "➔ Дараагийн алхам: Тооллого хийх", callback_data: "go_to_inventory" }]);
+        await sendTelegramMessageWithInlineKeyboard(currentChatId, "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:", buttons);
       } else {
-        await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
-        await sendTelegramMessageWithMenu(currentChatId, "🌙 Тоолох шаардлагатай бараа алга байна. Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
+        // If no tasks exist, proceed straight to the inventory count
+        await generateInventoryChecklist(currentChatId, null);
       }
+      return NextResponse.json({ status: 'ok' });
     }
     // 3. Process with AI Router
     const { data: ingredients } = await supabase.from('ingredients').select('name');
@@ -674,7 +669,7 @@ async function sendTelegramMessageWithUndo(chatId: number | null, text: string, 
   });
 }
 
-async function editTelegramMessage(chatId: number | null, messageId: number, text: string) {
+async function editTelegramMessage(chatId: number | null, messageId: number, text: string, inline_keyboard: any[] = []) {
   if (!chatId) return;
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`;
   await fetch(url, {
@@ -684,7 +679,7 @@ async function editTelegramMessage(chatId: number | null, messageId: number, tex
       chat_id: chatId, 
       message_id: messageId, 
       text: text,
-      reply_markup: { inline_keyboard: [] }
+      reply_markup: { inline_keyboard }
     })
   });
 }
@@ -723,6 +718,57 @@ async function sendTelegramMessageWithInlineKeyboard(chatId: number | null, text
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text: text, reply_markup: { inline_keyboard } })
   });
+}
+
+async function generateInventoryChecklist(chatId: number | null, messageIdToEdit: number | null) {
+  if (!chatId) return;
+  const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', chatId).eq('is_active', true).maybeSingle();
+  if (!activeShift) return;
+
+  const tenantClientId = activeShift.client_id;
+  let checklist = activeShift.closing_checklist || [];
+  if (typeof checklist === 'string') checklist = JSON.parse(checklist);
+
+  if (checklist.length === 0) {
+    const reqUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const res = await fetch(`${reqUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
+    const analyticsData = await res.json();
+    const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
+
+    const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical === true && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)) || [];
+    const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
+    const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime());
+    
+    checklist = [...criticalItems, ...sortedCycleItems].slice(0, 5).map((i: any) => ({ name: i.name, unit: i.unit, live_stock: i.live_stock, done: false }));
+    await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+  }
+
+  if (checklist.length > 0) {
+    const allDone = checklist.every((i: any) => i.done === true);
+    
+    // Auto-Close when everything is checked!
+    if (allDone) {
+      if (messageIdToEdit) await editTelegramMessage(chatId, messageIdToEdit, "✅ Бүх тооллого дууссан байна. Ээлжийг хаалаа.");
+      await generateShiftScorecard(activeShift, chatId);
+      return;
+    }
+
+    let buttons = checklist.map((item: any) => {
+      if (item.done) return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
+      return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
+    });
+    
+    buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
+
+    if (messageIdToEdit) {
+      await editTelegramMessage(chatId, messageIdToEdit, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
+    } else {
+      await sendTelegramMessageWithInlineKeyboard(chatId, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
+    }
+  } else {
+    await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+    await sendTelegramMessageWithMenu(chatId, "🌙 Тоолох бараа алга. Ээлж амжилттай хаагдлаа!");
+  }
 }
 
 

@@ -45,7 +45,8 @@ function Home() {
   const [userClient, setUserClient] = useState<string>('SF Coffee');
   // Navigation State
 const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'>('dashboard');
-  const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
+const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
+const [shifts, setShifts] = useState<any[]>([]);
 const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
 const [tasks, setTasks] = useState<any[]>([]);
 const [newTaskName, setNewTaskName] = useState('');
@@ -203,8 +204,11 @@ const fetchDatabaseData = async (clientId: string = 'SF Coffee') => {
       const { data: logData } = await supabase.from('inventory_logs').select('*');
       const { data: saleData } = await supabase.from('sales_logs').select('*');
       const { data: taskData } = await supabase.from('tasks').select('*');
+      const { data: shiftData } = await supabase.from('shifts').select('*').order('start_time', { ascending: false });
+    
       if (taskData) setTasks(taskData);
-      
+      if (shiftData) setShifts(shiftData);
+
       if (ingData) {
         setIngredients(ingData);
         const stockMap: Record<string, string> = {};
@@ -1331,6 +1335,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                   Татан авалт Бөөнөөр Нэмэх (Import)
                 </button>
               </form>
+
             </div>
           </div>
         )}
@@ -1398,6 +1403,59 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                   ))}
                 </tbody>
               </table>
+            </div>
+            {/* Closed Shifts Report Table */}
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-3 mt-8">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-400">
+                <Activity className="h-5 w-5" /> Хаагдсан ээлжүүдийн түүх (Shift History)
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-slate-400 text-xs border-b border-slate-800 uppercase tracking-wider font-bold">
+                      <th className="py-3 px-2">Ажилтан (Үүрэг)</th>
+                      <th className="py-3 px-2">Эхэлсэн огноо</th>
+                      <th className="py-3 px-2">Хаагдсан огноо</th>
+                      <th className="py-3 px-2">Даалгаврын гүйцэтгэл</th>
+                      <th className="py-3 px-2 text-right">Ээлжийн Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-slate-800/50">
+                    {shifts.filter(s => s.client_id === activeClient && !s.is_active).length === 0 ? (
+                      <tr><td colSpan={5} className="py-8 text-center text-slate-500 italic">Хаагдсан ээлж одоогоор байхгүй байна.</td></tr>
+                    ) : (
+                      shifts.filter(s => s.client_id === activeClient && !s.is_active).map(s => {
+                        // Calculate task completion percentage
+                        let tasksList = s.daily_tasks_checklist || [];
+                        if (typeof tasksList === 'string') tasksList = JSON.parse(tasksList);
+                        let completed = tasksList.filter((t: any) => t.done).length;
+                        let total = tasksList.length;
+                        let percentage = total > 0 ? Math.round((completed / total) * 100) : 100;
+
+                        return (
+                          <tr key={s.id} className="hover:bg-slate-900/30">
+                            <td className="py-3 px-2 font-bold text-slate-200">{s.character_role || "Ерөнхий ажилтан"}</td>
+                            <td className="py-3 px-2 text-slate-400">{new Date(s.start_time).toLocaleString('mn-MN')}</td>
+                            <td className="py-3 px-2 text-slate-400">{s.end_time ? new Date(s.end_time).toLocaleString('mn-MN') : "-"}</td>
+                            <td className="py-3 px-2 font-semibold">
+                              {total > 0 ? (
+                                <span className={percentage >= 80 ? 'text-emerald-400' : 'text-amber-400'}>
+                                  {percentage}% ({completed}/{total})
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 italic">Даалгавар байхгүй</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-2 text-right">
+                              <span className="bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg text-xs font-bold uppercase">Closed</span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
