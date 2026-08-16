@@ -102,7 +102,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // Role Selection Callback (Finds tasks assigned to this role)
+     // Role Selection Callback (Saves role permanently to Profile)
       if (callbackData.startsWith("role_")) {
         const selectedRole = callbackData === "role_barista" ? "Бариста ☕" : "Тогооч 🍳";
         const firstName = callback_query.from?.first_name || "Ажилтан";
@@ -111,18 +111,21 @@ export async function POST(request: Request) {
         const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-        // Load tasks specifically assigned to this role on the Web Dashboard [3]
+        // 1. SAVE THE ROLE PERMANENTLY TO THEIR PROFILE SO THEY NEVER HAVE TO CHOOSE AGAIN
+        await supabase.from('profiles').update({ role: selectedRole }).eq('telegram_chat_id', currentChatId);
+
+        // 2. Load tasks specifically assigned to this role on the Web Dashboard
         const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', selectedRole).eq('is_active', true);
         const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
 
-       // Save the worker's name, role, and checklists to Supabase
+        // 3. Update the active shift with their chosen role and tasks
         const { error: updateError } = await supabase.from('shifts').update({
           character_role: fullNameRole,
           daily_tasks_checklist: taskChecklist
         }).eq('telegram_chat_id', currentChatId).eq('is_active', true);
 
         if (updateError) {
-          await sendTelegramMessage(currentChatId, `❌ Алдаа (Үүрэг хадгалахад): ${updateError.message}\n(Та 'shifts' хүснэгтийнхээ RLS болон баганыг шалгана уу)`);
+          await sendTelegramMessage(currentChatId, `❌ Алдаа (Үүрэг хадгалахад): ${updateError.message}`);
           return NextResponse.json({ status: 'ok' });
         }
 
@@ -477,39 +480,85 @@ export async function POST(request: Request) {
     const lowercaseMsg = incomingText.toLowerCase();
 
    
-  // 1. ЭЭЛЖ ЭХЛЭХ ЛОГИК (Shows role buttons at start)
-    if (incomingText === "/shift_start" || lowercaseMsg === "ээлж эхлэх" || lowercaseMsg === "☀️ ээлж эхлэх") {
-      const { data: activeShift } = await supabase.from('shifts').select('id').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
-      if (activeShift) {
-        await sendTelegramMessageWithMenu(currentChatId, "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой ажил дуусах үед доорх цэсний '🌙 Ээлж хаах' товчийг ашиглан ээлжээ хаана уу.");
-        return NextResponse.json({ status: 'ok' });
-      }
+ // 1. ЭЭЛЖ ЭХЛЭХ ЛОГИК (Profile-Based Role Memory with Optional Override)
+  if (incomingText === "/shift_start" || lowercaseMsg === "ээлж эхлэх" || lowercaseMsg === "☀️ ээлж эхлэх") {
+    const { data: activeShift } = await supabase.from('shifts').select('id').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+    if (activeShift) {
+      await sendTelegramMessageWithMenu(currentChatId, "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой ажил дуусах үед доорх цэсний '🌙 Ээлж хаах' товчийг ашиглан ээлжэ хаана уу.");
+      return NextResponse.json({ status: 'ok' });
+    }
 
-      // Create the active shift first
+    // Fetch user profile and see if they ALREADY have a saved role (e.g., 'Бариста ☕' or 'Тогооч 🍳')
+    const { data: userProfile } = await supabase.from('profiles').select('client_id, role').eq('telegram_chat_id', currentChatId).maybeSingle();
+    const tenantClientId = userProfile?.client_id || 'SF Coffee';
+    const profileRole = userProfile?.role;
+
+    const firstName = message.from?.first_name || "Ажилтан";
+    const fullNameRole = `${profileRole} (${firstName})`;
+
+    // IF THEY ALREADY HAVE A SAVED ROLE: Start shift instantly but show an "Override/Switch" button!
+    if (profileRole === "Бариста ☕" || profileRole === "Тогооч 🍳") {
+      // Load tasks specifically assigned to this role
+      const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', profileRole).eq('is_active', true);
+      const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
+
+      // Directly start the shift with their default role & tasks
       await supabase.from('shifts').insert([{
         client_id: tenantClientId,
         telegram_chat_id: currentChatId,
-        is_active: true
+        is_active: true,
+        character_role: fullNameRole,
+        daily_tasks_checklist: taskChecklist
       }]);
 
-      // Ask them what they are working as today
-      const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
-      await fetch(url, {
+      let taskText = taskChecklist.length > 0 
+        ? `\n\n📌 **Өнөөдрийн даалгаврууд:**\n` + taskChecklist.map((t, i) => `${i+1}. ${t.name}`).join('\n')
+        : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
+
+      // Determine the opposite role for the override button
+      const oppositeRoleName = profileRole === "Бариста ☕" ? "Тогооч 🍳" : "Бариста ☕";
+      const oppositeCallbackData = profileRole === "Бариста ☕" ? "role_chef" : "role_barista";
+
+      // Send start message containing a dynamic button to optionally switch roles
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: currentChatId,
-          text: "🎮 **Шинэ ээлж эхэллээ!**\n\nТа өнөөдөр ямар үүрэгтэй (Role) ажиллах вэ?",
+          text: `✅ **Ээлж амжилттай эхэллээ!**\n\nҮүрэг: **${fullNameRole}**${taskText}\n\n*Хэрэв өнөөдөр өөр үүрэгтэй (солигдож) ажиллах бол доорх товчийг дарж үүргээ солино уу:*`,
           reply_markup: {
             inline_keyboard: [
-              [{ text: "☕ Бариста", callback_data: `role_barista` }, { text: "🍳 Тогооч", callback_data: `role_chef` }]
+              [{ text: `🔄 ${oppositeRoleName} болж солих`, callback_data: oppositeCallbackData }]
             ]
           }
         })
       });
-
       return NextResponse.json({ status: 'ok' });
     }
+
+    // FALLBACK: If they are an 'owner' or have no role yet, create the shift and ask them to select
+    await supabase.from('shifts').insert([{
+      client_id: tenantClientId,
+      telegram_chat_id: currentChatId,
+      is_active: true
+    }]);
+
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: currentChatId,
+        text: "🎮 **Шинэ ээлж эхэллээ!**\n\nТа өнөөдөр ямар үүрэгтэй (Role) ажиллах вэ?",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "☕ Бариста", callback_data: `role_barista` }, { text: "🍳 Тогооч", callback_data: `role_chef` }]
+          ]
+        }
+      })
+    });
+
+    return NextResponse.json({ status: 'ok' });
+  }
 // Ээлж хаах логик (Checks Tasks first, then moves to Inventory counts)
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
       const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
