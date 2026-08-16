@@ -60,7 +60,8 @@ const AI_SYSTEM_PROMPT = `
 
 export async function POST(request: Request) {
   let currentChatId: number | null = null;
-
+  const reqUrl = new URL(request.url);
+  const hostUrl = `${reqUrl.protocol}//${reqUrl.host}`;
   try {
     const payload = await request.json();
     const { message, callback_query } = payload;
@@ -114,11 +115,16 @@ export async function POST(request: Request) {
         const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', selectedRole).eq('is_active', true);
         const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
 
-        // Update the active shift with their chosen role and tasks [3]
-        await supabase.from('shifts').update({
+       // Save the worker's name, role, and checklists to Supabase
+        const { error: updateError } = await supabase.from('shifts').update({
           character_role: fullNameRole,
           daily_tasks_checklist: taskChecklist
         }).eq('telegram_chat_id', currentChatId).eq('is_active', true);
+
+        if (updateError) {
+          await sendTelegramMessage(currentChatId, `❌ Алдаа (Үүрэг хадгалахад): ${updateError.message}\n(Та 'shifts' хүснэгтийнхээ RLS болон баганыг шалгана уу)`);
+          return NextResponse.json({ status: 'ok' });
+        }
 
         await answerTelegramCallback(callbackQueryId, `${selectedRole} сонгогдлоо!`);
         
@@ -153,7 +159,7 @@ export async function POST(request: Request) {
       // Proceed to Inventory Click
       if (callbackData === "go_to_inventory") {
         await answerTelegramCallback(callbackQueryId, "Тооллого руу шилжиж байна...");
-        await generateInventoryChecklist(currentChatId, messageId);
+        await generateInventoryChecklist(currentChatId, messageId, hostUrl);
         return NextResponse.json({ status: 'ok' });
       }
 
@@ -524,7 +530,7 @@ export async function POST(request: Request) {
         await sendTelegramMessageWithInlineKeyboard(currentChatId, "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:", buttons);
       } else {
         // If no tasks exist, proceed straight to the inventory count
-        await generateInventoryChecklist(currentChatId, null);
+        await generateInventoryChecklist(currentChatId, null, hostUrl);
       }
       return NextResponse.json({ status: 'ok' });
     }
@@ -720,7 +726,7 @@ async function sendTelegramMessageWithInlineKeyboard(chatId: number | null, text
   });
 }
 
-async function generateInventoryChecklist(chatId: number | null, messageIdToEdit: number | null) {
+async function generateInventoryChecklist(chatId: number | null, messageIdToEdit: number | null, hostUrl: string) {
   if (!chatId) return;
   const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', chatId).eq('is_active', true).maybeSingle();
   if (!activeShift) return;
@@ -730,8 +736,9 @@ async function generateInventoryChecklist(chatId: number | null, messageIdToEdit
   if (typeof checklist === 'string') checklist = JSON.parse(checklist);
 
   if (checklist.length === 0) {
-    const reqUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const res = await fetch(`${reqUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
+  //  const reqUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    
+    const res = await fetch(`${hostUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
     const analyticsData = await res.json();
     const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
 
