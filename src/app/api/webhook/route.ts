@@ -261,7 +261,17 @@ export async function POST(request: Request) {
         const logsToInsert: any[] = [];
 
         for (const item of aiAnalysis.purchases) {
-          const ing = ingredients?.find((i: any) => i.name === item.item_name);
+          
+           const ing = ingredients?.find((i: any) => i.name === item.item_name);
+          const workerName = message.from?.first_name || "Ажилтан"; // Гараар нэр авах
+
+          if (ing) {
+            logsToInsert.push({ client_id: tenantClientId, ingredient_id: ing.id, quantity: Math.abs(item.quantity), type: 'purchase', total_cost: item.total_cost || 0, notes: item.notes || "E-Barimt", date: new Date().toISOString(), worker_name: workerName });
+            successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit}\n`;
+          } else {
+            logsToInsert.push({ client_id: tenantClientId, non_food_item: item.item_name, quantity: Math.abs(item.quantity), type: 'purchase', total_cost: item.total_cost || 0, notes: "E-Barimt (OPEX)", date: new Date().toISOString(), worker_name: workerName });
+            successMessage += `• ${item.item_name} (Бусад): ${item.quantity}\n`;
+          }
           if (ing) {
             logsToInsert.push({
               client_id: tenantClientId,
@@ -269,7 +279,7 @@ export async function POST(request: Request) {
               quantity: Math.abs(item.quantity),
               type: 'purchase',
               total_cost: item.total_cost || 0,
-              notes: item.notes || "E-Barimt Scan",
+              notes: item.image_type === 'Product Photo' ? '📸 Барааны зураг (Баримтгүй)' : '🧾 E-Barimt Scan',
               // date: new Date().toISOString()
               date:'2026-06-15T12:00:00.000Z'
             });
@@ -331,15 +341,17 @@ export async function POST(request: Request) {
           await sendTelegramMessage(currentChatId, `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй.`);
           return NextResponse.json({ status: 'ok' });
         }
-
+        const workerName = message.from?.first_name || "Ажилтан";
         // 1. Log the count (Your DB trigger will automatically update current_stock)
         const { error: logErr } = await supabase.from('inventory_logs').insert([{
+    
           client_id: tenantClientId,
           ingredient_id: ingredient.id,
           quantity: qty,
           type: 'count',
           notes: 'Ээлж хаалтын тооллого',
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          worker_name: workerName
         }]);
 
         if (logErr) {
@@ -607,20 +619,22 @@ export async function POST(request: Request) {
         await sendTelegramMessage(currentChatId, `❌ Алдаа: '${aiAnalysis.item_name}' нэртэй түүхий эд олдсонгүй.`);
         return NextResponse.json({ status: 'ok' });
       }
-
+      const workerName = message.from?.first_name || "Ажилтан";
       // Save operational log to Supabase
-      const { data: log, error: logError } = await supabase
+      if (ingredient) {
+  const { data: log, error: logError } = await supabase
         .from('inventory_logs')
         .insert([{
           ingredient_id: ingredient.id,
           quantity: aiAnalysis.quantity,
           type: aiAnalysis.type,
           notes: aiAnalysis.notes,
-          date: '2026-06-15T12:00:00.000Z' // Forced testing date
+          date: '2026-06-15T12:00:00.000Z', // Forced testing date
+          worker_name: workerName
         }])
         .select()
         .single();
-
+            await sendTelegramMessageWithUndo(currentChatId, `📝 Бүртгэгдлээ:\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`, log.id);
       if (logError) {
         await sendTelegramMessage(currentChatId, `❌ Supabase хадгалах алдаа: ${logError.message}`);
         return NextResponse.json({ status: 'ok' });
@@ -630,12 +644,17 @@ export async function POST(request: Request) {
         await sendTelegramMessage(currentChatId, "⚠️ Анхаар: Өгөгдлийг хадгалсан боловч буцааж уншиж чадсангүй (Supabase RLS-ийн SELECT эрхийг шалгана уу). Буцаах (Undo) товч ажиллахгүй.");
         return NextResponse.json({ status: 'ok' });
       }
-
-      // Send confirmation with Undo action
+       // Send confirmation with Undo action
       const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || 'Тэмдэглэл байхгүй'}`;
       
       await sendTelegramMessageWithUndo(currentChatId!, confirmText, log.id);
       return NextResponse.json({ status: 'ok' });
+          }
+    
+
+    
+
+   
     }
 
     
@@ -839,7 +858,7 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
   // 1. Fetch inventory logs logged during this shift's timeframe
   const { data: logs, error: logsErr } = await supabase
     .from('inventory_logs')
-    .select('quantity, type, ingredient_id, total_cost')
+    .select('quantity, type, ingredient_id, total_cost, notes')
     .eq('client_id', tenantClientId)
     .gte('date', startTime)
     .lte('date', endTime);
@@ -860,12 +879,26 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
 
   let totalWasteCost = 0;
   let itemsCounted = 0;
+  let totalPurchases = 0;
+  let photoVerifiedPurchases = 0;
+  let manualPurchases = 0;
+  let loggedWasteEvents = 0;
 
   if (logs && ingredients) {
     logs.forEach((log: any) => {
       if (log.type === 'count') {
         itemsCounted++;
+      } else if (log.type === 'purchase') {
+        totalPurchases++;
+        const noteText = (log.notes || "").toLowerCase();
+        // Checks if the purchase has a scanned photo proof
+        if (noteText.includes("scan") || noteText.includes("e-barimt")) {
+          photoVerifiedPurchases++;
+        } else {
+          manualPurchases++;
+        }
       } else if (['spoilage', 'testing', 'staff_meal', 'other'].includes(log.type)) {
+        loggedWasteEvents++;
         const ing = ingredients.find((i: any) => i.id === log.ingredient_id);
         if (ing) {
           const price = parseFloat(ing.unit_price) || 0;
@@ -875,32 +908,61 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
     });
   }
 
-  // 3. Calculate Gamified XP Score
-  let xpEarned = 10; // 10 XP base for completing shift
-  xpEarned += itemsCounted * 5; // +5 XP per counted item
-  if (totalWasteCost === 0) {
-    xpEarned += 30; // +30 XP "Zero Waste" perfect shift bonus!
-  }
-
-  // 4. Update the Shift record in database (CATCHES SILENT DB ERRORS)
+  // 3. Update the Shift record in database (Marks shift closed)
   const { error: updateError } = await supabase
     .from('shifts')
     .update({
       is_active: false,
-      end_time: endTime,
-      earned_xp: (activeShift.earned_xp || 0) + xpEarned // Restored XP update
+      end_time: endTime
     })
     .eq('id', activeShift.id);
 
-  // If Supabase rejects the update, it will print the red error here
   if (updateError) {
-     await sendTelegramMessage(chatId, `❌ ДАТАБЕЙС АЛДАА: Ээлжийг хааж чадсангүй.\nШалтгаан: ${updateError.message}\n(Та Supabase RLS Update policy-гоо шалгана уу)`);
+     await sendTelegramMessage(chatId, `❌ ДАТАБЕЙС АЛДАА: Ээлжийг хааж чадсангүй.\nШалтгаан: ${updateError.message}`);
      return;
   }
 
-  // 5. Send a simple, clean completion message
+  // 4. Send a clean completion message to the WORKER
   await sendTelegramMessageWithMenu(
     chatId, 
     `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа, сайхан амраарай!`
   );
+
+  // 5. Send an HONESTY AUDIT REPORT privately to the OWNER
+  const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+  const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  // Build dynamic security and honesty alerts based on their behavior
+  const auditAlerts: string[] = [];
+  if (manualPurchases > 0) {
+    auditAlerts.push(`⚠️ **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.** Орж ирсэн барааны баримтыг заавал шалгана уу!`);
+  } else if (totalPurchases > 0 && manualPurchases === 0) {
+    auditAlerts.push(`✅ Бүх татан авалтууд зураг болон E-Barimt-аар амжилттай баталгаажсан.`);
+  }
+
+  if (loggedWasteEvents === 0) {
+    auditAlerts.push(`⚠️ Ээлжийн турш ямар ч хаягдал, ажилчдын хоол бүртгэгдсэнгүй. (Сүү асгарсан эсэхийг тооллогоор хянах шаардлагатай).`);
+  } else {
+    auditAlerts.push(`✅ ${loggedWasteEvents} удаагийн хаягдал/ажилтны хэрэглээг тухай бүрт нь үнэн зөв бүртгэсэн.`);
+  }
+
+  const ownerScorecardText = `👑 **ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН**\n\n` +
+    `🏢 **Салбар:** ${tenantClientId}\n` +
+    `👤 **Ажилтан:** ${role}\n` +
+    `⏱ **Ажилласан:** ${hours} цаг ${minutes} минут\n` +
+    `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
+    `🗑 **Бүртгэсэн хаягдал:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
+    `🛡 **АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
+    auditAlerts.map(alert => `• ${alert}`).join('\n');
+
+  // Find owners of this cafe and send them the private scorecard
+  const { data: owners } = await supabase.from('profiles').select('telegram_chat_id').eq('client_id', tenantClientId).eq('role', 'owner');
+  if (owners) {
+    for (const owner of owners) {
+      if (owner.telegram_chat_id && owner.telegram_chat_id !== chatId) {
+        await sendTelegramMessage(owner.telegram_chat_id, ownerScorecardText);
+      }
+    }
+  }
 }

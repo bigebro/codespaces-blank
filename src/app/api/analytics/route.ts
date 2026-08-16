@@ -376,6 +376,19 @@ const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal 
 const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
     const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
 
+        // ШИНЭ: AI-д зориулж бүх гүйлгээний түүхийг (Огноо, Төрөл, Тайлбартай нь) бэлтгэх
+    const aiTimelineLogs = rawInventoryLogs.map((log: any) => {
+      const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+      return {
+        date: log.date ? log.date.split('T')[0] : 'Unknown', // Зөвхөн өдрөөр нь тасална
+        item: ing ? ing.name : (log.non_food_item || "Unknown"),
+        type: log.type,
+        qty: log.quantity,
+        cost: log.total_cost || 0,
+        notes: log.notes || ""
+      };
+    });
+
     return NextResponse.json({
       financial_ladder: {
         revenue: totalRevenue,
@@ -396,6 +409,8 @@ const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + to
       underpoured_only: fullInventory.filter(i => i.is_under).sort((a,b) => b.raw_physical_gap - a.raw_physical_gap),
       wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact),
       opex_details: opexDetails,
+       // AI ЭНҮҮГЭЭР ШҮҮНЭ (The AI will read this to answer your date/photo questions!)
+      all_timeline_logs: aiTimelineLogs, 
       total_waste_loss: totalWasteLoss || 0,
       total_unexplained_waste: totalUnexplainedWaste || 0,
       total_surplus_savings: totalSurplusSavings || 0,

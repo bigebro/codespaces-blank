@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [companyName, setCompanyName] = useState(''); 
+  const [signupRole, setSignupRole] = useState<'owner' | 'barista'>('owner');
   const [mounted, setMounted] = useState(false);
   
   
@@ -73,13 +74,13 @@ const handleForgotPassword = async () => {
     try {
       if (isSignUp) {
         // Registers user and passes branch metadata to the SQL trigger [2, 3]
-        const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-            client_id: companyName.trim() || 'SF Coffee', // Uses their dynamic input [2, 3]
-              role: 'owner'
+              client_id: companyName.trim() || 'SF Coffee', 
+              role: signupRole // <--- Өөрчлөгдсөн хэсэг: Шилжүүлэгчийн утгыг датабэйс рүү илгээнэ
             }
           }
         });
@@ -157,7 +158,7 @@ if (!mounted) {
     
   </div>
 {/* Dynamic Business Name Input for Signup  */}
-{isSignUp && (
+{/* {isSignUp && (
   <div>
     <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Бизнесийн Нэр (Салбар)</label>
     <input 
@@ -168,6 +169,46 @@ if (!mounted) {
       placeholder="Жишээ: Cafe B, SF Coffee"
       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
     />
+  </div>
+)} */}
+
+{isSignUp && (
+  <div className="space-y-4">
+    {/* The Switch Buttons */}
+    <div>
+      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Би хэн бэ?</label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setSignupRole('owner')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${signupRole === 'owner' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
+        >
+          👑 Бизнес эрхлэгч
+        </button>
+        <button
+          type="button"
+          onClick={() => setSignupRole('barista')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${signupRole === 'barista' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
+        >
+          ☕ Ажилтан
+        </button>
+      </div>
+    </div>
+
+    {/* Dynamic Company Input */}
+    <div>
+      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+        {signupRole === 'owner' ? 'Бизнесийн Нэр (Шинээр үүсгэх)' : 'Кофе шопын нэр (Салбар)'}
+      </label>
+      <input 
+        type="text"
+        value={companyName}
+        onChange={(e) => setCompanyName(e.target.value)}
+        required={isSignUp}
+        placeholder={signupRole === 'owner' ? "Жишээ: SF Coffee" : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"}
+        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+      />
+    </div>
   </div>
 )}
   {/* Hides password input cleanly when Forgot Password state is active */}

@@ -49,6 +49,9 @@ const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
 const [shifts, setShifts] = useState<any[]>([]);
 const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
 const [tasks, setTasks] = useState<any[]>([]);
+const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; }); // Defaults to 1st of the month
+const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]); // Defaults to today
+const [selectedWorkerFilter, setSelectedWorkerFilter] = useState('Бүх ажилтан');
 const [newTaskName, setNewTaskName] = useState('');
 const [newTaskRole, setNewTaskRole] = useState('Бариста ☕');
 const [newTaskWeight, setNewTaskWeight] = useState('');
@@ -182,7 +185,14 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
     setUser(session.user);
     // Read the client_id assigned to this user from their profiles/metadata [2, 3]
     const assignedClient = session.user.user_metadata?.client_id || 'SF Coffee';
-    setUserClient(assignedClient);
+    setUserClient(assignedClient);   const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      if (profile) {
+        setUserRole(profile.role);
+        // ХЭРЭВ АЖИЛТАН БОЛ ШУУД БАРИСТА ЦОНХ РУУ ШИЛЖҮҮЛНЭ (Force Barista tab)
+        if (profile.role === 'barista') {
+          setActiveTab('barista');
+        }
+      }
     
     // Fetch only this branch's data securely
     fetchDatabaseData(assignedClient);
@@ -749,20 +759,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
             <p className="text-slate-400 mt-1 text-xs">SaaS Multi-Tenant Database: Active System</p>
           </div>
      <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-              <button 
-                onClick={() => setUserRole('owner')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${userRole === 'owner' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-              >
-                Owner View
-              </button>
-              <button 
-                onClick={() => setUserRole('barista')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${userRole === 'barista' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-              >
-                Barista View
-              </button>
-            </div>
+          
 
             <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
               <button onClick={() => setIsLive(false)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}>Demo</button>
@@ -805,7 +802,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           >
             ☕ Бариста Портал (Inputs)
           </button>
-          {userRole === 'owner' && (
+          
             <>
               <button 
                 onClick={() => setActiveTab('sales')}
@@ -825,14 +822,16 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               >
                 📥 Бөөнөөр Импортлох (Excel Paste)
               </button>
+              {userRole === 'owner' && (
               <button 
                 onClick={() => setActiveTab('tasks')}
                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'tasks' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
               >
                 📋 Ажлын Даалгавар (Tasks)
               </button>
+               )}
             </>
-          )}
+         
         </div>
 
         {/* 1. FINANCIAL DASHBOARD TAB */}
@@ -1109,7 +1108,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
         )}
 
         {/* 3. SALES SIMULATOR TAB */}
-        {activeTab === 'sales' && userRole === 'owner' && (
+        {activeTab === 'sales' && (
           <div className="max-w-xl mx-auto bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-emerald-400">
               <PlusCircle className="h-5 w-5" />
@@ -1163,7 +1162,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
         )}
 
         {/* 4. SPREADSHEET BULK STOCK TAKE TAB */}
-        {activeTab === 'inventory' && userRole === 'owner' && (
+        {activeTab === 'inventory' && (
           <div className="bg-slate-900/30 p-6 rounded-2xl border border-slate-900">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-900">
               <div>
@@ -1265,7 +1264,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
         )}
 
         {/* 5. BULK CLIPBOARD PASTE TAB */}
-        {activeTab === 'import' && userRole === 'owner' && (
+        {activeTab === 'import' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
               <div className="flex items-center gap-2 mb-4">
@@ -1460,7 +1459,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           </div>
         )}
         {/* NEW: HORIZONTAL SPREADSHEET AUDIT PASTE CONTAINER */}
-        {activeTab === 'import' && userRole === 'owner' && (
+        {activeTab === 'import' && (
           <div className="mt-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <FileSpreadsheet className="h-6 w-6 text-teal-400" />
@@ -1497,8 +1496,128 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           </div>
         )}
 
+        {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
+        {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'tasks' && (
+          <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
+              <div>
+                <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-emerald-400" />
+                  Өдөр тутмын үйл ажиллагааны Хяналтын Лог
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Ажилтан тус бүрийн хийсэн бүх гүйлгээ, зураг болон баримтын хяналт</p>
+              </div>
+              
+              {/* Date & Worker Range Filter Inputs */}
+              <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400">Ажилтан:</span>
+                  <select 
+                    value={selectedWorkerFilter} 
+                    onChange={(e) => setSelectedWorkerFilter(e.target.value)}
+                    className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 cursor-pointer"
+                  >
+                    <option value="Бүх ажилтан">Бүх ажилтан</option>
+                    {Array.from(new Set(inventoryLogs.map(l => l.worker_name || 'Үл мэдэгдэх'))).map((w, idx) => (
+                      <option key={idx} value={w as string}>{w as string}</option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-slate-600">|</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400">Эхлэх:</span>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0" />
+                </div>
+                <span className="text-slate-600">|</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400">Дуусах:</span>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0" />
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto max-h-[400px]">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
+                  <tr className="text-slate-400 text-xs font-bold uppercase border-b border-slate-800">
+                    <th className="pb-3 px-2">Төрөл</th>
+                    <th className="pb-3 px-2">Ажилтан</th>
+                    <th className="pb-3 px-2">Барааны Нэр</th>
+                    <th className="pb-3 px-2 text-right">Хэмжээ</th>
+                    <th className="pb-3 px-2 text-right">Үнэ (Cost)</th>
+                    <th className="pb-3 px-2 text-center">Баримт (Proof)</th>
+                    <th className="pb-3 px-2">Тайлбар</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm divide-y divide-slate-800/50">
+                  {inventoryLogs.filter(log => {
+                    const logDate = log.date ? log.date.split('T')[0] : '';
+                    const dateMatch = logDate >= startDate && logDate <= endDate;
+                    const workerMatch = selectedWorkerFilter === 'Бүх ажилтан' || (log.worker_name || 'Үл мэдэгдэх') === selectedWorkerFilter;
+                    return dateMatch && workerMatch && log.client_id === activeClient;
+                  }).length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-500 italic">
+                        Энэ хугацаанд агуулахын ямар нэгэн хөдөлгөөн бүртгэгдээгүй байна.
+                      </td>
+                    </tr>
+                  ) : (
+                    inventoryLogs.filter(log => {
+                      const logDate = log.date ? log.date.split('T')[0] : '';
+                      const dateMatch = logDate >= startDate && logDate <= endDate;
+                      const workerMatch = selectedWorkerFilter === 'Бүх ажилтан' || (log.worker_name || 'Үл мэдэгдэх') === selectedWorkerFilter;
+                      return dateMatch && workerMatch && log.client_id === activeClient;
+                    }).map((log) => {
+                      const ing = ingredients.find(i => i.id === log.ingredient_id);
+                      const name = ing ? ing.name : (log.non_food_item || "Unknown");
+                      const unit = ing ? ing.unit : "ш";
+                      const noteText = (log.notes || "").toLowerCase();
+                      const isPhotoVerified = noteText.includes("scan") || noteText.includes("e-barimt") || noteText.includes("proof") || noteText.includes("зураг");
+
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-900/30">
+                          <td className="py-3 px-2">
+                            <span className={`px-2 py-1 rounded-lg text-xs font-black uppercase ${
+                              log.type === 'purchase' ? 'bg-blue-500/10 text-blue-400' :
+                              log.type === 'count' ? 'bg-purple-500/10 text-purple-400' : 'bg-rose-500/10 text-rose-400'
+                            }`}>
+                              {log.type}
+                            </span>
+                          </td>
+                          {/* НЭМЭГДСЭН БАГАНА: АЖИЛТАН */}
+                          <td className="py-3 px-2 text-slate-300 font-medium">
+                            {log.worker_name || 'Үл мэдэгдэх'}
+                          </td>
+                          <td className="py-3 px-2 font-bold text-slate-200">{name}</td>
+                          <td className="py-3 px-2 text-right font-semibold">{Math.abs(log.quantity).toLocaleString()} {unit}</td>
+                          <td className="py-3 px-2 text-right text-slate-400">
+                            {log.total_cost ? `${parseFloat(log.total_cost).toLocaleString()}₮` : "-"}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {isPhotoVerified ? (
+                              <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg text-xs font-bold border border-emerald-500/20">
+                                📸 Баримтын зурагтай
+                              </span>
+                            ) : log.type === 'purchase' ? (
+                              <span className="bg-rose-500/10 text-rose-400 px-2 py-1 rounded-lg text-xs font-bold border border-rose-500/20">
+                                ⚠️ Гараар шивсэн (Зураггүй)
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 text-xs italic">Дотоод хөдөлгөөн</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-slate-400 max-w-[200px] truncate">{log.notes || "-"}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {/* NEW: Гал тогооны хаягдал (Kitchen Logs) бөөнөөр хуулах хайрцаг */}
-        {activeTab === 'import' && userRole === 'owner' && (
+        {activeTab === 'import' && (
           <div className="mt-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <Trash2 className="h-6 w-6 text-rose-400" />

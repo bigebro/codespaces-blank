@@ -60,10 +60,13 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
   const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
   const systemPrompt = `
-    You are an expert F&B data entry assistant. Read the provided receipt or invoice image.
+    You are an expert F&B data entry assistant. Read the provided receipt or image.
+    1. If the image contains a QR code, barcode, or printed receipt text, classify it as "E-Barimt".
+    2. If the image is just a physical photo of a product (like eggs, milk boxes, or vegetables) without a receipt, classify it as "Product Photo".
+    
     Extract the purchased items, their quantities, and total costs.
     Map the extracted items ONLY to the closest match in this allowed ingredients list: [${ingredientsList.join(', ')}].
-    If an item clearly does not match any food ingredient, you can keep its original name (it will be logged as non-food OPEX).
+    If an item clearly does not match any food ingredient, you can keep its original name.
     
     Respond STRICTLY with a JSON object containing an array "purchases":
     {
@@ -74,13 +77,20 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
           "item_name": "Milk",
           "quantity": 10,
           "total_cost": 35000,
-          "notes": "E-barimt scan"
+          "image_type": "E-Barimt",
+          "notes": ""
+        },
+        {
+          "item_name": "Eggs",
+          "quantity": 30,
+          "total_cost": 15000,
+          "image_type": "Product Photo",
+          "notes": ""
         }
       ]
     }
     If you cannot read the image at all, set "success": false and explain in "error_message" in Mongolian.
   `;
-
   try {
     const response = await model.generateContent({
       contents: [{
