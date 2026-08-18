@@ -51,7 +51,7 @@ const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
 const [tasks, setTasks] = useState<any[]>([]);
 const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; }); // Defaults to 1st of the month
 const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]); // Defaults to today
-const [selectedWorkerFilter, setSelectedWorkerFilter] = useState('Бүх ажилтан');
+const [workerSearchQuery, setWorkerSearchQuery] = useState('');
 const [newTaskName, setNewTaskName] = useState('');
 const [newTaskRole, setNewTaskRole] = useState('Бариста ☕');
 const [newTaskWeight, setNewTaskWeight] = useState('');
@@ -1509,26 +1509,21 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               </div>
               
               {/* Date & Worker Range Filter Inputs */}
-              <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 flex-wrap">
+      <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-400">Ажилтан:</span>
-                  <select 
-                    value={selectedWorkerFilter} 
-                    onChange={(e) => setSelectedWorkerFilter(e.target.value)}
-                    className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 cursor-pointer"
-                  >
-                    <option value="Бүх ажилтан">Бүх ажилтан</option>
-                    {Array.from(new Set(inventoryLogs.map(l => l.worker_name || 'Үл мэдэгдэх'))).map((w, idx) => (
-                      <option key={idx} value={w as string}>{w as string}</option>
-                    ))}
-                  </select>
-                </div>
-                <span className="text-slate-600">|</span>
+                  <span className="text-xs font-bold text-slate-400">Ажилтан Хайх:</span>
+                  <input 
+                    type="text" 
+                    value={workerSearchQuery} 
+                    onChange={(e) => setWorkerSearchQuery(e.target.value)}
+                    placeholder="Нэр бичих..." 
+                    className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 w-36 placeholder:text-slate-600"
+                  />
+                </div>   
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400">Эхлэх:</span>
                   <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0" />
                 </div>
-                <span className="text-slate-600">|</span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400">Дуусах:</span>
                   <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0" />
@@ -1549,11 +1544,15 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                     <th className="pb-3 px-2">Тайлбар</th>
                   </tr>
                 </thead>
-                <tbody className="text-sm divide-y divide-slate-800/50">
+             <tbody className="text-sm divide-y divide-slate-800/50">
                   {inventoryLogs.filter(log => {
                     const logDate = log.date ? log.date.split('T')[0] : '';
                     const dateMatch = logDate >= startDate && logDate <= endDate;
-                    const workerMatch = selectedWorkerFilter === 'Бүх ажилтан' || (log.worker_name || 'Үл мэдэгдэх') === selectedWorkerFilter;
+                    
+                    // Live, case-insensitive partial match search logic
+                    const workerMatch = !workerSearchQuery.trim() || 
+                      (log.worker_name || 'Үл мэдэгдэх').toLowerCase().includes(workerSearchQuery.toLowerCase().trim());
+                    
                     return dateMatch && workerMatch && log.client_id === activeClient;
                   }).length === 0 ? (
                     <tr>
@@ -1565,7 +1564,11 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                     inventoryLogs.filter(log => {
                       const logDate = log.date ? log.date.split('T')[0] : '';
                       const dateMatch = logDate >= startDate && logDate <= endDate;
-                      const workerMatch = selectedWorkerFilter === 'Бүх ажилтан' || (log.worker_name || 'Үл мэдэгдэх') === selectedWorkerFilter;
+                      
+                      // Same dynamic search matching applied to the mapping loop
+                      const workerMatch = !workerSearchQuery.trim() || 
+                        (log.worker_name || 'Үл мэдэгдэх').toLowerCase().includes(workerSearchQuery.toLowerCase().trim());
+                      
                       return dateMatch && workerMatch && log.client_id === activeClient;
                     }).map((log) => {
                       const ing = ingredients.find(i => i.id === log.ingredient_id);
@@ -1584,7 +1587,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                               {log.type}
                             </span>
                           </td>
-                          {/* НЭМЭГДСЭН БАГАНА: АЖИЛТАН */}
+                          {/* АЖИЛТАН БАГАНА */}
                           <td className="py-3 px-2 text-slate-300 font-medium">
                             {log.worker_name || 'Үл мэдэгдэх'}
                           </td>
