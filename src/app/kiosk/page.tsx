@@ -19,7 +19,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // States for AI Chat
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{sender: 'worker'|'ai', text: string}[]>([]);
+// Replace your current chatHistory state with this:
+  const [chatHistory, setChatHistory] = useState<{sender: 'worker'|'ai', text: string, logId?: string}[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // States for Tasks & Inventory
@@ -114,8 +115,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         })
       });
 
+// Replace the data assignment part of handleAiChatSubmit with this:
       const data = await res.json();
-      setChatHistory(prev => [...prev, { sender: 'ai', text: data.message }]);
+      setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
     } catch (err) {
       setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа: Сервертэй холбогдож чадсангүй.' }]);
     } finally {
@@ -123,6 +125,26 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
   };
 
+    const handleUndo = async (logId: string, index: number) => {
+    setIsAiLoading(true);
+    try {
+      const res = await fetch('/api/kiosk-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'undo', logId })
+      });
+      const data = await res.json();
+      
+      // Update the message in chat history to show it was cancelled
+      const newHistory = [...chatHistory];
+      newHistory[index] = { sender: 'ai', text: data.message };
+      setChatHistory(newHistory);
+    } catch (err) {
+      setMsg("Буцаах үйлдэл амжилтгүй.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
   // ==========================================
   // TOGGLE TASK
   // ==========================================
@@ -150,25 +172,89 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   // ==========================================
   // SUBMIT COUNT & CLOSE SHIFT
   // ==========================================
+ // ==========================================
+  // SUBMIT COUNT & CLOSE SHIFT (100% IDENTICAL HONESTY AUDIT)
+  // ==========================================
   const handleCloseShift = async () => {
     setIsAiLoading(true);
+    const endTime = new Date().toISOString();
     
+    // 1. Save all inventory counts to DB
     for (const item of inventoryToCount) {
       const countedQty = parseFloat(counts[item.id]) || 0;
       await supabase.from('inventory_logs').insert([{
-        client_id: selectedWorker.client_id, ingredient_id: item.id, quantity: countedQty, type: 'count',
-        notes: 'Ээлж хаалтын тооллого (Kiosk)', worker_name: activeShift.character_role, date: new Date().toISOString()
+        client_id: selectedWorker.client_id, 
+        ingredient_id: item.id, 
+        quantity: countedQty, 
+        type: 'count',
+        notes: 'Ээлж хаалтын тооллого (Kiosk)', 
+        worker_name: activeShift.character_role, 
+        date: endTime
       }]);
-      await supabase.from('ingredients').update({ current_stock: countedQty, last_counted_at: new Date().toISOString() }).eq('id', item.id);
+      await supabase.from('ingredients').update({ current_stock: countedQty, last_counted_at: endTime }).eq('id', item.id);
     }
 
-    await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+    // 2. Fetch logs during this shift to run the Honesty Audit
+    const { data: logs } = await supabase.from('inventory_logs')
+      .select('quantity, type, ingredient_id, notes')
+      .eq('client_id', selectedWorker.client_id)
+      .gte('date', activeShift.start_time)
+      .lte('date', endTime);
 
-    // Call Notify API to text the Owner securely
-    let completedTasks = tasks.filter((t: any) => t.done).length;
-    let completionPercentage = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 100;
-    const ownerMsg = `👑 **ЭЗЭНД ЗОРИУЛСАН ТАЙЛАН**\n\n🏢 **Салбар:** ${selectedWorker.client_id}\n👤 **Ажилтан:** ${activeShift.character_role}\n📋 **Ажлын гүйцэтгэл:** ${completionPercentage}% (${completedTasks}/${tasks.length})\n📦 **Тоолсон бараа:** ${inventoryToCount.length} ш\n\n✅ Kiosk-оос ээлжээ амжилттай хаалаа.`;
+    const { data: allIngs } = await supabase.from('ingredients').select('id, unit_price').eq('client_id', selectedWorker.client_id);
+
+    let totalWasteCost = 0;
+    let totalPurchases = 0;
+    let manualPurchases = 0;
+    let loggedWasteEvents = 0;
+
+    if (logs && allIngs) {
+      logs.forEach((log: any) => {
+        if (log.type === 'purchase') {
+          totalPurchases++;
+          const noteText = (log.notes || "").toLowerCase();
+          if (!noteText.includes("scan") && !noteText.includes("e-barimt") && !noteText.includes("зураг")) {
+            manualPurchases++;
+          }
+        } else if (['spoilage', 'testing', 'staff_meal', 'other'].includes(log.type)) {
+          loggedWasteEvents++;
+          const ing = allIngs.find((i: any) => i.id === log.ingredient_id);
+          if (ing) totalWasteCost += Math.abs(log.quantity) * (parseFloat(ing.unit_price) || 0);
+        }
+      });
+    }
+
+    // 3. Mark Shift as closed
+    await supabase.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
+
+    // 4. Build the Exact Same Honesty Audit Message for the Owner
+    const durationMs = new Date(endTime).getTime() - new Date(activeShift.start_time).getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    const auditAlerts: string[] = [];
+    if (manualPurchases > 0) {
+      auditAlerts.push(`⚠️ **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.** Баримтыг шалгана уу!`);
+    } else if (totalPurchases > 0 && manualPurchases === 0) {
+      auditAlerts.push(`✅ Бүх татан авалтууд зураг болон E-Barimt-аар баталгаажсан.`);
+    }
+
+    if (loggedWasteEvents === 0) {
+      auditAlerts.push(`⚠️ Ээлжийн турш ямар ч хаягдал бүртгэгдсэнгүй.`);
+    } else {
+      auditAlerts.push(`✅ ${loggedWasteEvents} удаагийн хаягдал/хэрэглээг үнэн зөв бүртгэсэн.`);
+    }
+
+    const ownerMsg = `👑 **ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН (Kiosk)**\n\n` +
+      `🏢 **Салбар:** ${selectedWorker.client_id}\n` +
+      `👤 **Ажилтан:** ${activeShift.character_role}\n` +
+      `⏱ **Ажилласан:** ${hours} цаг ${minutes} минут\n` +
+      `📋 **Тоолсон бараа:** ${inventoryToCount.length} ш\n` +
+      `🗑 **Бүртгэсэн хаягдал:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
+      `🛡 **АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
+      auditAlerts.map(alert => `• ${alert}`).join('\n');
     
+    // Send to Owner's Telegram
     await fetch('/api/notify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenantClientId: selectedWorker.client_id, message: ownerMsg })
@@ -258,10 +344,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             {/* Chat History */}
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
               {chatHistory.length === 0 && <p className="text-center text-slate-500 text-sm mt-10">Энд энгийн үгээр бичих эсвэл баримтын зураг илгээж хадгалуулна уу.<br/><br/>Жнь: "Сүү 500 мл асгарсан"</p>}
-              {chatHistory.map((msg, i) => (
+            {chatHistory.map((msg, i) => (
                 <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.sender === 'worker' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none'}`}>
+                  <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.sender === 'worker' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none whitespace-pre-wrap'}`}>
                     {msg.text}
+                    {msg.logId && (
+                      <button 
+                        onClick={() => handleUndo(msg.logId!, i)}
+                        className="mt-3 w-full bg-slate-900 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/50 py-2 rounded-lg font-bold text-xs transition"
+                      >
+                        Буцаах ↩️ (Undo)
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
