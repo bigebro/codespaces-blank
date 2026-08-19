@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [companyName, setCompanyName] = useState(''); 
   const [signupRole, setSignupRole] = useState<'owner' | 'barista'>('owner');
   const [mounted, setMounted] = useState(false);
-  
+  const [fullName, setFullName] = useState('');
   
   useEffect(() => {
     setMounted(true);
@@ -80,7 +80,8 @@ const handleForgotPassword = async () => {
           options: {
             data: {
               client_id: companyName.trim() || 'SF Coffee', 
-              role: signupRole // <--- Өөрчлөгдсөн хэсэг: Шилжүүлэгчийн утгыг датабэйс рүү илгээнэ
+              role: signupRole, // <--- Өөрчлөгдсөн хэсэг: Шилжүүлэгчийн утгыг датабэйс рүү илгээнэ
+              full_name: fullName.trim() 
             }
           }
         });
@@ -195,6 +196,21 @@ if (!mounted) {
       </div>
     </div>
 
+    {/* Worker Name Input - Shows ONLY when registering as an employee */}
+    {signupRole === 'barista' && (
+      <div>
+        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Таны нэр (Full Name)</label>
+        <input 
+          type="text"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required={isSignUp && signupRole === 'barista'}
+          placeholder="Жишээ: Бат, Нараа, Билгүүн"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+        />
+      </div>
+    )}
+
     {/* Dynamic Company Input */}
     <div>
       <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
@@ -211,6 +227,7 @@ if (!mounted) {
     </div>
   </div>
 )}
+
   {/* Hides password input cleanly when Forgot Password state is active */}
   {!isForgotPassword && (
     <div>

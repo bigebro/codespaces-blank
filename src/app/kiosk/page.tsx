@@ -289,7 +289,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             <div className="grid grid-cols-2 gap-4">
               {workers.map(w => (
                 <button key={w.id} onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} className="bg-slate-900/50 hover:bg-slate-900 border border-slate-900 p-6 rounded-2xl text-left">
-                  <span className="text-lg font-bold uppercase block">{w.email.split('@')[0]}</span>
+                  <span className="text-lg font-bold uppercase block">{w.full_name || w.email.split('@')[0]}</span>
                   <span className="text-xs text-emerald-400 font-bold uppercase">{w.role}</span>
                 </button>
               ))}
