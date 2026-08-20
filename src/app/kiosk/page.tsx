@@ -33,41 +33,80 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const fetchKioskData = async () => {
     const { data: profiles } = await supabase.from('profiles').select('*').neq('role', 'owner');
     if (profiles) setWorkers(profiles);
-    const { data: ingData } = await supabase.from('ingredients').select('*').order('name', { ascending: true });
+ // Selects current_stock and last_counted_at so system stocks never say NaN!
+    const { data: ingData } = await supabase.from('ingredients').select('id, name, unit, current_stock, is_critical, last_counted_at, client_id').order('name', { ascending: true });
     if (ingData) setIngredients(ingData);
   };
 
-const handleVerifyPin = async () => {
+// 1. HELPER: Loads tasks and checks if they were ALREADY completed today in any shift!
+  const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
+    // A. Fetch template tasks from dashboard
+// Fetch ONLY active, unfinished tasks from the database [3]
+    const { data: allTasks } = await supabase
+      .from('tasks')
+      .select('*')
+      .ilike('client_id', tenantId)
+      .eq('is_active', true);
+
+    const workerName = worker.email.split('@')[0];
+    const workerDisplayName = (worker.full_name || workerName).trim();
+    const workerRoleLower = (worker.role || '').toLowerCase().trim();
+    const workerNameLower = workerDisplayName.toLowerCase().trim();
+    const isBarista = workerRoleLower.includes('barista') || workerRoleLower.includes('бариста');
+    const isCook = workerRoleLower.includes('cook') || workerRoleLower.includes('chef') || workerRoleLower.includes('тогооч');
+
+    const matchedTemplateTasks = (allTasks || []).filter((t: any) => {
+      if (t.is_active === false) return false;
+      const tRole = (t.role || '').toLowerCase().trim();
+      if (tRole === 'бүх ажилтан' || tRole.includes('бүх')) return true;
+      if (tRole === workerNameLower || tRole.includes(workerNameLower)) return true;
+      if (isBarista && (tRole.includes('бариста') || tRole.includes('barista'))) return true;
+      if (isCook && (tRole.includes('тогооч') || tRole.includes('cook') || tRole.includes('chef'))) return true;
+      return false;
+    }).map((t: any) => ({ id: t.id, name: t.task_name, weight: t.weight || 10, done: false }));
+
+    // B. Check all shifts from TODAY (00:00:00 midnight) to see what was already finished today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const { data: todayShifts } = await supabase
+      .from('shifts')
+      .select('daily_tasks_checklist')
+      .eq('client_id', tenantId)
+      .gte('start_time', todayStart.toISOString());
+
+    const completedTasksToday = new Set<string>();
+    (todayShifts || []).forEach((s: any) => {
+      let list = s.daily_tasks_checklist;
+      if (typeof list === 'string') list = JSON.parse(list);
+      if (Array.isArray(list)) {
+        list.forEach((item: any) => {
+          if (item.done && item.name) {
+            completedTasksToday.add(item.name.toLowerCase().trim());
+          }
+        });
+      }
+    });
+
+    // C. If completed in ANY shift today, keep it completed (done: true)!
+    return matchedTemplateTasks.map(t => ({
+      ...t,
+      done: completedTasksToday.has(t.name.toLowerCase().trim())
+    }));
+  };
+
+  // 2. PIN VERIFICATION WITH DAILY TASK MEMORY
+  const handleVerifyPin = async () => {
     if (pin === '1234' || pin === '1111') {
       const workerName = selectedWorker.email.split('@')[0];
       const workerDisplayName = (selectedWorker.full_name || workerName).trim();
       const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
       const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
 
-      // 1. Fetch all tasks for this cafe
-      const { data: allTasks } = await supabase
-        .from('tasks')
-        .select('*')
-        .ilike('client_id', tenantId);
+      // Load tasks with 24-hour daily memory!
+      const liveTasks = await loadLiveTodayTasks(tenantId, selectedWorker);
 
-      const workerRoleLower = (selectedWorker.role || '').toLowerCase().trim();
-      const workerNameLower = workerDisplayName.toLowerCase().trim();
-      const isBarista = workerRoleLower.includes('barista') || workerRoleLower.includes('бариста');
-      const isCook = workerRoleLower.includes('cook') || workerRoleLower.includes('chef') || workerRoleLower.includes('тогооч');
-
-      // 2. Smart Match: Matches specific name (bilguun), role, or "Бүх ажилтан"
-      const taskChecklist = allTasks?.filter((t: any) => {
-        if (t.is_active === false) return false;
-        const tRole = (t.role || '').toLowerCase().trim();
-        
-        if (tRole === 'бүх ажилтан' || tRole.includes('бүх')) return true;
-        if (tRole === workerNameLower || tRole.includes(workerNameLower)) return true;
-        if (isBarista && (tRole.includes('бариста') || tRole.includes('barista'))) return true;
-        if (isCook && (tRole.includes('тогооч') || tRole.includes('cook') || tRole.includes('chef'))) return true;
-        return false;
-      }).map((t: any) => ({ id: t.id, name: t.task_name, weight: t.weight || 10, done: false })) || [];
-
-      // 3. Find or Create active shift
+      // Check for active shift
       let { data: shift } = await supabase
         .from('shifts')
         .select('*')
@@ -82,7 +121,7 @@ const handleVerifyPin = async () => {
           client_id: tenantId,
           character_role: fullNameRole,
           is_active: true,
-          daily_tasks_checklist: taskChecklist,
+          daily_tasks_checklist: liveTasks,
           telegram_chat_id: selectedWorker.telegram_chat_id || 0
         }]).select().single();
 
@@ -93,23 +132,31 @@ const handleVerifyPin = async () => {
         }
         shift = newShift;
       } else {
-        // ALWAYS update the shift with your fresh dashboard tasks
-        await supabase.from('shifts').update({ 
-          character_role: fullNameRole,
-          daily_tasks_checklist: taskChecklist 
-        }).eq('id', shift.id);
-        shift.daily_tasks_checklist = taskChecklist;
+        await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', shift.id);
+        shift.daily_tasks_checklist = liveTasks;
       }
 
       setActiveShift(shift);
-      // DIRECT FIX: Force-load the matched tasks directly into state!
-      setTasks(taskChecklist);
+      setTasks(liveTasks);
       setStep('menu');
       setPin('');
     } else {
       setMsg("Буруу PIN код!");
       setPin('');
     }
+  };
+
+  // 3. LIVE SYNC ON TASK SCREEN OPEN
+  const openTasksScreen = async () => {
+    if (!activeShift || !selectedWorker) {
+      setStep('tasks');
+      return;
+    }
+    const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
+    const liveTasks = await loadLiveTodayTasks(tenantId, selectedWorker);
+    setTasks(liveTasks);
+    await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', activeShift.id);
+    setStep('tasks');
   };
   // ==========================================
   // AI CHAT SUBMIT (TEXT OR PHOTO)
@@ -179,11 +226,15 @@ const handleVerifyPin = async () => {
     }
   };
   // ==========================================
-  // TOGGLE TASK
+  // COMPLETE TASK
   // ==========================================
-  const toggleTask = async (index: number) => {
+const completeTask = async (index: number) => {
     const updatedTasks = [...tasks];
-    updatedTasks[index].done = !updatedTasks[index].done;
+    
+    // If already done, DO NOTHING (Prevents accidental unchecking!)
+    if (updatedTasks[index].done) return;
+
+    updatedTasks[index].done = true;
     setTasks(updatedTasks);
     await supabase.from('shifts').update({ daily_tasks_checklist: updatedTasks }).eq('id', activeShift.id);
   };
@@ -191,28 +242,58 @@ const handleVerifyPin = async () => {
   // ==========================================
   // LOAD INVENTORY FOR CLOSING
   // ==========================================
-  const loadInventoryToCount = () => {
-    const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
-    const criticalItems = ingredients.filter((i: any) => i.is_critical === true && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo));
-    const nonCriticalItems = ingredients.filter((i: any) => i.is_critical !== true);
-    const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime());
+ const loadInventoryToCount = async () => {
+    setMsg('');
+    const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
     
-    const finalItems = [...criticalItems, ...sortedCycleItems].slice(0, 5);
+    // Fetch live ingredients from Supabase
+    const { data: freshIngs } = await supabase
+      .from('ingredients')
+      .select('id, name, unit, current_stock, is_critical, last_counted_at, client_id')
+      .ilike('client_id', tenantId)
+      .order('name', { ascending: true });
+
+    const ingsPool = freshIngs || ingredients;
+    setIngredients(ingsPool);
+
+    const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
+    
+    // 1. ALL Critical items that have NOT been counted in the last 12 hours
+    const criticalItems = ingsPool.filter((i: any) => 
+      i.is_critical === true && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
+    );
+    
+    // 2. Exactly 5 oldest non-critical cycle items
+    const nonCriticalItems = ingsPool.filter((i: any) => i.is_critical !== true);
+    const sortedCycleItems = nonCriticalItems
+      .sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
+      .slice(0, 5); // Takes top 5 cycle items!
+    
+    // 3. COMBINED: All Uncounted Critical + 5 Cycle Items
+    const finalItems = [...criticalItems, ...sortedCycleItems];
     setInventoryToCount(finalItems);
+    setCounts({});
     setStep('close_shift');
   };
-
   // =========================================
   // SUBMIT COUNT & CLOSE SHIFT
   // ==========================================
  // ==========================================
   // SUBMIT COUNT & CLOSE SHIFT (100% IDENTICAL HONESTY AUDIT)
   // ==========================================
-  const handleCloseShift = async () => {
+ const handleCloseShift = async () => {
+    // 1. VALIDATION: Check if any items are missing counts
+    const uncountedItems = inventoryToCount.filter(i => counts[i.id] === undefined || counts[i.id].toString().trim() === '');
+    
+    if (uncountedItems.length > 0) {
+      setMsg(`⚠️ Дараах бараануудын тооллогыг гүйцэт бөглөнө үү: ${uncountedItems.map(i => i.name).join(', ')}`);
+      return;
+    }
+
     setIsAiLoading(true);
     const endTime = new Date().toISOString();
     
-    // 1. Save all inventory counts to DB
+    // 2. Save counts to database
     for (const item of inventoryToCount) {
       const countedQty = parseFloat(counts[item.id]) || 0;
       await supabase.from('inventory_logs').insert([{
@@ -227,67 +308,22 @@ const handleVerifyPin = async () => {
       await supabase.from('ingredients').update({ current_stock: countedQty, last_counted_at: endTime }).eq('id', item.id);
     }
 
-    // 2. Fetch logs during this shift to run the Honesty Audit
-    const { data: logs } = await supabase.from('inventory_logs')
-      .select('quantity, type, ingredient_id, notes')
-      .eq('client_id', selectedWorker.client_id)
-      .gte('date', activeShift.start_time)
-      .lte('date', endTime);
-
-    const { data: allIngs } = await supabase.from('ingredients').select('id, unit_price').eq('client_id', selectedWorker.client_id);
-
-    let totalWasteCost = 0;
-    let totalPurchases = 0;
-    let manualPurchases = 0;
-    let loggedWasteEvents = 0;
-
-    if (logs && allIngs) {
-      logs.forEach((log: any) => {
-        if (log.type === 'purchase') {
-          totalPurchases++;
-          const noteText = (log.notes || "").toLowerCase();
-          if (!noteText.includes("scan") && !noteText.includes("e-barimt") && !noteText.includes("зураг")) {
-            manualPurchases++;
-          }
-        } else if (['spoilage', 'testing', 'staff_meal', 'other'].includes(log.type)) {
-          loggedWasteEvents++;
-          const ing = allIngs.find((i: any) => i.id === log.ingredient_id);
-          if (ing) totalWasteCost += Math.abs(log.quantity) * (parseFloat(ing.unit_price) || 0);
-        }
-      });
+    // 3. Mark Shift closed
+// 1. RETIRE COMPLETED TASKS FOREVER (Deactivates them in the database) [3]
+    const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
+    if (completedTaskIds.length > 0) {
+      await supabase.from('tasks').update({ is_active: false }).in('id', completedTaskIds);
     }
 
-    // 3. Mark Shift as closed
+    // 2. Mark Shift closed
     await supabase.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
 
-    // 4. Build the Exact Same Honesty Audit Message for the Owner
-    const durationMs = new Date(endTime).getTime() - new Date(activeShift.start_time).getTime();
-    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-
-    const auditAlerts: string[] = [];
-    if (manualPurchases > 0) {
-      auditAlerts.push(`⚠️ **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.** Баримтыг шалгана уу!`);
-    } else if (totalPurchases > 0 && manualPurchases === 0) {
-      auditAlerts.push(`✅ Бүх татан авалтууд зураг болон E-Barimt-аар баталгаажсан.`);
-    }
-
-    if (loggedWasteEvents === 0) {
-      auditAlerts.push(`⚠️ Ээлжийн турш ямар ч хаягдал бүртгэгдсэнгүй.`);
-    } else {
-      auditAlerts.push(`✅ ${loggedWasteEvents} удаагийн хаягдал/хэрэглээг үнэн зөв бүртгэсэн.`);
-    }
-
-    const ownerMsg = `👑 **ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН (Kiosk)**\n\n` +
-      `🏢 **Салбар:** ${selectedWorker.client_id}\n` +
-      `👤 **Ажилтан:** ${activeShift.character_role}\n` +
-      `⏱ **Ажилласан:** ${hours} цаг ${minutes} минут\n` +
-      `📋 **Тоолсон бараа:** ${inventoryToCount.length} ш\n` +
-      `🗑 **Бүртгэсэн хаягдал:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
-      `🛡 **АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
-      auditAlerts.map(alert => `• ${alert}`).join('\n');
+    // 4. Send Scorecard to Owner's Telegram
+    let completedTasks = tasks.filter((t: any) => t.done).length;
+    let completionPercentage = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 100;
     
-    // Send to Owner's Telegram
+    const ownerMsg = `👑 **ЭЗЭНД ЗОРИУЛСАН ТАЙЛАН (Kiosk)**\n\n🏢 **Салбар:** ${selectedWorker.client_id}\n👤 **Ажилтан:** ${activeShift.character_role}\n📋 **Ажлын гүйцэтгэл:** ${completionPercentage}% (${completedTasks}/${tasks.length})\n📦 **Тоолсон бараа:** ${inventoryToCount.length} ш\n\n✅ Kiosk-оос ээлжээ амжилттай хаалаа.`;
+    
     await fetch('/api/notify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenantClientId: selectedWorker.client_id, message: ownerMsg })
@@ -295,9 +331,20 @@ const handleVerifyPin = async () => {
 
     setMsg("🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
     setIsAiLoading(false);
-    setTimeout(() => { setMsg(''); setStep('select_worker'); setSelectedWorker(null); setChatHistory([]); }, 4000);
-  };
+    
+    // Refresh kiosk data so the next shift gets the next 5 cycle items!
+    await fetchKioskData();
 
+    setTimeout(() => { 
+      setMsg(''); 
+      setStep('select_worker'); 
+      setSelectedWorker(null); 
+      setActiveShift(null);
+      setTasks([]);
+      setCounts({});
+      setChatHistory([]); 
+    }, 3000);
+  };
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6">
       <header className="flex justify-between items-center border-b border-slate-900 pb-4 mb-6">
@@ -355,7 +402,7 @@ const handleVerifyPin = async () => {
               <MessageSquare className="h-8 w-8 text-blue-400" />
               <div className="text-left"><p className="font-bold text-lg text-blue-400">Ухаалаг Туслах (AI)</p><p className="text-xs text-blue-500/70">Хаягдал, орлого бичих & Зураг дарах</p></div>
             </button>
-            <button onClick={() => setStep('tasks')} className="w-full bg-slate-900/80 p-6 rounded-2xl flex items-center gap-4 hover:bg-slate-900 border border-slate-800 transition">
+            <button onClick={openTasksScreen} className="w-full bg-slate-900/80 p-6 rounded-2xl flex items-center gap-4 hover:bg-slate-900 border border-slate-800 transition">
               <CheckSquare className="h-8 w-8 text-purple-400" />
               <div className="text-left"><p className="font-bold text-lg">Өнөөдрийн Даалгавар</p><p className="text-xs text-slate-400">Цэвэрлэгээ болон бусад үүрэг</p></div>
             </button>
@@ -412,22 +459,51 @@ const handleVerifyPin = async () => {
           </div>
         )}
 
-        {/* 5. TASKS */}
+   {/* 5. TASKS (Locked on Completion) */}
         {step === 'tasks' && (
-           <div className="w-full max-w-md bg-slate-900/40 p-6 rounded-3xl border border-slate-900">
-             <h2 className="font-bold text-purple-400 mb-6 flex items-center gap-2"><CheckSquare/> Өнөөдрийн Даалгавар</h2>
-             {tasks.length === 0 ? <p className="text-center text-slate-500">Даалгавар алга байна.</p> : (
-               <div className="space-y-3">
-                 {tasks.map((t, idx) => (
-                   <button key={idx} onClick={() => toggleTask(idx)} className={`w-full p-4 rounded-xl flex items-center gap-3 border transition ${t.done ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
-                     {t.done ? <CheckCircle className="h-5 w-5" /> : <div className="h-5 w-5 rounded border-2 border-slate-600" />}
-                     <span className="font-bold">{t.name}</span>
-                   </button>
-                 ))}
-               </div>
-             )}
-             <button onClick={() => setStep('menu')} className="w-full mt-6 bg-slate-950 py-3 rounded-xl font-bold border border-slate-800">Буцах</button>
-           </div>
+          <div className="w-full max-w-md bg-slate-900/40 p-6 rounded-3xl border border-slate-900">
+            <h2 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
+              <CheckSquare /> Өнөөдрийн Даалгавар
+            </h2>
+
+            {/* Case A: No tasks assigned at all */}
+            {tasks.length === 0 ? (
+              <p className="text-center text-slate-500 py-6">Даалгавар алга байна.</p>
+            ) : tasks.every(t => t.done) ? (
+              /* Case B: All tasks finished (Clean "All Done" screen) */
+              <div className="text-center py-8 space-y-3 bg-slate-950/60 rounded-2xl border border-slate-800 p-6">
+                <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto" />
+                <p className="font-black text-lg text-white">Бүх даалгавар биелсэн!</p>
+                <p className="text-xs text-slate-400">Танд одоогоор хийх үлдсэн ажил байхгүй байна.</p>
+              </div>
+            ) : (
+              /* Case C: Pending tasks list */
+              <div className="space-y-3">
+                {tasks.map((t, idx) => (
+                  <button
+                    key={idx}
+                    disabled={t.done} // Locks completed items so they cannot be tapped again!
+                    onClick={() => completeTask(idx)}
+                    className={`w-full p-4 rounded-xl flex items-center justify-between border transition ${
+                      t.done 
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60 cursor-not-allowed' 
+                        : 'bg-slate-950 border-slate-800 text-white hover:border-emerald-500/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {t.done ? <CheckCircle className="h-5 w-5 text-emerald-400" /> : <div className="h-5 w-5 rounded border-2 border-slate-600" />}
+                      <span className="font-bold">{t.name}</span>
+                    </div>
+                    {t.done && <span className="text-xs font-bold text-emerald-400">Хийгдсэн ✅</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button onClick={() => setStep('menu')} className="w-full mt-6 bg-slate-950 py-3 rounded-xl font-bold border border-slate-800 text-white hover:bg-slate-900 transition">
+              Буцах
+            </button>
+          </div>
         )}
 
         {/* 6. CLOSE SHIFT */}
@@ -438,8 +514,21 @@ const handleVerifyPin = async () => {
             <div className="space-y-4">
               {inventoryToCount.map(item => (
                 <div key={item.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                  <div><p className="font-bold text-sm text-white">{item.name}</p><p className="text-xs text-slate-500">Системд: {Math.round(item.live_stock*10)/10} {item.unit}</p></div>
-                  <input type="number" step="any" required placeholder="Тоо..." value={counts[item.id] || ''} onChange={e => setCounts({...counts, [item.id]: e.target.value})} className="w-24 bg-slate-900 p-2 rounded-lg text-center text-white border border-slate-700 outline-none" />
+                  <div>
+                    <p className="font-bold text-sm text-white">{item.name}</p>
+                    <p className="text-xs text-slate-500">
+                      Системд: {Math.round((parseFloat(item.current_stock) || 0) * 10) / 10} {item.unit}
+                    </p>
+                  </div>
+                  <input 
+                    type="number" 
+                    step="any" 
+                    required 
+                    placeholder="Тоо..." 
+                    value={counts[item.id] !== undefined ? counts[item.id] : ''} 
+                    onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
+                    className="w-24 bg-slate-900 p-2 rounded-lg text-center text-white border border-slate-700 outline-none font-bold" 
+                  />
                 </div>
               ))}
             </div>

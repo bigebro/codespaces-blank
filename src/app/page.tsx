@@ -94,6 +94,8 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(''); // NEW: Holds the total purchase cost
   const [workersList, setWorkersList] = useState<any[]>([]);
+  const [companyRoles, setCompanyRoles] = useState<any[]>([]);
+  const [newRoleInput, setNewRoleInput] = useState('');
   const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
  
     const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
@@ -175,29 +177,40 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
   }
 };
 
-  const checkUserSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    // Redirect unauthenticated browsers to your new login page [2]
-    router.push('/login');
-  } else {
-    setUser(session.user);
-    // Read the client_id assigned to this user from their profiles/metadata [2, 3]
-    const assignedClient = session.user.user_metadata?.client_id || 'SF Coffee';
-    setUserClient(assignedClient);   const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-      if (profile) {
-        setUserRole(profile.role);
-        // ХЭРЭВ АЖИЛТАН БОЛ ШУУД БАРИСТА ЦОНХ РУУ ШИЛЖҮҮЛНЭ (Force Barista tab)
-        if (profile.role === 'barista') {
-          setActiveTab('barista');
-        }
-      }
+const checkUserSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // Fetch only this branch's data securely
-    fetchDatabaseData(assignedClient);
-  }
-};
+    if (!session) {
+      router.push('/login');
+    } else {
+      setUser(session.user);
+      
+      // 1. Fetch real branch and role from database
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, client_id')
+        .eq('id', session.user.id)
+        .single();
+
+      const realBranch = profile?.client_id || session.user.user_metadata?.client_id || '';
+      
+      if (realBranch) {
+        setUserClient(realBranch);
+        setActiveClient(realBranch);
+        
+        if (profile?.role) {
+          setUserRole(profile.role);
+          if (profile.role === 'barista') {
+            setActiveTab('barista');
+          }
+        }
+        // 2. Fetch ONLY this branch's data after resolving real identity [2, 3]
+        fetchDatabaseData(realBranch);
+      }
+    }
+  };
+
+
 
 useEffect(() => {
   checkUserSession();
@@ -207,16 +220,22 @@ useEffect(() => {
 
 
   
-const fetchDatabaseData = async (clientId: string = 'SF Coffee') => {
+const fetchDatabaseData = async (clientId?: string) => {
+    const targetClient = clientId || activeClient || userClient;
+    if (!targetClient) return;
+
     try {
-      const { data: ingData } = await supabase.from('ingredients').select('*').order('name', { ascending: true });
-      const { data: recData } = await supabase.from('recipes').select('*');
-      const { data: logData } = await supabase.from('inventory_logs').select('*');
-      const { data: saleData } = await supabase.from('sales_logs').select('*');
-      const { data: taskData } = await supabase.from('tasks').select('*');
-      const { data: shiftData } = await supabase.from('shifts').select('*').order('start_time', { ascending: false });
-      const { data: staffData } = await supabase.from('profiles').select('id, full_name, email, role, client_id').neq('role', 'owner');
-if (staffData) setWorkersList(staffData);
+      // Filter EVERY query strictly by the logged-in business branch [3]
+      const { data: ingData } = await supabase.from('ingredients').select('*').eq('client_id', targetClient).order('name', { ascending: true });
+      const { data: recData } = await supabase.from('recipes').select('*').eq('client_id', targetClient);
+      const { data: logData } = await supabase.from('inventory_logs').select('*').eq('client_id', targetClient);
+      const { data: saleData } = await supabase.from('sales_logs').select('*').eq('client_id', targetClient);
+      const { data: taskData } = await supabase.from('tasks').select('*').eq('client_id', targetClient);
+      const { data: shiftData } = await supabase.from('shifts').select('*').eq('client_id', targetClient).order('start_time', { ascending: false });
+      const { data: staffData } = await supabase.from('profiles').select('id, full_name, email, role, client_id').eq('client_id', targetClient).neq('role', 'owner');
+      const { data: rolesData } = await supabase.from('company_roles').select('*').eq('client_id', targetClient);
+      if (rolesData) setCompanyRoles(rolesData);
+      if (staffData) setWorkersList(staffData);
       if (taskData) setTasks(taskData);
       if (shiftData) setShifts(shiftData);
 
@@ -236,8 +255,8 @@ if (staffData) setWorkersList(staffData);
         setUniqueProducts(products as string[]);
       }
 
-      // Fetch live calculated analytics and pass the user's specific branch name securely [2]
-      const res = await fetch(`/api/analytics?clientId=${encodeURIComponent(clientId)}`, { cache: 'no-store' });
+      // Fetch live analytics strictly for your branch [2]
+      const res = await fetch(`/api/analytics?clientId=${encodeURIComponent(targetClient)}`, { cache: 'no-store' });
       if (res.ok) {
         const analData = await res.json();
         setLiveAnalytics(analData);
@@ -257,9 +276,6 @@ if (staffData) setWorkersList(staffData);
   console.log(liveAnalytics?.total_logged_staff_meal,"total staff meal");
   console.log(liveAnalytics?.total_logged_other,"total other");
 
-  useEffect(() => {
-    fetchDatabaseData();
-  }, []);
 
 
   const lowStockItems = ingredients.filter((i: any) => parseFloat(i.current_stock) <= 50);
@@ -303,6 +319,7 @@ if (staffData) setWorkersList(staffData);
         .from('inventory_logs')
         .insert([
           { 
+            client_id: activeClient,
             ingredient_id: isNonFood ? null : selectedIngredientId, 
             non_food_item: isNonFood ? nonFoodName : null,
             quantity: finalQty, 
@@ -1340,95 +1357,216 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           </div>
         )}
         {/* TASK MANAGEMENT TAB */}
+      {/* TASK & ROLE MANAGEMENT TAB */}
         {activeTab === 'tasks' && userRole === 'owner' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-1 h-fit">
-              <h3 className="text-lg font-bold mb-4 text-emerald-400">Шинэ даалгавар үүсгэх</h3>
-         <form onSubmit={async (e) => {
-                e.preventDefault(); 
-                setLoading(true);
-                
-                // Fetch the exact error from Supabase
-                const { error } = await supabase.from('tasks').insert([{ 
-                  client_id: activeClient, 
-                  role: newTaskRole, 
-                  task_name: newTaskName, 
-                  weight: parseInt(newTaskWeight) || 10 
-                }]);
-                
-                if (error) {
-                  alert(`Датэбэйс алдаа: ${error.message}\n(Та Supabase-д 'tasks' хүснэгтээ зөв үүсгэсэн эсэхээ шалгана уу)`);
-                } else {
-                  setNewTaskName(''); 
-                  setNewTaskWeight('');
+          <div className="space-y-8">
+            
+            {/* SECTION 1: CREATE ROLES & ASSIGN ROLES TO WORKERS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              
+              {/* Role Creator */}
+              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+                <h3 className="text-base font-bold mb-4 text-emerald-400">1. Албан тушаал / Үүрэг үүсгэх</h3>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!newRoleInput.trim()) return;
+                  setLoading(true);
+                  const { error } = await supabase.from('company_roles').insert([{ client_id: activeClient, role_name: newRoleInput.trim() }]);
+                  if (error) alert(`Алдаа: ${error.message}`);
+                  setNewRoleInput('');
                   await fetchDatabaseData(activeClient);
-                }
-                setLoading(false);
-              }} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-2">Үүрэг (Role)</label>
-                     <select 
-                        value={newTaskRole} 
-                        onChange={e => setNewTaskRole(e.target.value)} 
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
-                      >
-                        <optgroup label="Нийтээр оноох (By Role)">
-                          <option value="Бариста ☕">Бариста ☕ (Бүх бариста нар)</option>
-                          <option value="Тогооч 🍳">Тогооч 🍳 (Бүх тогооч нар)</option>
-                          <option value="Бүх ажилтан">Бүх ажилтан (Бүгд хийх)</option>
-                        </optgroup>
-                        
-                  <optgroup label="Нэр зааж оноох (Specific Worker)">
+                }} className="space-y-3">
+                  <input 
+                    type="text" 
+                    required 
+                    value={newRoleInput} 
+                    onChange={e => setNewRoleInput(e.target.value)} 
+                    placeholder="Жнь: Бармен, Талхчин, Зөөгч" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                  />
+                  <button type="submit" className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs">
+                    + Үүрэг Нэмэх
+                  </button>
+                </form>
+              </div>
+
+              {/* Assign Roles to Registered Workers */}
+              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
+                <h3 className="text-base font-bold mb-4 text-blue-400">2. Ажилтнуудад үүрэг оноох</h3>
+                <div className="overflow-x-auto max-h-[220px]">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="text-slate-400 text-xs border-b border-slate-800">
+                        <th className="pb-2">Ажилтны Нэр</th>
+                        <th className="pb-2">Имэйл</th>
+                        <th className="pb-2">Одоогийн Үүрэг</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
                       {workersList.length === 0 ? (
-                        <option disabled value="">(Одоогоор ажилтан бүртгэгдээгүй байна)</option>
+                        <tr><td colSpan={3} className="py-4 text-center text-slate-500 italic">Бүртгэлтэй ажилтан алга байна.</td></tr>
                       ) : (
-                        workersList.map(w => {
-                          const displayName = w.full_name || w.email.split('@')[0];
-                          const isSameBranch = (w.client_id || '').trim().toLowerCase() === (activeClient || '').trim().toLowerCase();
-                          
-                          return (
-                            <option key={w.id} value={displayName}>
-                              👤 {displayName} ({w.role}) {isSameBranch ? '' : `[Салбар: ${w.client_id}]`}
-                            </option>
-                          );
-                        })
+                        workersList.map(w => (
+                          <tr key={w.id}>
+                            <td className="py-2.5 font-bold text-slate-200">{w.full_name || 'Нэргүй'}</td>
+                            <td className="py-2.5 text-slate-400 text-xs">{w.email}</td>
+                            <td className="py-2.5">
+                              <select 
+                                value={w.role} 
+                                onChange={async (e) => {
+                                  const updatedRole = e.target.value;
+                                  await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
+                                  await fetchDatabaseData(activeClient);
+                                }}
+                                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-emerald-400 font-bold"
+                              >
+                                <option value="Ажилтан">Сонгоогүй (Ажилтан)</option>
+                                {companyRoles.map(r => (
+                                  <option key={r.id} value={r.role_name}>{r.role_name}</option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        ))
                       )}
-                    </optgroup>
-                      </select>
+                    </tbody>
+                  </table>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-2">Даалгаврын нэр</label>
-                  <input type="text" required value={newTaskName} onChange={e => setNewTaskName(e.target.value)} placeholder="Жнь: Кофены машин угаах" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm"/>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-2">Ачааллын жин (Оноо 1-100)</label>
-                  <input type="number" required value={newTaskWeight} onChange={e => setNewTaskWeight(e.target.value)} placeholder="Жнь: 15" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm"/>
-                </div>
-                <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl">Даалгавар Нэмэх</button>
-              </form>
+              </div>
             </div>
 
-            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
-              <h3 className="text-lg font-bold mb-4">Бүртгэлтэй Даалгаврууд</h3>
-              <table className="w-full text-left">
-                <thead className="text-slate-400 text-xs border-b border-slate-800">
-                  <tr><th className="pb-3">Үүрэг</th><th className="pb-3">Нэр</th><th className="pb-3">Ачаалал</th><th className="pb-3 text-right">Үйлдэл</th></tr>
-                </thead>
-                <tbody className="text-sm divide-y divide-slate-800/50">
-                  {tasks.filter(t => t.client_id === activeClient).map(t => (
-                    <tr key={t.id}>
-                      <td className="py-3 text-slate-300">{t.role}</td>
-                      <td className="py-3 font-semibold">{t.task_name}</td>
-                      <td className="py-3 text-blue-400 font-bold">{t.weight} pts</td>
-                      <td className="py-3 text-right">
-                        <button onClick={async () => { await supabase.from('tasks').delete().eq('id', t.id); fetchDatabaseData(activeClient); }} className="text-rose-400 text-xs">Устгах</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Closed Shifts Report Table */}
+            {/* SECTION 2: CREATE & VIEW TASKS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              
+              {/* Task Form */}
+              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-1 h-fit">
+                <h3 className="text-base font-bold mb-4 text-emerald-400">3. Шинэ даалгавар үүсгэх</h3>
+                <form onSubmit={async (e) => {
+                  e.preventDefault(); 
+                  setLoading(true);
+                  const { error } = await supabase.from('tasks').insert([{ 
+                    client_id: activeClient, 
+                    role: newTaskRole, 
+                    task_name: newTaskName, 
+                    weight: parseInt(newTaskWeight) || 10 
+                  }]);
+                  
+                  if (error) alert(`Алдаа: ${error.message}`);
+                  else {
+                    setNewTaskName(''); 
+                    setNewTaskWeight('');
+                    await fetchDatabaseData(activeClient);
+                  }
+                  setLoading(false);
+                }} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2">Хэнд оноох вэ?</label>
+                    <select 
+                      value={newTaskRole} 
+                      onChange={e => setNewTaskRole(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                    >
+                      <option value="Бүх ажилтан">Бүх ажилтан (Бүгд хийх)</option>
+                      
+                      {/* Dynamic Roles created by owner */}
+                      <optgroup label="Үүргээр оноох (By Role)">
+                        {companyRoles.map(r => (
+                          <option key={r.id} value={r.role_name}>🏷️ {r.role_name} (Энэ үүрэгтэй бүх хүн)</option>
+                        ))}
+                      </optgroup>
+                      
+                      {/* Specific workers with their assigned roles */}
+                      <optgroup label="Нэр зааж оноох (Specific Worker)">
+                        {workersList.map(w => {
+                          const displayName = w.full_name || w.email.split('@')[0];
+                          return (
+                            <option key={w.id} value={displayName}>
+                              👤 {displayName} ({w.role})
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2">Даалгаврын нэр</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={newTaskName} 
+                      onChange={e => setNewTaskName(e.target.value)} 
+                      placeholder="Жнь: Кофены машин угаах" 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2">Ачааллын жин (Оноо 1-100)</label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={newTaskWeight} 
+                      onChange={e => setNewTaskWeight(e.target.value)} 
+                      placeholder="Жнь: 15" 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                    />
+                  </div>
+
+                  <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-sm">
+                    Даалгавар Нэмэх
+                  </button>
+                </form>
+              </div>
+
+              {/* Tasks List */}
+              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
+                <h3 className="text-base font-bold mb-4">Бүртгэлтэй Даалгаврууд</h3>
+               <div className="overflow-x-auto max-h-[350px]">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="text-slate-400 text-xs border-b border-slate-800 uppercase">
+                        <th className="pb-3 px-2">Оноосон Хаяг</th>
+                        <th className="pb-3 px-2">Даалгаврын нэр</th>
+                        <th className="pb-3 px-2">Ачаалал</th>
+                        <th className="pb-3 px-2">Үүсгэсэн Огноо (Цаг, Минут)</th>
+                        <th className="pb-3 px-2 text-right">Үйлдэл</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {tasks.filter(t => t.client_id === activeClient).length === 0 ? (
+                        <tr><td colSpan={5} className="py-6 text-center text-slate-500 italic">Даалгавар байхгүй байна.</td></tr>
+                      ) : (
+                        tasks.filter(t => t.client_id === activeClient).map(t => (
+                          <tr key={t.id} className="hover:bg-slate-900/30">
+                            <td className="py-3 px-2 text-emerald-400 font-bold">{t.role}</td>
+                            <td className="py-3 px-2 font-semibold text-slate-200">{t.task_name}</td>
+                            <td className="py-3 px-2 text-blue-400 font-bold">{t.weight} pts</td>
+                            
+                            {/* EXACT TIMESTAMPS: Year, Month, Day, Hour, Minute, Second */}
+                            <td className="py-3 px-2 text-slate-400 text-xs font-mono">
+                              {t.created_at ? new Date(t.created_at).toLocaleString('mn-MN', { 
+                                year: 'numeric', 
+                                month: '2-digit', 
+                                day: '2-digit', 
+                                hour: '2-digit', 
+                                minute: '2-digit', 
+                                second: '2-digit' 
+                              }) : "-"}
+                            </td>
+
+                            <td className="py-3 px-2 text-right">
+                              <button onClick={async () => { await supabase.from('tasks').delete().eq('id', t.id); fetchDatabaseData(activeClient); }} className="bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 px-2.5 py-1 rounded-lg text-xs font-bold transition">Устгах</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+{/* Closed Shifts Report Table */}
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-3 mt-8">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-400">
                 <Activity className="h-5 w-5" /> Хаагдсан ээлжүүдийн түүх (Shift History)
@@ -1480,6 +1618,10 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+
+
             </div>
           </div>
         )}

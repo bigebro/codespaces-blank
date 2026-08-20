@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { Coffee, ShieldAlert, CheckCircle2 } from 'lucide-react';
-
+import { Coffee, ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 const SUPABASE_URL = "https://fcpwvualdbuakrwmqgmg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcHd2dWFsZGJ1YWtyd21xZ21nIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDE4MDQzOCwiZXhwIjoyMDk5NzU2NDM4fQ.iDX_3sL-Sk1Z5oK2zSvW32saZBoY5f5f4XBu_dTQA-U";
 
@@ -20,10 +19,10 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [companyName, setCompanyName] = useState(''); 
-  const [signupRole, setSignupRole] = useState<'owner' | 'barista'>('owner');
+ const [signupRole, setSignupRole] = useState<'owner' | 'staff'>('owner');
   const [mounted, setMounted] = useState(false);
   const [fullName, setFullName] = useState('');
-  
+  const [showPassword, setShowPassword] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -74,18 +73,37 @@ const handleForgotPassword = async () => {
     try {
       if (isSignUp) {
         // Registers user and passes branch metadata to the SQL trigger [2, 3]
-      const { data, error } = await supabase.auth.signUp({
+
+ const cleanBranch = companyName.trim();
+        
+   // WORKER VALIDATION: Check if this branch exists before signing up [3]
+        if (signupRole === 'staff') {
+          const { data: branchExists } = await supabase
+            .from('profiles')
+            .select('client_id')
+            .ilike('client_id', cleanBranch)
+            .eq('role', 'owner')
+            .limit(1);
+
+          if (!branchExists || branchExists.length === 0) {
+            setErrorMsg(`❌ Уучлаарай, "${cleanBranch}" нэртэй салбар/бизнес бүртгэлгүй байна. Та эзнийхээ бүртгүүлсэн салбарын нэрийг зөв бичнэ үү.`);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Registers user with neutral 'Ажилтан' role (Owner assigns the specific job on dashboard) [3]
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              client_id: companyName.trim() || 'SF Coffee', 
-              role: signupRole, // <--- Өөрчлөгдсөн хэсэг: Шилжүүлэгчийн утгыг датабэйс рүү илгээнэ
+              client_id: cleanBranch, 
+              role: signupRole === 'owner' ? 'owner' : 'Ажилтан', // Sets neutral 'Ажилтан'! [3]
               full_name: fullName.trim() 
             }
           }
         });
-
         if (error) throw error;
         
         if (data.user && data.user.identities?.length === 0) {
@@ -186,31 +204,30 @@ if (!mounted) {
         >
           👑 Бизнес эрхлэгч
         </button>
-        <button
+     <button
           type="button"
-          onClick={() => setSignupRole('barista')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${signupRole === 'barista' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
+          onClick={() => setSignupRole('staff')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${signupRole === 'staff' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
         >
-          ☕ Ажилтан
+          👷 Ажилтан
         </button>
       </div>
     </div>
 
     {/* Worker Name Input - Shows ONLY when registering as an employee */}
-    {signupRole === 'barista' && (
+   {signupRole === 'staff' && (
       <div>
         <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Таны нэр (Full Name)</label>
         <input 
           type="text"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          required={isSignUp && signupRole === 'barista'}
+          required={isSignUp && signupRole === 'staff'}
           placeholder="Жишээ: Бат, Нараа, Билгүүн"
           className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
         />
       </div>
     )}
-
     {/* Dynamic Company Input */}
     <div>
       <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
@@ -229,17 +246,26 @@ if (!mounted) {
 )}
 
   {/* Hides password input cleanly when Forgot Password state is active */}
-  {!isForgotPassword && (
+ {!isForgotPassword && (
     <div>
       <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Нууц үг</label>
-      <input 
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required={!isForgotPassword}
-        placeholder="••••••••"
-        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
-      />
+      <div className="relative">
+        <input 
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required={!isForgotPassword}
+          placeholder="••••••••"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+        >
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
       <div className="text-right mt-2">
         <button 
           type="button"
@@ -255,7 +281,6 @@ if (!mounted) {
       </div>
     </div>
   )}
-
   <button 
     type="submit"
     onClick={(e) => {
