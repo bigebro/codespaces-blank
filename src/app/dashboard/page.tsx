@@ -44,7 +44,7 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [userClient, setUserClient] = useState<string>('SF Coffee');
   // Navigation State
-const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'>('dashboard');
+const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'| 'ai_cfo'>('dashboard');
 const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
 const [shifts, setShifts] = useState<any[]>([]);
 const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
@@ -807,12 +807,14 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
         {/* Navigation Tabs */}
         <div className="flex gap-4 mb-8 border-b border-slate-900 pb-4 overflow-x-auto">
           {userRole === 'owner' && (
-            <button 
+            <><button
               onClick={() => setActiveTab('dashboard')}
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'dashboard' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
             >
               📊 Санхүүгийн Хяналт
             </button>
+            {/* <button onClick={() => setActiveTab('ai_cfo')}>🤖 AI Зөвлөх (CFO Chat)</button> */}
+            </>
           )}
           <button 
             onClick={() => setActiveTab('barista')}

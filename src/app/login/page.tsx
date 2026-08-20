@@ -121,7 +121,7 @@ const handleForgotPassword = async () => {
         });
 
         if (error) throw error;
-        router.push('/');
+        router.push('/dashboard');
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Үйлдэл амжилтгүй боллоо.");
