@@ -93,7 +93,7 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
   const [kitchenPasteText, setKitchenPasteText] = useState(''); // NEW
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(''); // NEW: Holds the total purchase cost
-  
+  const [workersList, setWorkersList] = useState<any[]>([]);
   const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
  
     const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
@@ -215,7 +215,8 @@ const fetchDatabaseData = async (clientId: string = 'SF Coffee') => {
       const { data: saleData } = await supabase.from('sales_logs').select('*');
       const { data: taskData } = await supabase.from('tasks').select('*');
       const { data: shiftData } = await supabase.from('shifts').select('*').order('start_time', { ascending: false });
-    
+      const { data: staffData } = await supabase.from('profiles').select('id, full_name, email, role, client_id').neq('role', 'owner');
+if (staffData) setWorkersList(staffData);
       if (taskData) setTasks(taskData);
       if (shiftData) setShifts(shiftData);
 
@@ -1366,10 +1367,34 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               }} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-2">Үүрэг (Role)</label>
-                  <select value={newTaskRole} onChange={e => setNewTaskRole(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold">
-                    <option value="Бариста ☕">Бариста ☕</option>
-                    <option value="Тогооч 🍳">Тогооч 🍳</option>
-                  </select>
+                     <select 
+                        value={newTaskRole} 
+                        onChange={e => setNewTaskRole(e.target.value)} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                      >
+                        <optgroup label="Нийтээр оноох (By Role)">
+                          <option value="Бариста ☕">Бариста ☕ (Бүх бариста нар)</option>
+                          <option value="Тогооч 🍳">Тогооч 🍳 (Бүх тогооч нар)</option>
+                          <option value="Бүх ажилтан">Бүх ажилтан (Бүгд хийх)</option>
+                        </optgroup>
+                        
+                  <optgroup label="Нэр зааж оноох (Specific Worker)">
+                      {workersList.length === 0 ? (
+                        <option disabled value="">(Одоогоор ажилтан бүртгэгдээгүй байна)</option>
+                      ) : (
+                        workersList.map(w => {
+                          const displayName = w.full_name || w.email.split('@')[0];
+                          const isSameBranch = (w.client_id || '').trim().toLowerCase() === (activeClient || '').trim().toLowerCase();
+                          
+                          return (
+                            <option key={w.id} value={displayName}>
+                              👤 {displayName} ({w.role}) {isSameBranch ? '' : `[Салбар: ${w.client_id}]`}
+                            </option>
+                          );
+                        })
+                      )}
+                    </optgroup>
+                      </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-2">Даалгаврын нэр</label>
@@ -1542,6 +1567,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                     <th className="pb-3 px-2 text-right">Үнэ (Cost)</th>
                     <th className="pb-3 px-2 text-center">Баримт (Proof)</th>
                     <th className="pb-3 px-2">Тайлбар</th>
+                    <th className="pb-3 px-2">Огноо</th>
                   </tr>
                 </thead>
              <tbody className="text-sm divide-y divide-slate-800/50">
@@ -1610,6 +1636,12 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                             )}
                           </td>
                           <td className="py-3 px-2 text-slate-400 max-w-[200px] truncate">{log.notes || "-"}</td>
+                          <td className="py-3 px-2 text-slate-400 text-xs font-mono">
+                            {new Date(log.date).toLocaleString('mn-MN', { 
+                              year: 'numeric', month: '2-digit', day: '2-digit', 
+                              hour: '2-digit', minute: '2-digit', second: '2-digit' 
+                            })}
+                          </td>
                         </tr>
                       );
                     })

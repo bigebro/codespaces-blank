@@ -37,40 +37,73 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     if (ingData) setIngredients(ingData);
   };
 
- const handleVerifyPin = async () => {
+const handleVerifyPin = async () => {
     if (pin === '1234' || pin === '1111') {
       const workerName = selectedWorker.email.split('@')[0];
-      const fullNameRole = `${selectedWorker.role} (${workerName})`;
+      const workerDisplayName = (selectedWorker.full_name || workerName).trim();
+      const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
+      const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
 
-      // 1. Check if shift exists
-      let { data: shift } = await supabase.from('shifts').select('*').eq('client_id', selectedWorker.client_id).eq('character_role', fullNameRole).eq('is_active', true).maybeSingle();
-      
-      // 2. If no shift, start one and load tasks!
-      if (!shift) {
-        const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', selectedWorker.client_id).eq('role', selectedWorker.role).eq('is_active', true);
-        const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
+      // 1. Fetch all tasks for this cafe
+      const { data: allTasks } = await supabase
+        .from('tasks')
+        .select('*')
+        .ilike('client_id', tenantId);
+
+      const workerRoleLower = (selectedWorker.role || '').toLowerCase().trim();
+      const workerNameLower = workerDisplayName.toLowerCase().trim();
+      const isBarista = workerRoleLower.includes('barista') || workerRoleLower.includes('бариста');
+      const isCook = workerRoleLower.includes('cook') || workerRoleLower.includes('chef') || workerRoleLower.includes('тогооч');
+
+      // 2. Smart Match: Matches specific name (bilguun), role, or "Бүх ажилтан"
+      const taskChecklist = allTasks?.filter((t: any) => {
+        if (t.is_active === false) return false;
+        const tRole = (t.role || '').toLowerCase().trim();
         
-        // CATCH ERRORS HERE
-  // CATCH ERRORS HERE
+        if (tRole === 'бүх ажилтан' || tRole.includes('бүх')) return true;
+        if (tRole === workerNameLower || tRole.includes(workerNameLower)) return true;
+        if (isBarista && (tRole.includes('бариста') || tRole.includes('barista'))) return true;
+        if (isCook && (tRole.includes('тогооч') || tRole.includes('cook') || tRole.includes('chef'))) return true;
+        return false;
+      }).map((t: any) => ({ id: t.id, name: t.task_name, weight: t.weight || 10, done: false })) || [];
+
+      // 3. Find or Create active shift
+      let { data: shift } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('client_id', tenantId)
+        .eq('is_active', true)
+        .order('start_time', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!shift) {
         const { data: newShift, error: insertError } = await supabase.from('shifts').insert([{
-          client_id: selectedWorker.client_id,
+          client_id: tenantId,
           character_role: fullNameRole,
           is_active: true,
           daily_tasks_checklist: taskChecklist,
-          telegram_chat_id: selectedWorker.telegram_chat_id || 0 // <--- ЭНЭ МӨРИЙГ НЭМНЭ (Bypasses the strict DB rule!)
+          telegram_chat_id: selectedWorker.telegram_chat_id || 0
         }]).select().single();
 
         if (insertError || !newShift) {
-          setMsg(`❌ Датабэйс алдаа: ${insertError?.message || 'RLS эсвэл хандалтын алдаа гарлаа.'}`);
+          setMsg(`❌ Датабэйс алдаа: ${insertError?.message || 'Ээлж үүсгэж чадсангүй.'}`);
           setPin('');
-          return; // STOP CRASHING
+          return;
         }
-
         shift = newShift;
+      } else {
+        // ALWAYS update the shift with your fresh dashboard tasks
+        await supabase.from('shifts').update({ 
+          character_role: fullNameRole,
+          daily_tasks_checklist: taskChecklist 
+        }).eq('id', shift.id);
+        shift.daily_tasks_checklist = taskChecklist;
       }
 
       setActiveShift(shift);
-      setTasks(typeof shift?.daily_tasks_checklist === 'string' ? JSON.parse(shift.daily_tasks_checklist) : (shift?.daily_tasks_checklist || []));
+      // DIRECT FIX: Force-load the matched tasks directly into state!
+      setTasks(taskChecklist);
       setStep('menu');
       setPin('');
     } else {
