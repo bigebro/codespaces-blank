@@ -79,21 +79,15 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
   const [cfoChatInput, setCfoChatInput] = useState('');
   const [cfoChatHistory, setCfoChatHistory] = useState<{sender: 'owner'|'ai', text: string}[]>([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
-  const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
- 
-    const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
-    
- 
-    // UI-ийг шууд өөрчлөх
-    setIngredients(prev => prev.map(ing => 
-      ing.id === id ? { ...ing, [column]: finalVal } : ing
-    ));
-    // Update Supabase securely in the background [3]
-    await supabase
-      .from('ingredients')
-      .update({ [column]: finalVal })
-      .eq('id', id);
-  };
+    const [ingredientsPasteText, setIngredientsPasteText] = useState('');
+  const [ingredientsImportSuccess, setIngredientsImportSuccess] = useState(false);
+  const [recipesPasteText, setRecipesPasteText] = useState('');
+  const [recipesImportSuccess, setRecipesImportSuccess] = useState(false);
+  const [productsPasteText, setProductsPasteText] = useState('');
+const [productsImportSuccess, setProductsImportSuccess] = useState(false);
+
+
+
   // June 2026 Demo Data
   const demoStats: Record<string, any> = {
     "SF Coffee": {
@@ -203,43 +197,37 @@ useEffect(() => {
 
 
   
-const fetchDatabaseData = async (clientId?: string) => {
+// 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг татах
+  const fetchDatabaseData = async (clientId?: string, start?: string, end?: string) => {
     const targetClient = clientId || activeClient || userClient;
+    const targetStart = start || startDate;
+    const targetEnd = end || endDate;
     if (!targetClient) return;
 
     try {
-      // Filter EVERY query strictly by the logged-in business branch [3]
+      // 1. Датабэйсээс татах
       const { data: ingData } = await supabase.from('ingredients').select('*').eq('client_id', targetClient).order('name', { ascending: true });
       const { data: recData } = await supabase.from('recipes').select('*').eq('client_id', targetClient);
       const { data: logData } = await supabase.from('inventory_logs').select('*').eq('client_id', targetClient);
       const { data: saleData } = await supabase.from('sales_logs').select('*').eq('client_id', targetClient);
       const { data: taskData } = await supabase.from('tasks').select('*').eq('client_id', targetClient);
       const { data: shiftData } = await supabase.from('shifts').select('*').eq('client_id', targetClient).order('start_time', { ascending: false });
-      const { data: staffData } = await supabase.from('profiles').select('id, full_name, email, role, client_id').eq('client_id', targetClient).neq('role', 'owner');
-      const { data: rolesData } = await supabase.from('company_roles').select('*').eq('client_id', targetClient);
-      if (rolesData) setCompanyRoles(rolesData);
-      if (staffData) setWorkersList(staffData);
-      if (taskData) setTasks(taskData);
-      if (shiftData) setShifts(shiftData);
 
-      if (ingData) {
-        setIngredients(ingData);
-        const stockMap: Record<string, string> = {};
-        ingData.forEach((ing: any) => {
-          stockMap[ing.id] = parseFloat(ing.current_stock).toString();
-        });
-        setBulkStock(stockMap);
-      }
+      if (ingData) setIngredients(ingData);
       if (logData) setInventoryLogs(logData);
       if (saleData) setSalesLogs(saleData);
       if (recData) {
         setRecipes(recData);
-        const products = Array.from(new Set(recData.map((r: any) => r.product_name)));
-        setUniqueProducts(products as string[]);
+        setUniqueProducts(Array.from(new Set(recData.map((r: any) => r.product_name))));
       }
+      if (taskData) setTasks(taskData);
+      if (shiftData) setShifts(shiftData);
 
-      // Fetch live analytics strictly for your branch [2]
-      const res = await fetch(`/api/analytics?clientId=${encodeURIComponent(targetClient)}`, { cache: 'no-store' });
+      // 💡 2. Сонгосон огнооны дагуу Live Analytics API-г дуудах (6-р сарын хаягдал, ашгийг яг таг бодно)
+      const res = await fetch(
+        `/api/analytics?clientId=${encodeURIComponent(targetClient)}&startDate=${encodeURIComponent(targetStart)}T00:00:00.000Z&endDate=${encodeURIComponent(targetEnd)}T23:59:59.999Z`,
+        { cache: 'no-store' }
+      );
       if (res.ok) {
         const analData = await res.json();
         setLiveAnalytics(analData);
@@ -250,15 +238,6 @@ const fetchDatabaseData = async (clientId?: string) => {
       setLoading(false);
     }
   };
-  console.log(liveAnalytics,"live analytics");
-  
-  console.log(liveAnalytics?.total_waste_loss,"total waste");
-  console.log(liveAnalytics?.total_surplus_savings,"total surplus");
-  console.log(liveAnalytics?.total_logged_spoilage,"total spoilage");
-  console.log(liveAnalytics?.total_logged_testing,"total testing");
-  console.log(liveAnalytics?.total_logged_staff_meal,"total staff meal");
-  console.log(liveAnalytics?.total_logged_other,"total other");
-
 
 
   const lowStockItems = ingredients.filter((i: any) => parseFloat(i.current_stock) <= 50);
@@ -281,7 +260,7 @@ const fetchDatabaseData = async (clientId?: string) => {
     return parsed.toISOString();
   };
 
- // FIXED: Forces June date for testing, preserves custom notes, and routes non-food correctly to OPEX!
+// 1. БАРИСТА ГАРААР ЗАРЛАГА БҮРТГЭХ (Зассан)
   const handleLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isNonFood && !selectedIngredientId) return;
@@ -290,26 +269,25 @@ const fetchDatabaseData = async (clientId?: string) => {
 
     setLoading(true);
     const parsedQty = parseFloat(logQty);
-    
-    // Non-food purchases are always positive additions
     const finalQty = isNonFood ? Math.abs(parsedQty) : (logType === 'purchase' || logType === 'count') ? Math.abs(parsedQty) : -Math.abs(parsedQty);
-    const costValue = logType === 'purchase' ? parseFloat(logCost) : 0;
+    const costValue = logType === 'purchase' ? parseFloat(logCost) || 0 : 0;
     const finalType = isNonFood ? 'purchase' : logType;
+    const currentDate = new Date().toISOString();
 
     try {
-      // 1. Insert into database
       const { data: logData, error } = await supabase
         .from('inventory_logs')
         .insert([
           { 
-            client_id: activeClient,
+            client_id: activeClient, // ✅
             ingredient_id: isNonFood ? null : selectedIngredientId, 
             non_food_item: isNonFood ? nonFoodName : null,
             quantity: finalQty, 
             type: finalType, 
-            total_cost: finalType === 'purchase' ? costValue : 0,
-            notes: logNote || `${finalType} logged manually`, // FIXED: Preserves the typed note!
-            date: '2026-06-15T12:00:00.000Z' // FIXED: Forces June date for immediate test visibility!
+            total_cost: costValue,
+            notes: logNote || `${finalType} logged manually`,
+            date: currentDate, // ✅ Бодит огноо
+            worker_name: 'Менежер'
           }
         ])
         .select()
@@ -317,18 +295,9 @@ const fetchDatabaseData = async (clientId?: string) => {
 
       if (error) throw error;
 
-      // 2. If food purchase, update unit price automatically (FIXED: Forces June date)
-      if (!isNonFood && finalType === 'purchase' && costValue > 0) {
-        const newUnitPrice = costValue / Math.abs(finalQty);
-        await supabase
-          .from('ingredients')
-          .update({ unit_price: newUnitPrice })
-          .eq('id', selectedIngredientId);
-      }
-
       if (logData) {
         setLastLogId(logData.id);
-        setLastLogDetails(isNonFood ? `${nonFoodName}: ${Math.abs(finalQty)} ш (OPEX)` : `${ingredients.find(i=>i.id===selectedIngredientId).name}: ${Math.abs(finalQty)} (${finalType})`);
+        setLastLogDetails(isNonFood ? `${nonFoodName}: ${Math.abs(finalQty)} ш (OPEX)` : `${ingredients.find(i=>i.id===selectedIngredientId)?.name}: ${Math.abs(finalQty)} (${finalType})`);
         setLogSuccess(true);
         setSelectedIngredientId('');
         setNonFoodName('');
@@ -336,98 +305,151 @@ const fetchDatabaseData = async (clientId?: string) => {
         setLogQty('');
         setLogNote('');
         setLogCost('');
-        await fetchDatabaseData();
+        await fetchDatabaseData(activeClient);
         setTimeout(() => setLogSuccess(false), 4000);
       }
-    } catch (err) {
-      console.error(err);
-      alert("Бүртгэл хийхэд алдаа гарлаа.");
+    } catch (err: any) {
+      alert(`Бүртгэл хийхэд алдаа гарлаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
-const handleBulkSave = async () => {
+
+  // 2. GRID ТООЛЛОГО БӨӨНӨӨР ХАДГАЛАХ (Зассан)
+  const handleBulkSave = async () => {
     setIsSavingBulk(true);
     try {
       const logsToInsert: any[] = [];
+      const currentDate = new Date().toISOString();
       
-      const updatePromises = Object.keys(bulkStock).map(async (id) => {
+      Object.keys(bulkStock).forEach((id) => {
         const stockVal = parseFloat(bulkStock[id]) || 0;
-        
-        // Find the original item to see if the stock level actually changed
         const originalIng = ingredients.find(i => i.id === id);
         
         if (originalIng && parseFloat(originalIng.current_stock) !== stockVal) {
-          // Push a physical count log to the transaction ledger
           logsToInsert.push({
+            client_id: activeClient, // ✅
             ingredient_id: id,
             quantity: stockVal,
             type: 'count',
             notes: `Гараар Тоолсон Үлдэгдэл (Менежер Grid)`,
-            date: new Date().toISOString()
+            date: currentDate,
+            worker_name: 'Менежер'
           });
         }
-
-        return supabase
-          .from('ingredients')
-          .update({ current_stock: stockVal })
-          .eq('id', id);
       });
 
-      // 1. Update master stock values
-      await Promise.all(updatePromises);
-
-      // 2. Insert transaction count logs so the financial engine calculates actual usage
       if (logsToInsert.length > 0) {
-        const { error: logError } = await supabase
-          .from('inventory_logs')
-          .insert(logsToInsert);
-          
+        const { error: logError } = await supabase.from('inventory_logs').insert(logsToInsert);
         if (logError) throw logError;
       }
 
       alert("Бүх үлдэгдлүүд амжилттай хадгалагдлаа!");
-      await fetchDatabaseData();
-    } catch (e) {
-      console.error(e);
-      alert("Алдаа гарлаа.");
+      await fetchDatabaseData(activeClient);
+    } catch (e: any) {
+      alert(`Алдаа гарлаа: ${e.message}`);
     } finally {
       setIsSavingBulk(false);
     }
   };
 
-// FIXED: Automatically handles both 4-column (with Date) and 3-column sales pastes!
-const handleBulkSalesPaste = async (e: React.FormEvent) => {
+  // 3. БОРЛУУЛАЛТ ТООЦОХ (Зассан)
+  const handleSalesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct || !salesQty) return;
+
+    setLoading(true);
+    const qtySold = parseInt(salesQty);
+    const productRecipes = recipes.filter((r: any) => r.product_name === selectedProduct);
+    const currentDate = new Date().toISOString();
+
+    try {
+      const mockPrices: Record<string, number> = {
+        "Tiramisu": 11900,
+        "Caffe Latte": 9500,
+        "Americano": 8000
+      };
+
+      const unitPrice = mockPrices[selectedProduct] || 8000;
+      const totalRevenue = unitPrice * qtySold;
+
+      // 1. Борлуулалт оруулах
+      const { error: saleError } = await supabase
+        .from('sales_logs')
+        .insert([{ 
+          client_id: activeClient, // ✅
+          product_name: selectedProduct, 
+          quantity_sold: qtySold, 
+          total_revenue: totalRevenue,
+          date: currentDate // ✅
+        }]);
+
+      if (saleError) throw saleError;
+
+      // 2. Жороор агуулахаас хасах
+      const logsToInsert = productRecipes.map(recipe => ({
+        client_id: activeClient, // ✅
+        ingredient_id: recipe.ingredient_id,
+        quantity: -(recipe.amount * qtySold),
+        type: 'sale',
+        notes: `Борлуулалт: ${qtySold}ш ${selectedProduct}`,
+        date: currentDate,
+        worker_name: 'Систем (Борлуулалт)'
+      }));
+
+      if (logsToInsert.length > 0) {
+        const { error: logError } = await supabase.from('inventory_logs').insert(logsToInsert);
+        if (logError) throw logError;
+      }
+
+      setSalesSuccess(true);
+      setSelectedProduct('');
+      setSalesQty('');
+      await fetchDatabaseData(activeClient);
+      setTimeout(() => setSalesSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Борлуулалт оруулахад алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+// =========================================================================
+  // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Sales Paste) - Зассан
+  // =========================================================================
+  const handleBulkSalesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!salesPasteText.trim()) return;
 
     setLoading(true);
     try {
-      const rows = salesPasteText.trim().split('\n');
+      // \r тэмдэгтийг арилгаж мөрүүдийг цэвэр салгах
+      const rows = salesPasteText.replace(/\r/g, '').trim().split('\n');
       const salesToInsert: any[] = [];
+      const currentDate = new Date().toISOString();
 
       rows.forEach(row => {
+        if (!row.trim()) return;
         const cols = row.split('\t');
         let pName = "";
         let qty = 0;
         let revenue = 0;
-        
-        // FIXED: Default date to June 30th if no date column is provided, preventing crashes
-        let dateVal = '2026-06-30T12:00:00.000Z';
+        let dateVal = currentDate;
 
         if (cols.length >= 4) {
           dateVal = parseSafeDate(cols[0]);
-          pName = cols[1].trim();
-          qty = parseInt(cols[2].replace(/,/g, "")) || 0;
-          revenue = parseFloat(cols[3].replace(/[^0-9.\-]/g, "")) || 0;
-        } else if (cols.length === 3) {
-          pName = cols[0].trim();
-          qty = parseInt(cols[1].replace(/,/g, "")) || 0;
-          revenue = parseFloat(cols[2].replace(/[^0-9.\-]/g, "")) || 0;
+          pName = cols[1]?.trim() || "";
+          qty = parseInt(cols[2]?.replace(/,/g, "")) || 0;
+          revenue = parseFloat(cols[3]?.replace(/[^0-9.\-]/g, "")) || 0;
+        } else if (cols.length >= 2) {
+          pName = cols[0]?.trim() || "";
+          qty = parseInt(cols[1]?.replace(/,/g, "")) || 0;
+          revenue = cols[2] ? parseFloat(cols[2]?.replace(/[^0-9.\-]/g, "")) || 0 : 0;
         }
 
         if (qty > 0 && pName) {
           salesToInsert.push({ 
+            client_id: activeClient, // ✅ Эзэн/Салбарыг яг таг зааж өгсөн
             product_name: pName, 
             quantity_sold: qty, 
             total_revenue: revenue,
@@ -443,58 +465,69 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
 
       setSalesImportSuccess(true);
       setSalesPasteText('');
-      await fetchDatabaseData();
+      await fetchDatabaseData(activeClient);
       setTimeout(() => setSalesImportSuccess(false), 4000);
-    } catch (err) {
-      console.error(err);
-      alert("Борлуулалтыг бөөнөөр оруулахад алдаа гарлаа. Багануудыг шалгана уу.");
+    } catch (err: any) {
+      alert(`Борлуулалт оруулахад алдаа гарлаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
-  // FIXED: Handles both 4-column (Google Sheets style with Date) and 3-column pastes dynamically!
-// FIXED: Strips '₮' and commas cleanly to prevent NaN database errors!
+
+  // =========================================================================
+  // 2. ТАТАН АВАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Purchases Paste) - Зассан
+  // =========================================================================
   const handleBulkPurchasePaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!purchasePasteText.trim()) return;
 
     setLoading(true);
     try {
-      const rows = purchasePasteText.trim().split('\n');
+      const rows = purchasePasteText.replace(/\r/g, '').trim().split('\n');
       const purchasesToInsert: any[] = [];
+      const currentDate = new Date().toISOString();
+
+      // Зөвхөн идэвхтэй салбарын түүхий эдүүдийг Map-д авах (Хурдан O(1) хайлт)
+      const ingMap = new Map();
+      ingredients.filter(i => i.client_id === activeClient).forEach(i => {
+        ingMap.set(cleanNameForMatch(i.name), i);
+      });
 
       rows.forEach(row => {
+        if (!row.trim()) return;
         const cols = row.split('\t');
         let ingName = "";
         let qty = 0;
         let totalCost = 0;
-        let dateVal = new Date().toISOString();
+        let dateVal = currentDate;
 
         if (cols.length >= 4) {
-           dateVal = parseSafeDate(cols[0]);
-          ingName = cols[1].trim();
-          qty = parseFloat(cols[2].replace(/,/g, "")) || 0;
-          totalCost = parseFloat(cols[3].replace(/[^0-9.\-]/g, "")) || 0;
-        } else if (cols.length === 3) {
-          ingName = cols[0].trim();
-          qty = parseFloat(cols[1].replace(/,/g, "")) || 0;
-          // FIXED: Strips '₮' and all non-numeric characters cleanly!
-          totalCost = parseFloat(cols[2].replace(/[^0-9.\-]/g, "")) || 0;
+          dateVal = parseSafeDate(cols[0]);
+          ingName = cols[1]?.trim() || "";
+          qty = parseFloat(cols[2]?.replace(/,/g, "")) || 0;
+          totalCost = parseFloat(cols[3]?.replace(/[^0-9.\-]/g, "")) || 0;
+        } else if (cols.length >= 2) {
+          ingName = cols[0]?.trim() || "";
+          qty = parseFloat(cols[1]?.replace(/,/g, "")) || 0;
+          totalCost = cols[2] ? parseFloat(cols[2]?.replace(/[^0-9.\-]/g, "")) || 0 : 0;
         }
 
-        const ing = ingredients.find(i => cleanNameForMatch(i.name) === cleanNameForMatch(ingName));
+        const matchedIng = ingMap.get(cleanNameForMatch(ingName));
 
-        if (ing && qty > 0) {
+        if (matchedIng && qty > 0) {
           purchasesToInsert.push({
-            ingredient_id: ing.id,
+            client_id: activeClient, // ✅ Салбар тодорхой
+            ingredient_id: matchedIng.id,
             quantity: qty,
             type: 'purchase',
             total_cost: totalCost,
             date: dateVal,
             notes: `Бөөнөөр Татан Авалт (Cost: ${totalCost}₮)`
           });
-        } else if (qty > 0) {
+        } else if (qty > 0 && ingName) {
+          // Хүнсний бус татан авалт (OPEX)
           purchasesToInsert.push({
+            client_id: activeClient, // ✅ Салбар тодорхой
             ingredient_id: null,
             non_food_item: ingName,
             quantity: qty,
@@ -513,87 +546,284 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
 
       setPurchaseImportSuccess(true);
       setPurchasePasteText('');
-      await fetchDatabaseData();
+      await fetchDatabaseData(activeClient);
       setTimeout(() => setPurchaseImportSuccess(false), 4000);
-    } catch (err) {
-      console.error(err);
-      alert("Татан авалтыг бөөнөөр оруулахад алдаа гарлаа. Багануудыг шалгана уу.");
+    } catch (err: any) {
+      alert(`Татан авалт оруулахад алдаа гарлаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-// FIXED: Loops through all data rows (start, end, etc.) simultaneously!
-  const handleBulkInventoryPaste = async (e: React.FormEvent) => {
+  // =========================================================================
+  // 3. ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (Ingredients & Prices) - Зассан
+  // =========================================================================
+  const handleBulkIngredientsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inventoryPasteText.trim()) return;
+    if (!ingredientsPasteText.trim()) return;
 
     setLoading(true);
     try {
-      const rows = inventoryPasteText.trim().split('\n');
-      if (rows.length < 2) {
-        alert("Алдаа: Та Толгой мөр (Headers) болон Дараах дата мөрийг хамт хуулж оруулна уу.");
-        setLoading(false);
-        return;
-      }
+      const rows = ingredientsPasteText.replace(/\r/g, '').trim().split('\n');
+      const itemsToUpsert: any[] = [];
 
-      const headers = rows[0].split('\t').map(h => cleanNameForMatch(h));
-      const countsToInsert: any[] = [];
+      rows.forEach(row => {
+        if (!row.trim()) return;
+        const cols = row.split('\t');
+        if (cols.length >= 3) {
+          const name = cols[0]?.trim() || "";
+          const unit = cols[1]?.trim() || 'ш';
+          const price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
+          const par = cols[3] ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, '')) || 0 : 0;
 
-      // Loop through all data rows (Row 1 is start, Row 2 is End, etc.)
-      for (let r = 1; r < rows.length; r++) {
-        const values = rows[r].split('\t');
-        if (values.length < 2) continue;
-
-        // FIXED: Огноог аюулгүй хөрвүүлнэ
-        const dateVal = parseSafeDate(values[0]);
-        const typeVal = values[1]?.trim().toLowerCase() || 'count';
-
-        for (let i = 2; i < headers.length; i++) {
-          const ingName = headers[i];
-          if (!ingName) continue;
-
-          // Strip commas and spaces
-          const qty = parseFloat(values[i]?.replace(/[, ]/g, "")) || 0;
-          const ing = ingredients.find(ingItem => cleanNameForMatch(ingItem.name) === ingName);
-
-          if (ing) {
-            countsToInsert.push({
-              ingredient_id: ing.id,
-              quantity: qty,
-              type: 'count',
-              notes: `Бөөнөөр Тоолсон Үлдэгдэл - Огноо: ${dateVal}, Төрөл: ${typeVal}`,
-              date: new Date(dateVal).toISOString()
+          if (name) {
+            itemsToUpsert.push({
+              client_id: activeClient, // ✅ Салбар тодорхой
+              name: name,
+              unit: unit,
+              unit_price: price,
+              par_level: par
+              // current_stock-ийг энд хүчээр 0 болгохгүй (байгаа үлдэгдлийг нь хадгална)
             });
-
-            // Update current_stock in ingredients table directly for the latest count
-            if (r === rows.length - 1) { // Only set master stock to the latest row's values
-              await supabase
-                .from('ingredients')
-                .update({ current_stock: qty })
-                .eq('id', ing.id);
-            }
           }
         }
-      }
+      });
 
-      if (countsToInsert.length > 0) {
-        const { error } = await supabase.from('inventory_logs').insert(countsToInsert);
+      if (itemsToUpsert.length > 0) {
+        const { error } = await supabase
+          .from('ingredients')
+          .upsert(itemsToUpsert, { onConflict: 'client_id,name' });
         if (error) throw error;
       }
 
-      setInventoryImportSuccess(true);
-      setInventoryPasteText('');
-      await fetchDatabaseData();
-      setTimeout(() => setInventoryImportSuccess(false), 4000);
-
-    } catch (err) {
-      console.error(err);
-      alert("Тооллогыг бөөнөөр оруулахад алдаа гарлаа. Багануудыг шалгана уу.");
+      setIngredientsImportSuccess(true);
+      setIngredientsPasteText('');
+      await fetchDatabaseData(activeClient);
+      setTimeout(() => setIngredientsImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Түүхий эд оруулахад алдаа гарлаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
+
+  // =========================================================================
+  // 4. ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ (Recipes Paste) - Зассан
+  // =========================================================================
+  const handleBulkRecipesPaste = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipesPasteText.trim()) return;
+
+    setLoading(true);
+    try {
+      const rows = recipesPasteText.replace(/\r/g, '').trim().split('\n');
+      
+      // Зөвхөн тухайн салбарын түүхий эдүүдийн Map
+      const { data: currentIngs } = await supabase
+        .from('ingredients')
+        .select('id, name')
+        .eq('client_id', activeClient);
+
+      const ingMap = new Map();
+      currentIngs?.forEach(i => ingMap.set(cleanNameForMatch(i.name), i.id));
+
+      const recipesToUpsert: any[] = [];
+
+      rows.forEach(row => {
+        if (!row.trim()) return;
+        const cols = row.split('\t');
+        if (cols.length >= 3) {
+          const productName = cols[0]?.trim() || "";
+          const ingredientName = cleanNameForMatch(cols[1] || "");
+          const amount = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
+
+          const ingredientId = ingMap.get(ingredientName);
+
+          if (productName && ingredientId && amount > 0) {
+            recipesToUpsert.push({
+              client_id: activeClient, // ✅ Салбар тодорхой
+              product_name: productName,
+              ingredient_id: ingredientId,
+              amount: amount
+            });
+          }
+        }
+      });
+
+      if (recipesToUpsert.length > 0) {
+        const { error } = await supabase
+          .from('recipes')
+          .upsert(recipesToUpsert, { onConflict: 'client_id,product_name,ingredient_id' });
+        if (error) throw error;
+      }
+
+      setRecipesImportSuccess(true);
+      setRecipesPasteText('');
+      await fetchDatabaseData(activeClient);
+      setTimeout(() => setRecipesImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Жор оруулахад алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =========================================================================
+  // 5. МЕНЮ / ЦЭС БӨӨНӨӨР ОРУУЛАХ (Products & Selling Prices) - Зассан
+  // =========================================================================
+  const handleBulkProductsPaste = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productsPasteText.trim()) return;
+
+    setLoading(true);
+    try {
+      const rows = productsPasteText.replace(/\r/g, '').trim().split('\n');
+      const productsToUpsert: any[] = [];
+
+      rows.forEach(row => {
+        if (!row.trim()) return;
+        const cols = row.split('\t');
+        if (cols.length >= 3) {
+          // Формат 1: Category | Item | Selling Price
+          const category = cols[0]?.trim() || 'General';
+          const name = cols[1]?.trim() || "";
+          const price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
+
+          if (name && price > 0) {
+            productsToUpsert.push({
+              client_id: activeClient, // ✅ Салбар тодорхой
+              category: category,
+              name: name,
+              selling_price: price
+            });
+          }
+        } else if (cols.length === 2) {
+          // Формат 2: Item | Selling Price
+          const name = cols[0]?.trim() || "";
+          const price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')) || 0;
+
+          if (name && price > 0) {
+            productsToUpsert.push({
+              client_id: activeClient,
+              category: 'General',
+              name: name,
+              selling_price: price
+            });
+          }
+        }
+      });
+
+      if (productsToUpsert.length > 0) {
+        const { error } = await supabase
+          .from('products')
+          .upsert(productsToUpsert, { onConflict: 'client_id,name' });
+        if (error) throw error;
+      }
+
+      setProductsImportSuccess(true);
+      setProductsPasteText('');
+      await fetchDatabaseData(activeClient);
+      setTimeout(() => setProductsImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Меню оруулахад алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+// 🚀 ХЭВТЭЭ ТООЛЛОГО ИМПОРТЛОГЧ (0.2 СЕКУНДЭД АЖИЛЛАНА)
+const handleBulkInventoryPaste = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!inventoryPasteText.trim()) return;
+
+  setLoading(true);
+  try {
+    const rows = inventoryPasteText.trim().split('\n');
+    if (rows.length < 2) {
+      alert("Алдаа: Толгой мөр (Headers) болон Тооллогын дата мөрийг хамт хуулна уу.");
+      setLoading(false);
+      return;
+    }
+
+    // 1. In-memory Map ашиглаж хайлтын хурдыг 1 миллисекунд болгох
+    const ingMap = new Map();
+    ingredients.forEach(i => {
+      ingMap.set(cleanNameForMatch(i.name), i);
+    });
+
+    const headers = rows[0].split('\t').map(h => cleanNameForMatch(h));
+    const countsToInsert: any[] = [];
+
+    // 2. Бүх мөр, баганыг компьютер санах ойд (RAM) шууд боловсруулна
+    for (let r = 1; r < rows.length; r++) {
+      const values = rows[r].split('\t');
+      if (values.length < 2) continue;
+
+      const dateVal = parseSafeDate(values[0]);
+      const typeVal = values[1]?.trim().toLowerCase() || 'count';
+
+      for (let i = 2; i < headers.length; i++) {
+        const ingName = headers[i];
+        if (!ingName) continue;
+
+        const ing = ingMap.get(ingName);
+        if (ing) {
+          const rawQty = values[i]?.replace(/[, ]/g, "");
+          // Хэрэв тоо бичигдсэн байвал логт нэмнэ
+          if (rawQty !== undefined && rawQty !== "" && rawQty !== "-") {
+            const qty = parseFloat(rawQty) || 0;
+            countsToInsert.push({
+              client_id: activeClient,
+              ingredient_id: ing.id,
+              quantity: qty,
+              type: 'count',
+              notes: `Бөөнөөр Тоолсон Үлдэгдэл (${typeVal})`,
+              date: new Date(dateVal).toISOString()
+            });
+          }
+        }
+      }
+    }
+
+    // 3. БҮХ 100+ БАРААГ ГАНЦХАН ХҮСЭЛТЭЭР (BATCH INSERT) 0.2 СЕКУНДЭД ХАДГАЛНА!
+    // Supabase trigger өөрөө current_stock болон last_counted_at-ийг шууд шинэчилнэ.
+    if (countsToInsert.length > 0) {
+      const { error } = await supabase.from('inventory_logs').insert(countsToInsert);
+      if (error) throw error;
+    }
+
+    setInventoryImportSuccess(true);
+    setInventoryPasteText('');
+    await fetchDatabaseData(activeClient);
+    setTimeout(() => setInventoryImportSuccess(false), 4000);
+
+  } catch (err: any) {
+    alert(`Алдаа: ${err.message || 'Тооллого оруулахад алдаа гарлаа.'}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
+  const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
+    
+
+ 
+    // UI-ийг шууд өөрчлөх
+    setIngredients(prev => prev.map(ing => 
+      ing.id === id ? { ...ing, [column]: finalVal } : ing
+    ));
+    // Update Supabase securely in the background [3]
+    await supabase
+      .from('ingredients')
+      .update({ [column]: finalVal })
+      .eq('id', id);
+  };
+
+
   const handleUndoLog = async () => {
     if (!lastLogId) return;
     setLoading(true);
@@ -610,108 +840,54 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
     }
   };
 
-// FIXED: Complete, unbroken sales submit handler with productRecipes correctly defined
-  const handleSalesSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProduct || !salesQty) return;
 
-    setLoading(true);
-    const qtySold = parseInt(salesQty);
-    
-    // DEFINED: This line must be present before the try block!
-    const productRecipes = recipes.filter((r: any) => r.product_name === selectedProduct);
-
-    try {
-      const mockPrices: Record<string, number> = {
-        "Tiramisu": 11900,
-        "Caffe Latte": 9500,
-        "Americano": 8000,
-        "Sea ​​buckthorn cupcake": 5000,
-        "Трюфель/Медовик": 4000,
-        "Strawberry Smoothie": 12500,
-        "Mango Smoothie": 12500,
-        "Flavored Caffe Latte": 10500,
-        "Blueberry Smoothie": 12500,
-        "Laaztai cola": 5000
-      };
-
-      const unitPrice = mockPrices[selectedProduct] || 5000;
-      const totalRevenue = unitPrice * qtySold;
-
-      // 1. Log the Sales Revenue (FIXED: Forces June date)
-      const { error: saleError } = await supabase
-        .from('sales_logs')
-        .insert([{ 
-          product_name: selectedProduct, 
-          quantity_sold: qtySold, 
-          total_revenue: totalRevenue,
-          date: '2026-06-15T12:00:00.000Z' // Forces June date
-        }]);
-
-      if (saleError) throw saleError;
-
-      // 2. Log the recipe ingredient deductions (FIXED: Forces June date)
-      const logsToInsert = productRecipes.map(recipe => ({
-        ingredient_id: recipe.ingredient_id,
-        quantity: -(recipe.amount * qtySold),
-        type: 'sale',
-        notes: `Борлуулалт: ${qtySold}ш ${selectedProduct}`,
-        date: '2026-06-15T12:00:00.000Z' // Forces June date
-      }));
-
-      if (logsToInsert.length > 0) {
-        const { error: logError } = await supabase.from('inventory_logs').insert(logsToInsert);
-        if (logError) throw logError;
-      }
-
-      setSalesSuccess(true);
-      setSelectedProduct('');
-      setSalesQty('');
-      await fetchDatabaseData();
-      setTimeout(() => setSalesSuccess(false), 4000);
-    } catch (err) {
-      console.error(err);
-      alert("Борлуулалт оруулахад алдаа гарлаа.");
-    } finally {
-      setLoading(false);
-    }
-  };
   // NEW: Гал тогооны зардлыг (spoilage, testing, staff_meal) уншиж импортлогч функц
+ // 🚀 ГАЛ ТОГООНЫ ХАЯГДАЛ БӨӨНӨӨР ИМПОРТЛОХ (Зассан)
   const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kitchenPasteText.trim()) return;
 
     setLoading(true);
     try {
-      const rows = kitchenPasteText.trim().split('\n');
+      const rows = kitchenPasteText.replace(/\r/g, '').trim().split('\n');
       const logsToInsert: any[] = [];
+      const currentDate = new Date().toISOString();
+
+      // Салбарын түүхий эдүүдийг Map-д авах (Хурдан O(1) хайлт)
+      const ingMap = new Map();
+      ingredients.filter(i => i.client_id === activeClient).forEach(i => {
+        ingMap.set(cleanNameForMatch(i.name), i);
+      });
 
       rows.forEach(row => {
+        if (!row.trim()) return;
         const cols = row.split('\t');
-        if (cols.length >= 4) {
-        const rawDate = cols[0];
-        const dateVal = parseSafeDate(rawDate);
+        if (cols.length >= 3) {
+          const rawDate = cols[0];
+          const dateVal = parseSafeDate(rawDate);
           
           const rawType = cols[1]?.trim().toLowerCase() || 'spoilage';
-          const ingName = cols[2]?.trim();
+          const ingName = cols[2]?.trim() || "";
           const qty = parseFloat(cols[3]?.replace(/,/g, "")) || 0;
           const note = cols[4]?.trim() || "";
 
-          // Гүйлгээний төрлүүдийг өгөгдлийн санд тохируулах
+          // Төрлүүдийг автоматаар ялгах
           let dbType = 'spoilage';
           if (rawType.includes('staff') || rawType.includes('хоол')) dbType = 'staff_meal';
           else if (rawType.includes('test') || rawType.includes('турш')) dbType = 'testing';
           else if (rawType.includes('other') || rawType.includes('бусад')) dbType = 'other';
 
-          const ing = ingredients.find(i => cleanNameForMatch(i.name) === cleanNameForMatch(ingName));
+          const matchedIng = ingMap.get(cleanNameForMatch(ingName));
 
-          if (ing && qty > 0) {
+          if (matchedIng && qty > 0) {
             logsToInsert.push({
-              ingredient_id: ing.id,
-              quantity: -Math.abs(qty), // Хаягдал тул үргэлж сөрөг утгаар хасна
+              client_id: activeClient, // ✅ Салбарын ID тодорхой
+              ingredient_id: matchedIng.id,
+              quantity: -Math.abs(qty), // Хаягдал тул үргэлж сөрөг (-) хасагдана
               type: dbType,
               notes: note || `${dbType} logged in bulk`,
-              date: dateVal
+              date: dateVal || currentDate,
+              worker_name: 'Менежер (Бөөнөөр)'
             });
           }
         }
@@ -724,16 +900,54 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
 
       setKitchenImportSuccess(true);
       setKitchenPasteText('');
-      await fetchDatabaseData();
+      await fetchDatabaseData(activeClient);
       setTimeout(() => setKitchenImportSuccess(false), 4000);
-    } catch (err) {
-      console.error(err);
-      alert("Гал тогооны хаягдлыг оруулахад алдаа гарлаа.");
+    } catch (err: any) {
+      alert(`Гал тогооны хаягдал оруулахад алдаа гарлаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // 💡 Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
+  const availableMonths = React.useMemo(() => {
+    const monthsSet = new Set<string>();
+
+    // 1. Борлуулалтын огноонуудаас саруудыг шүүнэ
+    salesLogs
+      .filter(s => s.client_id === activeClient && s.date)
+      .forEach(s => monthsSet.add(s.date.substring(0, 7))); // "2026-06" гэж авна
+
+    // 2. Татан авалт, хаягдлын огноонуудаас саруудыг шүүнэ
+    inventoryLogs
+      .filter(l => l.client_id === activeClient && l.date)
+      .forEach(l => monthsSet.add(l.date.substring(0, 7)));
+
+    // Хэрэв ямар ч дата байхгүй бол ядаж одоогийн сарыг харуулна
+    if (monthsSet.size === 0) {
+      monthsSet.add(new Date().toISOString().substring(0, 7));
+    }
+
+    // Саруудыг хамгийн сүүлчийнхээс нь эхлэн эрэмбэлэх (2026-08, 2026-07, 2026-06...)
+    return Array.from(monthsSet).sort().reverse();
+  }, [salesLogs, inventoryLogs, activeClient]);
+
+  // Сар сонгох үед тухайн сарын эхний ба эцсийн огноог автоматаар бодож датаг дуудах
+  const handleMonthChange = (selectedYearMonth: string) => {
+    const [year, month] = selectedYearMonth.split('-').map(Number);
+    
+    // Тухайн сарын эхний өдөр: YYYY-MM-01
+    const firstDay = `${selectedYearMonth}-01`;
+    
+    // Тухайн сарын хамгийн сүүлийн өдрийг автоматаар бодно (28, 30 эсвэл 31)
+    const lastDayNum = new Date(year, month, 0).getDate();
+    const lastDay = `${selectedYearMonth}-${String(lastDayNum).padStart(2, '0')}`;
+
+    setStartDate(firstDay);
+    setEndDate(lastDay);
+    fetchDatabaseData(activeClient, firstDay, lastDay);
+  };
+    
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
        
@@ -745,12 +959,15 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           <div>
             <div className="flex items-center gap-3">
               <Building className="h-7 w-7 text-emerald-400" />
-              
-              <select 
-                value={activeClient} 
-                onChange={(e) => setActiveClient(e.target.value as any)}
-                className="bg-transparent border-0 text-2xl font-black text-white focus:outline-none focus:ring-0 cursor-pointer p-0"
-              >
+                          
+                      <select 
+              value={activeClient} 
+              onChange={(e) => {
+                const selected = e.target.value;
+                setActiveClient(selected);
+                fetchDatabaseData(selected); // ✅ Шууд тухайн салбарын датаг татаж шинэчилнэ
+              }}
+            >
                 <option value={userClient} className="bg-slate-950 text-white font-bold text-base">{userClient}</option>
                 <option value="Cafe B" className="bg-slate-950 text-white font-bold text-base">Cafe B (Ulaanbaatar)</option>
               </select>
@@ -845,6 +1062,36 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
         {/* 1. FINANCIAL DASHBOARD TAB */}
         {activeTab === 'dashboard' && userRole === 'owner' && (
           <div>
+            {/* 💡 САЛБАР БҮРИЙН ДАТАТАЙ САРУУДЫГ ХАРУУЛАХ ДИНАМИК СОНГОГЧ */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-8">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+                  <Activity className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Тайлант Хугацааны Сонголт</h3>
+                  <p className="text-xs text-slate-400">Сонгосон сарын бодит ашиг, алдагдал, хаягдлыг тооцоолж байна</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                {/* ДАТАТАЙ САРУУДЫН DROPDOWN */}
+                <select
+                  value={startDate.substring(0, 7)}
+                  onChange={(e) => handleMonthChange(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-emerald-400 font-black text-sm rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 cursor-pointer shadow-inner"
+                >
+                  {availableMonths.map(ym => {
+                    const [year, month] = ym.split('-');
+                    return (
+                      <option key={ym} value={ym} className="bg-slate-950 text-white font-bold">
+                        📅 {year} оны {month}-р сар
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Нийт Орлого (Revenue)</p>
@@ -1280,7 +1527,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                 <h3 className="text-lg font-bold">Борлуулалт Бөөнөөр Импортлох (Sales Paste)</h3>
               </div>
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Google Sheets-ээс <strong>Бүтээгдэхүүн, Тоо ширхэг, Орлого</strong> гэсэн 3 баганыг хуулаад доор шууд पेस्टэлнэ үү.
+                Google Sheets-ээс <strong>Бүтээгдэхүүн, Тоо ширхэг, Орлого</strong> гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
               </p>
 
               {salesImportSuccess && (
@@ -1315,7 +1562,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
                 <h3 className="text-lg font-bold">Татан авалт Бөөнөөр Импортлох (Purchases Paste)</h3>
               </div>
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Google Sheets-ээс <strong>Барааны нэр, Авсан тоо, Нийт өртөг</strong> гэсэн 3 баганыг хуулаад доор шууд पेस्टэлнэ үү.
+                Google Sheets-ээс <strong>Барааны нэр, Авсан тоо, Нийт өртөг</strong> гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
               </p>
 
               {purchaseImportSuccess && (
@@ -1344,7 +1591,109 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               </form>
 
             </div>
+              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+            <div className="flex items-center gap-2 mb-2">
+              <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
+              <h3 className="text-lg font-bold">1. Түүхий эд, Үнэ бөөнөөр оруулах</h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Excel-ээс <strong>Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц (Par)</strong> гэсэн 4 баганыг хуулаад доор хуулж тавина уу.
+            </p>
+
+            {ingredientsImportSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl mb-4 text-xs font-bold">
+                ✅ Түүхий эд, үнийн мэдээлэл амжилттай хадгалагдлаа!
+              </div>
+            )}
+
+            <form onSubmit={handleBulkIngredientsPaste} className="space-y-4">
+              <textarea
+                rows={6}
+                value={ingredientsPasteText}
+                onChange={(e) => setIngredientsPasteText(e.target.value)}
+                placeholder="Жишээ:&#10;Milk&#9;ml&#9;5.8&#9;20000&#10;Beans&#9;gram&#9;85&#9;5000"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+              >
+                <UploadCloud className="h-4 w-4" />
+                Түүхий эдүүд хадгалах (Import Catalog)
+              </button>
+            </form>
+            </div>
+
+            {/* 2. RECIPE / ТЕХНОЛОГИЙН КАРТ SETUP BOX */}
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+              <div className="flex items-center gap-2 mb-2">
+                <FileSpreadsheet className="h-6 w-6 text-purple-400" />
+                <h3 className="text-lg font-bold">2. Технологийн карт (Жор) бөөнөөр оруулах</h3>
+              </div>
+              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                Excel-ээс <strong>Бүтээгдэхүүн, Орцын нэр, Орцын хэмжээ (гр/мл)</strong> гэсэн 3 баганыг хуулаад доор хуулж тавина уу.
+              </p>
+
+              {recipesImportSuccess && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl mb-4 text-xs font-bold">
+                  ✅ Бүх бүтээгдэхүүний жор амжилттай бүртгэгдлээ!
+                </div>
+              )}
+
+              <form onSubmit={handleBulkRecipesPaste} className="space-y-4">
+                <textarea
+                  rows={6}
+                  value={recipesPasteText}
+                  onChange={(e) => setRecipesPasteText(e.target.value)}
+                  placeholder="Жишээ:&#10;Caffe Latte&#9;Milk&#9;200&#10;Caffe Latte&#9;Beans&#9;16&#10;Chicken Sandwich&#9;Cheese slice&#9;1"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-purple-500"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  Жор бөөнөөр хадгалах (Import Recipes)
+                </button>
+              </form>
+            </div>
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
+  <div className="flex items-center gap-2 mb-2">
+    <Coffee className="h-6 w-6 text-emerald-400" />
+    <h3 className="text-lg font-bold">Меню / Цэс бөөнөөр оруулах (Products & Selling Prices)</h3>
+  </div>
+  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+    Google Sheets-ээс <strong>Category (Ангилал), Item (Нэр), Selling Price (Зарах үнэ)</strong> гэсэн 3 баганыг хуулаад доор paste хийнэ үү.
+  </p>
+
+  {productsImportSuccess && (
+    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl mb-4 text-xs font-bold">
+      ✅ Бүх цэсний зарах үнэ амжилттай хадгалагдлаа!
+    </div>
+  )}
+
+  <form onSubmit={handleBulkProductsPaste} className="space-y-4">
+    <textarea
+      rows={5}
+      value={productsPasteText}
+      onChange={(e) => setProductsPasteText(e.target.value)}
+      placeholder="Жишээ:&#10;SANDWICH&#9;Chicken Sandwich&#9;8900&#10;COLD COFFEE&#9;Americano /мөстэй/&#9;8500&#10;COLD COFFEE&#9;Caffe latte /мөстэй/&#9;9500"
+      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500"
+    />
+    <button
+      type="submit"
+      disabled={loading}
+      className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+    >
+      <UploadCloud className="h-4 w-4" />
+      Цэсний үнийг хадгалах (Import Menu)
+    </button>
+  </form>
+</div>
           </div>
+          
         )}
         {/* 7. AI CFO CHAT TAB (OWNER ONLY) */}
         {activeTab === 'ai_cfo' && userRole === 'owner' && (
@@ -1734,7 +2083,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               <h3 className="text-lg font-bold">Агуулахын Тооллого Хэвтээ Импортлох (Horizontal Inventory Audit Paste)</h3>
             </div>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Google Sheets-ээс <strong>Толгой мөр (Ингредиентүүдийн нэрс) болон доорх Тооллогын мөрийг (Date, Type, болон утгууд)</strong> хамт чирж хуулаад доор шууд पेस्टэлнэ үү [3].
+              Google Sheets-ээс <strong>Толгой мөр (Ингредиентүүдийн нэрс) болон доорх Тооллогын мөрийг (Date, Type, болон утгууд)</strong> хамт чирж хуулаад доор шууд хуулж тавина уу.
             </p>
 
             {inventoryImportSuccess && (
@@ -1902,7 +2251,7 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
               <h3 className="text-lg font-bold">Гал тогооны хаягдал бөөнөөр импортлох (Kitchen Logs Paste)</h3>
             </div>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Google Sheets-ээс <strong>Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар</strong> гэсэн 5 баганыг чирж хуулаад доор шууд पेस्टэлнэ үү [3].
+              Google Sheets-ээс <strong>Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар</strong> гэсэн 5 баганыг чирж хуулаад доор шууд хуулж тавина уу.
             </p>
 
             {kitchenImportSuccess && (

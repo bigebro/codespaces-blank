@@ -69,6 +69,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Failed to fetch necessary database tables" }, { status: 400 });
     }
 
+    let { data: rawProducts } = await supabase.from('products').select('*');
     // 3. Secure multi-tenant filter (Overwrites the arrays directly so your existing loops work) [2, 3]
     const clientId = searchParams.get('clientId') || 'SF Coffee';
     rawIngredients = rawIngredients.filter((ing: any) => ing.client_id === clientId);
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
     rawInventoryLogs = rawInventoryLogs.filter((log: any) => log.client_id === clientId);
     rawSales = rawSales.filter((sale: any) => sale.client_id === clientId);
     rawShifts = rawShifts?.filter((shift: any) => shift.client_id === clientId) || [];
-    
+     rawProducts = rawProducts?.filter((prod: any) => prod.client_id === clientId) || [];
       const salesByDay: Record<string, any[]> = {};
     rawSales.forEach((s: any) => {
       if (!s.date) return;
@@ -196,7 +197,9 @@ export async function GET(request: Request) {
       }
     });
 
+   // Replace your old processedProducts block with this:
     const processedProducts = Array.from(new Set(rawRecipes.map((r: any) => r.product_name)));
+    
     processedProducts.forEach((pName: any) => {
       const qtySold = productSales[pName.toLowerCase()] || 0;
       if (qtySold > 0) {
@@ -215,14 +218,30 @@ export async function GET(request: Request) {
           };
         });
 
-        const sellPrice = pName === "Tiramisu" ? 11900 : pName === "Caffe Latte" ? 9500 : pName === "Americano" ? 8000 : 5000;
+        // 💡 1. Dynamically match product from the 'products' table
+        const matchedProduct = rawProducts?.find(
+          (p: any) => p.name.toLowerCase().trim() === pName.toLowerCase().trim()
+        );
+
+        // 💡 2. Use the database price if exists, otherwise fallback to standard default
+        const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 8000;
+        const category = matchedProduct ? matchedProduct.category : 'General';
+
+        // 💡 3. Exact calculations matching your Matrix sheet
+        const unitMargin = sellPrice - estCost;
+        const foodCostPct = sellPrice > 0 ? (estCost / sellPrice) * 100 : 0;
+        const grossMarginPct = sellPrice > 0 ? (unitMargin / sellPrice) * 100 : 0;
 
         menuPerformance.push({
           name: pName,
+          category: category,
           sold: qtySold,
-          profit: Math.round((sellPrice - estCost) * qtySold),
-          unit_margin: sellPrice - estCost,
-          food_cost_pct: sellPrice > 0 ? estCost / sellPrice : 0,
+          selling_price: sellPrice,
+          cost_per_item: Math.round(estCost),
+          profit: Math.round(unitMargin * qtySold),
+          unit_margin: Math.round(unitMargin),
+          food_cost_pct: Math.round(foodCostPct * 10) / 10,
+          gross_margin_pct: Math.round(grossMarginPct * 10) / 10,
           recipe: drinkRecipe
         });
       }
