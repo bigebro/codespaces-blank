@@ -417,16 +417,17 @@ useEffect(() => {
 // =========================================================================
   // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Sales Paste) - Зассан
   // =========================================================================
+ // 🚀 БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огноотой болон Огноогүй аль алиныг нь төгс уншина)
   const handleBulkSalesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!salesPasteText.trim()) return;
 
     setLoading(true);
     try {
-      // \r тэмдэгтийг арилгаж мөрүүдийг цэвэр салгах
       const rows = salesPasteText.replace(/\r/g, '').trim().split('\n');
       const salesToInsert: any[] = [];
-      const currentDate = new Date().toISOString();
+      // 💡 Хэрэв огноогүй хуулбал Dashboard дээр сонгосон сарын огноог авна
+      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
 
       rows.forEach(row => {
         if (!row.trim()) return;
@@ -434,22 +435,26 @@ useEffect(() => {
         let pName = "";
         let qty = 0;
         let revenue = 0;
-        let dateVal = currentDate;
+        let dateVal = fallbackDate;
 
+        // 4 Баганатай үед: Огноо | Бүтээгдэхүүн | Тоо | Орлого
         if (cols.length >= 4) {
           dateVal = parseSafeDate(cols[0]);
           pName = cols[1]?.trim() || "";
           qty = parseInt(cols[2]?.replace(/,/g, "")) || 0;
           revenue = parseFloat(cols[3]?.replace(/[^0-9.\-]/g, "")) || 0;
-        } else if (cols.length >= 2) {
+        } 
+        // 3 Баганатай үед: Бүтээгдэхүүн | Тоо | Орлого
+        else if (cols.length >= 2) {
           pName = cols[0]?.trim() || "";
           qty = parseInt(cols[1]?.replace(/,/g, "")) || 0;
           revenue = cols[2] ? parseFloat(cols[2]?.replace(/[^0-9.\-]/g, "")) || 0 : 0;
         }
 
-        if (qty > 0 && pName) {
+        // Хэрэв толгой мөр (Product, Quantity гэсэн үг) биш бол хадгална
+        if (qty > 0 && pName && !pName.toLowerCase().includes('product')) {
           salesToInsert.push({ 
-            client_id: activeClient, // ✅ Эзэн/Салбарыг яг таг зааж өгсөн
+            client_id: activeClient,
             product_name: pName, 
             quantity_sold: qty, 
             total_revenue: revenue,
@@ -466,6 +471,7 @@ useEffect(() => {
       setSalesImportSuccess(true);
       setSalesPasteText('');
       await fetchDatabaseData(activeClient);
+      alert(`Амжилттай! Нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`);
       setTimeout(() => setSalesImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Борлуулалт оруулахад алдаа гарлаа: ${err.message}`);
