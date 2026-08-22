@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const AI_SYSTEM_PROMPT = `
+const OWNER_CFO_PROMPT = `
   Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх болон стратегийн хамтрагч юм. 
   
   [АЖИЛЛАХ ГОРЫМ - ХАТУУ МӨРДӨХ]
@@ -49,6 +49,10 @@ const AI_SYSTEM_PROMPT = `
     (Топ 3: [top_underpoured_list])
   • Efficiency: [efficiency]
 
+  [ОГНОО БА ДААЛГАВАР (Tasks & Shifts) ШҮҮХ ДҮРЭМ]
+  - Хэрэв эзэн ажилчдын даалгавар, ээлжийн гүйцэтгэл (task, shift) асуувал өгөгдөл дэх "recent_shifts" хэсгээс хэн хэзээ ажиллаж, ямар даалгавруудыг (daily_tasks_checklist) хийсэн эсвэл хийгээгүйг шалгаж тайлагнана.
+  - Хэрэв эзэн тодорхой нэг өдрийг зааж асуувал "all_timeline_logs"-оос шүүж хариулна. Бараа тус бүр дээр зураг авсан эсэхийг (notes хэсэгт "Scan/зураг" байгаа эсэхээр) заавал дурдана.
+
   💡 ДҮГНЭЛТ:
   [Товч дүгнэлт бичээд асуулт асууж болохыг сануул. Ажилчдын хоол, түүхий эдийн өөрчлөлтийг системд бүртгэж хэвшсэн нь маш сайн ахиц болохыг онцлон дүгнээрэй [3].]
 
@@ -59,10 +63,18 @@ const AI_SYSTEM_PROMPT = `
   "Хаягдалтай (wasted_only) барааны тоо хэмжээг харуулахдаа зөвхөн тайлагнагдаагүй цэвэр алдагдал болох gap хувьсагчийн утгыг ашиглана. Харин Дутуу хийгдсэн (underpoured_only) барааны хувьд raw_physical_gap хувьсагчийн утгыг ашиглана."
 `;
 
+const WORKER_KIOSK_PROMPT = `
+  Та гал тогооны ажилтнуудад зориулагдсан "Kiosk AI Бүртгэлийн туслах" юм.
+  [ХАТУУ МӨРДӨХ ДҮРЭМ]:
+  1. Таны цорын ганц үүрэг: Ажилтны бичсэн зарлага, хаягдал, татан авалтыг ойлгох.
+  2. Ажилтан санхүүгийн ашиг, орлого, тайлан асуувал ШУУД ингэж татгалзан хариулна: 
+     "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
+`;
+
 export async function POST(request: Request) {
   try {
-    const { tenantClientId, workerName, text, imageBase64, action, logId } = await request.json();
-
+    const { tenantClientId, workerName, text, imageBase64, action, logId, userRole } = await request.json();
+const ACTIVE_PROMPT = userRole === 'owner' ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
     // ==========================================
     // ACTION: UNDO PREVIOUS LOG
     // ==========================================
@@ -116,19 +128,29 @@ export async function POST(request: Request) {
       }
 
       // 2. If it's NOT an operation, treat it as AI Chat or /report
+     // 2. If it's NOT an operation, treat it as AI Chat or /report
       const reqUrl = new URL(request.url);
-      const hostUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+      let hostUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+      
+      // CODESPACES BYPASS: Prevents "fetch failed" by avoiding the GitHub Auth wall
+      if (hostUrl.includes('github.dev')) {
+        hostUrl = 'http://127.0.0.1:3000';
+      }
+
       const res = await fetch(`${hostUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
+      
+      if (!res.ok) {
+         throw new Error(`Analytics API нь хариу өгсөнгүй (Status: ${res.status})`);
+      }
       const analyticsData = await res.json();
 
       const promptPayload = (text === "/report" || lowercaseMsg === "тайлан харах")
         ? `NEW_DATA: ${JSON.stringify(analyticsData)}`
         : `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${text}`;
 
-      const aiResponse = await genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).generateContent({
-        contents: [{ role: 'user', parts: [{ text: `System: ${AI_SYSTEM_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
+        const aiResponse = await genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }).generateContent({
+        contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
       });
-
       return NextResponse.json({ success: true, is_log: false, message: aiResponse.response.text().replace(/\*|\*\*/g, "").trim() });
     }
     return NextResponse.json({ success: false, message: "No input provided." });

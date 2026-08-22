@@ -4,28 +4,12 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic'; // next/dynamic to bypass 100% of extension hydration conflicts
 import { createClient } from '@supabase/supabase-js';
 import { 
-  TrendingUp, 
-  Trash2, 
-  Cpu, 
-  Layers, 
-  DollarSign, 
-  Percent, 
-  Activity, 
-  AlertTriangle, 
-  Database,
-  Coffee,
-  PlusCircle,
-  History,
-  CheckCircle,
-  Undo2,
-  Layers3,
-  Building,
-  Save,
-  Check,
-  FileSpreadsheet,
-  UploadCloud
+  TrendingUp, Trash2, Cpu, Layers, DollarSign, Percent, Activity, 
+  AlertTriangle, Database, Coffee, PlusCircle, History, CheckCircle, 
+  Undo2, Layers3, Building, Save, Check, FileSpreadsheet, UploadCloud, 
+  Eye, EyeOff, Bot // <--- Add Bot here!
 } from 'lucide-react';
-// 1. Add these imports at the top of your page.tsx
+
 import { useRouter } from 'next/navigation';
 
 
@@ -96,6 +80,9 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
   const [workersList, setWorkersList] = useState<any[]>([]);
   const [companyRoles, setCompanyRoles] = useState<any[]>([]);
   const [newRoleInput, setNewRoleInput] = useState('');
+  const [cfoChatInput, setCfoChatInput] = useState('');
+  const [cfoChatHistory, setCfoChatHistory] = useState<{sender: 'owner'|'ai', text: string}[]>([]);
+  const [isCfoLoading, setIsCfoLoading] = useState(false);
   const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
  
     const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
@@ -813,7 +800,12 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
             >
               📊 Санхүүгийн Хяналт
             </button>
-            {/* <button onClick={() => setActiveTab('ai_cfo')}>🤖 AI Зөвлөх (CFO Chat)</button> */}
+            <button 
+                onClick={() => setActiveTab('ai_cfo')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'ai_cfo' ? 'bg-blue-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                🤖 AI Зөвлөх (CFO Chat)
+              </button>
             </>
           )}
           <button 
@@ -1358,7 +1350,91 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
             </div>
           </div>
         )}
-        {/* TASK MANAGEMENT TAB */}
+        {/* 7. AI CFO CHAT TAB (OWNER ONLY) */}
+        {activeTab === 'ai_cfo' && userRole === 'owner' && (
+          <div className="max-w-3xl mx-auto bg-slate-900/40 rounded-3xl border border-slate-800 flex flex-col h-[70vh] shadow-2xl">
+            <div className="p-5 border-b border-slate-800 flex items-center gap-3 bg-slate-900 rounded-t-3xl">
+              <div className="bg-blue-500/20 p-2 rounded-xl border border-blue-500/30">
+                <Bot className="h-6 w-6 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white">Smart BoH - AI Санхүүгийн Зөвлөх</h2>
+                <p className="text-xs text-slate-400">Орлого, хаягдал, зурагт баримтуудын талаар юу ч асууж болно.</p>
+              </div>
+            </div>
+            
+            <div className="flex-1 p-6 overflow-y-auto space-y-6">
+              {cfoChatHistory.length === 0 && (
+                <div className="text-center text-slate-500 text-sm mt-10">
+                  <p className="mb-4">Жишээ асуултууд:</p>
+                  <ul className="space-y-2 inline-block text-left">
+                    <li>👉 "Өнөөдөр ямар бараанууд зураггүй гараар шивэгдсэн бэ?"</li>
+                    <li>👉 "Энэ сарын нийт хаягдал хэдэн төгрөг болсон бэ?"</li>
+                    <li>👉 "Сүүлийн 7 хоногт хэн хамгийн их алдаа гаргав?"</li>
+                  </ul>
+                </div>
+              )}
+              {cfoChatHistory.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === 'owner' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] p-4 text-sm leading-relaxed ${
+                    msg.sender === 'owner' 
+                      ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none shadow-lg' 
+                      : 'bg-slate-800 text-slate-200 rounded-2xl rounded-tl-none border border-slate-700 whitespace-pre-wrap'
+                  }`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isCfoLoading && <div className="text-blue-400 text-xs animate-pulse font-bold">AI бодож байна...</div>}
+            </div>
+
+            <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800">
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!cfoChatInput.trim()) return;
+                
+                const text = cfoChatInput;
+                setCfoChatHistory(prev => [...prev, { sender: 'owner', text }]);
+                setCfoChatInput('');
+                setIsCfoLoading(true);
+
+                try {
+                  const res = await fetch('/api/kiosk-ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      tenantClientId: activeClient,
+                      workerName: 'Owner',
+                      text: text,
+                      userRole: 'owner' // CRITICAL: Энэ нь api/kiosk-ai дээр CFO Prompt-ийг дуудна!
+                    })
+                  });
+                  const data = await res.json();
+                  setCfoChatHistory(prev => [...prev, { sender: 'ai', text: data.message }]);
+                } catch (err) {
+                  setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа гарлаа.' }]);
+                } finally {
+                  setIsCfoLoading(false);
+                }
+              }} className="flex gap-3">
+                <input 
+                  type="text" 
+                  value={cfoChatInput} 
+                  onChange={e => setCfoChatInput(e.target.value)} 
+                  placeholder="Асуултаа энд бичнэ үү..." 
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 text-sm" 
+                />
+                <button 
+                  type="submit" 
+                  disabled={isCfoLoading || !cfoChatInput.trim()} 
+                  className="bg-blue-500 text-white px-5 py-3 rounded-xl disabled:opacity-50 transition shadow-lg hover:bg-blue-400"
+                >
+                  Илгээх
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       {/* TASK & ROLE MANAGEMENT TAB */}
         {activeTab === 'tasks' && userRole === 'owner' && (
           <div className="space-y-8">

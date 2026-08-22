@@ -161,6 +161,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   // ==========================================
   // AI CHAT SUBMIT (TEXT OR PHOTO)
   // ==========================================
+ // ==========================================
+  // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
+  // ==========================================
+// ==========================================
+  // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
+  // ==========================================
   const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
@@ -168,20 +174,38 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     setIsAiLoading(true);
     let base64Data = null;
 
-    // Add to UI immediately
     if (file) {
       setChatHistory(prev => [...prev, { sender: 'worker', text: '📸 Зураг илгээлээ (Баримт/Бараа)' }]);
+      
+      // INSTANT CLIENT-SIDE COMPRESSION (Makes it as fast as Telegram!)
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
         reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Shrink to Telegram's standard size
+            const scaleSize = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleSize;
+            
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Compress to JPEG at 70% quality (Instantly drops 5MB to ~100KB)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+            resolve(compressedBase64);
+          };
+        };
       });
     } else {
       setChatHistory(prev => [...prev, { sender: 'worker', text: chatInput }]);
     }
 
     const payloadText = chatInput;
-    setChatInput(''); // Clear input
+    setChatInput(''); 
 
     try {
       const res = await fetch('/api/kiosk-ai', {
@@ -189,13 +213,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenantClientId: selectedWorker.client_id,
-          workerName: activeShift.character_role, // Tracks exactly who did this!
+          workerName: activeShift.character_role, 
           text: payloadText,
           imageBase64: base64Data
         })
       });
 
-// Replace the data assignment part of handleAiChatSubmit with this:
       const data = await res.json();
       setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
     } catch (err) {
@@ -204,7 +227,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       setIsAiLoading(false);
     }
   };
-
     const handleUndo = async (logId: string, index: number) => {
     setIsAiLoading(true);
     try {

@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     let { data: rawRecipes } = await supabase.from('recipes').select('*');
     let { data: rawInventoryLogs } = await supabase.from('inventory_logs').select('*').gte('date', startDate).lte('date', endDate);
     let { data: rawSales } = await supabase.from('sales_logs').select('*').gte('date', startDate).lte('date', endDate);
-
+    let { data: rawShifts } = await supabase.from('shifts').select('*').gte('start_time', startDate).lte('start_time', endDate);
     // 2. Safety guard check
     if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
       return NextResponse.json({ error: "Failed to fetch necessary database tables" }, { status: 400 });
@@ -75,6 +75,7 @@ export async function GET(request: Request) {
     rawRecipes = rawRecipes.filter((rec: any) => rec.client_id === clientId);
     rawInventoryLogs = rawInventoryLogs.filter((log: any) => log.client_id === clientId);
     rawSales = rawSales.filter((sale: any) => sale.client_id === clientId);
+    rawShifts = rawShifts?.filter((shift: any) => shift.client_id === clientId) || [];
     
       const salesByDay: Record<string, any[]> = {};
     rawSales.forEach((s: any) => {
@@ -400,6 +401,7 @@ const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + to
         net_profit: Math.round(finalEbit * 0.9) || 0,
         net_margin: totalRevenue > 0 ? ((finalEbit * 0.9) / totalRevenue * 100).toFixed(2) + "%" : "0%"
       },
+      recent_shifts: rawShifts, 
       top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
       top_underpoured: fullInventory.filter(i => i.is_under).sort((a,b) => b.impact - a.impact).slice(0, 3),
       top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),

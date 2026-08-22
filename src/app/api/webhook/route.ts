@@ -6,9 +6,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const AI_SYSTEM_PROMPT = `
+const OWNER_CFO_PROMPT = `
   Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх болон стратегийн хамтрагч юм. 
-
+  
   [АЖИЛЛАХ ГОРЫМ - ХАТУУ МӨРДӨХ]
 
   ТОХИОЛДОЛ А (Оролт "NEW_DATA:" гэж эхэлбэл - Тайлан гаргах):
@@ -17,7 +17,7 @@ const AI_SYSTEM_PROMPT = `
 
   ТОХИОЛДОЛ Б (Хэрэглэгч асуулт асуух үед - Чатлах / Зөвлөх):
   - ТАЙЛАНГИЙН ЗАГВАРЫГ ДАХИН БИТГИЙ БИЧ, ХООСОН ЗАГВАР БҮҮ ҮЗҮҮЛ.
-  - [ЧАТНЫ САНАХ ОЙН ДҮРЭМ]: Өмнөх чатны түүхэнд "өгөгдөл дутуу байна" гэж хэлсэн байсан ч түүгээр ХАТУУ ҮГҮЙСГЭЖ, зөвхөн одоо исэн хамгийн сүүлийн CONTEXT_DATA-г уншиж шинээр бодож хариул.
+  - [ЧАТНЫ САНАХ ОЙН ДҮРЭМ]: Өмнөх чатны түүхэнд "өгөгдөл дутуу байна" гэж хэлсэн байсан ч түүгээр ХАТУУ ҮГҮЙСГЭЖ, зөвхөн одоо ирсэн хамгийн сүүлийн CONTEXT_DATA-г уншиж шинээр бодож хариул.
   - Ирсэн өгөгдөл дэх all_recipes (бүх 73 ундаа хоолны бүтэн жор), menu_performance (бодит борлуулалт, ашиг), болон all_inventory_data (нийт 72+ барааны бодит зөрүү, үнэ, нэгж) датаг бүрэн ашиглаж асуултад шууд хариул [2, 3].
   - Ирсэн өгөгдөл дэх "underpoured_only" (зөвхөн дутуу хийгдсэн/илүүдэлтэй бараанууд) болон "wasted_only" (зөвхөн хаягдал/алдагдалтай бараанууд) массивыг ашиглаж асуултад шууд хариулна. "all_inventory_data" массивыг ашиглаж өөрөө шүүх гэж оролдож болохгүй.
   - Хэрэглэгч үйл ажиллагааны зардлын (OPEX) задаргааг асуувал, opex_details доторх бүх гүйлгээнүүдийг нэг бүрчлэн нэрлэж, маш тодорхой хариулна уу [1, 3].
@@ -35,7 +35,7 @@ const AI_SYSTEM_PROMPT = `
   [Энд top_expensive доторх 3 барааны нэр, төлөв, зөрүүг бич. Жишээ: Beef patty: Over, зөрүү: 19 pc (₮66,500)]
 
   [НЭМЭЛТ САНХҮҮГИЙН ДҮРЭМ (CFO Rules for Price Recommendations)]:
-  1. Ундаа, кофе, шүүсний (Beverages) хувьд боломжит эрүүл Бохир Ашиг (Gross Margin) нь 75% - 85% baйна (Өртөг нь 15% - 25% байх ёстой). Хэрэв ундааны өртөг 25%-иас дээш гарвал үнийг нэмэх санал гаргана.
+  1. Ундаа, кофе, шүүсний (Beverages) хувьд боломжит эрүүл Бохир Ашиг (Gross Margin) нь 75% - 85% байна (Өртөг нь 15% - 25% байх ёстой). Хэрэв ундааны өртөг 25%-иас дээш гарвал үнийг нэмэх санал гаргана.
   2. Хоол, сэндвич, десертийн (Food) хувьд боломжит эрүүл Бохир Ашиг нь 60% - 70% байна (Өртөг нь 30% - 40% байх ёстой). Хэрэв хоолны өртөг 40%-иас дээш гарвал үнийг нэмэх санал гаргана.
   3. Үнийг нэмэх санал гаргахдаа үнийг шууд огцом биш, хэрэглэгчдийг үргээхгүйгээр хамгийн багадаа 500₮ - 1000₮-ийн хооронд үе шаттайгаар нэмэхийг зөвлөнө.
   
@@ -50,12 +50,26 @@ const AI_SYSTEM_PROMPT = `
     (Топ 3: [top_underpoured_list])
   • Efficiency: [efficiency]
 
+  [ОГНОО БА ДААЛГАВАР (Tasks & Shifts) ШҮҮХ ДҮРЭМ]
+  - Хэрэв эзэн ажилчдын даалгавар, ээлжийн гүйцэтгэл (task, shift) асуувал өгөгдөл дэх "recent_shifts" хэсгээс хэн хэзээ ажиллаж, ямар даалгавруудыг (daily_tasks_checklist) хийсэн эсвэл хийгээгүйг шалгаж тайлагнана.
+  - Хэрэв эзэн тодорхой нэг өдрийг зааж асуувал "all_timeline_logs"-оос шүүж хариулна. Бараа тус бүр дээр зураг авсан эсэхийг (notes хэсэгт "Scan/зураг" байгаа эсэхээр) заавал дурдана.
+
   💡 ДҮГНЭЛТ:
   [Товч дүгнэлт бичээд асуулт асууж болохыг сануул. Ажилчдын хоол, түүхий эдийн өөрчлөлтийг системд бүртгэж хэвшсэн нь маш сайн ахиц болохыг онцлон дүгнээрэй [3].]
 
-  "Хаягдалтай (wasted_only) барааны тоо хэмжээг харуулахдаа зөвхөн тайлагнагдаагүй цэвэр алдагдал болох gap хувьсагчийн утгыг ашиглана. Харин Дутуу хийгдсэн (underpoured_only) барааны хувьд raw_physical_gap хувьсагчийн утгыг ашиглана."
+  [ХУЛГАЙ БОЛОН АЛДАГДЛЫГ ИЛРҮҮЛЭХ ДҮРЭМ]
+  - Хэрэв эзэн "Алдаа хаана гарав?", "Хулгай байна уу?" гэж асуувал өгөгдөл дэх "total_unexplained_waste" болон "gap" утгыг шалгаж хариулна.
+  - Бараа тус бүр дээр ажилтан зураг авч баталгаажуулсан эсэхийг (notes хэсэгт "Scan" эсвэл "E-Barimt" байгаа эсэхээр) заавал дурдаж хариулна уу.
 
-  [ЧАТЛАХ ФОРМАТНЫ ЗААВАР (Тохиолдол Б)] одон тэмдэг (**, *) эсвэл HTML формат ашиглаж болохгүй.
+  "Хаягдалтай (wasted_only) барааны тоо хэмжээг харуулахдаа зөвхөн тайлагнагдаагүй цэвэр алдагдал болох gap хувьсагчийн утгыг ашиглана. Харин Дутуу хийгдсэн (underpoured_only) барааны хувьд raw_physical_gap хувьсагчийн утгыг ашиглана."
+`;
+
+const WORKER_BOT_PROMPT = `
+  Та гал тогооны ажилтнуудад зориулагдсан "Kiosk AI Бүртгэлийн туслах" юм.
+  [ХАТУУ МӨРДӨХ ДҮРЭМ]:
+  1. Таны цорын ганц үүрэг: Ажилтны бичсэн зарлага, хаягдал, татан авалтыг ойлгох.
+  2. Ажилтан санхүүгийн ашиг, орлого, тайлан асуувал ШУУД ингэж татгалзан хариулна: 
+     "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
 `;
 
 export async function POST(request: Request) {
@@ -401,7 +415,7 @@ export async function POST(request: Request) {
      // 1. TENANT LOOKUP: Check which cafe branch this Telegram user belongs to [3]
     const { data: userProfile } = await supabase
       .from('profiles')
-      .select('client_id')
+      .select('client_id, role')
       .eq('telegram_chat_id', currentChatId)
       .single();
 
@@ -449,10 +463,14 @@ export async function POST(request: Request) {
         .update({ telegram_chat_id: currentChatId })
         .eq('id', authData.user.id);
 
-      if (updateError) {
+     if (updateError) {
         await sendTelegramMessage(currentChatId, "❌ Холбоход алдаа гарлаа. Профайлыг шинэчилж чадсангүй.");
       } else {
-        await sendTelegramMessage(currentChatId, `✅ Амжилттай холбогдлоо!\n\nТаны бүртгэл: ${emailInput}\nСалбар: ${authData.user.user_metadata?.client_id || 'SF Coffee'}`);
+        // FIX: Датабэйсээс яг бүртгэлтэй бодит client_id-г нь татаж харуулах
+        const { data: dbProfile } = await supabase.from('profiles').select('client_id').eq('id', authData.user.id).single();
+        const actualBranch = dbProfile?.client_id || authData.user.user_metadata?.client_id || 'SF Coffee';
+        
+        await sendTelegramMessage(currentChatId, `✅ Амжилттай холбогдлоо!\n\nТаны бүртгэл: ${emailInput}\nСалбар: ${actualBranch}`);
       }
       return NextResponse.json({ status: 'ok' });
     }
@@ -465,22 +483,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: 'ok' });
     }
 
-    // 2. Handle "/report" or "Тайлан харах" commands (Case A)
+  // 2. Handle "/report" or "Тайлан харах" commands (Case A)
     if (incomingText === "/report" || incomingText.toLowerCase() === "тайлан харах") {
+      // SECURITY LOCK: Only Owners can request reports
+      if (userProfile?.role !== 'owner') {
+        await sendTelegramMessage(currentChatId, "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой.");
+        return NextResponse.json({ status: 'ok' });
+      }
+
       await sendTelegramMessage(currentChatId, "⏳ Санхүүгийн үзүүлэлтүүдийг бодож байна, түр хүлээнэ үү...");
 
       const reqUrl = new URL(request.url);
       const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
       
-     const response = await fetch(`${baseUrl}/api/analytics`, { cache: 'no-store' });
+      const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
       const analyticsData = await response.json();
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
       const aiResponse = await model.generateContent({
         contents: [
-          { role: 'user', parts: [{ text: `System: ${AI_SYSTEM_PROMPT}\n\nInput Data: ${promptPayload}` }] }
+          { role: 'user', parts: [{ text: `System: ${OWNER_CFO_PROMPT}\n\nInput Data: ${promptPayload}` }] }
         ]
       });
 
@@ -488,7 +512,6 @@ export async function POST(request: Request) {
       await sendTelegramMessage(currentChatId, reportText);
       return NextResponse.json({ status: 'ok' });
     }
-
     const lowercaseMsg = incomingText.toLowerCase();
 
    
@@ -659,20 +682,23 @@ export async function POST(request: Request) {
 
     
 
-   // 4. Default Fallback Handler (Case B - Chatting / Advisory)
+  // 4. Default Fallback Handler (Case B - Chatting / Advisory)
     const reqUrl = new URL(request.url);
     const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
     
-    // FIX A: Pass the active tenant ID and bypass the database cache securely [2]
+    // Fetch analytics data securely [2]
     const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
     const analyticsData = await response.json();
 
-    // FIX B: Use the ultra-fast 1.5-flash model to prevent Vercel timeouts [1]
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+    // SECURITY LOCK: Decide which brain to use based on their database role!
+    const isOwner = userProfile?.role === 'owner';
+    const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${incomingText}`;
 
     const aiResponse = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: `System: ${AI_SYSTEM_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
+      contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
     });
 
     const replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); 
