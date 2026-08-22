@@ -1,12 +1,9 @@
 "use client";
 import dynamic from 'next/dynamic';
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabase';
 import { Coffee, CheckCircle, Users, LogOut, Camera, Trash2, Key, MessageSquare, CheckSquare, ListOrdered, Send } from 'lucide-react';
 
-const SUPABASE_URL = "https://fcpwvualdbuakrwmqgmg.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcHd2dWFsZGJ1YWtyd21xZ21nIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDE4MDQzOCwiZXhwIjoyMDk5NzU2NDM4fQ.iDX_3sL-Sk1Z5oK2zSvW32saZBoY5f5f4XBu_dTQA-U";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
  function KioskPage() {
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'menu' | 'ai_chat' | 'tasks' | 'close_shift'>('select_worker');
@@ -167,7 +164,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ==========================================
   // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
   // ==========================================
-  const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
+const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
 
@@ -177,7 +174,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     if (file) {
       setChatHistory(prev => [...prev, { sender: 'worker', text: '📸 Зураг илгээлээ (Баримт/Бараа)' }]);
       
-      // INSTANT CLIENT-SIDE COMPRESSION (Makes it as fast as Telegram!)
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -186,15 +182,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
           img.src = event.target?.result as string;
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; // Shrink to Telegram's standard size
+            const MAX_WIDTH = 800;
             const scaleSize = MAX_WIDTH / img.width;
             canvas.width = MAX_WIDTH;
             canvas.height = img.height * scaleSize;
-            
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Compress to JPEG at 70% quality (Instantly drops 5MB to ~100KB)
             const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
             resolve(compressedBase64);
           };
@@ -205,7 +198,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
     const payloadText = chatInput;
-    setChatInput(''); 
+    setChatInput('');
 
     try {
       const res = await fetch('/api/kiosk-ai', {
@@ -213,14 +206,47 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenantClientId: selectedWorker.client_id,
-          workerName: activeShift.character_role, 
+          workerName: activeShift?.character_role || "Ажилтан",
           text: payloadText,
           imageBase64: base64Data
         })
       });
 
-      const data = await res.json();
-      setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
+      const contentType = res.headers.get('content-type') || '';
+
+      // CASE 1: JSON response (Transaction/Receipt log with Undo button)
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
+      } 
+      // CASE 2: STREAMING TEXT (ChatGPT-like continuous stream)
+      else if (res.body) {
+        // Add an empty AI bubble first
+        setChatHistory(prev => [...prev, { sender: 'ai', text: '' }]);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+
+          // Update the last message in history with the newly streamed chunk
+          setChatHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                text: fullText
+              };
+            }
+            return updated;
+          });
+        }
+      }
     } catch (err) {
       setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа: Сервертэй холбогдож чадсангүй.' }]);
     } finally {

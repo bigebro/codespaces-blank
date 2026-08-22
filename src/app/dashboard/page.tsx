@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic'; // next/dynamic to bypass 100% of extension hydration conflicts
-import { createClient } from '@supabase/supabase-js';
+import {supabase} from '../../lib/supabase';
 import { 
   TrendingUp, Trash2, Cpu, Layers, DollarSign, Percent, Activity, 
   AlertTriangle, Database, Coffee, PlusCircle, History, CheckCircle, 
@@ -17,10 +17,6 @@ import { useRouter } from 'next/navigation';
 
 
 
-const SUPABASE_URL = "https://fcpwvualdbuakrwmqgmg.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcHd2dWFsZGJ1YWtyd21xZ21nIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDE4MDQzOCwiZXhwIjoyMDk5NzU2NDM4fQ.iDX_3sL-Sk1Z5oK2zSvW32saZBoY5f5f4XBu_dTQA-U";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function Home() {
     //  add session checking state
@@ -1389,34 +1385,61 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
             </div>
 
             <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800">
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                if (!cfoChatInput.trim()) return;
-                
-                const text = cfoChatInput;
-                setCfoChatHistory(prev => [...prev, { sender: 'owner', text }]);
-                setCfoChatInput('');
-                setIsCfoLoading(true);
+            <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!cfoChatInput.trim()) return;
+          
+          const text = cfoChatInput;
+          setCfoChatHistory(prev => [...prev, { sender: 'owner', text }]);
+          setCfoChatInput('');
+          setIsCfoLoading(true);
 
-                try {
-                  const res = await fetch('/api/kiosk-ai', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      tenantClientId: activeClient,
-                      workerName: 'Owner',
-                      text: text,
-                      userRole: 'owner' // CRITICAL: Энэ нь api/kiosk-ai дээр CFO Prompt-ийг дуудна!
-                    })
+  try {
+    const res = await fetch('/api/kiosk-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantClientId: activeClient,
+        workerName: 'Owner',
+        text: text,
+        userRole: 'owner'
+      })
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      setCfoChatHistory(prev => [...prev, { sender: 'ai', text: data.message }]);
+    } else if (res.body) {
+      // Append initial empty AI message
+      setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '' }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let streamedText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        streamedText += chunk;
+
+        setCfoChatHistory(prev => {
+          const updated = [...prev];
+          if (updated.length > 0) {
+            updated[updated.length - 1] = { sender: 'ai', text: streamedText };
+          }
+                    return updated;
                   });
-                  const data = await res.json();
-                  setCfoChatHistory(prev => [...prev, { sender: 'ai', text: data.message }]);
-                } catch (err) {
-                  setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа гарлаа.' }]);
-                } finally {
-                  setIsCfoLoading(false);
                 }
-              }} className="flex gap-3">
+              }
+            } catch (err) {
+              setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа гарлаа.' }]);
+            } finally {
+              setIsCfoLoading(false);
+            }
+          }} className="flex gap-3">
                 <input 
                   type="text" 
                   value={cfoChatInput} 

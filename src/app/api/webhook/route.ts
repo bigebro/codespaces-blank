@@ -271,46 +271,48 @@ export async function POST(request: Request) {
         }
 
         // 5. Insert all parsed items into the database
+    // 5. Insert all parsed items into the database (Unified - No duplicates)
         let successMessage = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
         const logsToInsert: any[] = [];
+        const workerName = message.from?.first_name || "Ажилтан";
+        const currentDate = new Date().toISOString();
 
         for (const item of aiAnalysis.purchases) {
+          const ing = ingredients?.find((i: any) => i.name === item.item_name);
           
-           const ing = ingredients?.find((i: any) => i.name === item.item_name);
-          const workerName = message.from?.first_name || "Ажилтан"; // Гараар нэр авах
+          // Determine the exact badge/note based on AI detection
+          const isProductPhoto = item.image_type === 'Product Photo';
+          const noteText = isProductPhoto 
+            ? '📸 Барааны зураг (Баримтгүй)' 
+            : '🧾 E-Barimt Scan';
 
           if (ing) {
-            logsToInsert.push({ client_id: tenantClientId, ingredient_id: ing.id, quantity: Math.abs(item.quantity), type: 'purchase', total_cost: item.total_cost || 0, notes: item.notes || "E-Barimt", date: new Date().toISOString(), worker_name: workerName });
-            successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit}\n`;
-          } else {
-            logsToInsert.push({ client_id: tenantClientId, non_food_item: item.item_name, quantity: Math.abs(item.quantity), type: 'purchase', total_cost: item.total_cost || 0, notes: "E-Barimt (OPEX)", date: new Date().toISOString(), worker_name: workerName });
-            successMessage += `• ${item.item_name} (Бусад): ${item.quantity}\n`;
-          }
-          if (ing) {
+            // Food Ingredient Purchase (COGS)
             logsToInsert.push({
               client_id: tenantClientId,
               ingredient_id: ing.id,
               quantity: Math.abs(item.quantity),
               type: 'purchase',
               total_cost: item.total_cost || 0,
-              notes: item.image_type === 'Product Photo' ? '📸 Барааны зураг (Баримтгүй)' : '🧾 E-Barimt Scan',
-              // date: new Date().toISOString()
-              date:'2026-06-15T12:00:00.000Z'
+              notes: noteText,
+              date: currentDate,
+              worker_name: workerName
             });
-            successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit} (${item.total_cost}₮)\n`;
+            successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit} (${(item.total_cost || 0).toLocaleString()}₮) - ${noteText}\n`;
           } else {
-             // Non-food / Unmatched item (OPEX)
-             logsToInsert.push({
+            // Non-food / Household Purchase (OPEX)
+            logsToInsert.push({
               client_id: tenantClientId,
+              ingredient_id: null,
               non_food_item: item.item_name,
               quantity: Math.abs(item.quantity),
               type: 'purchase',
               total_cost: item.total_cost || 0,
-              notes: "E-Barimt Scan (OPEX)",
-              // date: new Date().toISOString()
-               date: '2026-06-15T12:00:00.000Z' 
+              notes: `${noteText} (OPEX)`,
+              date: currentDate,
+              worker_name: workerName
             });
-            successMessage += `• ${item.item_name} (Бусад): ${item.quantity} ширхэг (${item.total_cost}₮)\n`;
+            successMessage += `• ${item.item_name} (Бусад): ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮) - ${noteText}\n`;
           }
         }
 
@@ -499,7 +501,7 @@ export async function POST(request: Request) {
       const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
       const analyticsData = await response.json();
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
       const promptPayload = `NEW_DATA: ${JSON.stringify(analyticsData)}`;
 
       const aiResponse = await model.generateContent({
@@ -694,7 +696,7 @@ export async function POST(request: Request) {
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${incomingText}`;
 
     const aiResponse = await model.generateContent({

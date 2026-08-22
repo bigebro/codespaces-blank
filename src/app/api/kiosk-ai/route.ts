@@ -74,9 +74,10 @@ const WORKER_KIOSK_PROMPT = `
 export async function POST(request: Request) {
   try {
     const { tenantClientId, workerName, text, imageBase64, action, logId, userRole } = await request.json();
-const ACTIVE_PROMPT = userRole === 'owner' ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
+    const ACTIVE_PROMPT = userRole === 'owner' ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
+
     // ==========================================
-    // ACTION: UNDO PREVIOUS LOG
+    // ACTION: UNDO
     // ==========================================
     if (action === 'undo' && logId) {
       const { error } = await supabase.from('inventory_logs').delete().eq('id', logId);
@@ -100,59 +101,97 @@ const ACTIVE_PROMPT = userRole === 'owner' ? OWNER_CFO_PROMPT : WORKER_KIOSK_PRO
       for (const item of aiAnalysis.purchases) {
         const ing = ingredients?.find((i: any) => i.name === item.item_name);
         if (ing) {
-          logsToInsert.push({ client_id: tenantClientId, ingredient_id: ing.id, quantity: Math.abs(item.quantity), type: 'purchase', total_cost: item.total_cost || 0, notes: item.notes || "E-Barimt (Kiosk)", worker_name: workerName, date: new Date().toISOString() });
+          logsToInsert.push({ 
+            client_id: tenantClientId, 
+            ingredient_id: ing.id, 
+            quantity: Math.abs(item.quantity), 
+            type: 'purchase', 
+            total_cost: item.total_cost || 0, 
+            notes: item.notes || "E-Barimt (Kiosk)", 
+            worker_name: workerName, 
+            date: new Date().toISOString() 
+          });
           successMsg += `• ${ing.name}: ${item.quantity} ${ing.unit}\n`;
         }
       }
       if (logsToInsert.length > 0) await supabase.from('inventory_logs').insert(logsToInsert);
-      return NextResponse.json({ success: true, message: successMsg });
+      return NextResponse.json({ success: true, is_stream: false, message: successMsg });
     }
 
     // ==========================================
-    // SCENARIO B: TEXT PARSING OR AI CHAT
+    // SCENARIO B: TEXT PARSING (Action vs Chat)
     // ==========================================
     if (text) {
-      const lowercaseMsg = text.toLowerCase();
-      
-      // 1. Try to parse it as an operation (waste, meal, etc.)
+      // 1. Try to parse operational action (waste, meal, etc.)
       const aiAnalysis = await parseOperationalText(text, allowedNames);
       if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
         const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
         if (ingredient) {
           const { data: log } = await supabase.from('inventory_logs').insert([{
-            client_id: tenantClientId, ingredient_id: ingredient.id, quantity: aiAnalysis.quantity, type: aiAnalysis.type, notes: aiAnalysis.notes || 'Kiosk AI Log', worker_name: workerName, date: new Date().toISOString()
+            client_id: tenantClientId,
+            ingredient_id: ingredient.id,
+            quantity: aiAnalysis.quantity,
+            type: aiAnalysis.type,
+            notes: aiAnalysis.notes || 'Kiosk AI Log',
+            worker_name: workerName,
+            date: new Date().toISOString()
           }]).select().single();
 
-          return NextResponse.json({ success: true, is_log: true, log_id: log.id, message: `📝 Бүртгэгдлээ:\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}` });
+          return NextResponse.json({
+            success: true,
+            is_stream: false,
+            is_log: true,
+            log_id: log.id,
+            message: `📝 Бүртгэгдлээ:\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`
+          });
         }
       }
 
-      // 2. If it's NOT an operation, treat it as AI Chat or /report
-     // 2. If it's NOT an operation, treat it as AI Chat or /report
+      // 2. Chat / Conversation -> STREAM TO CLIENT
       const reqUrl = new URL(request.url);
       let hostUrl = `${reqUrl.protocol}//${reqUrl.host}`;
-      
-      // CODESPACES BYPASS: Prevents "fetch failed" by avoiding the GitHub Auth wall
       if (hostUrl.includes('github.dev')) {
         hostUrl = 'http://127.0.0.1:3000';
       }
 
       const res = await fetch(`${hostUrl}/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
-      
-      if (!res.ok) {
-         throw new Error(`Analytics API нь хариу өгсөнгүй (Status: ${res.status})`);
-      }
-      const analyticsData = await res.json();
+      const analyticsData = res.ok ? await res.json() : {};
 
-      const promptPayload = (text === "/report" || lowercaseMsg === "тайлан харах")
-        ? `NEW_DATA: ${JSON.stringify(analyticsData)}`
-        : `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${text}`;
+      const promptPayload = `CONTEXT_DATA: ${JSON.stringify(analyticsData)}\n\nUser Question: ${text}`;
 
-        const aiResponse = await genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }).generateContent({
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+      const responseStream = await model.generateContentStream({
         contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
       });
-      return NextResponse.json({ success: true, is_log: false, message: aiResponse.response.text().replace(/\*|\*\*/g, "").trim() });
+
+      // Transform Gemini Stream into a standard Web ReadableStream
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of responseStream.stream) {
+              const chunkText = chunk.text();
+              if (chunkText) {
+                // Send raw text chunk
+                controller.enqueue(encoder.encode(chunkText));
+              }
+            }
+            controller.close();
+          } catch (err) {
+            controller.error(err);
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      });
     }
+
     return NextResponse.json({ success: false, message: "No input provided." });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: `Системийн алдаа: ${error.message}` });
