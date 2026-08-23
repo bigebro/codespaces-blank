@@ -231,14 +231,36 @@ useEffect(() => {
       if (res.ok) {
         const analData = await res.json();
         setLiveAnalytics(analData);
+        if (saleData && saleData.length > 0) {
+          const latestSale = saleData
+            .filter((s: any) => s.date)
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+          if (latestSale && latestSale.date) {
+            const ym = latestSale.date.substring(0, 7);
+
+            if (!startDate.startsWith(ym)) {
+              const [year, month] = ym.split('-').map(Number);
+              const lastDayNum = new Date(year, month, 0).getDate();
+              const firstDay = `${ym}-01`;
+              const lastDay = `${ym}-${String(lastDayNum).padStart(2, '0')}`;
+
+              setStartDate(firstDay);
+              setEndDate(lastDay);
+            }
+          }
+        }
+      
       }
     } catch (err) {
       console.error("Error fetching database:", err);
     } finally {
       setLoading(false);
     }
-  };
 
+    
+  };
+// 
 
   const lowStockItems = ingredients.filter((i: any) => parseFloat(i.current_stock) <= 50);
 
@@ -564,6 +586,7 @@ useEffect(() => {
   // =========================================================================
   // 3. ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (Ingredients & Prices) - Зассан
   // =========================================================================
+// 🚀 ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (3 эсвэл 4 баганын алийг нь ч алдаагүй уншина)
   const handleBulkIngredientsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ingredientsPasteText.trim()) return;
@@ -577,19 +600,25 @@ useEffect(() => {
         if (!row.trim()) return;
         const cols = row.split('\t');
         if (cols.length >= 3) {
-          const name = cols[0]?.trim() || "";
-          const unit = cols[1]?.trim() || 'ш';
-          const price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
-          const par = cols[3] ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, '')) || 0 : 0;
+          const rawName = cols[0]?.trim() || "";
+          const rawUnit = cols[1]?.trim() || 'ш';
+          
+          // Тоог аюулгүй салгах
+          const rawPrice = cols[2]?.replace(/[^0-9.-]/g, '');
+          const rawPar = cols[3]?.replace(/[^0-9.-]/g, '');
 
-          if (name) {
+          const price = rawPrice && !isNaN(parseFloat(rawPrice)) ? parseFloat(rawPrice) : 0;
+          // 💡 Par level байхгүй бол шууд 0 онооно (Алдаа заахгүй)
+          const par = rawPar && !isNaN(parseFloat(rawPar)) ? parseFloat(rawPar) : 0;
+
+          // Толгой мөр (Item, Price гэх мэт) биш бол хадгална
+          if (rawName && !rawName.toLowerCase().includes('item') && !rawName.toLowerCase().includes('нэр')) {
             itemsToUpsert.push({
-              client_id: activeClient, // ✅ Салбар тодорхой
-              name: name,
-              unit: unit,
+              client_id: activeClient,
+              name: rawName,
+              unit: rawUnit,
               unit_price: price,
               par_level: par
-              // current_stock-ийг энд хүчээр 0 болгохгүй (байгаа үлдэгдлийг нь хадгална)
             });
           }
         }
@@ -605,6 +634,7 @@ useEffect(() => {
       setIngredientsImportSuccess(true);
       setIngredientsPasteText('');
       await fetchDatabaseData(activeClient);
+      alert(`Амжилттай! Нийт ${itemsToUpsert.length} түүхий эдийн үнэ хадгалагдлаа.`);
       setTimeout(() => setIngredientsImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Түүхий эд оруулахад алдаа гарлаа: ${err.message}`);
@@ -916,27 +946,22 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
   };
 
   // 💡 Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
+
   const availableMonths = React.useMemo(() => {
     const monthsSet = new Set<string>();
 
-    // 1. Борлуулалтын огноонуудаас саруудыг шүүнэ
+    // 1. Зөвхөн борлуулалт орсон саруудыг л авна
     salesLogs
       .filter(s => s.client_id === activeClient && s.date)
-      .forEach(s => monthsSet.add(s.date.substring(0, 7))); // "2026-06" гэж авна
+      .forEach(s => monthsSet.add(s.date.substring(0, 7)));
 
-    // 2. Татан авалт, хаягдлын огноонуудаас саруудыг шүүнэ
-    inventoryLogs
-      .filter(l => l.client_id === activeClient && l.date)
-      .forEach(l => monthsSet.add(l.date.substring(0, 7)));
-
-    // Хэрэв ямар ч дата байхгүй бол ядаж одоогийн сарыг харуулна
+    // Хэрэв огт борлуулалт ороогүй шинэ салбар бол одоогийн сарыг харуулна
     if (monthsSet.size === 0) {
       monthsSet.add(new Date().toISOString().substring(0, 7));
     }
 
-    // Саруудыг хамгийн сүүлчийнхээс нь эхлэн эрэмбэлэх (2026-08, 2026-07, 2026-06...)
     return Array.from(monthsSet).sort().reverse();
-  }, [salesLogs, inventoryLogs, activeClient]);
+  }, [salesLogs, activeClient]);
 
   // Сар сонгох үед тухайн сарын эхний ба эцсийн огноог автоматаар бодож датаг дуудах
   const handleMonthChange = (selectedYearMonth: string) => {

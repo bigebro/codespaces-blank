@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic'; // 👈 1. dynamic-ийг оруулж ирнэ
 import { useRouter } from 'next/navigation';
 import { 
   TrendingUp, 
@@ -18,10 +19,16 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
-export default function PremiumLandingPage() {
+function PremiumLandingPage() {
   const router = useRouter();
   const [dailyRevenue, setDailyRevenue] = useState(1500000);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Браузер дээр бүрэн сууж дуустал хүлээх
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Hormozi-style ROI Math
   const monthlyRevenue = dailyRevenue * 30;
@@ -34,7 +41,7 @@ export default function PremiumLandingPage() {
       q: "ПОС систем байхад яагаад Smart BoH хэрэгтэй гэж?",
       a: "ПОС систем зөвхөн урд лангуун дээрх 'Орлого'-ыг хянадаг. Гал тогоонд хэдэн литр сүү асгарч, хэчнээн орц хулгайд алдагдаж, таны ашгийг идэж байгааг ПОС хэзээ ч хэлж чадахгүй. Бид таны 'Зардал' болон 'Алдагдал'-ыг хянана."
     },
-  {
+    {
       q: "Ажилтнууд заавал өөрийн гар утсаа ашиглах шаардлагатай юу?",
       a: "Үгүй. Гал тогоонд нэг л дундын Таблет (Kiosk) байрлуулахад хангалттай. Ингэснээр ажилтнууд гар утсаа оролдох шаардлагагүй болж, эрүүл ахуйн шаардлага хангасан цэвэр орчинд ажилдаа бүрэн төвлөрөх боломжтой болно."
     },
@@ -44,8 +51,20 @@ export default function PremiumLandingPage() {
     }
   ];
 
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <p className="text-emerald-400 font-semibold animate-pulse">Ачаалж байна...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative">
+    // 👈 2. suppressHydrationWarning={true} нэмснээр Extension-ий нөлөөгөөр гарах алдаа бүрэн арилна
+    <div 
+      suppressHydrationWarning={true}
+      className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative"
+    >
       
       {/* BACKGROUND GLOW EFFECTS (Premium UI) */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-20 pointer-events-none">
@@ -72,14 +91,14 @@ export default function PremiumLandingPage() {
         </div>
       </nav>
 
-      {/* 2. THE HERO SECTION (Tai Lopez / Hormozi Hook) */}
+      {/* 2. THE HERO SECTION */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 pt-24 pb-20 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider mb-8 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
           <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
           Ресторан, Кофе Шопын Эздэд Зориулав
         </div>
         
-       <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
+        <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
           ПОС систем орлогыг бүртгэдэг. <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">Харин бид гал тогоог удирдана.</span>
         </h1>
@@ -88,7 +107,7 @@ export default function PremiumLandingPage() {
           Цаасаар бүртгэдэг хуучин аргыг халж, таблет болон AI ашиглан орц, хаягдал, ажилчдын өдөр тутмын даалгаврыг эмх цэгцтэй, шилэн болгох ухаалаг BOH систем.
         </p>
 
-        {/* Video Placeholder - Premium Glassmorphism */}
+        {/* Video Placeholder */}
         <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
           <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-blue-500/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -104,7 +123,7 @@ export default function PremiumLandingPage() {
         </button>
       </section>
 
-  {/* 3. HORMOZI LEAD MAGNET (White-Glove Onboarding + Guarantee) */}
+      {/* 3. HORMOZI LEAD MAGNET */}
       <section className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-gradient-to-r from-blue-900/40 to-emerald-900/40 p-1 rounded-3xl">
           <div className="bg-slate-950 rounded-[22px] p-8 sm:p-10 text-center border border-white/5">
@@ -117,7 +136,7 @@ export default function PremiumLandingPage() {
         </div>
       </section>
 
-      {/* 4. HOW IT WORKS (Core Features) */}
+      {/* 4. HOW IT WORKS */}
       <section className="max-w-7xl mx-auto px-6 py-24">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Систем хэрхэн ажилладаг вэ?</h2>
@@ -147,7 +166,7 @@ export default function PremiumLandingPage() {
             <div className="h-14 w-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
               <BarChart3 className="h-7 w-7 text-emerald-400" />
             </div>
-          <h3 className="text-xl font-bold text-white mb-3">3. Менежерийн Тайлан</h3>
+            <h3 className="text-xl font-bold text-white mb-3">3. Менежерийн Тайлан</h3>
             <p className="text-sm text-slate-400 leading-relaxed">
               Ээлж хаагдах бүрд менежерийн утсанд ажлын тайлан очно. Ажилчдын хийсэн даалгавар, зарлага, татан авалтын баримтууд нэгтгэгдэж, гал тогооны үйл ажиллагаа 100% шилэн болно.
             </p>
@@ -155,10 +174,9 @@ export default function PremiumLandingPage() {
         </div>
       </section>
 
-      {/* 5. INTERACTIVE ROI CALCULATOR (The Proof) */}
+      {/* 5. ROI CALCULATOR */}
       <section className="max-w-4xl mx-auto px-6 py-16">
         <div className="bg-slate-900/80 p-8 sm:p-12 rounded-[2rem] border border-slate-700 shadow-2xl relative overflow-hidden">
-          {/* Decorative blur */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
 
           <div className="text-center mb-10 relative z-10">
@@ -209,14 +227,13 @@ export default function PremiumLandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-          {/* Tier 1 */}
           <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
             <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Starter</p>
-           <div className="mb-4">
-                <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 1.5x (Өдрийн дундаж орлого)</span>
-                <span className="text-3xl font-black text-white font-mono">0.8%</span>
-                <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 100,000₮)</span>
-              </div>
+            <div className="mb-4">
+              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 1.5x (Өдрийн дундаж орлого)</span>
+              <span className="text-3xl font-black text-white font-mono">0.8%</span>
+              <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 100,000₮)</span>
+            </div>
             <ul className="space-y-4 mb-8 text-sm text-slate-300">
               <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Telegram Bot бүртгэл</li>
               <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> E-Barimt AI уншигч</li>
@@ -224,13 +241,12 @@ export default function PremiumLandingPage() {
             </ul>
           </div>
 
-          {/* Tier 2 (Highlighted) */}
           <div className="bg-slate-900 p-10 rounded-[2rem] border-2 border-emerald-500 relative shadow-[0_0_50px_rgba(16,185,129,0.15)] transform md:scale-105 z-10">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full">
               Хамгийн их сонгогддог
             </div>
             <p className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">Professional BOH</p>
-          <div className="mb-6">
+            <div className="mb-6">
               <span className="text-xs text-emerald-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 2.0x (Өдрийн дундаж орлого)</span>
               <span className="text-5xl font-black text-white font-mono">1.2%</span>
               <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 250,000₮)</span>
@@ -247,14 +263,13 @@ export default function PremiumLandingPage() {
             </button>
           </div>
 
-          {/* Tier 3 */}
           <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
             <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Enterprise CFO</p>
-<div className="mb-4">
-                <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 2.5x (Өдрийн дундаж орлого)</span>
-                <span className="text-3xl font-black text-white font-mono">1.5%</span>
-                <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 500,000₮)</span>
-              </div>
+            <div className="mb-4">
+              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 2.5x (Өдрийн дундаж орлого)</span>
+              <span className="text-3xl font-black text-white font-mono">1.5%</span>
+              <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 500,000₮)</span>
+            </div>
             <ul className="space-y-4 mb-8 text-sm text-slate-300">
               <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх Pro боломжууд</li>
               <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> 24/7 AI Санхүүгийн Зөвлөх</li>
@@ -300,3 +315,15 @@ export default function PremiumLandingPage() {
     </div>
   );
 }
+
+// 👈 3. SSR-ийг хааж dynamic экспорт хийнэ
+const PremiumLandingPageExport = dynamic(() => Promise.resolve(PremiumLandingPage), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-screen bg-slate-950" suppressHydrationWarning={true}>
+      <p className="text-emerald-400 font-semibold text-lg animate-pulse" suppressHydrationWarning={true}>Ачаалж байна...</p>
+    </div>
+  )
+});
+
+export default PremiumLandingPageExport;

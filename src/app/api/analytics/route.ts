@@ -57,21 +57,22 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
     const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
-
+    const clientId = searchParams.get('clientId') || 'SF Coffee';
    // 1. Fetch using 'let' so we can overwrite [3]
-    let { data: rawIngredients } = await supabase.from('ingredients').select('*');
-    let { data: rawRecipes } = await supabase.from('recipes').select('*');
-    let { data: rawInventoryLogs } = await supabase.from('inventory_logs').select('*').gte('date', startDate).lte('date', endDate);
-    let { data: rawSales } = await supabase.from('sales_logs').select('*').gte('date', startDate).lte('date', endDate);
-    let { data: rawShifts } = await supabase.from('shifts').select('*').gte('start_time', startDate).lte('start_time', endDate);
+    let { data: rawIngredients } = await supabase.from('ingredients').select('*').eq('client_id', clientId);
+;
+    let { data: rawRecipes } = await supabase.from('recipes').select('*').eq('client_id', clientId);;
+    let { data: rawInventoryLogs } = await supabase.from('inventory_logs').select('*').eq('client_id', clientId).lte('date', endDate);
+    let { data: rawSales } = await supabase.from('sales_logs').select('*').eq('client_id', clientId).gte('date', startDate).lte('date', endDate);
+    let { data: rawShifts } = await supabase.from('shifts').select('*').eq('client_id', clientId).gte('start_time', startDate).lte('start_time', endDate);
     // 2. Safety guard check
     if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
       return NextResponse.json({ error: "Failed to fetch necessary database tables" }, { status: 400 });
     }
 
-    let { data: rawProducts } = await supabase.from('products').select('*');
+    let { data: rawProducts } = await supabase.from('products').select('*').eq('client_id', clientId);;
     // 3. Secure multi-tenant filter (Overwrites the arrays directly so your existing loops work) [2, 3]
-    const clientId = searchParams.get('clientId') || 'SF Coffee';
+
     rawIngredients = rawIngredients.filter((ing: any) => ing.client_id === clientId);
     rawRecipes = rawRecipes.filter((rec: any) => rec.client_id === clientId);
     rawInventoryLogs = rawInventoryLogs.filter((log: any) => log.client_id === clientId);
@@ -129,17 +130,24 @@ export async function GET(request: Request) {
       };
     });
 
-    rawInventoryLogs.forEach((log: any) => {
+
+rawInventoryLogs?.forEach((log: any) => {
       const cost = parseFloat(log.total_cost) || 0;
       const qty = parseFloat(log.quantity) || 0; 
+      const logDate = log.date ? log.date.split('T')[0] : '';
+      const startDay = startDate.split('T')[0];
+      const endDay = endDate.split('T')[0];
 
+      // 1. Хүнсний бус OPEX татан авалт (Зөвхөн тухайн сарын хугацаанд авсан)
       if (log.type === 'purchase' && !log.ingredient_id) {
-        totalOpex += cost;
-        opexDetails.push({
-          category: "Хүнсний бус татан авалт (OPEX)",
-          item: `${log.non_food_item || 'Бусад зардал'} (тоо хэмжээ: ${Math.round(qty)})`,
-          cost: Math.round(cost)
-        });
+        if (logDate >= startDay && logDate <= endDay) {
+          totalOpex += cost;
+          opexDetails.push({
+            category: "Хүнсний бус татан авалт (OPEX)",
+            item: `${log.non_food_item || 'Бусад зардал'} (тоо: ${Math.round(qty)})`,
+            cost: Math.round(cost)
+          });
+        }
         return;
       }
 
@@ -147,18 +155,25 @@ export async function GET(request: Request) {
       if (!ing) return;
       const key = cleanString(ing.name);
 
+      // 2. ТОЛОЛГО (Start vs End count):
       if (log.type === 'count') {
         const noteText = (log.notes || "").toLowerCase();
-        if (noteText.includes("start") || noteText.includes("эхний")) {
+        // Хэрэв тухайн сараас өмнө тоолсон (May 30) эсвэл 'эхний' гэсэн бол ЭХНИЙ ҮЛДЭГДЭЛ болно
+        if (noteText.includes("start") || noteText.includes("эхний") || logDate <= startDay) {
           master[key].start = qty; 
-        } else {
+        } 
+        // Тухайн сарын эцэст тоолсон (June 30) бол ЭЦСИЙН ҮЛДЭГДЭЛ болно
+        if (logDate >= startDay && logDate <= endDay && (noteText.includes("end") || noteText.includes("эцсийн") || !noteText.includes("start"))) {
           master[key].end = qty; 
         }
-      } else if (log.type === 'purchase') {
-        master[key].purchased += qty;
+      } 
+      // 3. ТАТАН АВАЛТ (Зөвхөн тухайн сарын хугацаанд авсан)
+      else if (log.type === 'purchase') {
+        if (logDate >= startDay && logDate <= endDay) {
+          master[key].purchased += qty;
+        }
       }
     });
-
     rawRecipes.forEach((r: any) => {
       const pName = cleanString(r.product_name);
       const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
