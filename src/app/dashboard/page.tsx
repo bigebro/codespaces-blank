@@ -586,7 +586,7 @@ useEffect(() => {
   // =========================================================================
   // 3. ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (Ingredients & Prices) - Зассан
   // =========================================================================
-// 🚀 ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (3 эсвэл 4 баганын алийг нь ч алдаагүй уншина)
+// 🚀 ТҮҮХИЙ ЭД & ҮНЭ ИМПОРТЛОГЧ (Бүх төрлийн дараалал ба үгсийг ухаалгаар танина)
   const handleBulkIngredientsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ingredientsPasteText.trim()) return;
@@ -594,35 +594,47 @@ useEffect(() => {
     setLoading(true);
     try {
       const rows = ingredientsPasteText.replace(/\r/g, '').trim().split('\n');
-      const itemsToUpsert: any[] = [];
+      const itemsMap = new Map<string, any>();
 
       rows.forEach(row => {
         if (!row.trim()) return;
         const cols = row.split('\t');
-        if (cols.length >= 3) {
+        if (cols.length >= 2) {
           const rawName = cols[0]?.trim() || "";
-          const rawUnit = cols[1]?.trim() || 'ш';
-          
-          // Тоог аюулгүй салгах
-          const rawPrice = cols[2]?.replace(/[^0-9.-]/g, '');
-          const rawPar = cols[3]?.replace(/[^0-9.-]/g, '');
+          if (!rawName || rawName.toLowerCase().includes('item') || rawName.toLowerCase().includes('нэр')) return;
 
-          const price = rawPrice && !isNaN(parseFloat(rawPrice)) ? parseFloat(rawPrice) : 0;
-          // 💡 Par level байхгүй бол шууд 0 онооно (Алдаа заахгүй)
-          const par = rawPar && !isNaN(parseFloat(rawPar)) ? parseFloat(rawPar) : 0;
+          let unit = "ш";
+          let price = 0;
+          let par = 0;
 
-          // Толгой мөр (Item, Price гэх мэт) биш бол хадгална
-          if (rawName && !rawName.toLowerCase().includes('item') && !rawName.toLowerCase().includes('нэр')) {
-            itemsToUpsert.push({
-              client_id: activeClient,
-              name: rawName,
-              unit: rawUnit,
-              unit_price: price,
-              par_level: par
-            });
+          // 💡 Ухаалаг шалгалт: 2 дахь багана тоо юу, эсвэл 3 дахь багана тоо юу?
+          const col1IsNum = !isNaN(parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')));
+          const col2IsNum = cols[2] ? !isNaN(parseFloat(cols[2]?.replace(/[^0-9.-]/g, ''))) : false;
+
+          if (col1IsNum && !col2IsNum) {
+            // Формат: Нэр | Үнэ (53.3) | Нэгж (per gram)
+            price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')) || 0;
+            unit = cols[2]?.replace(/per\s*|1\s*/gi, '').trim() || 'ш';
+            par = cols[3] ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, '')) || 0 : 0;
+          } else {
+            // Формат: Нэр | Нэгж (gram) | Үнэ (53.3) | Par (500)
+            unit = cols[1]?.replace(/per\s*|1\s*/gi, '').trim() || 'ш';
+            price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
+            par = cols[3] ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, '')) || 0 : 0;
           }
+
+          const uniqueKey = rawName.toLowerCase().trim();
+          itemsMap.set(uniqueKey, {
+            client_id: activeClient,
+            name: rawName,
+            unit: unit,
+            unit_price: price,
+            par_level: par
+          });
         }
       });
+
+      const itemsToUpsert = Array.from(itemsMap.values());
 
       if (itemsToUpsert.length > 0) {
         const { error } = await supabase
