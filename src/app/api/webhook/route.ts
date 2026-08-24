@@ -567,7 +567,7 @@ export async function POST(request: Request) {
     const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
     let currentKeyIndex = 0;
     let replyText = "";
-
+    let lastErrorDetails = "";
     for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
       const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
       const currentKey = API_KEYS[keyIdx];
@@ -583,17 +583,20 @@ export async function POST(request: Request) {
         });
 
         replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim();
-        if (replyText) {currentKeyIndex = keyIdx;
+        if (replyText) {
+            currentKeyIndex = keyIdx;
             break;
         }
       
       } catch (err: any) {
-        console.warn(`Telegram API Key #${keyIdx +1} failed, switching to next key...`);
+        // console.warn(`Telegram API Key #${keyIdx +1} failed, switching to next key...`);
+          lastErrorDetails = err.message || String(err);
+          console.error(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
       }
     }
 
     if (!replyText) {
-      replyText = "⚠️ Бүх API түлхүүрийн өдрийн лимит хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
+      replyText = `❌ Алдааны дэлгэрэнгүй: ${lastErrorDetails}`;
     }
 
     if (tempMessageId) {
