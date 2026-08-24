@@ -1163,31 +1163,31 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Нийт Орлого (Revenue)</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-white">
-                   {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.revenue).toLocaleString()}₮` : `${currentDemoStats[activeClient].revenue.toLocaleString()}₮`}
+                   {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.revenue).toLocaleString()}₮` : `${currentDemoStats.revenue.toLocaleString()}₮`}
                 </p>
               </div>
 
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Бодит өртөг (COGS)</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-white">
-                  {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.actual_cogs).toLocaleString()}₮` : `${currentDemoStats[activeClient].actualCogs.toLocaleString()}₮`}
+                  {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.actual_cogs).toLocaleString()}₮` : `${currentDemoStats.actualCogs.toLocaleString()}₮`}
                 </p>
                 <span className="text-xs text-slate-500 mt-2 block">
-                  Онолын өртөг: {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.theo_cogs).toLocaleString()}₮` : `${currentDemoStats[activeClient].theoCogs.toLocaleString()}₮`}
+                  Онолын өртөг: {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.theo_cogs).toLocaleString()}₮` : `${currentDemoStats.theoCogs.toLocaleString()}₮`}
                 </span>
               </div>
 
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Бохир ашиг</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-emerald-400">
-                  {isLive && liveAnalytics ? `${liveAnalytics.financial_ladder.gross_margin}` : `${currentDemoStats[activeClient].grossMargin}`}
+                  {isLive && liveAnalytics ? `${liveAnalytics.financial_ladder.gross_margin}` : `${currentDemoStats.grossMargin}`}
                 </p>
               </div>
 
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Ажлын Бүтээмж</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-blue-400">
-                  {isLive && liveAnalytics ? liveAnalytics.efficiency : currentDemoStats[activeClient].efficiency}
+                  {isLive && liveAnalytics ? liveAnalytics.efficiency : currentDemoStats.efficiency}
                 </p>
               </div>
             </div>
@@ -1201,13 +1201,13 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 <div className="space-y-4">
                   <div className="flex justify-between border-b border-slate-900 pb-3.5">
                     <span className="text-slate-400">Сар бүрийн OPEX (Түрээс, Цалин, Тог)</span>
-                    <span className="font-semibold text-white">{isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.opex).toLocaleString()}₮` : `${currentDemoStats[activeClient].opex.toLocaleString()}₮`}</span>
+                    <span className="font-semibold text-white">{isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.opex).toLocaleString()}₮` : `${currentDemoStats.opex.toLocaleString()}₮`}</span>
                   </div>
                   <div className="flex justify-between border-b border-slate-900 pb-3.5">
                     <span className="text-slate-400">Татварын өмнөх ашиг (EBIT)</span>
                     <span className={`font-semibold ${isLive && liveAnalytics && liveAnalytics.financial_ladder.ebit < 0 ? 'text-rose-400' : 'text-white'}`}>
       {/* FIXED: Pulls dynamic EBIT from the API */}
-      {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.ebit).toLocaleString()}₮` : `${currentDemoStats[activeClient].ebit.toLocaleString()}₮`}
+      {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.ebit).toLocaleString()}₮` : `${currentDemoStats.ebit.toLocaleString()}₮`}
     </span>
   </div>
   <div className="flex justify-between pt-2">
@@ -1215,11 +1215,11 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     <div className="text-right">
       <span className={`text-xl font-black ${isLive && liveAnalytics && liveAnalytics.financial_ladder.net_profit < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
         {/* FIXED: Pulls dynamic Net Profit from the API */}
-        {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.net_profit).toLocaleString()}₮` : `${currentDemoStats[activeClient].netProfit.toLocaleString()}₮`}
+        {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.net_profit).toLocaleString()}₮` : `${currentDemoStats.netProfit.toLocaleString()}₮`}
       </span>
       <span className="text-xs text-slate-500 block mt-1">
         {/* FIXED: Pulls dynamic Net Margin from the API */}
-        Маржин: {isLive && liveAnalytics ? liveAnalytics.financial_ladder.net_margin : currentDemoStats[activeClient].netMargin}
+        Маржин: {isLive && liveAnalytics ? liveAnalytics.financial_ladder.net_margin : currentDemoStats.netMargin}
       </span>
                     </div>
                   </div>
