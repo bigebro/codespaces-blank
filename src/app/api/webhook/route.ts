@@ -539,7 +539,7 @@ export async function POST(request: Request) {
       top_expensive: analyticsData.top_expensive
     };
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(compactContext)}\n\nUser Question: ${incomingText}`;
 
     const aiResponse = await model.generateContent({
