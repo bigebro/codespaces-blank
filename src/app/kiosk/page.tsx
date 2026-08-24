@@ -3,6 +3,234 @@ import dynamic from 'next/dynamic';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Coffee, CheckCircle, Users, LogOut, Camera, Trash2, Key, MessageSquare, CheckSquare, ListOrdered, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+// 🚀 KIOSK ТАБЛЕТ ДЭЭР 0MS ХУРДТАЙ, ХЭТ ГӨЛГӨР ЧАТНЫ БҮРЭЛДЭХҮҮН (OUTSIDE KIOSKPAGE)
+function KioskAiChatSection({ 
+  selectedWorker, 
+  activeShift, 
+  onBack 
+}: { 
+  selectedWorker: any; 
+  activeShift: any; 
+  onBack: () => void; 
+}) {
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() && !file) return;
+
+    setIsAiLoading(true);
+    let base64Data = null;
+
+    if (file) {
+      setChatHistory(prev => [...prev, { sender: 'worker', text: '📸 Зураг илгээлээ (Баримт/Бараа)' }]);
+      
+      // Таблетаас илгээх зургийг 100KB болгон хэт хурдан шахах
+      base64Data = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const scaleSize = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleSize;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+            resolve(compressedBase64);
+          };
+        };
+      });
+    } else {
+      setChatHistory(prev => [...prev, { sender: 'worker', text: chatInput }]);
+    }
+
+    const payloadText = chatInput;
+    setChatInput('');
+
+    try {
+      const res = await fetch('/api/kiosk-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantClientId: selectedWorker.client_id,
+          workerName: activeShift?.character_role || "Ажилтан",
+          text: payloadText,
+          imageBase64: base64Data,
+          userRole: 'staff'
+        })
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
+      } else if (res.body) {
+        setChatHistory(prev => [...prev, { sender: 'ai', text: '' }]);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedText += chunk;
+
+          setChatHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              updated[updated.length - 1] = { sender: 'ai', text: accumulatedText };
+            }
+            return updated;
+          });
+        }
+      }
+    } catch (err) {
+      setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа: Сервертэй холбогдож чадсангүй.' }]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleUndo = async (logId: string, index: number) => {
+    setIsAiLoading(true);
+    try {
+      const res = await fetch('/api/kiosk-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'undo', logId })
+      });
+      const data = await res.json();
+      const newHistory = [...chatHistory];
+      newHistory[index] = { sender: 'ai', text: data.message };
+      setChatHistory(newHistory);
+    } catch (err) {
+      alert("Буцаах үйлдэл амжилтгүй.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  return (
+<div className="w-full max-w-4xl mx-auto bg-slate-900/40 rounded-3xl border border-slate-900 flex flex-col h-[78vh]">
+      <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 rounded-t-3xl">
+        <h2 className="font-bold text-blue-400 flex items-center gap-2">
+          <MessageSquare className="h-5 w-5"/> AI Бүртгэл
+        </h2>
+        <button onClick={onBack} className="bg-slate-950 px-3 py-1 rounded-lg text-xs font-bold border border-slate-800 hover:bg-slate-800">
+          Буцах
+        </button>
+      </div>
+      
+      {/* Chat History */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+        {chatHistory.length === 0 && (
+          <p className="text-center text-slate-500 text-sm mt-10">
+            Энд энгийн үгээр бичих эсвэл баримтын зураг илгээж бүртгүүлнэ үү.<br/><br/>
+            Жнь: "Сүү 500 мл асгарсан"
+          </p>
+        )}
+    {/* Kiosk Чатны мессежүүдийг гоёмсог харуулах */}
+        {chatHistory.map((msg, i) => (
+          <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
+              msg.sender === 'worker' 
+                ? 'bg-blue-600 text-white rounded-tr-none shadow-md' 
+                : 'bg-slate-900 text-slate-200 rounded-tl-none border border-slate-800 shadow-xl overflow-x-auto'
+            }`}>
+              {msg.sender === 'worker' ? (
+                msg.text
+              ) : (
+                /* 🚀 KIOSK ТАБЛЕТ ДЭЭР ХҮСНЭГТИЙГ ГОЁМСОГ БОЛГОХ ХЭСЭГ */
+                <div className="prose prose-invert max-w-none text-xs leading-relaxed">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ node, ...props }) => (
+                        <table className="w-full my-2 border-collapse border border-slate-800 text-[11px] rounded-lg overflow-hidden" {...props} />
+                      ),
+                      thead: ({ node, ...props }) => (
+                        <thead className="bg-slate-950 text-emerald-400 border-b border-slate-800 font-bold" {...props} />
+                      ),
+                      th: ({ node, ...props }) => (
+                        <th className="border border-slate-800 px-2 py-1.5 text-left font-black" {...props} />
+                      ),
+                      td: ({ node, ...props }) => (
+                        <td className="border border-slate-800/80 px-2 py-1 text-slate-300 font-medium" {...props} />
+                      ),
+                      h3: ({ node, ...props }) => (
+                        <h3 className="text-xs font-black text-white mt-2 mb-1" {...props} />
+                      ),
+                      ul: ({ node, ...props }) => (
+                        <ul className="list-disc list-inside space-y-0.5 my-1" {...props} />
+                      )
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
+                </div>
+              )}
+              
+              {/* Undo товч */}
+              {msg.logId && (
+                <button 
+                  onClick={() => handleUndo(msg.logId!, i)}
+                  className="mt-3 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 py-2 rounded-lg font-bold text-xs transition"
+                >
+                  Буцаах ↩️ (Undo)
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {isAiLoading && <div className="text-slate-500 text-xs animate-pulse">AI бодож байна...</div>}
+      </div>
+
+      {/* Input Area (0ms Lag-Free) */}
+      <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800 flex gap-2 items-center">
+        <input 
+          type="file" 
+          accept="image/*" 
+          capture="environment" 
+          id="kiosk-ai-camera" 
+          className="hidden" 
+          onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
+        />
+        <label htmlFor="kiosk-ai-camera" className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl cursor-pointer transition">
+          <Camera className="h-5 w-5" />
+        </label>
+
+        <form onSubmit={handleAiChatSubmit} className="flex-1 flex gap-2">
+          <input 
+            type="text" 
+            value={chatInput} 
+            onChange={e => setChatInput(e.target.value)} 
+            placeholder="Бичих..." 
+            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-blue-500 text-sm" 
+          />
+          <button 
+            type="submit" 
+            disabled={isAiLoading || !chatInput.trim()} 
+            className="bg-blue-500 text-white p-3 rounded-xl disabled:opacity-50 transition"
+          >
+            <Send className="h-4 w-4"/>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 
  function KioskPage() {
@@ -461,50 +689,13 @@ const completeTask = async (index: number) => {
           </div>
         )}
 
-        {/* 4. AI CHAT INTERFACE */}
+     {/* 4. AI CHAT INTERFACE (Тусгаарлагдсан хэт хурдан чат) */}
         {step === 'ai_chat' && (
-          <div className="w-full max-w-lg bg-slate-900/40 rounded-3xl border border-slate-900 flex flex-col h-[60vh]">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 rounded-t-3xl">
-              <h2 className="font-bold text-blue-400 flex items-center gap-2"><MessageSquare className="h-5 w-5"/> AI Бүртгэл</h2>
-              <button onClick={() => setStep('menu')} className="bg-slate-950 px-3 py-1 rounded-lg text-xs font-bold border border-slate-800">Буцах</button>
-            </div>
-            
-            {/* Chat History */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {chatHistory.length === 0 && <p className="text-center text-slate-500 text-sm mt-10">Энд энгийн үгээр бичих эсвэл баримтын зураг илгээж хадгалуулна уу.<br/><br/>Жнь: "Сүү 500 мл асгарсан"</p>}
-            {chatHistory.map((msg, i) => (
-                <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.sender === 'worker' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none whitespace-pre-wrap'}`}>
-                    {msg.text}
-                    {msg.logId && (
-                      <button 
-                        onClick={() => handleUndo(msg.logId!, i)}
-                        className="mt-3 w-full bg-slate-900 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/50 py-2 rounded-lg font-bold text-xs transition"
-                      >
-                        Буцаах ↩️ (Undo)
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isAiLoading && <div className="text-slate-500 text-xs animate-pulse">AI бодож байна...</div>}
-            </div>
-
-            {/* Input Area */}
-            <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800 flex gap-2 items-center">
-              {/* Camera Button */}
-              <input type="file" accept="image/*" capture="environment" id="kiosk-ai-camera" className="hidden" onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}/>
-              <label htmlFor="kiosk-ai-camera" className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl cursor-pointer transition">
-                <Camera className="h-5 w-5" />
-              </label>
-
-              {/* Text Input */}
-              <form onSubmit={handleAiChatSubmit} className="flex-1 flex gap-2">
-                <input type="text" value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Бичих..." className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-blue-500 text-sm" />
-                <button type="submit" disabled={isAiLoading || !chatInput.trim()} className="bg-blue-500 text-white p-3 rounded-xl disabled:opacity-50 transition"><Send className="h-4 w-4"/></button>
-              </form>
-            </div>
-          </div>
+          <KioskAiChatSection 
+            selectedWorker={selectedWorker} 
+            activeShift={activeShift} 
+            onBack={() => setStep('menu')} 
+          />
         )}
 
    {/* 5. TASKS (Locked on Completion) */}

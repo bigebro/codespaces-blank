@@ -348,6 +348,7 @@ export async function getAnalyticsData(
   const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
   const simplifiedTax1Pct = Math.round(totalRevenue * 0.01);
 
+  // 💡 src/lib/analytics.ts файлын төгсгөлийн return хэсэг:
   return {
     financial_ladder: {
       revenue: totalRevenue,
@@ -361,12 +362,19 @@ export async function getAnalyticsData(
     },
     top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
     top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
-    menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
-    all_recipes: allRecipesMap,
+    
+    // 🚀 AI-Д ЗОРИУЛСАН БҮРЭН ДЭЛГЭРЭНГҮЙ МАССИВУУД (БҮГДИЙГ 100% БҮРЭН ӨГНӨ):
     all_inventory_data: fullInventory,
-     recent_shifts: rawShifts || [], 
+    wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact), // Бүх хаягдсан барааны бүтэн жагсаалт
+    underpoured_only: fullInventory.filter(i => i.is_under).sort((a,b) => b.impact - a.impact), // Бүх дутуу хийгдсэн/илүүдлийн жагсаалт
+    menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold), // Бүх менюний зарах үнэ, өртөг, ашиг
+    all_recipes: allRecipesMap, // Бүх ундаа хоолны бүтэн жор
+    opex_details: opexDetails, // OPEX зардлын бүх гүйлгээ
+    recent_shifts: rawShifts || [], // Бүх ажилчдын ээлж ба даалгавар
+    all_timeline_logs: rawInventoryLogs || [], // Бүх өдрийн гүйлгээний түүх
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
+    total_surplus_savings: totalSurplusSavings || 0,
     efficiency: rawActualCogs > 0 ? ((totalTheoCogs / rawActualCogs) * 100).toFixed(2) + "%" : "0%"
   };
 }

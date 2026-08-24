@@ -4,33 +4,22 @@ import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// 💡 Олон API Key-ийг массив болгож авах
+const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
 
 const OWNER_CFO_PROMPT = `
-  Та ШУТИС-ийн дэргэдэх "SF Coffee" болон хамтран ажиллагч кофе шопуудын Стратеги, Санхүүгийн Ахлах Зөвлөх (Chief Financial Officer - CFO) юм.
-
-  [ТАНЫ ҮҮРЭГ БА ХҮЧИН ЧАДАЛ]:
-  1. Санхүүгийн Бодит Дүн Шинжилгээ:
-     - Ирсэн CONTEXT_DATA дахь орлого, COGS өртөг, OPEX зардал, бохир ба цэвэр ашгийн бодит тоон дээр үндэслэн гүнзгий дүн шинжилгээ хийнэ.
-  2. Үнийн Бодлого ба Маржин Хамгаалалт:
-     - Ундаа, кофены эрүүл Бохир Ашиг (Gross Margin) нь 75% - 85% (Өртөг нь 15% - 25%).
-     - Хоол, сэндвич, десертийн эрүүл Бохир Ашиг нь 60% - 70% (Өртөг нь 30% - 40%).
-     - Хэрэв аль нэг бүтээгдэхүүний өртөг өндөр байвал үнийг хэрэглэгчдийг үргээхгүйгээр хэрхэн нэмэх, эсвэл татан авалтыг хэрхэн хямдруулах стратегийг нарийвчлан зөвлөнө.
-  3. Шинэ Жор Зохиох (AI Recipe Creator):
-     - Хэрэв эзэн шинэ ундаа, хоолны жор асуувал найрлага, орцыг грамм, мл-ээр нь мэргэжлийн түвшинд зохиож, өртөг болон ашгийн хувийг тооцоолж өгнө.
-  4. Алдагдал ба Ажилтны Аудит:
-     - Топ хаягдал (Top Waste), шалтгаангүй зөрүү, баримтгүй шивэгдсэн татан авалтыг илрүүлж, аюулгүй байдлын зөвлөмж өгнө.
-
-  [ХАРИУЛАХ ЗАГВАР]:
-  - Мэргэжлийн, урам зориг өгсөн, тодорхой бүтэцтэй (Markdown bullet points, тод гарчиг ашиглан) бүрэн дэлгэрэнгүй, Монгол хэлээр хариулна.
+  Та ШУТИС-ийн дэргэдэх "SF Coffee" болон кофе шопуудын Ахлах Санхүүгийн Зөвлөх (CFO) юм.
+  [ДҮРЭМ]:
+  - Ирсэн CONTEXT_DATA дахь бүх тоон дээр үндэслэн асуултад шууд товч, цэгцтэй, үнэн зөв хариулна.
+  - Ундааны эрүүл маржин 75%-85%, хоолных 60%-70%.
+  - Markdown форматаар тодорхой хариулна.
 `;
 
 const WORKER_KIOSK_PROMPT = `
-  Та гал тогооны ажилтнуудад зориулагдсан "Kiosk AI Бүртгэлийн туслах" юм.
+  Та гал тогооны ажилтнуудад зориулагдсан "Kiosk AI туслах" юм.
   [ДҮРЭМ]:
-  1. Таны цорын ганц үүрэг: Ажилтны бичсэн зарлага, хаягдал, татан авалтыг ойлгох.
-  2. Ажилтан санхүүгийн ашиг, орлого, тайлан асуувал ШУУД ингэж хариулна: 
-     "🔒 Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
+  - Зөвхөн зарлага, хаягдал бүртгэх үүрэгтэй.
+  - Санхүүгийн ашиг, орлого асуувал: "🔒 Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой." гэж хариул.
 `;
 
 export async function POST(request: Request) {
@@ -50,7 +39,7 @@ export async function POST(request: Request) {
     const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', clientId);
     const allowedNames = ingredients ? ingredients.map(i => i.name) : [];
 
-    // 2. ЗУРАГ БҮРТГЭХ (E-BARIMT СКАЙНЕР)
+    // 2. ЗУРАГ БҮРТГЭХ (E-BARIMT)
     if (imageBase64) {
       const aiAnalysis = await parseReceiptImage(imageBase64, allowedNames);
       if (!aiAnalysis || !aiAnalysis.success) {
@@ -104,7 +93,7 @@ export async function POST(request: Request) {
       const rawText = text.trim();
       const lower = rawText.toLowerCase();
 
-      // ⚡ АЛХАМ 1: ТАЙЛАНГИЙН ТУШААЛД 0.03 СЕКУНДЭД ШУУД ХАРИУЛАХ
+      // ⚡ 1. REPORT ТАЙЛАНГИЙН ТУШААЛД 0.03 СЕКУНДЭД ШУУД ХАРИУЛАХ
       const isReportCommand = 
         lower === "report" || 
         lower === "/report" || 
@@ -143,7 +132,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, is_log: false, message: instantReport });
       }
 
-      // ⚡ АЛХАМ 2: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ
+      // ⚡ 2. ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ
       const hasNumbers = /\d/.test(rawText);
       const isLikelyOperation = hasNumbers && (
         lower.includes("асга") || lower.includes("мууд") || lower.includes("орлоо") || 
@@ -178,35 +167,58 @@ export async function POST(request: Request) {
         }
       }
 
-      // ⚡ АЛХАМ 3: ЧӨЛӨӨТ АСУУЛТ & ЗӨВЛӨГӨӨ (БҮРЭН ЧАДАЛ + STREAMING)
+      // ⚡ 3. ЧӨЛӨӨТ АСУУЛТ: gemini-3.6-flash + API KEY ROTATION
       const analyticsData = await getAnalyticsData(clientId);
       const fin = analyticsData.financial_ladder || {};
 
       const richContext = {
         client: clientId,
         financials: fin,
-        total_waste: analyticsData.total_waste_loss,
-        top_wasters: analyticsData.top_wasters,
-        top_expensive: analyticsData.top_expensive,
-        menu_performance: analyticsData.menu_performance?.slice(0, 15),
-        all_recipes_sample: Object.keys(analyticsData.all_recipes || {}).slice(0, 15)
+        total_waste_loss: analyticsData.total_waste_loss,
+        total_unexplained_waste: analyticsData.total_unexplained_waste,
+        total_surplus_savings: analyticsData.total_surplus_savings,
+        efficiency: analyticsData.efficiency,
+        all_wasted_items: analyticsData.wasted_only,
+        all_underpoured_items: analyticsData.underpoured_only,
+        all_inventory_items: analyticsData.all_inventory_data,
+        all_menu_performance: analyticsData.menu_performance,
+        all_recipes: analyticsData.all_recipes,
+        recent_shifts: analyticsData.recent_shifts,
+        opex_breakdown: analyticsData.opex_details
       };
-
-      // 💡 Хязгаарлалтгүй, бүтэн хүчин чадлаараа сэтгэх загвар
-      const model = genAI.getGenerativeModel({ 
-        model: 'gemini-3.6-flash',
-        generationConfig: {
-          temperature: 0.3
-          // maxOutputTokens хязгаарлалтгүй -> Бүрэн дэлгэрэнгүй хариулна
-        }
-      });
 
       const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${rawText}`;
 
-      // 🚀 0.2 СЕКУНДЭД ШУУД УРСАЖ ЭХЛЭХ STREAMING
-      const responseStream = await model.generateContentStream({
-        contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
-      });
+      // 🚀 ТҮЛХҮҮРИЙГ АВТОМАТААР СЭЛГЭХ ЛОГИК (429 Лимит тулбал дараагийн Key рүү шилжинэ)
+      let responseStream = null;
+      let lastErrorMsg = "";
+
+      for (let i = 0; i < API_KEYS.length; i++) {
+        try {
+          const currentKey = API_KEYS[i];
+          const activeGenAI = new GoogleGenerativeAI(currentKey);
+          const model = activeGenAI.getGenerativeModel({ 
+            model: 'gemini-3.7-flash',
+            generationConfig: { temperature: 0.3 }
+          });
+
+          responseStream = await model.generateContentStream({
+            contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
+          });
+
+          if (responseStream) break; // Амжилттай болсон тул гарна
+        } catch (err: any) {
+          lastErrorMsg = err.message;
+          console.warn(`API Key #${i+1} hit limit or error, switching to next key...`);
+        }
+      }
+
+      if (!responseStream) {
+        return NextResponse.json({ 
+          success: false, 
+          message: `⚠️ Бүх API түлхүүрийн өдрийн лимит хүрсэн байна (${lastErrorMsg}). Түр хүлээнэ үү.` 
+        });
+      }
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({

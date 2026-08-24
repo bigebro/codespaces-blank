@@ -8,10 +8,10 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const OWNER_CFO_PROMPT = `
-  Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх болон стратегийн хамтрагч юм. 
+  Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх (CFO) болон стратегийн хамтрагч юм. 
   
-  [АЖИЛЛАХ ГОРЫМ - ХАТУУ МӨРДӨХ]
-  - Хэрэглэгчийн асуултад шууд товч, цэгцтэй, санхүүгийн бодит тоо баримтад тулгуурлан хариулна.
+  [АЖИЛЛАХ ГОРЫМ]:
+  - Ирсэн CONTEXT_DATA дахь бүх өгөгдлийг (бүх 73 жор, 125 түүхий эд, хаягдлын жагсаалт, цэсний ашиг) бүрэн ашиглаж хэрэглэгчийн асуултад шууд товч, цэгцтэй, үнэн зөв хариулна.
   - Ундааны эрүүл бохир ашиг (Gross margin) нь 75%-85%, хоолных 60%-70% байна.
   - Асуултад маш тодорхой, эелдэг, Монгол хэлээр хариулна.
 `;
@@ -104,9 +104,7 @@ export async function POST(request: Request) {
         
         await supabase.from('shifts').update({ daily_tasks_checklist: tasks }).eq('id', activeShift.id);
 
-        let buttons = tasks.map((t: any, i: number) => {
-            return [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }];
-        });
+        let buttons = tasks.map((t: any, i: number) => [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }]);
         buttons.push([{ text: "➔ Дараагийн алхам: Тооллого хийх", callback_data: "go_to_inventory" }]);
 
         await editTelegramMessage(currentChatId, messageId, "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:", buttons);
@@ -367,13 +365,12 @@ export async function POST(request: Request) {
     // =========================================================================
     const lowercaseMsg = incomingText.toLowerCase();
 
-    if (incomingText === "/report" || lowercaseMsg === "тайлан харах" || lowercaseMsg === "📊 тайлан харах") {
+    if (incomingText === "/report" || lowercaseMsg === "тайлан харах" || lowercaseMsg === "📊 тайлан харах" || lowercaseMsg === "report") {
       if (userProfile?.role !== 'owner') {
         await sendTelegramMessage(currentChatId, "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой.");
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 💡 Шууд функцээс авна (fetch failed гарахгүй, 0.05 секунд!)
       const data = await getAnalyticsData(tenantClientId);
       const fin = data.financial_ladder || {};
 
@@ -482,9 +479,6 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // I. БАРИСТАГИЙН ХАЯГДАЛ, ЗАРЛАГА БҮРТГЭХ (AI Router)
-    // =========================================================================
-    // =========================================================================
     // I. БАРИСТАГИЙН ХАЯГДАЛ, ЗАРЛАГА БҮРТГЭХ (УХААЛАГ ШАЛГАЛТ)
     // =========================================================================
     const hasNumbers = /\d/.test(incomingText);
@@ -494,7 +488,6 @@ export async function POST(request: Request) {
       lowercaseMsg.includes("үлдэгдэл") || lowercaseMsg.includes("турш") || lowercaseMsg.includes("хоол")
     );
 
-    // 💡 Зөвхөн бодит зарлага, хаягдал байвал л Gemini-ийн 1 дэх дуудлагыг ажиллуулна
     if (isLikelyOperation) {
       const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
       const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
@@ -529,16 +522,11 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (ХҮЛЭЭЛТГҮЙ ШУУД GEMINI РҮҮ 1 УДАА ДУУДАНА)
-    // =========================================================================
-    // =========================================================================
-    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (0.1 СЕКУНДЭД ШУУД ХАРИУ ӨГЧ ШИНЭЧЛЭХ)
+    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (БҮХ ДАТАГ ХАРАХ + 429 FALLBACK)
     // =========================================================================
     
-    // 💡 1. Утсан дээр "Бичиж байна..." дохиог 10ms-д асаана
     await sendChatAction(currentChatId, 'typing');
 
-    // 💡 2. 0.1 секундэд түр мессеж илгээж хариу үйлдэл үзүүлнэ (Хэрэглэгч хүлээлт мэдрэхгүй)
     const initialMsgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -551,30 +539,57 @@ export async function POST(request: Request) {
     const initialMsgData = await initialMsgRes.json();
     const tempMessageId = initialMsgData.result?.message_id;
 
-    // 💡 3. Санхүүгийн датаг RAM-аас 20ms-д авна
     const analyticsData = await getAnalyticsData(tenantClientId);
+    const fin = analyticsData.financial_ladder || {};
+
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
-    const compactContext = {
+    const richContext = {
       client: tenantClientId,
-      financials: analyticsData.financial_ladder,
-      total_waste: analyticsData.total_waste_loss,
-      top_wasters: analyticsData.top_wasters?.slice(0, 3),
-      top_expensive: analyticsData.top_expensive?.slice(0, 3)
+      financials: fin,
+      total_waste_loss: analyticsData.total_waste_loss,
+      total_unexplained_waste: analyticsData.total_unexplained_waste,
+      total_surplus_savings: analyticsData.total_surplus_savings,
+      efficiency: analyticsData.efficiency,
+      all_wasted_items: analyticsData.wasted_only,
+      all_underpoured_items: analyticsData.underpoured_only,
+      all_inventory_items: analyticsData.all_inventory_data,
+      all_menu_performance: analyticsData.menu_performance,
+      all_recipes: analyticsData.all_recipes,
+      recent_shifts: analyticsData.recent_shifts,
+      opex_breakdown: analyticsData.opex_details
     };
 
-    // 💡 4. Gemini руу дуудна
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
-    const promptPayload = `CONTEXT_DATA: ${JSON.stringify(compactContext)}\n\nUser Question: ${incomingText}`;
+    const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
 
-    const aiResponse = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
-    });
+    // 💡 Түлхүүрүүд дундуур гүйх
+    const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
+    let replyText = "";
 
-    const replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); 
+    for (let i = 0; i < API_KEYS.length; i++) {
+      try {
+        const activeGenAI = new GoogleGenerativeAI(API_KEYS[i]);
+        const model = activeGenAI.getGenerativeModel({ 
+          model: 'gemini-3.7-flash', 
+          generationConfig: { temperature: 0.3 } 
+        });
 
-    // 💡 5. Түр мессежийг бүтэн AI хариултаар шууд солино
+        const aiResponse = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
+        });
+
+        replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim();
+        if (replyText) break;
+      } catch (err: any) {
+        console.warn(`Telegram API Key #${i+1} failed, switching to next key...`);
+      }
+    }
+
+    if (!replyText) {
+      replyText = "⚠️ Бүх API түлхүүрийн өдрийн лимит хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
+    }
+
     if (tempMessageId) {
       await editTelegramMessage(currentChatId, tempMessageId, replyText);
     } else {
@@ -582,6 +597,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ status: 'ok' });
+
   } catch (error: any) {
     console.error("Webhook processing failed:", error);
     if (currentChatId) {
@@ -613,6 +629,7 @@ async function sendChatAction(chatId: number | null, action: string = 'typing') 
     body: JSON.stringify({ chat_id: chatId, action: action })
   });
 }
+
 async function sendTelegramMessageWithMenu(chatId: number | null, text: string) {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
@@ -814,4 +831,4 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
       }
     }
   }
-}
+} 
