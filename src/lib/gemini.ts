@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // 💡 Түлхүүрүүдийг таслалаар аюулгүй салгаж авах
 const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
-
+let currentKeyIndex = 0;
 export async function parseOperationalText(text: string, ingredientsList: string[]) {
   const systemPrompt = `
     You are an expert F&B operations assistant and router. Your job is to classify and parse incoming messages written by baristas or cooks.
@@ -38,14 +38,19 @@ export async function parseOperationalText(text: string, ingredientsList: string
 
   // 🚀 Түлхүүрүүд дундуур гүйж 401/429 алдаанаас сэргийлэх
   for (const key of API_KEYS) {
+    const keyIdx = (currentKeyIndex + API_KEYS.indexOf(key)) % API_KEYS.length;
+        const currentKey = API_KEYS[keyIdx];
     try {
-      const ai = new GoogleGenerativeAI(key);
+      const ai = new GoogleGenerativeAI(currentKey);
       const model = ai.getGenerativeModel({ model: 'gemini-3.7-flash' });
       const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: `System: ${systemPrompt}\n\nUser Message: "${text}"` }] }]
       });
       responseText = response.response.text();
-      if (responseText) break;
+      if (responseText) {
+        currentKeyIndex = keyIdx;
+        break;
+      }
     } catch (e: any) {
       console.warn("parseOperationalText: Key failed, trying next key...", e.message);
     }
@@ -117,8 +122,10 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
 
   // 🚀 Түлхүүрүүд дундуур гүйж 401/429 алдаанаас сэргийлэх
   for (const key of API_KEYS) {
+    const keyIdx = (currentKeyIndex + API_KEYS.indexOf(key)) % API_KEYS.length;
+        const currentKey = API_KEYS[keyIdx];
     try {
-      const ai = new GoogleGenerativeAI(key);
+      const ai = new GoogleGenerativeAI(currentKey);
       const model = ai.getGenerativeModel({ model: 'gemini-3.7-flash' });
       const response = await model.generateContent({
         contents: [{
@@ -131,7 +138,10 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
       });
 
       responseText = response.response.text();
-      if (responseText) break;
+      if (responseText) {
+        currentKeyIndex = keyIdx;
+        break;
+      }
     } catch (e: any) {
       console.warn("parseReceiptImage: Key failed, trying next key...", e.message);
     }

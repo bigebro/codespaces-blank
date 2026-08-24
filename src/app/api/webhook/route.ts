@@ -565,11 +565,14 @@ export async function POST(request: Request) {
 
     // 💡 Түлхүүрүүд дундуур гүйх
     const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
+    let currentKeyIndex = 0;
     let replyText = "";
 
-    for (let i = 0; i < API_KEYS.length; i++) {
+    for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+      const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
+      const currentKey = API_KEYS[keyIdx];
       try {
-        const activeGenAI = new GoogleGenerativeAI(API_KEYS[i]);
+        const activeGenAI = new GoogleGenerativeAI(currentKey);
         const model = activeGenAI.getGenerativeModel({ 
           model: 'gemini-3.7-flash', 
           generationConfig: { temperature: 0.3 } 
@@ -580,9 +583,12 @@ export async function POST(request: Request) {
         });
 
         replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim();
-        if (replyText) break;
+        if (replyText) {currentKeyIndex = keyIdx;
+            break;
+        }
+      
       } catch (err: any) {
-        console.warn(`Telegram API Key #${i+1} failed, switching to next key...`);
+        console.warn(`Telegram API Key #${keyIdx +1} failed, switching to next key...`);
       }
     }
 
@@ -611,13 +617,29 @@ export async function POST(request: Request) {
 // HELPER FUNCTIONS (Send, Edit, Callback, Checklists, Scorecards)
 // -----------------------------------------------------------------------------
 
+// 💡 Telegram-ийн 4096 тэмдэгтийн хязгаар ба Markdown алдаанаас сэргийлсэн найдвартай илгээгч
 async function sendTelegramMessage(chatId: number | null, text: string) {
   if (!chatId) return;
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: "Markdown" })
-  });
+  const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: safeText, parse_mode: "Markdown" })
+    });
+
+    // Хэрэв Markdown-ийн тусгай тэмдэгтээс болж алдаа гарвал энгийн текстээр дахин илгээнэ
+    if (!res.ok) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: safeText })
+      });
+    }
+  } catch (err) {
+    console.error("sendTelegramMessage Error:", err);
+  }
 }
 
 // 💡 Telegram-д "Бичиж байна..." төлөв илгээгч функц
@@ -665,13 +687,39 @@ async function sendTelegramMessageWithUndo(chatId: number | null, text: string, 
   });
 }
 
+// 💡 Засах үед мөн 4000 тэмдэгтэд багтаах
 async function editTelegramMessage(chatId: number | null, messageId: number, text: string, inline_keyboard: any[] = []) {
   if (!chatId) return;
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: text, reply_markup: { inline_keyboard } })
-  });
+  const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        chat_id: chatId, 
+        message_id: messageId, 
+        text: safeText,
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard }
+      })
+    });
+
+    if (!res.ok) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: chatId, 
+          message_id: messageId, 
+          text: safeText,
+          reply_markup: { inline_keyboard }
+        })
+      });
+    }
+  } catch (err) {
+    console.error("editTelegramMessage Error:", err);
+  }
 }
 
 async function sendTelegramMessageWithForceReply(chatId: number | null, text: string) {

@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // 💡 Олон API Key-ийг массив болгож авах
 const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
-
+let currentKeyIndex = 0;
 const OWNER_CFO_PROMPT = `
   Та ШУТИС-ийн дэргэдэх "SF Coffee" болон кофе шопуудын Ахлах Санхүүгийн Зөвлөх (CFO) юм.
   [ДҮРЭМ]:
@@ -189,13 +189,15 @@ export async function POST(request: Request) {
 
       const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${rawText}`;
 
-      // 🚀 ТҮЛХҮҮРИЙГ АВТОМАТААР СЭЛГЭХ ЛОГИК (429 Лимит тулбал дараагийн Key рүү шилжинэ)
-      let responseStream = null;
+    let responseStream = null;
       let lastErrorMsg = "";
 
-      for (let i = 0; i < API_KEYS.length; i++) {
+      // Идэвхтэй байгаа түлхүүрээс шууд эхэлнэ (Дууссан түлхүүрийг алгасна)
+      for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+        const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
+        const currentKey = API_KEYS[keyIdx];
+
         try {
-          const currentKey = API_KEYS[i];
           const activeGenAI = new GoogleGenerativeAI(currentKey);
           const model = activeGenAI.getGenerativeModel({ 
             model: 'gemini-3.7-flash',
@@ -206,10 +208,14 @@ export async function POST(request: Request) {
             contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
           });
 
-          if (responseStream) break; // Амжилттай болсон тул гарна
+          if (responseStream) {
+            // ✅ Энэ түлхүүр ажиллаж байгаа тул дараагийн бүх хүсэлтийг эндээс эхлүүлнэ:
+            currentKeyIndex = keyIdx;
+            break;
+          }
         } catch (err: any) {
           lastErrorMsg = err.message;
-          console.warn(`API Key #${i+1} hit limit or error, switching to next key...`);
+          console.warn(`API Key #${keyIdx + 1} hit limit, moving pointer to next key...`);
         }
       }
 
