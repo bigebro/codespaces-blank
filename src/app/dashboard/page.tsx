@@ -212,31 +212,33 @@ useEffect(() => {
 
 
 
-  
-// 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг татах
+// 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг анхнаасаа зөв татах
   const fetchDatabaseData = async (clientId?: string, start?: string, end?: string) => {
     const targetClient = clientId || activeClient || userClient;
-    const targetStart = start || startDate;
-    const targetEnd = end || endDate;
     if (!targetClient) return;
 
     try {
-      // 1. Датабэйсээс татах
-      const { data: ingData } = await supabase.from('ingredients').select('*').eq('client_id', targetClient).order('name', { ascending: true });
-      const { data: recData } = await supabase.from('recipes').select('*').eq('client_id', targetClient);
-      const { data: logData } = await supabase.from('inventory_logs').select('*').eq('client_id', targetClient);
-      const { data: saleData } = await supabase.from('sales_logs').select('*').eq('client_id', targetClient);
-      const { data: taskData } = await supabase.from('tasks').select('*').eq('client_id', targetClient);
-      const { data: shiftData } = await supabase.from('shifts').select('*').eq('client_id', targetClient).order('start_time', { ascending: false });
-        const { data: staffData } = await supabase.from('profiles').select('id, full_name, email, role, client_id').eq('client_id', targetClient).neq('role', 'owner');
-      const { data: rolesData } = await supabase.from('company_roles').select('*').eq('client_id', targetClient);
+      // 1. Бүх өгөгдлийг зэрэг татах (Ажилчид ба Үүргүүдтэй хамт)
+      const [
+        { data: ingData },
+        { data: recData },
+        { data: logData },
+        { data: saleData },
+        { data: taskData },
+        { data: shiftData },
+        { data: staffData },
+        { data: rolesData }
+      ] = await Promise.all([
+        supabase.from('ingredients').select('*').ilike('client_id', targetClient).order('name', { ascending: true }),
+        supabase.from('recipes').select('*').ilike('client_id', targetClient),
+        supabase.from('inventory_logs').select('*').ilike('client_id', targetClient),
+        supabase.from('sales_logs').select('*').ilike('client_id', targetClient),
+        supabase.from('tasks').select('*').ilike('client_id', targetClient),
+        supabase.from('shifts').select('*').ilike('client_id', targetClient).order('start_time', { ascending: false }),
+        supabase.from('profiles').select('id, full_name, email, role, client_id').ilike('client_id', targetClient).neq('role', 'owner'),
+        supabase.from('company_roles').select('*').ilike('client_id', targetClient)
+      ]);
 
-      if (staffData) setWorkersList(staffData);
-      if (rolesData) setCompanyRoles(rolesData);
-      // 👆 ЭНЭ ХҮРТЭЛ 👆
-
-      if (ingData) setIngredients(ingData);
-      if (logData) setInventoryLogs(logData);
       if (ingData) setIngredients(ingData);
       if (logData) setInventoryLogs(logData);
       if (saleData) setSalesLogs(saleData);
@@ -246,45 +248,52 @@ useEffect(() => {
       }
       if (taskData) setTasks(taskData);
       if (shiftData) setShifts(shiftData);
+      if (staffData) setWorkersList(staffData);
+      if (rolesData) setCompanyRoles(rolesData);
 
-      // 💡 2. Сонгосон огнооны дагуу Live Analytics API-г дуудах (6-р сарын хаягдал, ашгийг яг таг бодно)
+      // 💡 2. АЛЬ САР ДЭЭР ДАТА БАЙГААГ АНХНААС НЬ ШУУД ОЛЖ АВАХ (0₮ болохоос сэргийлнэ)
+      let activeStart = start;
+      let activeEnd = end;
+
+      if (!activeStart || !activeEnd) {
+        if (saleData && saleData.length > 0) {
+          const latest = saleData
+            .filter((s: any) => s.date)
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          if (latest && latest.date) {
+            const ym = latest.date.substring(0, 7); // "2026-06"
+            const [year, month] = ym.split('-').map(Number);
+            const lastDayNum = new Date(year, month, 0).getDate();
+            
+            activeStart = `${ym}-01`;
+            activeEnd = `${ym}-${String(lastDayNum).padStart(2, '0')}`;
+            
+            setStartDate(activeStart);
+            setEndDate(activeEnd);
+          }
+        }
+      }
+
+      activeStart = activeStart || startDate;
+      activeEnd = activeEnd || endDate;
+
+      // 💡 3. Олдсон бодит сарынхаа огноогоор Analytics-ийг дуудна!
       const res = await fetch(
-        `/api/analytics?clientId=${encodeURIComponent(targetClient)}&startDate=${encodeURIComponent(targetStart)}T00:00:00.000Z&endDate=${encodeURIComponent(targetEnd)}T23:59:59.999Z`,
+        `/api/analytics?clientId=${encodeURIComponent(targetClient)}&startDate=${encodeURIComponent(activeStart)}T00:00:00.000Z&endDate=${encodeURIComponent(activeEnd)}T23:59:59.999Z`,
         { cache: 'no-store' }
       );
+
       if (res.ok) {
         const analData = await res.json();
         setLiveAnalytics(analData);
-        if (saleData && saleData.length > 0) {
-          const latestSale = saleData
-            .filter((s: any) => s.date)
-            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-
-          if (latestSale && latestSale.date) {
-            const ym = latestSale.date.substring(0, 7);
-
-            if (!startDate.startsWith(ym)) {
-              const [year, month] = ym.split('-').map(Number);
-              const lastDayNum = new Date(year, month, 0).getDate();
-              const firstDay = `${ym}-01`;
-              const lastDay = `${ym}-${String(lastDayNum).padStart(2, '0')}`;
-
-              setStartDate(firstDay);
-              setEndDate(lastDay);
-            }
-          }
-        }
-      
       }
     } catch (err) {
       console.error("Error fetching database:", err);
     } finally {
       setLoading(false);
     }
-
-    
   };
-// 
 
   const lowStockItems = ingredients.filter((i: any) => parseFloat(i.current_stock) <= 50);
 

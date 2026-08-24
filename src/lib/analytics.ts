@@ -364,6 +364,7 @@ export async function getAnalyticsData(
     menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
     all_recipes: allRecipesMap,
     all_inventory_data: fullInventory,
+     recent_shifts: rawShifts || [], 
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
     efficiency: rawActualCogs > 0 ? ((totalTheoCogs / rawActualCogs) * 100).toFixed(2) + "%" : "0%"
