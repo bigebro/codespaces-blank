@@ -42,7 +42,7 @@ const [newTaskWeight, setNewTaskWeight] = useState('');
   const [salesLogs, setSalesLogs] = useState<any[]>([]);
   const [liveAnalytics, setLiveAnalytics] = useState<any>(null); 
   const [uniqueProducts, setUniqueProducts] = useState<string[]>([]);
-  const [isLive, setIsLive] = useState(false); 
+  const [isLive, setIsLive] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // Bulk Edit State (The "Google Sheets" Feel)
@@ -115,6 +115,22 @@ const [productsImportSuccess, setProductsImportSuccess] = useState(false);
       efficiency: "95.17%"
     }
   };
+
+
+  // 💡 Шинэ салбар нээгдэхэд crash болохоос сэргийлэх fallback
+  const currentDemoStats = demoStats[activeClient] || demoStats["SF Coffee"] || {
+    revenue: 0,
+    actualCogs: 0,
+    theoCogs: 0,
+    grossMargin: "0%",
+    opex: 0,
+    ebit: 0,
+    netProfit: 0,
+    netMargin: "0%",
+    totalWaste: 0,
+    efficiency: "0%"
+  };
+
 
   const demoWasters: Record<string, any[]> = {
     "SF Coffee": [
@@ -212,7 +228,15 @@ useEffect(() => {
       const { data: saleData } = await supabase.from('sales_logs').select('*').eq('client_id', targetClient);
       const { data: taskData } = await supabase.from('tasks').select('*').eq('client_id', targetClient);
       const { data: shiftData } = await supabase.from('shifts').select('*').eq('client_id', targetClient).order('start_time', { ascending: false });
+        const { data: staffData } = await supabase.from('profiles').select('id, full_name, email, role, client_id').eq('client_id', targetClient).neq('role', 'owner');
+      const { data: rolesData } = await supabase.from('company_roles').select('*').eq('client_id', targetClient);
 
+      if (staffData) setWorkersList(staffData);
+      if (rolesData) setCompanyRoles(rolesData);
+      // 👆 ЭНЭ ХҮРТЭЛ 👆
+
+      if (ingData) setIngredients(ingData);
+      if (logData) setInventoryLogs(logData);
       if (ingData) setIngredients(ingData);
       if (logData) setInventoryLogs(logData);
       if (saleData) setSalesLogs(saleData);
@@ -1139,31 +1163,31 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Нийт Орлого (Revenue)</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-white">
-                   {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.revenue).toLocaleString()}₮` : `${demoStats[activeClient].revenue.toLocaleString()}₮`}
+                   {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.revenue).toLocaleString()}₮` : `${currentDemoStats[activeClient].revenue.toLocaleString()}₮`}
                 </p>
               </div>
 
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Бодит өртөг (COGS)</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-white">
-                  {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.actual_cogs).toLocaleString()}₮` : `${demoStats[activeClient].actualCogs.toLocaleString()}₮`}
+                  {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.actual_cogs).toLocaleString()}₮` : `${currentDemoStats[activeClient].actualCogs.toLocaleString()}₮`}
                 </p>
                 <span className="text-xs text-slate-500 mt-2 block">
-                  Онолын өртөг: {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.theo_cogs).toLocaleString()}₮` : `${demoStats[activeClient].theoCogs.toLocaleString()}₮`}
+                  Онолын өртөг: {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.theo_cogs).toLocaleString()}₮` : `${currentDemoStats[activeClient].theoCogs.toLocaleString()}₮`}
                 </span>
               </div>
 
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Бохир ашиг</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-emerald-400">
-                  {isLive && liveAnalytics ? `${liveAnalytics.financial_ladder.gross_margin}` : `${demoStats[activeClient].grossMargin}`}
+                  {isLive && liveAnalytics ? `${liveAnalytics.financial_ladder.gross_margin}` : `${currentDemoStats[activeClient].grossMargin}`}
                 </p>
               </div>
 
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Ажлын Бүтээмж</p>
                 <p className="text-2xl md:text-3xl font-extrabold text-blue-400">
-                  {isLive && liveAnalytics ? liveAnalytics.efficiency : demoStats[activeClient].efficiency}
+                  {isLive && liveAnalytics ? liveAnalytics.efficiency : currentDemoStats[activeClient].efficiency}
                 </p>
               </div>
             </div>
@@ -1177,13 +1201,13 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 <div className="space-y-4">
                   <div className="flex justify-between border-b border-slate-900 pb-3.5">
                     <span className="text-slate-400">Сар бүрийн OPEX (Түрээс, Цалин, Тог)</span>
-                    <span className="font-semibold text-white">{isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.opex).toLocaleString()}₮` : `${demoStats[activeClient].opex.toLocaleString()}₮`}</span>
+                    <span className="font-semibold text-white">{isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.opex).toLocaleString()}₮` : `${currentDemoStats[activeClient].opex.toLocaleString()}₮`}</span>
                   </div>
                   <div className="flex justify-between border-b border-slate-900 pb-3.5">
                     <span className="text-slate-400">Татварын өмнөх ашиг (EBIT)</span>
                     <span className={`font-semibold ${isLive && liveAnalytics && liveAnalytics.financial_ladder.ebit < 0 ? 'text-rose-400' : 'text-white'}`}>
       {/* FIXED: Pulls dynamic EBIT from the API */}
-      {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.ebit).toLocaleString()}₮` : `${demoStats[activeClient].ebit.toLocaleString()}₮`}
+      {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.ebit).toLocaleString()}₮` : `${currentDemoStats[activeClient].ebit.toLocaleString()}₮`}
     </span>
   </div>
   <div className="flex justify-between pt-2">
@@ -1191,11 +1215,11 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     <div className="text-right">
       <span className={`text-xl font-black ${isLive && liveAnalytics && liveAnalytics.financial_ladder.net_profit < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
         {/* FIXED: Pulls dynamic Net Profit from the API */}
-        {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.net_profit).toLocaleString()}₮` : `${demoStats[activeClient].netProfit.toLocaleString()}₮`}
+        {isLive && liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder.net_profit).toLocaleString()}₮` : `${currentDemoStats[activeClient].netProfit.toLocaleString()}₮`}
       </span>
       <span className="text-xs text-slate-500 block mt-1">
         {/* FIXED: Pulls dynamic Net Margin from the API */}
-        Маржин: {isLive && liveAnalytics ? liveAnalytics.financial_ladder.net_margin : demoStats[activeClient].netMargin}
+        Маржин: {isLive && liveAnalytics ? liveAnalytics.financial_ladder.net_margin : currentDemoStats[activeClient].netMargin}
       </span>
                     </div>
                   </div>
