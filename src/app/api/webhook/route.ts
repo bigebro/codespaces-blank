@@ -531,17 +531,28 @@ export async function POST(request: Request) {
     // =========================================================================
     // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (ХҮЛЭЭЛТГҮЙ ШУУД GEMINI РҮҮ 1 УДАА ДУУДАНА)
     // =========================================================================
+    // =========================================================================
+    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (0.1 СЕКУНДЭД ШУУД ХАРИУ ӨГЧ ШИНЭЧЛЭХ)
+    // =========================================================================
     
-    // 💡 1. Telegram-д "Бичиж байна..." (typing) төлөвийг 0.01 секундэд асаана
-    fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
+    // 💡 1. Утсан дээр "Бичиж байна..." дохиог 10ms-д асаана
+    await sendChatAction(currentChatId, 'typing');
+
+    // 💡 2. 0.1 секундэд түр мессеж илгээж хариу үйлдэл үзүүлнэ (Хэрэглэгч хүлээлт мэдрэхгүй)
+    const initialMsgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: currentChatId, action: 'typing' })
-    }).catch(() => {});
+      body: JSON.stringify({
+        chat_id: currentChatId,
+        text: "🧠 *Бодож байна...*",
+        parse_mode: "Markdown"
+      })
+    });
+    const initialMsgData = await initialMsgRes.json();
+    const tempMessageId = initialMsgData.result?.message_id;
 
-    // 💡 2. RAM-аас санхүүгийн датаг 20ms-д авна
+    // 💡 3. Санхүүгийн датаг RAM-аас 20ms-д авна
     const analyticsData = await getAnalyticsData(tenantClientId);
-
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
@@ -553,7 +564,7 @@ export async function POST(request: Request) {
       top_expensive: analyticsData.top_expensive?.slice(0, 3)
     };
 
-    // 💡 3. Gemini руу ЗӨВХӨН 1 УДАА шууд дуудна (0.6 секунд)
+    // 💡 4. Gemini руу дуудна
     const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(compactContext)}\n\nUser Question: ${incomingText}`;
 
@@ -562,10 +573,15 @@ export async function POST(request: Request) {
     });
 
     const replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim(); 
-    await sendTelegramMessage(currentChatId, replyText);
+
+    // 💡 5. Түр мессежийг бүтэн AI хариултаар шууд солино
+    if (tempMessageId) {
+      await editTelegramMessage(currentChatId, tempMessageId, replyText);
+    } else {
+      await sendTelegramMessage(currentChatId, replyText);
+    }
 
     return NextResponse.json({ status: 'ok' });
-
   } catch (error: any) {
     console.error("Webhook processing failed:", error);
     if (currentChatId) {
