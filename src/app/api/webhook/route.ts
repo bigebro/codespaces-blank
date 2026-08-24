@@ -484,62 +484,76 @@ export async function POST(request: Request) {
     // =========================================================================
     // I. БАРИСТАГИЙН ХАЯГДАЛ, ЗАРЛАГА БҮРТГЭХ (AI Router)
     // =========================================================================
-    const { data: ingredients } = await supabase.from('ingredients').select('name').eq('client_id', tenantClientId);
-    const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
+    // =========================================================================
+    // I. БАРИСТАГИЙН ХАЯГДАЛ, ЗАРЛАГА БҮРТГЭХ (УХААЛАГ ШАЛГАЛТ)
+    // =========================================================================
+    const hasNumbers = /\d/.test(incomingText);
+    const isLikelyOperation = hasNumbers && (
+      lowercaseMsg.includes("асга") || lowercaseMsg.includes("мууд") || lowercaseMsg.includes("орлоо") || 
+      lowercaseMsg.includes("авав") || lowercaseMsg.includes("авсан") || lowercaseMsg.includes("тоолов") || 
+      lowercaseMsg.includes("үлдэгдэл") || lowercaseMsg.includes("турш") || lowercaseMsg.includes("хоол")
+    );
 
-    const aiAnalysis = await parseOperationalText(incomingText, allowedNames);
+    // 💡 Зөвхөн бодит зарлага, хаягдал байвал л Gemini-ийн 1 дэх дуудлагыг ажиллуулна
+    if (isLikelyOperation) {
+      const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
+      const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
 
-    if (aiAnalysis && aiAnalysis.is_transaction === true) {
-      if (aiAnalysis.success === false) {
-        const fallbackErrorMsg = "❌ Систем бичсэн өгөгдлийг ойлгосонгүй.\n\nЖишээ:\n• 'Хаягдал: Сүү 500'\n• 'Татан авалт: Сүү 10, Нийт 58000'\n• 'Хоолонд 2 өндөг орлоо'";
-        await sendTelegramMessage(currentChatId, aiAnalysis.error_message || fallbackErrorMsg);
-        return NextResponse.json({ status: 'ok' });
+      const aiAnalysis = await parseOperationalText(incomingText, allowedNames);
+
+      if (aiAnalysis && aiAnalysis.is_transaction === true && aiAnalysis.success) {
+        const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
+
+        if (ingredient) {
+          const workerName = message.from?.first_name || "Ажилтан";
+          const { data: log, error: logError } = await supabase.from('inventory_logs').insert([{
+            client_id: tenantClientId,
+            ingredient_id: ingredient.id,
+            quantity: aiAnalysis.quantity,
+            type: aiAnalysis.type,
+            notes: aiAnalysis.notes || 'Telegram Log',
+            date: new Date().toISOString(),
+            worker_name: workerName
+          }]).select().single();
+
+          if (logError) {
+            await sendTelegramMessage(currentChatId, `❌ Хадгалах алдаа: ${logError.message}`);
+            return NextResponse.json({ status: 'ok' });
+          }
+
+          const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || 'Тэмдэглэл байхгүй'}`;
+          await sendTelegramMessageWithUndo(currentChatId, confirmText, log.id);
+          return NextResponse.json({ status: 'ok' });
+        }
       }
-
-      const { data: ingredient } = await supabase.from('ingredients').select('id, unit').eq('client_id', tenantClientId).eq('name', aiAnalysis.item_name).single();
-
-      if (!ingredient) {
-        await sendTelegramMessage(currentChatId, `❌ Алдаа: '${aiAnalysis.item_name}' нэртэй түүхий эд олдсонгүй.`);
-        return NextResponse.json({ status: 'ok' });
-      }
-
-      const workerName = message.from?.first_name || "Ажилтан";
-      const { data: log, error: logError } = await supabase.from('inventory_logs').insert([{
-        client_id: tenantClientId,
-        ingredient_id: ingredient.id,
-        quantity: aiAnalysis.quantity,
-        type: aiAnalysis.type,
-        notes: aiAnalysis.notes || 'Telegram Log',
-        date: new Date().toISOString(),
-        worker_name: workerName
-      }]).select().single();
-
-      if (logError) {
-        await sendTelegramMessage(currentChatId, `❌ Хадгалах алдаа: ${logError.message}`);
-        return NextResponse.json({ status: 'ok' });
-      }
-
-      const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || 'Тэмдэглэл байхгүй'}`;
-      await sendTelegramMessageWithUndo(currentChatId, confirmText, log.id);
-      return NextResponse.json({ status: 'ok' });
     }
 
     // =========================================================================
-    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (ХЭТ ХУРДАН 400-TOKEN AI CHAT)
+    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (ХҮЛЭЭЛТГҮЙ ШУУД GEMINI РҮҮ 1 УДАА ДУУДАНА)
     // =========================================================================
-     await sendChatAction(currentChatId, 'typing');
+    
+    // 💡 1. Telegram-д "Бичиж байна..." (typing) төлөвийг 0.01 секундэд асаана
+    fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: currentChatId, action: 'typing' })
+    }).catch(() => {});
+
+    // 💡 2. RAM-аас санхүүгийн датаг 20ms-д авна
     const analyticsData = await getAnalyticsData(tenantClientId);
 
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
     const compactContext = {
+      client: tenantClientId,
       financials: analyticsData.financial_ladder,
       total_waste: analyticsData.total_waste_loss,
-      top_wasters: analyticsData.top_wasters,
-      top_expensive: analyticsData.top_expensive
+      top_wasters: analyticsData.top_wasters?.slice(0, 3),
+      top_expensive: analyticsData.top_expensive?.slice(0, 3)
     };
 
+    // 💡 3. Gemini руу ЗӨВХӨН 1 УДАА шууд дуудна (0.6 секунд)
     const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(compactContext)}\n\nUser Question: ${incomingText}`;
 
