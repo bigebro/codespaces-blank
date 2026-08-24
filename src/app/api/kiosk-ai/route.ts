@@ -196,7 +196,7 @@ export async function POST(request: Request) {
       for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
         const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
         const currentKey = API_KEYS[keyIdx];
-
+        
         try {
           const activeGenAI = new GoogleGenerativeAI(currentKey);
           const model = activeGenAI.getGenerativeModel({ 
@@ -214,15 +214,15 @@ export async function POST(request: Request) {
             break;
           }
         } catch (err: any) {
-          lastErrorMsg = err.message;
-          console.warn(`API Key #${keyIdx + 1} hit limit, moving pointer to next key...`);
+          lastErrorMsg = err.message || String(err);
+          console.error(`Telegram API Key #${keyIdx + 1} error:`, lastErrorMsg);
         }
       }
 
       if (!responseStream) {
         return NextResponse.json({ 
           success: false, 
-          message: `⚠️ Бүх API түлхүүрийн өдрийн лимит хүрсэн байна (${lastErrorMsg}). Түр хүлээнэ үү.` 
+          message: `❌ Алдааны дэлгэрэнгүй: (${lastErrorMsg}). Түр хүлээнэ үү.` 
         });
       }
 

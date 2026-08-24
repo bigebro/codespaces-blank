@@ -571,6 +571,7 @@ export async function POST(request: Request) {
     for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
       const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
       const currentKey = API_KEYS[keyIdx];
+      let lastErrorMsg = "";
       try {
         const activeGenAI = new GoogleGenerativeAI(currentKey);
         const model = activeGenAI.getGenerativeModel({ 
