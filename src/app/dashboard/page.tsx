@@ -1776,62 +1776,71 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               {isCfoLoading && <div className="text-blue-400 text-xs animate-pulse font-bold">AI бодож байна...</div>}
             </div>
 
+           {/* 7. AI CFO CHAT TAB (OWNER ONLY) - ChatGPT хэв маягийн Streaming засвар */}
             <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800">
-            <form onSubmit={async (e) => {
-          e.preventDefault();
-          if (!cfoChatInput.trim()) return;
-          
-          const text = cfoChatInput;
-          setCfoChatHistory(prev => [...prev, { sender: 'owner', text }]);
-          setCfoChatInput('');
-          setIsCfoLoading(true);
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!cfoChatInput.trim()) return;
+                
+                const text = cfoChatInput;
+                setCfoChatHistory(prev => [...prev, { sender: 'owner', text }]);
+                setCfoChatInput('');
+                setIsCfoLoading(true);
 
-  try {
-    const res = await fetch('/api/kiosk-ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantClientId: activeClient,
-        workerName: 'Owner',
-        text: text,
-        userRole: 'owner'
-      })
-    });
-
-    const contentType = res.headers.get('content-type') || '';
-
-    if (contentType.includes('application/json')) {
-      const data = await res.json();
-      setCfoChatHistory(prev => [...prev, { sender: 'ai', text: data.message }]);
-    } else if (res.body) {
-      // Append initial empty AI message
-      setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '' }]);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let streamedText = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        streamedText += chunk;
-
-        setCfoChatHistory(prev => {
-          const updated = [...prev];
-          if (updated.length > 0) {
-            updated[updated.length - 1] = { sender: 'ai', text: streamedText };
-          }
-                    return updated;
+                try {
+                  const res = await fetch('/api/kiosk-ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      tenantClientId: activeClient,
+                      workerName: 'Owner',
+                      text: text,
+                      userRole: 'owner'
+                    })
                   });
+
+                  const contentType = res.headers.get('content-type') || '';
+
+                  // 1. Хэрэв /report эсвэл шууд тайлан ирвэл:
+                  if (contentType.includes('application/json')) {
+                    const data = await res.json();
+                    setCfoChatHistory(prev => [...prev, { sender: 'ai', text: data.message }]);
+                  } 
+                  // 🚀 2. ЧАТ БОЛОН АСУУЛТ: ChatGPT ШИГ ҮГ ҮСГЭЭРЭЭ ДЭЛГЭЦ ДЭЭР ГҮЙЖ ГАРНА
+                  else if (res.body) {
+                    // Эхлээд хоосон бөмбөлөг нээх
+                    setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '' }]);
+
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let accumulatedText = '';
+
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) break;
+                      
+                      // Шинэ үсэг, үг ирэх бүрд дэлгэцийг шууд шинэчлэнэ
+                      const chunk = decoder.decode(value, { stream: true });
+                      accumulatedText += chunk;
+
+                      setCfoChatHistory(prev => {
+                        const updated = [...prev];
+                        if (updated.length > 0) {
+                          updated[updated.length - 1] = {
+                            sender: 'ai',
+                            text: accumulatedText
+                          };
+                        }
+                        return updated;
+                      });
+                    }
+                  }
+                } catch (err) {
+                  setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа гарлаа.' }]);
+                } finally {
+                  setIsCfoLoading(false);
                 }
-              }
-            } catch (err) {
-              setCfoChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа гарлаа.' }]);
-            } finally {
-              setIsCfoLoading(false);
-            }
-          }} className="flex gap-3">
+              }} className="flex gap-3">
                 <input 
                   type="text" 
                   value={cfoChatInput} 
@@ -1842,7 +1851,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 <button 
                   type="submit" 
                   disabled={isCfoLoading || !cfoChatInput.trim()} 
-                  className="bg-blue-500 text-white px-5 py-3 rounded-xl disabled:opacity-50 transition shadow-lg hover:bg-blue-400"
+                  className="bg-blue-500 text-white px-5 py-3 rounded-xl disabled:opacity-50 transition shadow-lg hover:bg-blue-400 font-bold text-sm"
                 >
                   Илгээх
                 </button>

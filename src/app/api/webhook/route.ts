@@ -527,6 +527,7 @@ export async function POST(request: Request) {
     // =========================================================================
     // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (ХЭТ ХУРДАН 400-TOKEN AI CHAT)
     // =========================================================================
+     await sendChatAction(currentChatId, 'typing');
     const analyticsData = await getAnalyticsData(tenantClientId);
 
     const isOwner = userProfile?.role === 'owner';
@@ -573,6 +574,15 @@ async function sendTelegramMessage(chatId: number | null, text: string) {
   });
 }
 
+// 💡 Telegram-д "Бичиж байна..." төлөв илгээгч функц
+async function sendChatAction(chatId: number | null, action: string = 'typing') {
+  if (!chatId) return;
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, action: action })
+  });
+}
 async function sendTelegramMessageWithMenu(chatId: number | null, text: string) {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
