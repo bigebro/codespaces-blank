@@ -50,9 +50,6 @@ export async function POST(request: Request) {
     const imageBase64 = body.imageBase64 || null;
     const action = body.action || null;
     const logId = body.logId || null;
-  // 💡 1. Frontend-ээс ирсэн сонгосон сарын огноог авах:
-    const startDate = body.startDate;
-    const endDate = body.endDate
     const isOwner = userRole === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
     const clientId = tenantClientId;
@@ -118,48 +115,9 @@ export async function POST(request: Request) {
 
     // 3. ТЕКСТ БИЧИХ ҮЕД
     if (text) {
-      const lower = text.toLowerCase();
+      const lower = text.toLowerCase().trim();
 
-      // ⚡ 1. REPORT ТАЙЛАНГИЙН ТУШААЛД 0.03 СЕКУНДЭД ШУУД ХАРИУЛАХ
-      const isReportCommand = 
-        lower === "report" || 
-        lower === "/report" || 
-        lower === "тайлан" || 
-        lower === "тайлан харах" || 
-        lower.startsWith("report ") ||
-        lower.startsWith("/report ");
-
-      if (isReportCommand) {
-        if (!isOwner) {
-          return NextResponse.json({
-            success: true,
-            is_log: false,
-            message: "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
-          });
-        }
-
-        const analyticsData = await getAnalyticsData(clientId);
-        const fin = analyticsData.financial_ladder || {};
-
-        const instantReport = `📊 **САНХҮҮГИЙН ТАЙЛАН (${clientId}):**\n\n` +
-          `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
-          `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
-          `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
-          `• **OPEX зардал:** ${Math.round(fin.opex || 0).toLocaleString()} ₮\n` +
-          `• **EBIT (Татварын өмнөх):** ${Math.round(fin.ebit || 0).toLocaleString()} ₮\n` +
-          `• **ЦЭВЭР АШИГ:** ${Math.round(fin.net_profit || 0).toLocaleString()} ₮ *(${fin.net_margin || "0%"})*\n\n` +
-          `🗑 **Бодит алдагдал (Waste):** ${Math.round(analyticsData.total_waste_loss || 0).toLocaleString()} ₮\n` +
-          `⚡ **Бүтээмж:** ${analyticsData.efficiency || "0%"}\n\n` +
-          `💎 **ТОП ХАЯГДАЛ:**\n` +
-          (analyticsData.top_wasters?.length > 0 
-            ? analyticsData.top_wasters.map((w: any) => `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`).join('\n')
-            : "• Бүртгэгдсэн хаягдал байхгүй.") +
-          `\n\n💡 *Та санхүү, хаягдал, үнийн бодлогын талаар ямар ч асуултаа шууд асууж болно.*`;
-
-        return NextResponse.json({ success: true, is_log: false, message: instantReport });
-      }
-
-      // ⚡ 2. ЗАРЛАГА БҮРТГЭХ
+      // ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (Хэрэв тоотой зарлага байвал)
       const hasNumbers = /\d/.test(text);
       const isLikelyOperation = hasNumbers && (
         lower.includes("асга") || lower.includes("мууд") || lower.includes("орлоо") || 
@@ -193,91 +151,129 @@ export async function POST(request: Request) {
           }
         }
       }
+ // 💡 ОГНООГ ТОХИРУУЛЖ, getAnalyticsData-Г ЭНД ГАНЦХАН УДАА ДУУДНА:
+      // =========================================================================
+      let activeStart = body.startDate;
+      let activeEnd = body.endDate;
 
-      // ⚡ 3. ЧӨЛӨӨТ АСУУЛТ (ХУРДАН, ХӨНГӨН ӨГӨГДӨЛТЭЙ СҮЛЖЭЭНИЙ ХАМГААЛАЛТ)
-      const analyticsData = await getAnalyticsData(clientId, startDate, endDate);
+      // Хэрэв огноо ирээгүй бол автоматаар хамгийн сүүлийн борлуулалттай сарыг олох
+      if (!activeStart || !activeEnd) {
+        const { data: latestSale } = await supabase
+          .from('sales_logs')
+          .select('date')
+          .eq('client_id', clientId)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestSale && latestSale.date) {
+          const ym = latestSale.date.substring(0, 7);
+          const [year, month] = ym.split('-').map(Number);
+          activeStart = `${ym}-01T00:00:00.000Z`;
+          activeEnd = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}T23:59:59.999Z`;
+        }
+      }
+
+      // 🚀 1 Л УДАА ТАТАХ:
+      const analyticsData = await getAnalyticsData(clientId, activeStart, activeEnd);
       const fin = analyticsData.financial_ladder || {};
 
-      // 💡 504 Timeout үүсгэхгүйн тулд хамгийн чухал сүүлийн 40 логийг л өгнө (Хэт нүсэр дата илгээхгүй)
-    // 🚀 БҮХ 22 ҮЗҮҮЛЭЛТИЙГ БҮРЭН БАГТААСАН УХААЛАГ RICHCONTEXT (Smart DTO)
+      // =========================================================================
+      // ⚡ АЛХАМ 2: ХЭРЭВ "REPORT" ГЭЖ БИЧВЭЛ ДЭЭРХ ДАТАГААРАА 0.03 СЕКУНДЭД ШУУД ХАРИУЛАХ
+      // =========================================================================
+      const isReportCommand = 
+        lower === "report" || 
+        lower === "/report" || 
+        lower === "тайлан" || 
+        lower === "тайлан харах" || 
+        lower.startsWith("report ") ||
+        lower.startsWith("/report ");
+
+      if (isReportCommand) {
+        if (!isOwner) {
+          return NextResponse.json({
+            success: true,
+            is_log: false,
+            message: "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
+          });
+        }
+
+        const instantReport = `📊 **САНХҮҮГИЙН ТАЙЛАН (${clientId}):**\n\n` +
+          `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
+          `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
+          `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
+          `• **OPEX зардал:** ${Math.round(fin.opex || 0).toLocaleString()} ₮\n` +
+          `• **EBIT (Татварын өмнөх):** ${Math.round(fin.ebit || 0).toLocaleString()} ₮\n` +
+          `• **ЦЭВЭР АШИГ:** ${Math.round(fin.net_profit || 0).toLocaleString()} ₮ *(${fin.net_margin || "0%"})*\n\n` +
+          `🗑 **Бодит алдагдал (Waste):** ${Math.round(analyticsData.total_waste_loss || 0).toLocaleString()} ₮\n` +
+          `⚡ **Бүтээмж:** ${analyticsData.efficiency || "0%"}\n\n` +
+          `💎 **ТОП ХАЯГДАЛ:**\n` +
+          (analyticsData.top_wasters?.length > 0 
+            ? analyticsData.top_wasters.map((w: any) => `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`).join('\n')
+            : "• Бүртгэгдсэн хаягдал байхгүй.") +
+          `\n\n💡 *Та санхүү, хаягдал, үнийн бодлогын талаар ямар ч асуултаа шууд асууж болно.*`;
+
+        return NextResponse.json({ success: true, is_log: false, message: instantReport });
+      }
+
+
+
+    
+
+
+     
+      // =========================================================================
+      // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
+      // =========================================================================
       const richContext = {
-        client: clientId,
-        
-        // 1. Санхүүгийн үндсэн шатлал (P&L)
-        financials: analyticsData.financial_ladder,
-        
-        // 2. 🏛️ Татварын мэдээлэл (1% ААНОАТ & НӨАТ)
-        tax_summary: analyticsData.tax_summary,
-        
-        // 3. 💵 Мөнгөн урсгал & Кассын бодит үлдэгдэл & Эзний таталт
-        cashflow: analyticsData.cashflow_summary,
-        
-        // 4. 👥 Ажилчдын цалингийн нэгтгэл (Цаг, НДШ 11.5%, ХХОАТ 10%, Гар дээрх)
-        payroll: analyticsData.payroll_summary,
+      client: clientId,
+      financials: fin,
+      tax_summary: analyticsData.tax_summary,
+      cashflow: analyticsData.cashflow_summary,
+      payroll: analyticsData.payroll_summary,
+      total_waste_loss: analyticsData.total_waste_loss,
+      total_unexplained_waste: analyticsData.total_unexplained_waste,
+      total_surplus_savings: analyticsData.total_surplus_savings,
+      efficiency: analyticsData.efficiency,
+      logged_waste_breakdown: {
+        spoilage_loss: analyticsData.total_logged_spoilage || 0,
+        testing_cost: analyticsData.total_logged_testing || 0,
+        staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
+        other_cost: analyticsData.total_logged_other || 0
+      },
+      top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
+      top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
+      all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
+        name: i.name,
+        gap: `${i.gap} ${i.unit}`,
+        loss: `${i.impact}₮`,
+        unit_price: `${i.price}₮`,
+        notes: i.notes || ""
+      })),
+      all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
+        name: i.name,
+        gap: `${i.gap} ${i.unit}`,
+        savings: `${i.impact}₮`
+      })),
+      all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
+        name: i.name,
+        live_stock: `${i.live_stock} ${i.unit}`,
+        par_level: `${i.par_level} ${i.unit}`,
+        unit_price: `${i.price}₮`
+      })),
+      all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
+        name: m.name,
+        sold_count: m.sold,
+        selling_price: `${m.selling_price}₮`,
+        cost: `${m.cost_per_item}₮`,
+        margin: `${m.gross_margin_pct}%`
+      })),
+      all_recipes: analyticsData.all_recipes,
+      recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
+      recent_worker_logs: analyticsData.recent_worker_logs,
+      opex_breakdown: analyticsData.opex_details
+    };
 
-        // 5. Алдагдал ба Бүтээмжийн ерөнхий тоонууд
-        total_waste_loss: analyticsData.total_waste_loss,
-        total_unexplained_waste: analyticsData.total_unexplained_waste,
-        total_surplus_savings: analyticsData.total_surplus_savings,
-        efficiency: analyticsData.efficiency,
-
-        // 6. Тайлагнасан хаягдлын тусгай 4 задаргаа (Өртгөөс зардалд шилжсэн)
-        logged_waste_breakdown: {
-          spoilage_loss: analyticsData.total_logged_spoilage || 0,
-          testing_cost: analyticsData.total_logged_testing || 0,
-          staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
-          other_cost: analyticsData.total_logged_other || 0
-        },
-        
-        // 7. Топ 3 Хаягдал & Топ 3 Үнэтэй түүхий эд (Шууд бэлэн shortcut)
-        top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
-        top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
-
-        // 8. Бүх 38 Хаягдсан бараа (Нэр, алдагдал, зөрүү, нэгжийн үнэ, тайлбартайгаа)
-        all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
-          name: i.name,
-          gap: `${i.gap} ${i.unit}`,
-          loss: `${i.impact}₮`,
-          unit_price: `${i.price}₮`,
-          notes: i.notes || ""
-        })),
-
-        // 9. Бүх Дутуу хийгдсэн / Илүүдэл орцын жагсаалт
-        all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
-          name: i.name,
-          gap: `${i.gap} ${i.unit}`,
-          savings: `${i.impact}₮`
-        })),
-        
-        // 10. Бүх 125 Түүхий эд (Нэр, бодит үлдэгдэл, Par нөөц, үнэ)
-        all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
-          name: i.name,
-          live_stock: `${i.live_stock} ${i.unit}`,
-          par_level: `${i.par_level} ${i.unit}`,
-          unit_price: `${i.price}₮`
-        })),
-        
-        // 11. Бүх Цэсний борлуулалт ба Ашгийн хувь
-        all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
-          name: m.name,
-          sold_count: m.sold,
-          selling_price: `${m.selling_price}₮`,
-          cost: `${m.cost_per_item}₮`,
-          margin: `${m.gross_margin_pct}%`
-        })),
-
-        // 12. Бүх 73 Бүтээгдэхүүний Бүтэн Жор
-        all_recipes: analyticsData.all_recipes,
-        
-        // 13. Ажилчдын ээлж (Улаанбаатарын цагаар, сүүлийн 10 ээлж)
-        recent_shifts: analyticsData.recent_shifts?.slice(0, 10), 
-        
-        // 14. Ажилчдын бүртгэсэн сүүлийн 40 хаягдал / гүйлгээ (10мл сүүтэй хамт)
-        recent_worker_logs: analyticsData.recent_worker_logs, 
-        
-        // 15. OPEX Зардлын бүтэн задаргаа
-        opex_breakdown: analyticsData.opex_details
-      };
 
       const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${text}`;
 

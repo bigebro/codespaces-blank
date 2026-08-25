@@ -3,15 +3,29 @@ import { supabase } from '../../../lib/supabase';
 import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
 export const maxDuration = 30;
-export const dynamic = 'force-dynamic'; 
+export const dynamic = 'force-dynamic';
+
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
 
+// 💡 Алдааг эелдэг болгох функц
+function getFriendlyErrorMessage(errorMsg: string): string {
+  const errStr = (errorMsg || "").toLowerCase();
+  if (errStr.includes("503") || errStr.includes("high demand") || errStr.includes("unavailable") || errStr.includes("overloaded")) {
+    return "⚠️ AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
+  }
+  if (errStr.includes("429") || errStr.includes("quota") || errStr.includes("rate limit") || errStr.includes("too many requests")) {
+    return "⚠️ Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
+  }
+  return "⚠️ Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
+}
+
 const OWNER_CFO_PROMPT = `
-  Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх (CFO) болон стратегийн хамтрагч юм. 
+  Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх болон стратегийн хамтрагч юм. 
   
-  [АЖИЛЛАХ ГОРЫМ]:
-  - Ирсэн CONTEXT_DATA дахь бүх өгөгдлийг (бүх 73 жор, 125 түүхий эд, хаягдлын жагсаалт, цэсний ашиг) бүрэн ашиглаж хэрэглэгчийн асуултад шууд товч, цэгцтэй, үнэн зөв хариулна.
+  [АЖИЛЛАХ ГОРЫМ - ХАТУУ МӨРДӨХ]
+  - Хэрэглэгчийн асуултад шууд товч, цэгцтэй, санхүүгийн бодит тоо баримтад тулгуурлан хариулна.
   - Ундааны эрүүл бохир ашиг (Gross margin) нь 75%-85%, хоолных 60%-70% байна.
   - Асуултад маш тодорхой, эелдэг, Монгол хэлээр хариулна.
 `;
@@ -23,27 +37,7 @@ const WORKER_BOT_PROMPT = `
   2. Ажилтан санхүүгийн ашиг, орлого, тайлан асуувал ШУУД ингэж татгалзан хариулна: 
      "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
 `;
-function getFriendlyErrorMessage(error: any): string {
-  const errStr = (error?.message || String(error || "")).toLowerCase();
 
-  // 1. 503 Server High Demand / Overloaded
-  if (errStr.includes("503") || errStr.includes("high demand") || errStr.includes("unavailable") || errStr.includes("overloaded")) {
-    return "⚠️ AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
-  }
-
-  // 2. 429 Quota Exceeded / Rate Limit
-  if (errStr.includes("429") || errStr.includes("quota") || errStr.includes("rate limit") || errStr.includes("too many requests")) {
-    return "⚠️ Асуултын лимит түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
-  }
-
-  // 3. Network / Connection issue
-  if (errStr.includes("fetch failed") || errStr.includes("network") || errStr.includes("timeout") || errStr.includes("econnrefused")) {
-    return "⚠️ Холболт түр саатлаа. Та дахин илгээнэ үү.";
-  }
-
-  // 4. Ерөнхий бусад алдаа
-  return "⚠️ Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
-}
 export async function POST(request: Request) {
   let currentChatId: number | null = null;
   const reqUrl = new URL(request.url);
@@ -63,7 +57,6 @@ export async function POST(request: Request) {
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
       
-      // 1. Бараа тоолох товч дарах үед
       if (callbackData.startsWith("cnt_")) {
         const itemName = callbackData.replace("cnt_", "");
         const { data: activeShift } = await supabase.from('shifts').select('closing_checklist').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
@@ -84,7 +77,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 2. Дүр сонгох (Role Selection)
       if (callbackData.startsWith("role_")) {
         const selectedRole = callbackData === "role_barista" ? "Бариста ☕" : "Тогооч 🍳";
         const firstName = callback_query.from?.first_name || "Ажилтан";
@@ -113,7 +105,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 3. Даалгавар чеклэх (Task Toggle)
       if (callbackData.startsWith("tsk_")) {
         const index = parseInt(callbackData.replace("tsk_", ""));
         const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
@@ -131,7 +122,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 4. Тооллого руу шилжих
       if (callbackData === "go_to_inventory") {
         await answerTelegramCallback(callbackQueryId, "Тооллого руу шилжиж байна...");
         await generateInventoryChecklist(currentChatId, messageId, hostUrl);
@@ -148,7 +138,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 5. Ээлж хаах
       if (callbackData === "close_shift_final") {
         const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
         await answerTelegramCallback(callbackQueryId, "Ээлж хаагдлаа");
@@ -162,7 +151,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      // 6. Бүртгэл буцаах (Undo)
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         if (logId && logId !== "undefined") {
@@ -181,7 +169,7 @@ export async function POST(request: Request) {
     currentChatId = message.chat.id;
 
     // =========================================================================
-    // B. ЗУРАГ БҮРТГЭХ (E-BARIMT СКАЙНЕР)
+    // B. ЗУРАГ БҮРТГЭХ (E-BARIMT)
     // =========================================================================
     if (message.photo && message.photo.length > 0) {
       await sendTelegramMessage(currentChatId, "📸 Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...");
@@ -391,10 +379,31 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      const data = await getAnalyticsData(tenantClientId);
+      // 💡 Хамгийн сүүлийн борлуулалттай сарыг автоматаар олох (0₮ гарахаас сэргийлнэ)
+      const { data: latestSale } = await supabase
+        .from('sales_logs')
+        .select('date')
+        .eq('client_id', tenantClientId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let targetStart = undefined;
+      let targetEnd = undefined;
+
+      if (latestSale && latestSale.date) {
+        const ym = latestSale.date.substring(0, 7);
+        const [year, month] = ym.split('-').map(Number);
+        const lastDayNum = new Date(year, month, 0).getDate();
+        targetStart = `${ym}-01T00:00:00.000Z`;
+        targetEnd = `${ym}-${String(lastDayNum).padStart(2, '0')}T23:59:59.999Z`;
+      }
+
+      const data = await getAnalyticsData(tenantClientId, targetStart, targetEnd);
       const fin = data.financial_ladder || {};
 
-      const reportMarkdown = `📊 **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n\n` +
+      const reportMarkdown = `📊 **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n` +
+        `📅 *Тайлант хугацаа: ${targetStart ? targetStart.substring(0, 7) : "Одоогийн"}*\n\n` +
         `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
         `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
         `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
@@ -542,11 +551,13 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (БҮХ ДАТАГ ХАРАХ + 429 FALLBACK)
+    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (БҮХ 22 ДАТАГ 100% ХАРАХ БҮРЭН ЧАДАЛ)
     // =========================================================================
     
+    // 💡 1. 0.01 секундэд Telegram дээр "Бичиж байна..." төлөвийг асаана
     await sendChatAction(currentChatId, 'typing');
 
+    // 💡 2. Утсан дээр түр мессежийг 0.1 секундэд шууд илгээх (Хүлээлт мэдрэхгүй)
     const initialMsgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -559,112 +570,94 @@ export async function POST(request: Request) {
     const initialMsgData = await initialMsgRes.json();
     const tempMessageId = initialMsgData.result?.message_id;
 
-    const analyticsData = await getAnalyticsData(tenantClientId);
-    const fin = analyticsData.financial_ladder || {};
+    // 💡 3. Огноог автоматаар тохируулж датабэйсээс БҮХ датаг татах
+    const { data: latestChatSale } = await supabase
+      .from('sales_logs')
+      .select('date')
+      .eq('client_id', tenantClientId)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let chatTargetStart = undefined;
+    let chatTargetEnd = undefined;
+
+    if (latestChatSale && latestChatSale.date) {
+      const ym = latestChatSale.date.substring(0, 7);
+      const [year, month] = ym.split('-').map(Number);
+      chatTargetStart = `${ym}-01T00:00:00.000Z`;
+      chatTargetEnd = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}T23:59:59.999Z`;
+    }
+
+    const analyticsData = await getAnalyticsData(tenantClientId, chatTargetStart, chatTargetEnd);
+
 
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
- // 🚀 БҮХ 22 ҮЗҮҮЛЭЛТИЙГ БҮРЭН БАГТААСАН УХААЛАГ RICHCONTEXT (Smart DTO)
-      const richContext = {
-        client: tenantClientId,
-        
-        // 1. Санхүүгийн үндсэн шатлал (P&L)
-        financials: analyticsData.financial_ladder,
-        
-        // 2. 🏛️ Татварын мэдээлэл (1% ААНОАТ & НӨАТ)
-        tax_summary: analyticsData.tax_summary,
-        
-        // 3. 💵 Мөнгөн урсгал & Кассын бодит үлдэгдэл & Эзний таталт
-        cashflow: analyticsData.cashflow_summary,
-        
-        // 4. 👥 Ажилчдын цалингийн нэгтгэл (Цаг, НДШ 11.5%, ХХОАТ 10%, Гар дээрх)
-        payroll: analyticsData.payroll_summary,
-
-        // 5. Алдагдал ба Бүтээмжийн ерөнхий тоонууд
-        total_waste_loss: analyticsData.total_waste_loss,
-        total_unexplained_waste: analyticsData.total_unexplained_waste,
-        total_surplus_savings: analyticsData.total_surplus_savings,
-        efficiency: analyticsData.efficiency,
-
-        // 6. Тайлагнасан хаягдлын тусгай 4 задаргаа (Өртгөөс зардалд шилжсэн)
-        logged_waste_breakdown: {
-          spoilage_loss: analyticsData.total_logged_spoilage || 0,
-          testing_cost: analyticsData.total_logged_testing || 0,
-          staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
-          other_cost: analyticsData.total_logged_other || 0
-        },
-        
-        // 7. Топ 3 Хаягдал & Топ 3 Үнэтэй түүхий эд (Шууд бэлэн shortcut)
-        top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
-        top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
-
-        // 8. Бүх 38 Хаягдсан бараа (Нэр, алдагдал, зөрүү, нэгжийн үнэ, тайлбартайгаа)
-        all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
-          name: i.name,
-          gap: `${i.gap} ${i.unit}`,
-          loss: `${i.impact}₮`,
-          unit_price: `${i.price}₮`,
-          notes: i.notes || ""
-        })),
-
-        // 9. Бүх Дутуу хийгдсэн / Илүүдэл орцын жагсаалт
-        all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
-          name: i.name,
-          gap: `${i.gap} ${i.unit}`,
-          savings: `${i.impact}₮`
-        })),
-        
-        // 10. Бүх 125 Түүхий эд (Нэр, бодит үлдэгдэл, Par нөөц, үнэ)
-        all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
-          name: i.name,
-          live_stock: `${i.live_stock} ${i.unit}`,
-          par_level: `${i.par_level} ${i.unit}`,
-          unit_price: `${i.price}₮`
-        })),
-        
-        // 11. Бүх Цэсний борлуулалт ба Ашгийн хувь
-        all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
-          name: m.name,
-          sold_count: m.sold,
-          selling_price: `${m.selling_price}₮`,
-          cost: `${m.cost_per_item}₮`,
-          margin: `${m.gross_margin_pct}%`
-        })),
-
-        // 12. Бүх 73 Бүтээгдэхүүний Бүтэн Жор
-        all_recipes: analyticsData.all_recipes,
-        
-        // 13. Ажилчдын ээлж (Улаанбаатарын цагаар, сүүлийн 10 ээлж)
-        recent_shifts: analyticsData.recent_shifts?.slice(0, 10), 
-        
-        // 14. Ажилчдын бүртгэсэн сүүлийн 40 хаягдал / гүйлгээ (10мл сүүтэй хамт)
-        recent_worker_logs: analyticsData.recent_worker_logs,
-        
-        // 15. OPEX Зардлын бүтэн задаргаа
-        opex_breakdown: analyticsData.opex_details
-      };
-
-   
-
-     
-
-
- 
-
- 
+    const richContext = {
+      client: tenantClientId,
+      financials: analyticsData.financial_ladder,
+      tax_summary: analyticsData.tax_summary,
+      cashflow: analyticsData.cashflow_summary,
+      payroll: analyticsData.payroll_summary,
+      total_waste_loss: analyticsData.total_waste_loss,
+      total_unexplained_waste: analyticsData.total_unexplained_waste,
+      total_surplus_savings: analyticsData.total_surplus_savings,
+      efficiency: analyticsData.efficiency,
+      logged_waste_breakdown: {
+        spoilage_loss: analyticsData.total_logged_spoilage || 0,
+        testing_cost: analyticsData.total_logged_testing || 0,
+        staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
+        other_cost: analyticsData.total_logged_other || 0
+      },
+      top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
+      top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
+      all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
+        name: i.name,
+        gap: `${i.gap} ${i.unit}`,
+        loss: `${i.impact}₮`,
+        unit_price: `${i.price}₮`,
+        notes: i.notes || ""
+      })),
+      all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
+        name: i.name,
+        gap: `${i.gap} ${i.unit}`,
+        savings: `${i.impact}₮`
+      })),
+      all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
+        name: i.name,
+        live_stock: `${i.live_stock} ${i.unit}`,
+        par_level: `${i.par_level} ${i.unit}`,
+        unit_price: `${i.price}₮`
+      })),
+      all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
+        name: m.name,
+        sold_count: m.sold,
+        selling_price: `${m.selling_price}₮`,
+        cost: `${m.cost_per_item}₮`,
+        margin: `${m.gross_margin_pct}%`
+      })),
+      all_recipes: analyticsData.all_recipes,
+      recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
+      recent_worker_logs: analyticsData.recent_worker_logs,
+      opex_breakdown: analyticsData.opex_details
+    };
 
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
 
-    // 💡 Түлхүүрүүд дундуур гүйх
+    // 💡 Түлхүүрүүд дундуур эргэлдэх
     const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
     let currentKeyIndex = 0;
     let replyText = "";
     let lastErrorDetails = "";
-    for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+
+    const maxTries = Math.min(API_KEYS.length, 2);
+
+    for (let attempt = 0; attempt < maxTries; attempt++) {
       const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
       const currentKey = API_KEYS[keyIdx];
-     
+
       try {
         const activeGenAI = new GoogleGenerativeAI(currentKey);
         const model = activeGenAI.getGenerativeModel({ 
@@ -678,13 +671,15 @@ export async function POST(request: Request) {
 
         replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim();
         if (replyText) {
-            currentKeyIndex = keyIdx;
-            break;
+          currentKeyIndex = keyIdx;
+          break;
         }
-      
       } catch (err: any) {
-          lastErrorDetails = err.message || String(err);
-          console.warn(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
+        lastErrorDetails = err.message || String(err);
+        console.warn(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
+        if (lastErrorDetails.includes("429") || lastErrorDetails.includes("503")) {
+          break;
+        }
       }
     }
 
@@ -692,6 +687,7 @@ export async function POST(request: Request) {
       replyText = getFriendlyErrorMessage(lastErrorDetails);
     }
 
+    // 💡 4. Түр мессежийг бодит хариултаар засах
     if (tempMessageId) {
       await editTelegramMessage(currentChatId, tempMessageId, replyText);
     } else {
@@ -713,7 +709,6 @@ export async function POST(request: Request) {
 // HELPER FUNCTIONS (Send, Edit, Callback, Checklists, Scorecards)
 // -----------------------------------------------------------------------------
 
-// 💡 Telegram-ийн 4096 тэмдэгтийн хязгаар ба Markdown алдаанаас сэргийлсэн найдвартай илгээгч
 async function sendTelegramMessage(chatId: number | null, text: string) {
   if (!chatId) return;
   const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
@@ -725,7 +720,6 @@ async function sendTelegramMessage(chatId: number | null, text: string) {
       body: JSON.stringify({ chat_id: chatId, text: safeText, parse_mode: "Markdown" })
     });
 
-    // Хэрэв Markdown-ийн тусгай тэмдэгтээс болж алдаа гарвал энгийн текстээр дахин илгээнэ
     if (!res.ok) {
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: 'POST',
@@ -738,7 +732,40 @@ async function sendTelegramMessage(chatId: number | null, text: string) {
   }
 }
 
-// 💡 Telegram-д "Бичиж байна..." төлөв илгээгч функц
+async function editTelegramMessage(chatId: number | null, messageId: number, text: string, inline_keyboard: any[] = []) {
+  if (!chatId) return;
+  const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        chat_id: chatId, 
+        message_id: messageId, 
+        text: safeText,
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard }
+      })
+    });
+
+    if (!res.ok) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: chatId, 
+          message_id: messageId, 
+          text: safeText,
+          reply_markup: { inline_keyboard }
+        })
+      });
+    }
+  } catch (err) {
+    console.error("editTelegramMessage Error:", err);
+  }
+}
+
 async function sendChatAction(chatId: number | null, action: string = 'typing') {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
@@ -781,41 +808,6 @@ async function sendTelegramMessageWithUndo(chatId: number | null, text: string, 
       }
     })
   });
-}
-
-// 💡 Засах үед мөн 4000 тэмдэгтэд багтаах
-async function editTelegramMessage(chatId: number | null, messageId: number, text: string, inline_keyboard: any[] = []) {
-  if (!chatId) return;
-  const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
-
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        chat_id: chatId, 
-        message_id: messageId, 
-        text: safeText,
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard }
-      })
-    });
-
-    if (!res.ok) {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          chat_id: chatId, 
-          message_id: messageId, 
-          text: safeText,
-          reply_markup: { inline_keyboard }
-        })
-      });
-    }
-  } catch (err) {
-    console.error("editTelegramMessage Error:", err);
-  }
 }
 
 async function sendTelegramMessageWithForceReply(chatId: number | null, text: string) {
@@ -975,4 +967,4 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
       }
     }
   }
-} 
+}
