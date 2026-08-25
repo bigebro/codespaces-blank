@@ -12,17 +12,25 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
+import { Download } from 'lucide-react';
+import { exportAuditExcel } from '../../lib/exportAudit';
 
 
 
-
-// 🚀 ХЭТ ХУРДАН, ГӨЛГӨР ЧАТНЫ БҮРЭЛДЭХҮҮН (NOTEPAD ШИГ 0MS ХУРДТАЙ)
-function AiCfoChatTab({ activeClient }: { activeClient: string }) {
+function AiCfoChatTab({ 
+  activeClient, 
+  startDate, 
+  endDate 
+}: { 
+  activeClient: string; 
+  startDate: string; 
+  endDate: string; 
+}) {
   const [cfoChatInput, setCfoChatInput] = useState('');
   const [cfoChatHistory, setCfoChatHistory] = useState<{ sender: 'owner' | 'ai'; text: string }[]>([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
 
-const handleChatSubmit = async (e: React.FormEvent) => {
+  const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cfoChatInput.trim()) return;
 
@@ -39,7 +47,10 @@ const handleChatSubmit = async (e: React.FormEvent) => {
           tenantClientId: activeClient,
           workerName: 'Owner',
           text: text,
-          userRole: 'owner'
+          userRole: 'owner',
+          // 💡 Сонгосон сарын огноог AI руу илгээнэ:
+          startDate: `${startDate}T00:00:00.000Z`,
+          endDate: `${endDate}T23:59:59.999Z`
         })
       });
 
@@ -1334,6 +1345,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                     );
                   })}
                 </select>
+                     {/* 🚀 АУДИТ/E-TAX ЭКСПОРТ ТОВЧ (ШИНЭЭР НЭМСЭН ХЭСЭГ) */}
+                <button
+                  onClick={() => exportAuditExcel(liveAnalytics, activeClient, startDate, endDate)}
+                  className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                >
+                  <Download className="h-4 w-4" />
+                  E-Tax & Аудит татах (.xlsx)
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
@@ -1940,8 +1959,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
           
         )}
         {/* 7. AI CFO CHAT TAB (OWNER ONLY) */}
-        {activeTab === 'ai_cfo' && userRole === 'owner' && (
-          <AiCfoChatTab activeClient={activeClient} />
+         {userRole === 'owner' && (
+          <div className={activeTab === 'ai_cfo' ? 'block' : 'hidden'}>
+            <AiCfoChatTab 
+              activeClient={activeClient} 
+              startDate={startDate} 
+              endDate={endDate} 
+            />
+          </div>
         )}
       {/* TASK & ROLE MANAGEMENT TAB */}
         {activeTab === 'tasks' && userRole === 'owner' && (

@@ -565,25 +565,85 @@ export async function POST(request: Request) {
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
-    const richContext = {
+ // 🚀 БҮХ 22 ҮЗҮҮЛЭЛТИЙГ БҮРЭН БАГТААСАН УХААЛАГ RICHCONTEXT (Smart DTO)
+      const richContext = {
         client: tenantClientId,
-        financials: fin,
+        
+        // 1. Санхүүгийн үндсэн шатлал (P&L)
+        financials: analyticsData.financial_ladder,
+        
+        // 2. 🏛️ Татварын мэдээлэл (1% ААНОАТ & НӨАТ)
+        tax_summary: analyticsData.tax_summary,
+        
+        // 3. 💵 Мөнгөн урсгал & Кассын бодит үлдэгдэл & Эзний таталт
+        cashflow: analyticsData.cashflow_summary,
+        
+        // 4. 👥 Ажилчдын цалингийн нэгтгэл (Цаг, НДШ 11.5%, ХХОАТ 10%, Гар дээрх)
+        payroll: analyticsData.payroll_summary,
+
+        // 5. Алдагдал ба Бүтээмжийн ерөнхий тоонууд
         total_waste_loss: analyticsData.total_waste_loss,
         total_unexplained_waste: analyticsData.total_unexplained_waste,
         total_surplus_savings: analyticsData.total_surplus_savings,
         efficiency: analyticsData.efficiency,
-        all_wasted_items: analyticsData.wasted_only,
-        all_underpoured_items: analyticsData.underpoured_only,
-        all_inventory_items: analyticsData.all_inventory_data,
-        all_menu_performance: analyticsData.menu_performance,
-        all_recipes: analyticsData.all_recipes,
-        recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
-        recent_worker_logs: analyticsData.recent_worker_logs,
-        opex_breakdown: analyticsData.opex_details,
-        top_wasted_items: analyticsData.top_wasters,
-        top_expensive_items: analyticsData.top_expensive
-      };
 
+        // 6. Тайлагнасан хаягдлын тусгай 4 задаргаа (Өртгөөс зардалд шилжсэн)
+        logged_waste_breakdown: {
+          spoilage_loss: analyticsData.total_logged_spoilage || 0,
+          testing_cost: analyticsData.total_logged_testing || 0,
+          staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
+          other_cost: analyticsData.total_logged_other || 0
+        },
+        
+        // 7. Топ 3 Хаягдал & Топ 3 Үнэтэй түүхий эд (Шууд бэлэн shortcut)
+        top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
+        top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
+
+        // 8. Бүх 38 Хаягдсан бараа (Нэр, алдагдал, зөрүү, нэгжийн үнэ, тайлбартайгаа)
+        all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
+          name: i.name,
+          gap: `${i.gap} ${i.unit}`,
+          loss: `${i.impact}₮`,
+          unit_price: `${i.price}₮`,
+          notes: i.notes || ""
+        })),
+
+        // 9. Бүх Дутуу хийгдсэн / Илүүдэл орцын жагсаалт
+        all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
+          name: i.name,
+          gap: `${i.gap} ${i.unit}`,
+          savings: `${i.impact}₮`
+        })),
+        
+        // 10. Бүх 125 Түүхий эд (Нэр, бодит үлдэгдэл, Par нөөц, үнэ)
+        all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
+          name: i.name,
+          live_stock: `${i.live_stock} ${i.unit}`,
+          par_level: `${i.par_level} ${i.unit}`,
+          unit_price: `${i.price}₮`
+        })),
+        
+        // 11. Бүх Цэсний борлуулалт ба Ашгийн хувь
+        all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
+          name: m.name,
+          sold_count: m.sold,
+          selling_price: `${m.selling_price}₮`,
+          cost: `${m.cost_per_item}₮`,
+          margin: `${m.gross_margin_pct}%`
+        })),
+
+        // 12. Бүх 73 Бүтээгдэхүүний Бүтэн Жор
+        all_recipes: analyticsData.all_recipes,
+        
+        // 13. Ажилчдын ээлж (Улаанбаатарын цагаар, сүүлийн 10 ээлж)
+        recent_shifts: analyticsData.recent_shifts?.slice(0, 10), 
+        
+        // 14. Ажилчдын бүртгэсэн сүүлийн 40 хаягдал / гүйлгээ (10мл сүүтэй хамт)
+        recent_worker_logs: analyticsData.recent_worker_logs,
+        
+        // 15. OPEX Зардлын бүтэн задаргаа
+        opex_breakdown: analyticsData.opex_details
+      };
 
    
 

@@ -101,6 +101,10 @@ export async function getAnalyticsData(
   let totalLoggedOther = 0;
   let totalUnexplainedWaste = 0;
 
+  // 💡 Cashflow & Татвар тооцох хувьсагчууд
+  let totalPurchasesCashPaid = 0;
+  let totalOwnerDraws = 0;
+
   const opexDetails = [
     { category: "Тогтмол зардал", item: "Rent & Utilities (Түрээс, ашиглалт)", cost: 1200000 },
     { category: "Тогтмол зардал", item: "Fixed Salaries (Тогтмол цалин)", cost: 1000000 }
@@ -138,17 +142,26 @@ export async function getAnalyticsData(
     const cost = parseFloat(log.total_cost) || 0;
     const qty = parseFloat(log.quantity) || 0; 
     const logDate = log.date ? log.date.split('T')[0] : '';
+    const noteText = (log.notes || "").toLowerCase();
 
-    if (log.type === 'purchase' && !log.ingredient_id) {
-      if (logDate >= startDay && logDate <= endDay) {
-        totalOpex += cost;
-        opexDetails.push({
-          category: "Хүнсний бус татан авалт (OPEX)",
-          item: `${log.non_food_item || 'Бусад зардал'} (тоо: ${Math.round(qty)})`,
-          cost: Math.round(cost)
-        });
+    // 💡 Эзний хувийн хэрэглээг ялгах (AccountingFlow загвар)
+    if (noteText.includes('эзний') || noteText.includes('хувийн') || noteText.includes('draw')) {
+      totalOwnerDraws += cost > 0 ? cost : Math.abs(qty);
+    }
+
+    if (log.type === 'purchase') {
+      totalPurchasesCashPaid += cost;
+      if (!log.ingredient_id) {
+        if (logDate >= startDay && logDate <= endDay) {
+          totalOpex += cost;
+          opexDetails.push({
+            category: "Хүнсний бус татан авалт (OPEX)",
+            item: `${log.non_food_item || 'Бусад зардал'} (тоо: ${Math.round(qty)})`,
+            cost: Math.round(cost)
+          });
+        }
+        return;
       }
-      return;
     }
 
     const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
@@ -334,7 +347,6 @@ export async function getAnalyticsData(
     totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
 
     const noteStr = itemLogs.notes.length > 0 ? " (Тайлбар: " + [...new Set(itemLogs.notes)].join(", ") + ")" : "";
-
     fullInventory.push({
       name: m.name,
       par_level: Math.round(activeParLevel * 100) / 100, 
@@ -353,9 +365,50 @@ export async function getAnalyticsData(
   const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
   const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
   const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
+  
+  // 💡 1% ААНОАТ & CASHFLOW БОДОХ:
   const simplifiedTax1Pct = Math.round(totalRevenue * 0.01);
+  const estimatedVat10Pct = Math.round((totalRevenue / 1.1) * 0.1);
+  const netCashflowBalance = totalRevenue - totalPurchasesCashPaid - adjustedOpex - totalOwnerDraws;
 
-  // 🚀 1. АЖИЛТАН БҮРИЙН ГҮЙЛГЭЭГ УЛААНБААТАРЫН ЦАГААР ХӨРВҮҮЛЭХ (+8 ЦАГ):
+  // 💡 ЦАЛИНГИЙН НЭГТГЭЛ БОДОХ (AccountingFlow загвар):
+  const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
+  const defaultHourlyRate = 6500; // 6,500₮ / цаг
+
+  (rawShifts || []).forEach((shift: any) => {
+    if (shift.start_time && shift.end_time) {
+      const workerKey = shift.character_role || "Ажилтан";
+      const durationMs = new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime();
+      const durationMins = Math.max(0, Math.floor(durationMs / (1000 * 60)));
+
+      if (!staffHoursMap[workerKey]) {
+        staffHoursMap[workerKey] = { role: workerKey, totalMinutes: 0, shiftCount: 0 };
+      }
+      staffHoursMap[workerKey].totalMinutes += durationMins;
+      staffHoursMap[workerKey].shiftCount += 1;
+    }
+  });
+
+  const payrollSummary = Object.keys(staffHoursMap).map(worker => {
+    const data = staffHoursMap[worker];
+    const hoursDecimal = Math.round((data.totalMinutes / 60) * 10) / 10;
+    const grossSalary = Math.round(hoursDecimal * defaultHourlyRate);
+    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% НДШ
+    const hhoatDeduction = Math.round((grossSalary - ndshDeduction) * 0.10); // 10% ХХОАТ
+    const netTakeHome = grossSalary - ndshDeduction - hhoatDeduction;
+
+    return {
+      worker_name: worker,
+      shift_count: data.shiftCount,
+      total_hours: hoursDecimal,
+      hourly_rate: defaultHourlyRate,
+      gross_salary: grossSalary,
+      ndsh_deduction: ndshDeduction,
+      hhoat_deduction: hhoatDeduction,
+      net_take_home: netTakeHome
+    };
+  });
+
   const timelineLogs = rawInventoryLogs.map((log: any) => {
     const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
     return {
@@ -370,7 +423,6 @@ export async function getAnalyticsData(
     };
   });
 
-  // 🚀 2. ЭЭЛЖҮҮДИЙГ УЛААНБААТАРЫН ЦАГААР ХӨРВҮҮЛЭХ:
   const formattedShifts = (rawShifts || []).map((s: any) => ({
     worker: s.character_role || "Ерөнхий ажилтан",
     start_time: s.start_time ? new Date(s.start_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "-",
@@ -379,7 +431,7 @@ export async function getAnalyticsData(
     tasks_done: s.daily_tasks_checklist || []
   }));
 
-  // 🎯 ТАНЫ ХҮССЭН БҮХ 16 ӨГӨГДЛИЙГ 1 Ч ҮЛДЭЭХГҮЙ 100% БУЦААНА:
+  // 🎯 EXCEL БА АУДИТЫН БҮХ ТОМУУДЫГ БҮРЭН БУЦААХ:
   return {
     financial_ladder: {
       revenue: totalRevenue,
@@ -391,6 +443,20 @@ export async function getAnalyticsData(
       net_profit: Math.round(finalEbit - simplifiedTax1Pct) || 0,
       net_margin: totalRevenue > 0 ? (((finalEbit - simplifiedTax1Pct) / totalRevenue) * 100).toFixed(2) + "%" : "0%"
     },
+    // 🚀 EXCEL-ИЙН 0₮ БОЛООД БАЙСАН ТАТВАР БА МӨНГӨН ДҮНГҮҮД:
+    tax_summary: {
+      simplified_1pct: simplifiedTax1Pct, // 👈 22,844₮
+      estimated_vat_10pct: estimatedVat10Pct
+    },
+    cashflow_summary: {
+      cash_in: totalRevenue,
+      cash_out_purchases: totalPurchasesCashPaid,
+      cash_out_opex: adjustedOpex,
+      owner_draws: totalOwnerDraws,
+      net_cash_balance: netCashflowBalance // 👈 Кассын бодит үлдэгдэл
+    },
+    payroll_summary: payrollSummary, // 👈 Цалингийн хүснэгт
+
     top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
     top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
     all_inventory_data: fullInventory,
@@ -399,11 +465,15 @@ export async function getAnalyticsData(
     menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
     all_recipes: allRecipesMap,
     opex_details: opexDetails,
-    all_timeline_logs: timelineLogs, // 👈 Бүх цаг хугацааны бүртгэл
-    recent_shifts: formattedShifts, // 👈 Улаанбаатарын цагаар хөрвөсөн ээлжүүд
-    recent_worker_logs: timelineLogs.slice(0, 40), // 👈 Бариста нарын сүүлийн 40 гүйлгээ (10мл сүүтэй хамт)
+    all_timeline_logs: timelineLogs,
+    recent_shifts: formattedShifts,
+    recent_worker_logs: timelineLogs.slice(0, 40),
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
+    total_logged_spoilage: totalLoggedSpoilage || 0,
+    total_logged_testing: totalLoggedTesting || 0,
+    total_logged_staff_meal: totalLoggedStaffMeal || 0,
+    total_logged_other: totalLoggedOther || 0,
     total_surplus_savings: totalSurplusSavings || 0,
     efficiency: rawActualCogs > 0 ? ((totalTheoCogs / rawActualCogs) * 100).toFixed(2) + "%" : "0%"
   };
