@@ -3,9 +3,9 @@ import { supabase } from '../../../lib/supabase';
 import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic'; 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const OWNER_CFO_PROMPT = `
   Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх (CFO) болон стратегийн хамтрагч юм. 
@@ -23,7 +23,27 @@ const WORKER_BOT_PROMPT = `
   2. Ажилтан санхүүгийн ашиг, орлого, тайлан асуувал ШУУД ингэж татгалзан хариулна: 
      "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
 `;
+function getFriendlyErrorMessage(error: any): string {
+  const errStr = (error?.message || String(error || "")).toLowerCase();
 
+  // 1. 503 Server High Demand / Overloaded
+  if (errStr.includes("503") || errStr.includes("high demand") || errStr.includes("unavailable") || errStr.includes("overloaded")) {
+    return "⚠️ AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
+  }
+
+  // 2. 429 Quota Exceeded / Rate Limit
+  if (errStr.includes("429") || errStr.includes("quota") || errStr.includes("rate limit") || errStr.includes("too many requests")) {
+    return "⚠️ Асуултын лимит түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
+  }
+
+  // 3. Network / Connection issue
+  if (errStr.includes("fetch failed") || errStr.includes("network") || errStr.includes("timeout") || errStr.includes("econnrefused")) {
+    return "⚠️ Холболт түр саатлаа. Та дахин илгээнэ үү.";
+  }
+
+  // 4. Ерөнхий бусад алдаа
+  return "⚠️ Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
+}
 export async function POST(request: Request) {
   let currentChatId: number | null = null;
   const reqUrl = new URL(request.url);
@@ -546,20 +566,33 @@ export async function POST(request: Request) {
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
     const richContext = {
-      client: tenantClientId,
-      financials: fin,
-      total_waste_loss: analyticsData.total_waste_loss,
-      total_unexplained_waste: analyticsData.total_unexplained_waste,
-      total_surplus_savings: analyticsData.total_surplus_savings,
-      efficiency: analyticsData.efficiency,
-      all_wasted_items: analyticsData.wasted_only,
-      all_underpoured_items: analyticsData.underpoured_only,
-      all_inventory_items: analyticsData.all_inventory_data,
-      all_menu_performance: analyticsData.menu_performance,
-      all_recipes: analyticsData.all_recipes,
-      recent_shifts: analyticsData.recent_shifts,
-      opex_breakdown: analyticsData.opex_details
-    };
+        client: tenantClientId,
+        financials: fin,
+        total_waste_loss: analyticsData.total_waste_loss,
+        total_unexplained_waste: analyticsData.total_unexplained_waste,
+        total_surplus_savings: analyticsData.total_surplus_savings,
+        efficiency: analyticsData.efficiency,
+        all_wasted_items: analyticsData.wasted_only,
+        all_underpoured_items: analyticsData.underpoured_only,
+        all_inventory_items: analyticsData.all_inventory_data,
+        all_menu_performance: analyticsData.menu_performance,
+        all_recipes: analyticsData.all_recipes,
+        recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
+        recent_worker_logs: analyticsData.recent_worker_logs,
+        opex_breakdown: analyticsData.opex_details,
+        top_wasted_items: analyticsData.top_wasters,
+        top_expensive_items: analyticsData.top_expensive
+      };
+
+
+   
+
+     
+
+
+ 
+
+ 
 
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
 
@@ -571,7 +604,7 @@ export async function POST(request: Request) {
     for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
       const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
       const currentKey = API_KEYS[keyIdx];
-      let lastErrorMsg = "";
+     
       try {
         const activeGenAI = new GoogleGenerativeAI(currentKey);
         const model = activeGenAI.getGenerativeModel({ 
@@ -590,14 +623,13 @@ export async function POST(request: Request) {
         }
       
       } catch (err: any) {
-        // console.warn(`Telegram API Key #${keyIdx +1} failed, switching to next key...`);
           lastErrorDetails = err.message || String(err);
-          console.error(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
+          console.warn(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
       }
     }
 
     if (!replyText) {
-      replyText = `❌ Алдааны дэлгэрэнгүй: ${lastErrorDetails}`;
+      replyText = getFriendlyErrorMessage(lastErrorDetails);
     }
 
     if (tempMessageId) {

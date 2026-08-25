@@ -50,9 +50,16 @@ function getSimilarity(s1: string, s2: string): number {
 
 export async function getAnalyticsData(
   clientId: string = 'SF Coffee',
-  startDate: string = '2026-05-30T00:00:00.000Z',
-  endDate: string = '2026-06-30T23:59:59.999Z'
+  startDate?: string,
+  endDate?: string
 ) {
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const defaultEnd = now.toISOString();
+
+  const finalStartDate = startDate || defaultStart;
+  const finalEndDate = endDate || defaultEnd;
+
   // 1. Fetch tables directly
   const [
     { data: rawIngredients },
@@ -62,12 +69,12 @@ export async function getAnalyticsData(
     { data: rawShifts },
     { data: rawProducts }
   ] = await Promise.all([
-    supabase.from('ingredients').select('*').eq('client_id', clientId),
-    supabase.from('recipes').select('*').eq('client_id', clientId),
-    supabase.from('inventory_logs').select('*').eq('client_id', clientId).lte('date', endDate),
-    supabase.from('sales_logs').select('*').eq('client_id', clientId).gte('date', startDate).lte('date', endDate),
-    supabase.from('shifts').select('*').eq('client_id', clientId).gte('start_time', startDate).lte('start_time', endDate),
-    supabase.from('products').select('*').eq('client_id', clientId)
+    supabase.from('ingredients').select('*').ilike('client_id', clientId),
+    supabase.from('recipes').select('*').ilike('client_id', clientId),
+    supabase.from('inventory_logs').select('*').ilike('client_id', clientId).order('date', { ascending: false }),
+    supabase.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
+    supabase.from('shifts').select('*').ilike('client_id', clientId).order('start_time', { ascending: false }).limit(20),
+    supabase.from('products').select('*').ilike('client_id', clientId)
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
@@ -124,8 +131,8 @@ export async function getAnalyticsData(
     };
   });
 
-  const startDay = startDate.split('T')[0];
-  const endDay = endDate.split('T')[0];
+  const startDay = finalStartDate.split('T')[0];
+  const endDay = finalEndDate.split('T')[0];
 
   rawInventoryLogs.forEach((log: any) => {
     const cost = parseFloat(log.total_cost) || 0;
@@ -348,7 +355,31 @@ export async function getAnalyticsData(
   const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
   const simplifiedTax1Pct = Math.round(totalRevenue * 0.01);
 
-  // 💡 src/lib/analytics.ts файлын төгсгөлийн return хэсэг:
+  // 🚀 1. АЖИЛТАН БҮРИЙН ГҮЙЛГЭЭГ УЛААНБААТАРЫН ЦАГААР ХӨРВҮҮЛЭХ (+8 ЦАГ):
+  const timelineLogs = rawInventoryLogs.map((log: any) => {
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    return {
+      date: log.date ? new Date(log.date).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar', dateStyle: 'short' }) : 'Unknown',
+      time: log.date ? new Date(log.date).toLocaleTimeString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : '',
+      worker: log.worker_name || 'Үл мэдэгдэх',
+      item: ing ? ing.name : (log.non_food_item || "Unknown"),
+      qty: log.quantity,
+      unit: ing ? ing.unit : 'ш',
+      type: log.type,
+      notes: log.notes || ""
+    };
+  });
+
+  // 🚀 2. ЭЭЛЖҮҮДИЙГ УЛААНБААТАРЫН ЦАГААР ХӨРВҮҮЛЭХ:
+  const formattedShifts = (rawShifts || []).map((s: any) => ({
+    worker: s.character_role || "Ерөнхий ажилтан",
+    start_time: s.start_time ? new Date(s.start_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "-",
+    end_time: s.end_time ? new Date(s.end_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "Хаагдаагүй (Идэвхтэй)",
+    is_active: s.is_active,
+    tasks_done: s.daily_tasks_checklist || []
+  }));
+
+  // 🎯 ТАНЫ ХҮССЭН БҮХ 16 ӨГӨГДЛИЙГ 1 Ч ҮЛДЭЭХГҮЙ 100% БУЦААНА:
   return {
     financial_ladder: {
       revenue: totalRevenue,
@@ -362,16 +393,15 @@ export async function getAnalyticsData(
     },
     top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
     top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
-    
-    // 🚀 AI-Д ЗОРИУЛСАН БҮРЭН ДЭЛГЭРЭНГҮЙ МАССИВУУД (БҮГДИЙГ 100% БҮРЭН ӨГНӨ):
     all_inventory_data: fullInventory,
-    wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact), // Бүх хаягдсан барааны бүтэн жагсаалт
-    underpoured_only: fullInventory.filter(i => i.is_under).sort((a,b) => b.impact - a.impact), // Бүх дутуу хийгдсэн/илүүдлийн жагсаалт
-    menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold), // Бүх менюний зарах үнэ, өртөг, ашиг
-    all_recipes: allRecipesMap, // Бүх ундаа хоолны бүтэн жор
-    opex_details: opexDetails, // OPEX зардлын бүх гүйлгээ
-    recent_shifts: rawShifts || [], // Бүх ажилчдын ээлж ба даалгавар
-    all_timeline_logs: rawInventoryLogs || [], // Бүх өдрийн гүйлгээний түүх
+    wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact),
+    underpoured_only: fullInventory.filter(i => i.is_under).sort((a,b) => b.impact - a.impact),
+    menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
+    all_recipes: allRecipesMap,
+    opex_details: opexDetails,
+    all_timeline_logs: timelineLogs, // 👈 Бүх цаг хугацааны бүртгэл
+    recent_shifts: formattedShifts, // 👈 Улаанбаатарын цагаар хөрвөсөн ээлжүүд
+    recent_worker_logs: timelineLogs.slice(0, 40), // 👈 Бариста нарын сүүлийн 40 гүйлгээ (10мл сүүтэй хамт)
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
     total_surplus_savings: totalSurplusSavings || 0,
