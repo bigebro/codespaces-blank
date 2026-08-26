@@ -42,7 +42,7 @@ export async function parseOperationalText(text: string, ingredientsList: string
         const currentKey = API_KEYS[keyIdx];
     try {
       const ai = new GoogleGenerativeAI(currentKey);
-      const model = ai.getGenerativeModel({ model: 'gemini-3.7-flash' });
+      const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
       const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: `System: ${systemPrompt}\n\nUser Message: "${text}"` }] }]
       });
@@ -126,7 +126,7 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
         const currentKey = API_KEYS[keyIdx];
     try {
       const ai = new GoogleGenerativeAI(currentKey);
-      const model = ai.getGenerativeModel({ model: 'gemini-3.7-flash' });
+      const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
       const response = await model.generateContent({
         contents: [{
           role: 'user',

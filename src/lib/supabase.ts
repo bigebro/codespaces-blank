@@ -6,7 +6,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 // Create a single global instance of Supabase with fixed syntax 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-  persistSession: true,      
+    persistSession: true,      
     autoRefreshToken: true,
     detectSessionInUrl: true
   }
