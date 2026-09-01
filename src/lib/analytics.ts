@@ -398,7 +398,21 @@ export async function getAnalyticsData(
       is_under: rawGap < -0.1,
       live_stock: m.live_stock
     });
+   // 1. Муудсан, хугацаа дууссан барааг бодит шалтгаантай нь актад нэмэх 
+    if (itemLogs.spoilage > 0) {
+      wasteAuditItems.push({
+        name: m.name,
+        theo_usage: Math.round(m.theoretical * 10) / 10,
+        actual_usage: Math.round(safeActual * 10) / 10,
+        gap_qty: Math.round(itemLogs.spoilage * 10) / 10,
+        unit: m.unit,
+        unit_price: m.unit_price,
+        loss_amount: Math.round(itemLogs.spoilage * m.unit_price),
+        cause: "Хугацаа дууссан / Чанарын шаардлага хангаагүй (Бүртгэлтэй акт)"
+      });
+    }
 
+   // 2. Шалтгаангүй далд хорогдлыг хуулийн дагуу актад нэмэх
     if (unexplainedGap > 0.05 && unexplainedImpact > 10) {
       wasteAuditItems.push({
         name: m.name,

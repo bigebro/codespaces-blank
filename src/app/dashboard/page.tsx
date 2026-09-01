@@ -762,8 +762,11 @@ useEffect(() => {
         ingMap.set(cleanNameForMatch(i.name), i);
       });
 
-      rows.forEach(row => {
-        if (!row.trim()) return;
+    // ✍️ ШИНЭЧЛЭХ УХААЛАГ ХЭСЭГ:
+      const nonFoodKeywords = ['сальфетка', 'аяга', 'уут', 'угаагч', 'цэвэрлэгээ', 'соруул', 'таг', 'саван', 'soap', 'napkin', 'bag', 'paper', 'detergent', 'cleaning'];
+
+      for (const row of rows) {
+        if (!row.trim()) continue;
         const cols = row.split('\t');
         let ingName = "";
         let qty = 0;
@@ -781,32 +784,55 @@ useEffect(() => {
           totalCost = cols[2] ? parseFloat(cols[2]?.replace(/[^0-9.\-]/g, "")) || 0 : 0;
         }
 
-        const matchedIng = ingMap.get(cleanNameForMatch(ingName));
+        if (!ingName || qty <= 0) continue;
 
-        if (matchedIng && qty > 0) {
+        const isKnownNonFood = nonFoodKeywords.some(k => ingName.toLowerCase().includes(k));
+        let matchedIng = ingMap.get(cleanNameForMatch(ingName));
+
+        if (!matchedIng && !isKnownNonFood) {
+          // Хэрэв сальфетка, угаалгын шингэн биш бол ЭНЭ БОЛ ХҮНС! ingredients-д автоматаар үүсгэнэ
+          const unitPrice = qty > 0 ? Math.round(totalCost / qty) : 0;
+          const { data: newIng } = await supabase
+            .from('ingredients')
+            .insert([{ client_id: activeClient, name: ingName, unit: 'ш', unit_price: unitPrice, current_stock: 0 }])
+            .select()
+            .single();
+
+          if (newIng) {
+            matchedIng = newIng;
+            ingMap.set(cleanNameForMatch(ingName), newIng);
+          }
+        }
+
+        if (matchedIng) {
+          // 🥐 ХҮНСНИЙ ТҮҮХИЙ ЭД -> Агуулахын Хөрөнгө (COGS)
           purchasesToInsert.push({
-            client_id: activeClient, // ✅ Салбар тодорхой
+            client_id: activeClient,
             ingredient_id: matchedIng.id,
             quantity: qty,
             type: 'purchase',
             total_cost: totalCost,
             date: dateVal,
+            payment_method: 'bank',
+            is_ebarimt: true,
             notes: `Бөөнөөр Татан Авалт (Cost: ${totalCost}₮)`
           });
-        } else if (qty > 0 && ingName) {
-          // Хүнсний бус татан авалт (OPEX)
+        } else {
+          // 🧼 ЖИНХЭНЭ ХҮНСНИЙ БУС ЗҮЙЛС (Сальфетка г.м) -> OPEX
           purchasesToInsert.push({
-            client_id: activeClient, // ✅ Салбар тодорхой
+            client_id: activeClient,
             ingredient_id: null,
             non_food_item: ingName,
             quantity: qty,
             type: 'purchase',
             total_cost: totalCost,
             date: dateVal,
+            payment_method: 'bank',
+            is_ebarimt: true,
             notes: `Хүнсний бус татан авалт (OPEX)`
           });
         }
-      });
+      }
 
       if (purchasesToInsert.length > 0) {
         const { error } = await supabase.from('inventory_logs').insert(purchasesToInsert);
