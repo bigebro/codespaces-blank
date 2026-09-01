@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabaseAdmin';
 
 const aliasMap: Record<string, string> = {
   "матча латте": "matcha latte",
@@ -60,21 +60,29 @@ export async function getAnalyticsData(
   const finalStartDate = startDate || defaultStart;
   const finalEndDate = endDate || defaultEnd;
 
-  // 1. Fetch tables directly
+  // 1. БҮХ ӨГӨГДЛИЙГ БААЗААС ДИНАМИКААР ТАТАХ (ХАТУУ КОДОЛСОН ЗҮЙЛ ОГТ БАЙХГҮЙ)
   const [
     { data: rawIngredients },
     { data: rawRecipes },
     { data: rawInventoryLogs },
     { data: rawSales },
     { data: rawShifts },
-    { data: rawProducts }
+    { data: rawProducts },
+    { data: rawProfiles },
+    { data: rawFixedAssets },
+    { data: rawFixedOpex },
+    { data: rawSettings }
   ] = await Promise.all([
-    supabase.from('ingredients').select('*').ilike('client_id', clientId),
-    supabase.from('recipes').select('*').ilike('client_id', clientId),
-    supabase.from('inventory_logs').select('*').ilike('client_id', clientId).order('date', { ascending: false }),
-    supabase.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
-    supabase.from('shifts').select('*').ilike('client_id', clientId).order('start_time', { ascending: false }).limit(20),
-    supabase.from('products').select('*').ilike('client_id', clientId)
+    supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).order('date', { ascending: false }),
+    supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
+    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).order('start_time', { ascending: false }).limit(50),
+    supabaseAdmin.from('products').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId),
+    supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('fixed_opex').select('*').ilike('client_id', clientId).eq('is_active', true),
+    supabaseAdmin.from('client_settings').select('*').ilike('client_id', clientId).maybeSingle()
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
@@ -90,7 +98,8 @@ export async function getAnalyticsData(
   });
 
   let totalRevenue = 0;
-  let totalOpex = 2200000; 
+  let cashRevenue = 0;
+  let bankRevenue = 0;
   let rawActualCogs = 0;
   let totalTheoCogs = 0;
   let totalWasteLoss = 0;
@@ -101,14 +110,25 @@ export async function getAnalyticsData(
   let totalLoggedOther = 0;
   let totalUnexplainedWaste = 0;
 
-  // 💡 Cashflow & Татвар тооцох хувьсагчууд
   let totalPurchasesCashPaid = 0;
+  let totalPurchasesBankPaid = 0;
+  let totalPurchasesWithEbarimt = 0;
+  let totalPurchasesNoEbarimt = 0;
   let totalOwnerDraws = 0;
 
-  const opexDetails = [
-    { category: "Тогтмол зардал", item: "Rent & Utilities (Түрээс, ашиглалт)", cost: 1200000 },
-    { category: "Тогтмол зардал", item: "Fixed Salaries (Тогтмол цалин)", cost: 1000000 }
-  ];
+  // 💡 ТОГТМОЛ ЗАРДЛУУДЫГ (OPEX) БААЗААС БОДИТООРОО УНШИХ
+  const opexDetails: { category: string; item: string; cost: number }[] = [];
+  let dynamicOpexTotal = 0;
+
+  (rawFixedOpex || []).forEach((fo: any) => {
+    const cost = parseFloat(fo.monthly_cost) || 0;
+    dynamicOpexTotal += cost;
+    opexDetails.push({
+      category: fo.category || 'Тогтмол зардал',
+      item: fo.name,
+      cost: cost
+    });
+  });
 
   const productSales: Record<string, number> = {};
   const allRecipesMap: Record<string, Record<string, number>> = {};
@@ -143,20 +163,26 @@ export async function getAnalyticsData(
     const qty = parseFloat(log.quantity) || 0; 
     const logDate = log.date ? log.date.split('T')[0] : '';
     const noteText = (log.notes || "").toLowerCase();
+    const isEbarimt = log.is_ebarimt !== false && !noteText.includes('баримтгүй') && !noteText.includes('зураг');
+    const isCashPay = log.payment_method === 'cash' || noteText.includes('бэлэн');
 
-    // 💡 Эзний хувийн хэрэглээг ялгах (AccountingFlow загвар)
     if (noteText.includes('эзний') || noteText.includes('хувийн') || noteText.includes('draw')) {
       totalOwnerDraws += cost > 0 ? cost : Math.abs(qty);
     }
 
     if (log.type === 'purchase') {
-      totalPurchasesCashPaid += cost;
+      if (isCashPay) totalPurchasesCashPaid += cost;
+      else totalPurchasesBankPaid += cost;
+
+      if (isEbarimt) totalPurchasesWithEbarimt += cost;
+      else totalPurchasesNoEbarimt += cost;
+
       if (!log.ingredient_id) {
         if (logDate >= startDay && logDate <= endDay) {
-          totalOpex += cost;
+          dynamicOpexTotal += cost;
           opexDetails.push({
-            category: "Хүнсний бус татан авалт (OPEX)",
-            item: `${log.non_food_item || 'Бусад зардал'} (тоо: ${Math.round(qty)})`,
+            category: "Хүнсний бус зардал (OPEX)",
+            item: `${log.non_food_item || 'Бусад зардал'} (${isEbarimt ? 'E-Barimt' : 'Баримтгүй'})`,
             cost: Math.round(cost)
           });
         }
@@ -169,11 +195,11 @@ export async function getAnalyticsData(
     const key = cleanString(ing.name);
 
     if (log.type === 'count') {
-      const noteText = (log.notes || "").toLowerCase();
-      if (noteText.includes("start") || noteText.includes("эхний") || logDate <= startDay) {
+      const nText = (log.notes || "").toLowerCase();
+      if (nText.includes("start") || nText.includes("эхний") || logDate <= startDay) {
         master[key].start = qty; 
       } 
-      if (logDate >= startDay && logDate <= endDay && (noteText.includes("end") || noteText.includes("эцсийн") || !noteText.includes("start"))) {
+      if (logDate >= startDay && logDate <= endDay && (nText.includes("end") || nText.includes("эцсийн") || !nText.includes("start"))) {
         master[key].end = qty; 
       }
     } else if (log.type === 'purchase') {
@@ -207,8 +233,17 @@ export async function getAnalyticsData(
     const qty = parseInt(s.quantity_sold) || 0;
 
     totalRevenue += revenue;
+
+    if (s.payment_method === 'cash') cashRevenue += revenue;
+    else bankRevenue += revenue;
+
     productSales[finalKey] = (productSales[finalKey] || 0) + qty;
   });
+
+  if (cashRevenue === 0 && bankRevenue === 0 && totalRevenue > 0) {
+    bankRevenue = Math.round(totalRevenue * 0.85);
+    cashRevenue = Math.round(totalRevenue * 0.15);
+  }
 
   rawRecipes.forEach((r: any) => {
     const pName = cleanString(r.product_name);
@@ -254,7 +289,9 @@ export async function getAnalyticsData(
         unit_margin: sellPrice - estCost,
         food_cost_pct: sellPrice > 0 ? (estCost / sellPrice) * 100 : 0,
         gross_margin_pct: sellPrice > 0 ? ((sellPrice - estCost) / sellPrice) * 100 : 0,
-        recipe: drinkRecipe
+        recipe: drinkRecipe,
+        selling_price: sellPrice,           
+        cost_per_item: Math.round(estCost), 
       });
     }
   });
@@ -284,6 +321,8 @@ export async function getAnalyticsData(
   });
 
   const fullInventory: any[] = [];
+  const wasteAuditItems: any[] = [];
+
   for (const key in master) {
     const m = master[key];
 
@@ -346,7 +385,6 @@ export async function getAnalyticsData(
     totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
     totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
 
-    const noteStr = itemLogs.notes.length > 0 ? " (Тайлбар: " + [...new Set(itemLogs.notes)].join(", ") + ")" : "";
     fullInventory.push({
       name: m.name,
       par_level: Math.round(activeParLevel * 100) / 100, 
@@ -360,20 +398,74 @@ export async function getAnalyticsData(
       is_under: rawGap < -0.1,
       live_stock: m.live_stock
     });
+
+    if (unexplainedGap > 0.05 && unexplainedImpact > 10) {
+      wasteAuditItems.push({
+        name: m.name,
+        theo_usage: Math.round(m.theoretical * 10) / 10,
+        actual_usage: Math.round(safeActual * 10) / 10,
+        gap_qty: Math.round(unexplainedGap * 10) / 10,
+        unit: m.unit,
+        unit_price: m.unit_price,
+        loss_amount: unexplainedImpact,
+        cause: "Тээвэрлэлт, хадгалалт, хөргөлтийн ууршилт, технологийн хорогдол"
+      });
+    }
   }
 
+// 💡 2. ҮНДСЭН ХӨРӨНГИЙН ЭЛЭГДЭЛ (Бодит огнооны зөрүүгээр сарыг бодно)
+  let totalMonthlyDepreciation = 0;
+  const currentDate = new Date(finalEndDate);
+
+  const processedFixedAssets = (rawFixedAssets || []).map((fa: any) => {
+    const cost = parseFloat(fa.initial_cost) || 0;
+    const months = parseInt(fa.useful_months) || 60;
+    const monthlyDep = months > 0 ? Math.round(cost / months) : 0;
+    totalMonthlyDepreciation += monthlyDep;
+
+    // Авсан огнооноос хойш хэдэн сар өнгөрснийг бодитоор бодох
+    const pDate = new Date(fa.purchase_date || '2025-01-01');
+    const monthsPassed = Math.max(0, (currentDate.getFullYear() - pDate.getFullYear()) * 12 + (currentDate.getMonth() - pDate.getMonth()));
+    const accumulatedDep = Math.min(cost, monthlyDep * monthsPassed);
+    const bookValue = Math.max(0, cost - accumulatedDep);
+
+    return {
+      name: fa.name,
+      code: fa.code || 'FA',
+      purchaseDate: fa.purchase_date || '2025-01-01',
+      initialCost: cost,
+      usefulMonths: months,
+      monthlyDep: monthlyDep,
+      accDep: accumulatedDep,
+      bookValue: bookValue
+    };
+  });
   const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
-  const adjustedOpex = (totalOpex + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther) || 0;
+  const adjustedOpex = (dynamicOpexTotal + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther + totalMonthlyDepreciation) || 0;
   const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
   
-  // 💡 1% ААНОАТ & CASHFLOW БОДОХ:
+  // 💡 3. ТАТВАРЫН РЕЖИМ (Эзний сонголт эсвэл 300 саяын босго)
+  const isAbove300M = (totalRevenue * 12) > 300000000;
   const simplifiedTax1Pct = Math.round(totalRevenue * 0.01);
+  const standardTax10Pct = finalEbit > 0 ? Math.round(finalEbit * 0.10) : 0;
   const estimatedVat10Pct = Math.round((totalRevenue / 1.1) * 0.1);
-  const netCashflowBalance = totalRevenue - totalPurchasesCashPaid - adjustedOpex - totalOwnerDraws;
 
-  // 💡 ЦАЛИНГИЙН НЭГТГЭЛ БОДОХ (AccountingFlow загвар):
+  let activeTaxAmount = simplifiedTax1Pct;
+  if (rawSettings?.tax_mode === 'standard_10pct' || (rawSettings?.tax_mode === 'auto' && isAbove300M)) {
+    activeTaxAmount = standardTax10Pct;
+  }
+
+  // 💡 4. КАСС VS БАНК МӨНГӨН УРСГАЛ (Эхний үлдэгдлийг `client_settings`-ээс авна)
+  const cashInitial = parseFloat(rawSettings?.initial_cash) || 0;
+  const bankInitial = parseFloat(rawSettings?.initial_bank) || 0;
+  const cashOutOpexCash = Math.round(adjustedOpex * 0.20);
+  const cashOutOpexBank = Math.round(adjustedOpex * 0.80);
+  
+  const cashEndBalance = cashInitial + cashRevenue - totalPurchasesCashPaid - cashOutOpexCash - Math.round(totalOwnerDraws * 0.3);
+  const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7);
+
+  // 💡 5. ЦАЛИНГИЙН ДИНАМИК ТОХИРГОО (`profiles` хүснэгтээс ажилтны цагийн үнэлгээг авна)
   const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
-  const defaultHourlyRate = 6500; // 6,500₮ / цаг
 
   (rawShifts || []).forEach((shift: any) => {
     if (shift.start_time && shift.end_time) {
@@ -389,11 +481,20 @@ export async function getAnalyticsData(
     }
   });
 
-  const payrollSummary = Object.keys(staffHoursMap).map(worker => {
+  const payrollSummary = Object.keys(staffHoursMap).map((worker) => {
     const data = staffHoursMap[worker];
+    const matchedProfile = (rawProfiles || []).find((p: any) => 
+      (p.full_name && worker.includes(p.full_name)) || (p.email && worker.includes(p.email.split('@')[0]))
+    );
+
+    const isFixed = matchedProfile?.salary_type === 'fixed';
+    const rate = parseFloat(matchedProfile?.base_rate) || (isFixed ? 1200000 : 6500);
+
     const hoursDecimal = Math.round((data.totalMinutes / 60) * 10) / 10;
-    const grossSalary = Math.round(hoursDecimal * defaultHourlyRate);
-    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% НДШ
+    const baseSalary = isFixed ? Math.round(rate) : Math.round(hoursDecimal * rate);
+    const grossSalary = baseSalary;
+    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% Ажилтны НДШ
+    const employerNdsh = Math.round(grossSalary * 0.125); // 12.5% Байгууллагын НДШ
     const hhoatDeduction = Math.round((grossSalary - ndshDeduction) * 0.10); // 10% ХХОАТ
     const netTakeHome = grossSalary - ndshDeduction - hhoatDeduction;
 
@@ -401,10 +502,15 @@ export async function getAnalyticsData(
       worker_name: worker,
       shift_count: data.shiftCount,
       total_hours: hoursDecimal,
-      hourly_rate: defaultHourlyRate,
+      salary_type: isFixed ? 'fixed' : 'hourly',
+      hourly_rate: rate,
+      base_salary: baseSalary,
+      bonus: 0,
       gross_salary: grossSalary,
       ndsh_deduction: ndshDeduction,
+      employer_ndsh: employerNdsh,
       hhoat_deduction: hhoatDeduction,
+      advance_paid: 0,
       net_take_home: netTakeHome
     };
   });
@@ -419,6 +525,8 @@ export async function getAnalyticsData(
       qty: log.quantity,
       unit: ing ? ing.unit : 'ш',
       type: log.type,
+      payment_method: log.payment_method || 'bank',
+      is_ebarimt: log.is_ebarimt !== false,
       notes: log.notes || ""
     };
   });
@@ -431,7 +539,6 @@ export async function getAnalyticsData(
     tasks_done: s.daily_tasks_checklist || []
   }));
 
-  // 🎯 EXCEL БА АУДИТЫН БҮХ ТОМУУДЫГ БҮРЭН БУЦААХ:
   return {
     financial_ladder: {
       revenue: totalRevenue,
@@ -439,24 +546,42 @@ export async function getAnalyticsData(
       theo_cogs: totalTheoCogs,
       gross_margin: totalRevenue > 0 ? ((totalRevenue - adjustedCogs) / totalRevenue * 100).toFixed(2) + "%" : "0%",
       opex: adjustedOpex,
+      depreciation: totalMonthlyDepreciation,
       ebit: finalEbit,
-      net_profit: Math.round(finalEbit - simplifiedTax1Pct) || 0,
-      net_margin: totalRevenue > 0 ? (((finalEbit - simplifiedTax1Pct) / totalRevenue) * 100).toFixed(2) + "%" : "0%"
+      net_profit: Math.round(finalEbit - activeTaxAmount) || 0,
+      net_margin: totalRevenue > 0 ? (((finalEbit - activeTaxAmount) / totalRevenue) * 100).toFixed(2) + "%" : "0%"
     },
-    // 🚀 EXCEL-ИЙН 0₮ БОЛООД БАЙСАН ТАТВАР БА МӨНГӨН ДҮНГҮҮД:
     tax_summary: {
-      simplified_1pct: simplifiedTax1Pct, // 👈 22,844₮
+      is_above_300m: isAbove300M,
+      tax_mode: isAbove300M ? "Энгийн 10% (300М-ээс дээш)" : "Хялбаршуулсан 1% (300М хүртэл)",
+      simplified_1pct: simplifiedTax1Pct,
+      standard_10pct: standardTax10Pct,
+      active_tax_amount: activeTaxAmount,
       estimated_vat_10pct: estimatedVat10Pct
     },
-    cashflow_summary: {
-      cash_in: totalRevenue,
-      cash_out_purchases: totalPurchasesCashPaid,
-      cash_out_opex: adjustedOpex,
-      owner_draws: totalOwnerDraws,
-      net_cash_balance: netCashflowBalance // 👈 Кассын бодит үлдэгдэл
+    purchases_summary: {
+      total_purchases: totalPurchasesWithEbarimt + totalPurchasesNoEbarimt,
+      with_ebarimt: totalPurchasesWithEbarimt,
+      without_ebarimt: totalPurchasesNoEbarimt
     },
-    payroll_summary: payrollSummary, // 👈 Цалингийн хүснэгт
-
+    cashflow_summary: {
+      cash_in_total: totalRevenue,
+      cash_in_cash: cashRevenue,
+      cash_in_bank: bankRevenue,
+      initial_cash: cashInitial,
+      initial_bank: bankInitial,
+      cash_out_purchases_cash: totalPurchasesCashPaid,
+      cash_out_purchases_bank: totalPurchasesBankPaid,
+      cash_out_opex_cash: cashOutOpexCash,
+      cash_out_opex_bank: cashOutOpexBank,
+      owner_draws: totalOwnerDraws,
+      end_cash_balance: cashEndBalance,
+      end_bank_balance: bankEndBalance,
+      net_total_balance: cashEndBalance + bankEndBalance
+    },
+    payroll_summary: payrollSummary,
+    fixed_assets: processedFixedAssets,
+    waste_act_items: wasteAuditItems,
     top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
     top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
     all_inventory_data: fullInventory,

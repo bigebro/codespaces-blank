@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     // 1. Telegram-тай холбогдсон бүх эздийн профайлыг татах
-    const { data: profiles } = await supabase
+    const { data: profiles } = await supabaseAdmin
       .from('profiles')
       .select('client_id, telegram_chat_id')
       .not('telegram_chat_id', 'is', null);

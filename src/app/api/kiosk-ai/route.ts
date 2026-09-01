@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -56,42 +56,75 @@ export async function POST(request: Request) {
 
     // 1. UNDO
     if (action === 'undo' && logId) {
-      const { error } = await supabase.from('inventory_logs').delete().eq('id', logId);
+      const { error } = await supabaseAdmin.from('inventory_logs').delete().eq('id', logId);
       if (error) return NextResponse.json({ success: false, message: `❌ Алдаа: ${error.message}` });
       return NextResponse.json({ success: true, message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн)." });
     }
 
-    const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', clientId);
+    const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId);
     const allowedNames = ingredients ? ingredients.map(i => i.name) : [];
 
     // 2. ЗУРАГ БҮРТГЭХ
+// 2. ЗУРАГ БҮРТГЭХ (E-Barimt эсвэл Барааны зураг)
     if (imageBase64) {
       const aiAnalysis = await parseReceiptImage(imageBase64, allowedNames);
       if (!aiAnalysis || !aiAnalysis.success) {
-        return NextResponse.json({ success: false, message: "❌ Зургийг уншиж чадсангүй." });
+        return NextResponse.json({ success: false, message: aiAnalysis?.error_message || "❌ Зургийг уншиж чадсангүй." });
       }
 
       const logsToInsert: any[] = [];
       let successMsg = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
+      const currentDate = new Date().toISOString();
 
       for (const item of aiAnalysis.purchases) {
-        const ing = ingredients?.find((i: any) => i.name === item.item_name);
-        const isProductPhoto = item.image_type === 'Product Photo';
-        const noteText = isProductPhoto ? '📸 Барааны зураг (Kiosk)' : '🧾 E-Barimt (Kiosk)';
+        const isFood = item.is_food !== false;
+        const isEBarimt = item.is_ebarimt !== false && item.image_type !== 'Product Photo';
+        const payMethod = item.payment_method || 'bank';
+        const notePrefix = isEBarimt ? '🧾 E-Barimt' : '📸 Барааны зураг (Баримтгүй)';
 
-        if (ing) {
-          logsToInsert.push({ 
-            client_id: clientId, 
-            ingredient_id: ing.id, 
-            quantity: Math.abs(item.quantity), 
-            type: 'purchase', 
-            total_cost: item.total_cost || 0, 
-            notes: noteText, 
-            worker_name: workerName, 
-            date: new Date().toISOString() 
-          });
-          successMsg += `• ${ing.name}: ${item.quantity} ${ing.unit} (${(item.total_cost || 0).toLocaleString()}₮)\n`;
+        if (isFood) {
+          // [А. ХҮНСНИЙ ТҮҮХИЙ ЭД] -> Системд байгаа эсэхийг шалгах
+          let targetIngredient = ingredients?.find(
+            (i: any) => i.name.toLowerCase().trim() === item.item_name.toLowerCase().trim()
+          );
+
+          // Хэрэв шинэ хүнс бол (Raspberry puree г.м) -> ingredients хүснэгтэд АВТОМАТААР үүсгэнэ!
+          if (!targetIngredient) {
+            const unitPrice = item.quantity > 0 ? Math.round((item.total_cost || 0) / item.quantity) : 0;
+            const { data: newIng, error: createIngErr } = await supabaseAdmin
+              .from('ingredients')
+              .insert([{
+                client_id: clientId,
+                name: item.item_name.trim(),
+                unit: 'ш',
+                unit_price: unitPrice,
+                current_stock: 0
+              }])
+              .select()
+              .single();
+
+            if (!createIngErr && newIng) {
+              targetIngredient = newIng;
+            }
+          }
+
+          if (targetIngredient) {
+            logsToInsert.push({ 
+              client_id: clientId, 
+              ingredient_id: targetIngredient.id, 
+              quantity: Math.abs(item.quantity), 
+              type: 'purchase', 
+              total_cost: item.total_cost || 0, 
+              notes: `${notePrefix} (Kiosk)`, 
+              payment_method: payMethod,
+              is_ebarimt: isEBarimt,
+              worker_name: workerName, 
+              date: currentDate 
+            });
+            successMsg += `• 🥐 [Агуулахын Хөрөнгө] ${targetIngredient.name}: ${item.quantity} ${targetIngredient.unit || 'ш'} (${(item.total_cost || 0).toLocaleString()}₮) [${payMethod === 'cash' ? 'Бэлэн' : 'Данс'}]\n`;
+          }
         } else {
+          // [Б. ХҮНСНИЙ БУС ЗҮЙЛС (Сальфетка, Угаалгын шингэн)] -> 100% OPEX Зардал
           logsToInsert.push({ 
             client_id: clientId, 
             ingredient_id: null,
@@ -99,20 +132,21 @@ export async function POST(request: Request) {
             quantity: Math.abs(item.quantity), 
             type: 'purchase', 
             total_cost: item.total_cost || 0, 
-            notes: 'E-Barimt (OPEX - Kiosk)', 
+            notes: `${notePrefix} (Хүнсний бус OPEX)`, 
+            payment_method: payMethod,
+            is_ebarimt: isEBarimt,
             worker_name: workerName, 
-            date: new Date().toISOString() 
+            date: currentDate 
           });
-          successMsg += `• ${item.item_name} (Бусад): ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮)\n`;
+          successMsg += `• 🧼 [OPEX Зардал] ${item.item_name}: ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮) [${payMethod === 'cash' ? 'Бэлэн' : 'Данс'}]\n`;
         }
       }
 
       if (logsToInsert.length > 0) {
-        await supabase.from('inventory_logs').insert(logsToInsert);
+        await supabaseAdmin.from('inventory_logs').insert(logsToInsert);
       }
       return NextResponse.json({ success: true, message: successMsg });
     }
-
     // 3. ТЕКСТ БИЧИХ ҮЕД
     if (text) {
       const lower = text.toLowerCase().trim();
@@ -130,7 +164,7 @@ export async function POST(request: Request) {
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
           if (ingredient) {
-            const { data: log, error: logError } = await supabase.from('inventory_logs').insert([{
+            const { data: log, error: logError } = await supabaseAdmin.from('inventory_logs').insert([{
               client_id: clientId,
               ingredient_id: ingredient.id,
               quantity: aiAnalysis.quantity,
@@ -158,7 +192,7 @@ export async function POST(request: Request) {
 
       // Хэрэв огноо ирээгүй бол автоматаар хамгийн сүүлийн борлуулалттай сарыг олох
       if (!activeStart || !activeEnd) {
-        const { data: latestSale } = await supabase
+        const { data: latestSale } = await supabaseAdmin
           .from('sales_logs')
           .select('date')
           .eq('client_id', clientId)

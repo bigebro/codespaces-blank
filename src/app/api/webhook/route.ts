@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       
       if (callbackData.startsWith("cnt_")) {
         const itemName = callbackData.replace("cnt_", "");
-        const { data: activeShift } = await supabase.from('shifts').select('closing_checklist').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        const { data: activeShift } = await supabaseAdmin.from('shifts').select('closing_checklist').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
         let systemStock = 0;
         let unitStr = "ш";
         
@@ -82,15 +82,15 @@ export async function POST(request: Request) {
         const firstName = callback_query.from?.first_name || "Ажилтан";
         const fullNameRole = `${selectedRole} (${firstName})`;
 
-        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-        await supabase.from('profiles').update({ role: selectedRole }).eq('telegram_chat_id', currentChatId);
+        await supabaseAdmin.from('profiles').update({ role: selectedRole }).eq('telegram_chat_id', currentChatId);
 
-        const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', selectedRole).eq('is_active', true);
+        const { data: roleTasks } = await supabaseAdmin.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', selectedRole).eq('is_active', true);
         const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
 
-        await supabase.from('shifts').update({
+        await supabaseAdmin.from('shifts').update({
           character_role: fullNameRole,
           daily_tasks_checklist: taskChecklist
         }).eq('telegram_chat_id', currentChatId).eq('is_active', true);
@@ -107,13 +107,13 @@ export async function POST(request: Request) {
 
       if (callbackData.startsWith("tsk_")) {
         const index = parseInt(callbackData.replace("tsk_", ""));
-        const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
+        const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
         if (!activeShift) return NextResponse.json({ status: 'ok' });
 
         let tasks = typeof activeShift.daily_tasks_checklist === 'string' ? JSON.parse(activeShift.daily_tasks_checklist) : activeShift.daily_tasks_checklist;
         tasks[index].done = !tasks[index].done;
         
-        await supabase.from('shifts').update({ daily_tasks_checklist: tasks }).eq('id', activeShift.id);
+        await supabaseAdmin.from('shifts').update({ daily_tasks_checklist: tasks }).eq('id', activeShift.id);
 
         let buttons = tasks.map((t: any, i: number) => [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }]);
         buttons.push([{ text: "➔ Дараагийн алхам: Тооллого хийх", callback_data: "go_to_inventory" }]);
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       }
 
       if (callbackData === "close_shift_final") {
-        const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
         await answerTelegramCallback(callbackQueryId, "Ээлж хаагдлаа");
         await editTelegramMessage(currentChatId, messageId, "✅ Чек-лист тооллого амжилттай хийгдэж дууслаа.");
         
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         if (logId && logId !== "undefined") {
-          await supabase.from('inventory_logs').delete().eq('id', logId);
+          await supabaseAdmin.from('inventory_logs').delete().eq('id', logId);
           await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
           await editTelegramMessage(currentChatId!, messageId, "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).");
           await sendTelegramMessageWithForceReply(currentChatId!, "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:");
@@ -184,10 +184,10 @@ export async function POST(request: Request) {
         const arrayBuffer = await imageRes.arrayBuffer();
         const base64Image = Buffer.from(arrayBuffer).toString('base64');
 
-        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-        const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
+        const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
         const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
 
         const aiAnalysis = await parseReceiptImage(base64Image, allowedNames);
@@ -236,7 +236,7 @@ export async function POST(request: Request) {
         }
 
         if (logsToInsert.length > 0) {
-          await supabase.from('inventory_logs').insert(logsToInsert);
+          await supabaseAdmin.from('inventory_logs').insert(logsToInsert);
         }
 
         await sendTelegramMessage(currentChatId, successMessage);
@@ -265,10 +265,10 @@ export async function POST(request: Request) {
           return NextResponse.json({ status: 'ok' });
         }
 
-        const { data: userProfile } = await supabase.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
+        const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
         const tenantClientId = userProfile?.client_id || 'SF Coffee';
 
-        const { data: allIngs } = await supabase.from('ingredients').select('id, unit, name').eq('client_id', tenantClientId);
+        const { data: allIngs } = await supabaseAdmin.from('ingredients').select('id, unit, name').eq('client_id', tenantClientId);
         const ingredient = allIngs?.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
         
         if (!ingredient) {
@@ -277,7 +277,7 @@ export async function POST(request: Request) {
         }
         const workerName = message.from?.first_name || "Ажилтан";
 
-        await supabase.from('inventory_logs').insert([{
+        await supabaseAdmin.from('inventory_logs').insert([{
           client_id: tenantClientId,
           ingredient_id: ingredient.id,
           quantity: qty,
@@ -287,16 +287,16 @@ export async function POST(request: Request) {
           worker_name: workerName
         }]);
 
-        await supabase.from('ingredients').update({ last_counted_at: new Date().toISOString() }).eq('id', ingredient.id);
+        await supabaseAdmin.from('ingredients').update({ last_counted_at: new Date().toISOString() }).eq('id', ingredient.id);
 
-        const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
         
         if (activeShift && activeShift.closing_checklist) {
           let checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
           let itemInList = checklist.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
           if (itemInList) itemInList.done = true;
 
-          await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+          await supabaseAdmin.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
           const allDone = checklist.every((i: any) => i.done === true);
           
           if (allDone) {
@@ -318,7 +318,7 @@ export async function POST(request: Request) {
     // =========================================================================
     // D. ТӨХӨӨРӨМЖ ХОЛБОХ БА ЭРХ ШАЛГАХ
     // =========================================================================
-    const { data: userProfile } = await supabase.from('profiles').select('client_id, role').eq('telegram_chat_id', currentChatId).maybeSingle();
+    const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id, role').eq('telegram_chat_id', currentChatId).maybeSingle();
 
     if (!userProfile && incomingText !== "/start" && !incomingText.startsWith("/link")) {
       const linkPrompt = `❌ Төхөөрөмж холбогдоогүй байна.\n\nТа системд холбогдохын тулд дараах тушаалаар бүртгүүлнэ үү:\n\n/link [Таны бүртгэлтэй имэйл] [нууц үг]\n\nЖишээ: /link name@example.com 123456`;
@@ -339,7 +339,7 @@ export async function POST(request: Request) {
       const passwordInput = parts[2].trim();
       await sendTelegramMessage(currentChatId, "⏳ Бүртгэлийг баталгаажуулж байна...");
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
         email: emailInput,
         password: passwordInput
       });
@@ -349,10 +349,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      await supabase.from('profiles').update({ telegram_chat_id: null }).eq('telegram_chat_id', currentChatId);
-      await supabase.from('profiles').update({ telegram_chat_id: currentChatId }).eq('id', authData.user.id);
+      await supabaseAdmin.from('profiles').update({ telegram_chat_id: null }).eq('telegram_chat_id', currentChatId);
+      await supabaseAdmin.from('profiles').update({ telegram_chat_id: currentChatId }).eq('id', authData.user.id);
       
-      const { data: dbProfile } = await supabase.from('profiles').select('client_id').eq('id', authData.user.id).single();
+      const { data: dbProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('id', authData.user.id).single();
       const actualBranch = dbProfile?.client_id || 'SF Coffee';
       
       await sendTelegramMessage(currentChatId, `✅ Амжилттай холбогдлоо!\n\nБүртгэл: ${emailInput}\nСалбар: ${actualBranch}`);
@@ -380,7 +380,7 @@ export async function POST(request: Request) {
       }
 
       // 💡 Хамгийн сүүлийн борлуулалттай сарыг автоматаар олох (0₮ гарахаас сэргийлнэ)
-      const { data: latestSale } = await supabase
+      const { data: latestSale } = await supabaseAdmin
         .from('sales_logs')
         .select('date')
         .eq('client_id', tenantClientId)
@@ -426,7 +426,7 @@ export async function POST(request: Request) {
     // G. ЭЭЛЖ ЭХЛЭХ (/shift_start)
     // =========================================================================
     if (incomingText === "/shift_start" || lowercaseMsg === "ээлж эхлэх" || lowercaseMsg === "☀️ ээлж эхлэх") {
-      const { data: activeShift } = await supabase.from('shifts').select('id').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+      const { data: activeShift } = await supabaseAdmin.from('shifts').select('id').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
       if (activeShift) {
         await sendTelegramMessageWithMenu(currentChatId, "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой '🌙 Ээлж хаах' товчоор хаана уу.");
         return NextResponse.json({ status: 'ok' });
@@ -437,10 +437,10 @@ export async function POST(request: Request) {
       const fullNameRole = `${profileRole} (${firstName})`;
 
       if (profileRole === "Бариста ☕" || profileRole === "Тогооч 🍳") {
-        const { data: roleTasks } = await supabase.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', profileRole).eq('is_active', true);
+        const { data: roleTasks } = await supabaseAdmin.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', profileRole).eq('is_active', true);
         const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
 
-        await supabase.from('shifts').insert([{
+        await supabaseAdmin.from('shifts').insert([{
           client_id: tenantClientId,
           telegram_chat_id: currentChatId,
           is_active: true,
@@ -469,7 +469,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' });
       }
 
-      await supabase.from('shifts').insert([{ client_id: tenantClientId, telegram_chat_id: currentChatId, is_active: true }]);
+      await supabaseAdmin.from('shifts').insert([{ client_id: tenantClientId, telegram_chat_id: currentChatId, is_active: true }]);
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -488,7 +488,7 @@ export async function POST(request: Request) {
     // H. ЭЭЛЖ ХААХ (/shift_end)
     // =========================================================================
     if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
-      const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+      const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
       if (!activeShift) {
         await sendTelegramMessageWithMenu(currentChatId, "Алдаа: Идэвхтэй ээлж олдсонгүй. '☀️ Ээлж эхлэх' товчоор эхлүүлнэ үү.");
         return NextResponse.json({ status: 'ok' });
@@ -518,7 +518,7 @@ export async function POST(request: Request) {
     );
 
     if (isLikelyOperation) {
-      const { data: ingredients } = await supabase.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
+      const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
       const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
 
       const aiAnalysis = await parseOperationalText(incomingText, allowedNames);
@@ -528,7 +528,7 @@ export async function POST(request: Request) {
 
         if (ingredient) {
           const workerName = message.from?.first_name || "Ажилтан";
-          const { data: log, error: logError } = await supabase.from('inventory_logs').insert([{
+          const { data: log, error: logError } = await supabaseAdmin.from('inventory_logs').insert([{
             client_id: tenantClientId,
             ingredient_id: ingredient.id,
             quantity: aiAnalysis.quantity,
@@ -571,7 +571,7 @@ export async function POST(request: Request) {
     const tempMessageId = initialMsgData.result?.message_id;
 
     // 💡 3. Огноог автоматаар тохируулж датабэйсээс БҮХ датаг татах
-    const { data: latestChatSale } = await supabase
+    const { data: latestChatSale } = await supabaseAdmin
       .from('sales_logs')
       .select('date')
       .eq('client_id', tenantClientId)
@@ -837,7 +837,7 @@ async function sendTelegramMessageWithInlineKeyboard(chatId: number | null, text
 
 async function generateInventoryChecklist(chatId: number | null, messageIdToEdit: number | null, hostUrl: string) {
   if (!chatId) return;
-  const { data: activeShift } = await supabase.from('shifts').select('*').eq('telegram_chat_id', chatId).eq('is_active', true).maybeSingle();
+  const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', chatId).eq('is_active', true).maybeSingle();
   if (!activeShift) return;
 
   const tenantClientId = activeShift.client_id;
@@ -853,7 +853,7 @@ async function generateInventoryChecklist(chatId: number | null, messageIdToEdit
     const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime());
     
     checklist = [...criticalItems, ...sortedCycleItems].slice(0, 5).map((i: any) => ({ name: i.name, unit: i.unit, live_stock: i.live_stock, done: false }));
-    await supabase.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+    await supabaseAdmin.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
   }
 
   if (checklist.length > 0) {
@@ -878,7 +878,7 @@ async function generateInventoryChecklist(chatId: number | null, messageIdToEdit
       await sendTelegramMessageWithInlineKeyboard(chatId, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
     }
   } else {
-    await supabase.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
+    await supabaseAdmin.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
     await sendTelegramMessageWithMenu(chatId, "🌙 Тоолох бараа алга. Ээлж амжилттай хаагдлаа!");
   }
 }
@@ -891,14 +891,14 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
   const endTime = new Date().toISOString();
   const role = activeShift.character_role || "Бариста ☕";
 
-  const { data: logs } = await supabase
+  const { data: logs } = await supabaseAdmin
     .from('inventory_logs')
     .select('quantity, type, ingredient_id, total_cost, notes')
     .eq('client_id', tenantClientId)
     .gte('date', startTime)
     .lte('date', endTime);
 
-  const { data: ingredients } = await supabase
+  const { data: ingredients } = await supabaseAdmin
     .from('ingredients')
     .select('id, name, unit_price, unit')
     .eq('client_id', tenantClientId);
@@ -929,7 +929,7 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
     });
   }
 
-  await supabase.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
+  await supabaseAdmin.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
 
   await sendTelegramMessageWithMenu(chatId, `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа!`);
 
@@ -959,7 +959,7 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
     `🛡 **АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
     auditAlerts.map(alert => `• ${alert}`).join('\n');
 
-  const { data: owners } = await supabase.from('profiles').select('telegram_chat_id').eq('client_id', tenantClientId).eq('role', 'owner');
+  const { data: owners } = await supabaseAdmin.from('profiles').select('telegram_chat_id').eq('client_id', tenantClientId).eq('role', 'owner');
   if (owners) {
     for (const owner of owners) {
       if (owner.telegram_chat_id && owner.telegram_chat_id !== chatId) {

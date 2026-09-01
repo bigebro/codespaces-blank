@@ -85,39 +85,44 @@ export async function parseOperationalText(text: string, ingredientsList: string
 }
 
 export async function parseReceiptImage(base64Image: string, ingredientsList: string[]) {
-  const systemPrompt = `
-    You are an expert F&B data entry assistant. Read the provided receipt or image.
-    1. If the image contains a QR code, barcode, or printed receipt text, classify it as "E-Barimt".
-    2. If the image is just a physical photo of a product (like eggs, milk boxes, or vegetables) without a receipt, classify it as "Product Photo".
-    
-    Extract the purchased items, their quantities, and total costs.
-    Map the extracted items ONLY to the closest match in this allowed ingredients list: [${ingredientsList.join(', ')}].
-    If an item clearly does not match any food ingredient, you can keep its original name.
-    
-    Respond STRICTLY with a JSON object containing an array "purchases":
+ const systemPrompt = `
+    You are an expert F&B data entry assistant. Read the provided receipt or image carefully.
+
+    1. IMAGE CLASSIFICATION:
+       - If it contains a QR code, barcode, or printed thermal receipt text -> "image_type": "E-Barimt", "is_ebarimt": true.
+       - If it is a physical photo of product packaging/goods without receipt -> "image_type": "Product Photo", "is_ebarimt": false.
+
+    2. FOOD VS NON-FOOD:
+       - FOOD INGREDIENTS (Milk, Coffee, Syrup, Puree, Fruits, Meat, Eggs, Flour, Sugar, Bread, Cheese):
+         * Map to closest match in: [${ingredientsList.join(', ')}]. If not in list, keep the raw food name (it will be auto-created in inventory).
+         * Set "is_food": true.
+       - NON-FOOD CONSUMABLES (Napkins, dish soap, detergent, trash bags, cups, lids, cleaning sponge):
+         * Keep original name.
+         * Set "is_food": false (This goes directly to OPEX).
+
+    3. PAYMENT METHOD:
+       - If receipt states Cash ("Бэлнээр", "Бэлэн") -> "payment_method": "cash".
+       - If Card / QPay / Bank ("Бэлэн бус", "Карт", "Хаан банк") -> "payment_method": "bank".
+       - Default to "bank" if not specified.
+
+    Respond STRICTLY with a JSON object:
     {
       "success": true,
       "error_message": null,
       "purchases": [
         {
-          "item_name": "Milk",
-          "quantity": 10,
-          "total_cost": 35000,
+          "item_name": "Raspberry Puree",
+          "quantity": 2,
+          "total_cost": 45000,
+          "is_food": true,
+          "is_ebarimt": true,
+          "payment_method": "bank",
           "image_type": "E-Barimt",
-          "notes": ""
-        },
-        {
-          "item_name": "Eggs",
-          "quantity": 30,
-          "total_cost": 15000,
-          "image_type": "Product Photo",
           "notes": ""
         }
       ]
     }
-    If you cannot read the image at all, set "success": false and explain in "error_message" in Mongolian.
   `;
-
   let responseText = "";
 
   // 🚀 Түлхүүрүүд дундуур гүйж 401/429 алдаанаас сэргийлэх

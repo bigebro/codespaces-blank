@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
       const newExpiry = new Date();
       newExpiry.setDate(newExpiry.getDate() + 30);
 
-      await supabase
+      await supabaseAdmin
         .from('tenants')
         .update({
           status: 'active',

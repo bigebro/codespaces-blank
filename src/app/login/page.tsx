@@ -74,6 +74,7 @@ const handleForgotPassword = async () => {
  const cleanBranch = companyName.trim();
         
    // WORKER VALIDATION: Check if this branch exists before signing up [3]
+ // ❌ ЭНЭ ХЭСГИЙГ АРИЛГАХ (RLS-ээс болж нэвтрээгүй үед 0 үр дүн буцааж гацаадаг):
         if (signupRole === 'staff') {
           const { data: branchExists } = await supabase
             .from('profiles')

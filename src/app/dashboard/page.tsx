@@ -206,17 +206,33 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [userClient, setUserClient] = useState<string>('SF Coffee');
   // Navigation State
-const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'| 'ai_cfo'>('dashboard');
-const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
-const [shifts, setShifts] = useState<any[]>([]);
-const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
-const [tasks, setTasks] = useState<any[]>([]);
-const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; }); // Defaults to 1st of the month
-const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]); // Defaults to today
-const [workerSearchQuery, setWorkerSearchQuery] = useState('');
-const [newTaskName, setNewTaskName] = useState('');
-const [newTaskRole, setNewTaskRole] = useState('Бариста ☕');
-const [newTaskWeight, setNewTaskWeight] = useState('');
+const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'| 'settings'| 'ai_cfo'>('dashboard');
+  // 2. Динамик Тохиргооны State-үүд
+  const [fixedAssets, setFixedAssets] = useState<any[]>([]);
+  const [fixedOpexList, setFixedOpexList] = useState<any[]>([]);
+  const [initialCash, setInitialCash] = useState('0');
+  const [initialBank, setInitialBank] = useState('0');
+  const [taxMode, setTaxMode] = useState('auto');
+
+  // 3. Шинэ хөрөнгө, Тогтмол зардал нэмэх form state
+  const [newAssetName, setNewAssetName] = useState('');
+  const [newAssetCost, setNewAssetCost] = useState('');
+  const [newAssetMonths, setNewAssetMonths] = useState('60');
+  const [newAssetDate, setNewAssetDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const [newOpexName, setNewOpexName] = useState('');
+  const [newOpexCost, setNewOpexCost] = useState('');
+  const [newOpexCategory, setNewOpexCategory] = useState('Байр, ашиглалт');
+  const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; }); // Defaults to 1st of the month
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]); // Defaults to today
+  const [workerSearchQuery, setWorkerSearchQuery] = useState('');
+  const [newTaskName, setNewTaskName] = useState('');
+  const [newTaskRole, setNewTaskRole] = useState('Бариста ☕');
+  const [newTaskWeight, setNewTaskWeight] = useState('');
   // Database States
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -406,7 +422,10 @@ useEffect(() => {
         { data: taskData },
         { data: shiftData },
         { data: staffData },
-        { data: rolesData }
+        { data: rolesData },
+        { data: faData },     
+        { data: opexData },     
+        { data: settData }  
       ] = await Promise.all([
         supabase.from('ingredients').select('*').ilike('client_id', targetClient).order('name', { ascending: true }),
         supabase.from('recipes').select('*').ilike('client_id', targetClient),
@@ -414,9 +433,19 @@ useEffect(() => {
         supabase.from('sales_logs').select('*').ilike('client_id', targetClient),
         supabase.from('tasks').select('*').ilike('client_id', targetClient),
         supabase.from('shifts').select('*').ilike('client_id', targetClient).order('start_time', { ascending: false }),
-        supabase.from('profiles').select('id, full_name, email, role, client_id').ilike('client_id', targetClient).neq('role', 'owner'),
-        supabase.from('company_roles').select('*').ilike('client_id', targetClient)
+        supabase.from('profiles').select('*').ilike('client_id', targetClient.trim()).neq('role', 'owner'),
+        supabase.from('company_roles').select('*').ilike('client_id', targetClient),
+        supabase.from('fixed_assets').select('*').ilike('client_id', targetClient),
+        supabase.from('fixed_opex').select('*').ilike('client_id', targetClient).eq('is_active', true),
+        supabase.from('client_settings').select('*').ilike('client_id', targetClient).maybeSingle()
       ]);
+      if (faData) setFixedAssets(faData);
+      if (opexData) setFixedOpexList(opexData);
+      if (settData) {
+        setInitialCash(settData.initial_cash?.toString() || '0');
+        setInitialBank(settData.initial_bank?.toString() || '0');
+        setTaxMode(settData.tax_mode || 'auto');
+      }
 
       if (ingData) setIngredients(ingData);
       if (logData) setInventoryLogs(logData);
@@ -726,7 +755,7 @@ useEffect(() => {
       const rows = purchasePasteText.replace(/\r/g, '').trim().split('\n');
       const purchasesToInsert: any[] = [];
       const currentDate = new Date().toISOString();
-
+      
       // Зөвхөн идэвхтэй салбарын түүхий эдүүдийг Map-д авах (Хурдан O(1) хайлт)
       const ingMap = new Map();
       ingredients.filter(i => i.client_id === activeClient).forEach(i => {
@@ -1202,6 +1231,31 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     setEndDate(lastDay);
     fetchDatabaseData(activeClient, firstDay, lastDay);
   };
+  console.log(liveAnalytics?.menu_performance,"menu_performance")
+  console.log(liveAnalytics?.financial_ladder,"financial_ladder")
+  console.log(liveAnalytics?.tax_summary,"tax_summary")
+  console.log(liveAnalytics?.cashflow_summary,"cashflow_summary")
+  console.log(liveAnalytics?.payroll_summary,"payroll_summary")
+  console.log(liveAnalytics?.top_wasters,"top_wasters")
+  console.log(liveAnalytics?.top_expensive,"top_expensive")
+  console.log(liveAnalytics?.all_inventory_data,"all_inventory_data")
+  console.log(liveAnalytics?.wasted_only,"wasted_only")
+  console.log(liveAnalytics?.underpoured_only,"underpoured_only")
+  console.log(liveAnalytics?.menu_performance,"menu_performance")
+  console.log(liveAnalytics?.all_recipes,"all_recipes")
+  console.log(liveAnalytics?.opex_details,"opex_details")
+  console.log(liveAnalytics?.all_timeline_logs,"all_timeline_logs")
+  console.log(liveAnalytics?.recent_shifts,"recent_shifts")
+  console.log(liveAnalytics?.recent_worker_log,"recent_worker_log")
+  console.log(liveAnalytics?.total_waste_loss,"total_waste_loss")
+  console.log(liveAnalytics?.total_unexplained_waste,"total_unexplained_waste")
+  console.log(liveAnalytics?.total_logged_spoilage,"total_logged_spoilage")
+  console.log(liveAnalytics?.total_logged_testing,"total_logged_testing")
+  console.log(liveAnalytics?.total_logged_staff_meal,"total_logged_staff_meal")
+  console.log(liveAnalytics?.total_logged_other,"total_logged_other")
+  console.log(liveAnalytics?.total_surplus_savings,"total_surplus_savings")
+  console.log(liveAnalytics?.efficiency,"efficiency")
+
     
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
@@ -1310,6 +1364,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 📋 Ажлын Даалгавар (Tasks)
               </button>
                )}
+              {userRole === 'owner' && (
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                ⚙️ Санхүүгийн Тохиргоо
+              </button>
+            )}
             </>
          
         </div>
@@ -1457,8 +1519,17 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             </div>
           </div>
         )}
-
-        {/* 2. BARISTA STAFF PORTAL (INPUTS) */}
+        {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
+         {userRole === 'owner' && (
+          <div className={activeTab === 'ai_cfo' ? 'block' : 'hidden'}>
+            <AiCfoChatTab 
+              activeClient={activeClient} 
+              startDate={startDate} 
+              endDate={endDate} 
+            />
+          </div>
+        )}
+        {/* 3. BARISTA STAFF PORTAL (INPUTS) */}
         {activeTab === 'barista' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 lg:col-span-2">
@@ -1625,7 +1696,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
           </div>
         )}
 
-        {/* 3. SALES SIMULATOR TAB */}
+        {/* 4. SALES SIMULATOR TAB */}
         {activeTab === 'sales' && (
           <div className="max-w-xl mx-auto bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-emerald-400">
@@ -1679,7 +1750,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
           </div>
         )}
 
-        {/* 4. SPREADSHEET BULK STOCK TAKE TAB */}
+        {/* 5. SPREADSHEET BULK STOCK TAKE TAB */}
         {activeTab === 'inventory' && (
           <div className="bg-slate-900/30 p-6 rounded-2xl border border-slate-900">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-900">
@@ -1781,7 +1852,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
           </div>
         )}
 
-        {/* 5. BULK CLIPBOARD PASTE TAB */}
+        {/* 6. BULK CLIPBOARD PASTE TAB */}
         {activeTab === 'import' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
@@ -1958,17 +2029,9 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
           </div>
           
         )}
-        {/* 7. AI CFO CHAT TAB (OWNER ONLY) */}
-         {userRole === 'owner' && (
-          <div className={activeTab === 'ai_cfo' ? 'block' : 'hidden'}>
-            <AiCfoChatTab 
-              activeClient={activeClient} 
-              startDate={startDate} 
-              endDate={endDate} 
-            />
-          </div>
-        )}
-      {/* TASK & ROLE MANAGEMENT TAB */}
+    
+
+      {/* 7. TASK & ROLE MANAGEMENT TAB */}
         {activeTab === 'tasks' && userRole === 'owner' && (
           <div className="space-y-8">
             
@@ -2005,43 +2068,83 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
                 <h3 className="text-base font-bold mb-4 text-blue-400">2. Ажилтнуудад үүрэг оноох</h3>
                 <div className="overflow-x-auto max-h-[220px]">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="text-slate-400 text-xs border-b border-slate-800">
-                        <th className="pb-2">Ажилтны Нэр</th>
-                        <th className="pb-2">Имэйл</th>
-                        <th className="pb-2">Одоогийн Үүрэг</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {workersList.length === 0 ? (
-                        <tr><td colSpan={3} className="py-4 text-center text-slate-500 italic">Бүртгэлтэй ажилтан алга байна.</td></tr>
-                      ) : (
-                        workersList.map(w => (
-                          <tr key={w.id}>
-                            <td className="py-2.5 font-bold text-slate-200">{w.full_name || 'Нэргүй'}</td>
-                            <td className="py-2.5 text-slate-400 text-xs">{w.email}</td>
-                            <td className="py-2.5">
-                              <select 
-                                value={w.role} 
-                                onChange={async (e) => {
-                                  const updatedRole = e.target.value;
-                                  await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
-                                  await fetchDatabaseData(activeClient);
-                                }}
-                                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-emerald-400 font-bold"
-                              >
-                                <option value="Ажилтан">Сонгоогүй (Ажилтан)</option>
-                                {companyRoles.map(r => (
-                                  <option key={r.id} value={r.role_name}>{r.role_name}</option>
-                                ))}
-                              </select>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+              <table className="w-full text-left text-sm">
+  <thead>
+    <tr className="text-slate-400 text-xs border-b border-slate-800">
+      <th className="pb-2">Ажилтны Нэр</th>
+      <th className="pb-2">Үүрэг</th>
+      <th className="pb-2">Цалингийн Төрөл</th>
+      <th className="pb-2">Үнэлгээ (₮)</th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-slate-800/50">
+    {workersList.map(w => (
+      <tr key={w.id}>
+        <td className="py-2.5 font-bold text-slate-200">{w.full_name || w.email.split('@')[0]}</td>
+        
+        {/* 1. ҮҮРЭГ СОНГОХ */}
+        <td className="py-2.5">
+          <select 
+            value={w.role || 'Ажилтан'} 
+            onChange={async (e) => {
+              const updatedRole = e.target.value;
+              // UI-ийг шууд өөрчлөх
+              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, role: updatedRole } : item));
+              const { error } = await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
+              if (error) alert(`Алдаа: ${error.message}`);
+              else fetchDatabaseData(activeClient);
+            }}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-emerald-400 font-bold"
+          >
+            <option value="Ажилтан">Ажилтан</option>
+            {companyRoles.map(r => <option key={r.id} value={r.role_name}>{r.role_name}</option>)}
+          </select>
+        </td>
+
+        {/* 2. ЦАЛИНГИЙН ТӨРӨЛ СОНГОХ (Hourly vs Fixed) */}
+        <td className="py-2.5">
+          <select 
+            value={w.salary_type || 'hourly'}
+            onChange={async (e) => {
+              const newType = e.target.value;
+              const defaultRate = newType === 'fixed' ? 1200000 : 6500;
+              // UI-ийг шууд өөрчлөх
+              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, salary_type: newType, base_rate: defaultRate } : item));
+              const { error } = await supabase.from('profiles').update({ salary_type: newType, base_rate: defaultRate }).eq('id', w.id);
+              if (error) alert(`Алдаа: ${error.message}`);
+              else fetchDatabaseData(activeClient);
+            }}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-blue-400 font-bold"
+          >
+            <option value="hourly">⏱️ Цагийн хөлсөөр</option>
+            <option value="fixed">📅 Сар бүр тогтмол</option>
+          </select>
+        </td>
+
+        {/* 3. ЦАЛИНГИЙН ДҮНГИЙН ҮНЭЛГЭЭ ОРУУЛАХ */}
+        <td className="py-2.5">
+          <input 
+            type="number"
+            value={w.base_rate !== undefined ? w.base_rate : (w.salary_type === 'fixed' ? 1200000 : 6500)}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value) || 0;
+              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, base_rate: val } : item));
+            }}
+            onBlur={async (e) => {
+              const val = parseFloat(e.target.value) || 0;
+              const { error } = await supabase.from('profiles').update({ base_rate: val }).eq('id', w.id);
+              if (error) alert(`Алдаа: ${error.message}`);
+              else fetchDatabaseData(activeClient);
+            }}
+            placeholder="Дүн..."
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white font-bold w-28 text-right focus:border-emerald-500"
+          />
+          <span className="text-[10px] text-slate-500 ml-1">{w.salary_type === 'fixed' ? '₮/сар' : '₮/цаг'}</span>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
                 </div>
               </div>
             </div>
@@ -2275,7 +2378,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
         )}
 
         {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
-        {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'tasks' && (
+        {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'ai_cfo' && activeTab !== 'barista' && activeTab !=='sales' && activeTab !=='dashboard' && activeTab !=='settings' &&(
           <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
               <div>
@@ -2443,7 +2546,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
         )}
 
         {/* Live Database Inventory Table (Visible across all tabs except inventory bulk editor & bulk paste tabs) */}
-        {activeTab !== 'inventory' && activeTab !== 'import' && (
+        {activeTab !== 'inventory' && activeTab !== 'import' && activeTab !=='ai_cfo' && activeTab !=='barista' && activeTab !=='tasks' && activeTab !=='sales' && activeTab !=='settings' && (
           <div className="mt-8 bg-slate-900/30 p-6 rounded-2xl border border-slate-900">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-900">
               <div>
@@ -2499,7 +2602,236 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             )}
           </div>
         )}
+        {/* 8. ⚙️ 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
+{activeTab === 'settings' && userRole === 'owner' && (
+  <div className="space-y-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
+      {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
+      <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+        <h3 className="text-base font-bold mb-4 text-emerald-400 flex items-center gap-2">
+          🏦 1. Мөнгөн Данс & Татварын Горим
+        </h3>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setLoading(true);
+          const { error } = await supabase.from('client_settings').upsert({
+            client_id: activeClient,
+            initial_cash: parseFloat(initialCash) || 0,
+            initial_bank: parseFloat(initialBank) || 0,
+            tax_mode: taxMode,
+            updated_at: new Date().toISOString()
+          });
+          if (error) alert(`Алдаа: ${error.message}`);
+          else alert("Салбарын эхний үлдэгдэл амжилттай хадгалагдлаа!");
+          await fetchDatabaseData(activeClient);
+          setLoading(false);
+        }} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-400 mb-1">Кассын эхний бэлэн мөнгө (₮)</label>
+            <input 
+              type="number" 
+              value={initialCash}
+              onChange={e => setInitialCash(e.target.value)}
+              placeholder="Жнь: 200000"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-400 mb-1">Банкны дансны эхний үлдэгдэл (₮)</label>
+            <input 
+              type="number" 
+              value={initialBank}
+              onChange={e => setInitialBank(e.target.value)}
+              placeholder="Жнь: 5000000"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-400 mb-1">Татварын тооцоолох горим</label>
+            <select 
+              value={taxMode}
+              onChange={e => setTaxMode(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-emerald-400 text-sm font-bold"
+            >
+              <option value="auto">⚡ Автомат (300 сая хүртэл 1%, давбал 10%)</option>
+              <option value="simplified_1pct">🟢 Зөвхөн Хялбаршуулсан 1% (Орлогоос)</option>
+              <option value="standard_10pct">🔴 Энгийн 10% (Цэвэр ашгаас + НӨАТ)</option>
+            </select>
+          </div>
+
+          <button type="submit" disabled={loading} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-sm">
+            Үлдэгдэл Хадгалах
+          </button>
+        </form>
+      </div>
+
+      {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
+      <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 lg:col-span-2">
+        <h3 className="text-base font-bold mb-4 text-blue-400 flex items-center gap-2">
+          🏢 2. Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
+        </h3>
+
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!newOpexName.trim() || !newOpexCost) return;
+          setLoading(true);
+          await supabase.from('fixed_opex').insert([{
+            client_id: activeClient,
+            name: newOpexName.trim(),
+            category: newOpexCategory,
+            monthly_cost: parseFloat(newOpexCost) || 0,
+            is_active: true
+          }]);
+          setNewOpexName('');
+          setNewOpexCost('');
+          await fetchDatabaseData(activeClient);
+          setLoading(false);
+        }} className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+          <input 
+            type="text" 
+            required 
+            value={newOpexName} 
+            onChange={e => setNewOpexName(e.target.value)} 
+            placeholder="Зардлын нэр (Жнь: Түрээс, Хий/Газ)" 
+            className="sm:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+          />
+          <input 
+            type="number" 
+            required 
+            value={newOpexCost} 
+            onChange={e => setNewOpexCost(e.target.value)} 
+            placeholder="Сарын дүн (₮)" 
+            className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+          />
+          <button type="submit" className="bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold py-2 rounded-xl text-xs">
+            + Зардал Нэмэх
+          </button>
+        </form>
+
+        <div className="overflow-x-auto max-h-[220px]">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="text-slate-400 border-b border-slate-800">
+                <th className="pb-2">Зардлын нэр</th>
+                <th className="pb-2 text-right">Сарын дүн (₮)</th>
+                <th className="pb-2 text-right">Үйлдэл</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {fixedOpexList.length === 0 ? (
+                <tr><td colSpan={3} className="py-4 text-center text-slate-500 italic">Тогтмол зардал оруулаагүй байна (Түрээс, тог г.м нэмнэ үү).</td></tr>
+              ) : (
+                fixedOpexList.map(item => (
+                  <tr key={item.id}>
+                    <td className="py-2.5 font-bold text-slate-200">{item.name}</td>
+                    <td className="py-2.5 text-right font-black text-slate-100">{parseFloat(item.monthly_cost).toLocaleString()} ₮</td>
+                    <td className="py-2.5 text-right">
+                      <button onClick={async () => { await supabase.from('fixed_opex').delete().eq('id', item.id); fetchDatabaseData(activeClient); }} className="text-rose-400 hover:text-rose-300 font-bold text-xs">
+                        Устгах
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {/* 3. ҮНДСЭН ХӨРӨНГӨ (ТОНОГ ТӨХӨӨРӨМЖ, ШАРАХ ШҮҮГЭЭ, КОФЕ МАШИН) */}
+    <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+      <h3 className="text-base font-bold mb-4 text-purple-400 flex items-center gap-2">
+        🍳 3. Үндсэн Хөрөнгө & Тоног Төхөөрөмжийн Бүртгэл (Элэгдэл тооцоо)
+      </h3>
+
+      <form onSubmit={async (e) => {
+        e.preventDefault();
+        if (!newAssetName.trim() || !newAssetCost) return;
+        setLoading(true);
+        await supabase.from('fixed_assets').insert([{
+          client_id: activeClient,
+          name: newAssetName.trim(),
+          initial_cost: parseFloat(newAssetCost) || 0,
+          useful_months: parseInt(newAssetMonths) || 60,
+          purchase_date: newAssetDate
+        }]);
+        setNewAssetName('');
+        setNewAssetCost('');
+        await fetchDatabaseData(activeClient);
+        setLoading(false);
+      }} className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-6">
+        <input 
+          type="text" 
+          required 
+          value={newAssetName} 
+          onChange={e => setNewAssetName(e.target.value)} 
+          placeholder="Хөрөнгийн нэр (Жнь: Rational зуух, Плитка, Хөргүүр)" 
+          className="sm:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+        />
+        <input 
+          type="number" 
+          required 
+          value={newAssetCost} 
+          onChange={e => setNewAssetCost(e.target.value)} 
+          placeholder="Анхны өртөг (₮)" 
+          className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+        />
+        <input 
+          type="number" 
+          value={newAssetMonths} 
+          onChange={e => setNewAssetMonths(e.target.value)} 
+          placeholder="Ашиглах сар (Жнь: 60)" 
+          className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+        />
+        <button type="submit" className="bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold py-2 rounded-xl text-xs">
+          + Хөрөнгө Нэмэх
+        </button>
+      </form>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="text-slate-400 border-b border-slate-800">
+              <th className="pb-2">Хөрөнгийн нэр</th>
+              <th className="pb-2 text-right">Анхны өртөг</th>
+              <th className="pb-2 text-center">Ашиглах сар</th>
+              <th className="pb-2 text-right">Сарын элэгдэл</th>
+              <th className="pb-2 text-right">Үйлдэл</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800/50">
+            {fixedAssets.length === 0 ? (
+              <tr><td colSpan={5} className="py-6 text-center text-slate-500 italic">Бүртгэлтэй үндсэн хөрөнгө байхгүй байна.</td></tr>
+            ) : (
+              fixedAssets.map(fa => {
+                const cost = parseFloat(fa.initial_cost) || 0;
+                const months = parseInt(fa.useful_months) || 60;
+                const monthly = months > 0 ? Math.round(cost / months) : 0;
+                return (
+                  <tr key={fa.id}>
+                    <td className="py-2.5 font-bold text-slate-200">{fa.name}</td>
+                    <td className="py-2.5 text-right text-slate-300">{cost.toLocaleString()} ₮</td>
+                    <td className="py-2.5 text-center text-slate-400">{months} сар ({(months/12).toFixed(1)} жил)</td>
+                    <td className="py-2.5 text-right font-black text-purple-400">{monthly.toLocaleString()} ₮/сар</td>
+                    <td className="py-2.5 text-right">
+                      <button onClick={async () => { await supabase.from('fixed_assets').delete().eq('id', fa.id); fetchDatabaseData(activeClient); }} className="text-rose-400 hover:text-rose-300 font-bold">
+                        Устгах
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
