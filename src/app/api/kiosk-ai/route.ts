@@ -66,9 +66,9 @@ export async function POST(request: Request) {
 
     // 2. ЗУРАГ БҮРТГЭХ
 // 2. ЗУРАГ БҮРТГЭХ (E-Barimt эсвэл Барааны зураг)
-    if (imageBase64) {
+if (imageBase64) {
       const aiAnalysis = await parseReceiptImage(imageBase64, allowedNames);
-      if (!aiAnalysis || !aiAnalysis.success) {
+      if (!aiAnalysis || !aiAnalysis.success || !aiAnalysis.purchases) {
         return NextResponse.json({ success: false, message: aiAnalysis?.error_message || "❌ Зургийг уншиж чадсангүй." });
       }
 
@@ -83,29 +83,19 @@ export async function POST(request: Request) {
         const notePrefix = isEBarimt ? '🧾 E-Barimt' : '📸 Барааны зураг (Баримтгүй)';
 
         if (isFood) {
-          // [А. ХҮНСНИЙ ТҮҮХИЙ ЭД] -> Системд байгаа эсэхийг шалгах
           let targetIngredient = ingredients?.find(
             (i: any) => i.name.toLowerCase().trim() === item.item_name.toLowerCase().trim()
           );
 
-          // Хэрэв шинэ хүнс бол (Raspberry puree г.м) -> ingredients хүснэгтэд АВТОМАТААР үүсгэнэ!
+          // Хэрэв шинэ хүнс бол ingredients-д 0.05с-д шууд бүртгэнэ
           if (!targetIngredient) {
             const unitPrice = item.quantity > 0 ? Math.round((item.total_cost || 0) / item.quantity) : 0;
-            const { data: newIng, error: createIngErr } = await supabaseAdmin
+            const { data: newIng } = await supabaseAdmin
               .from('ingredients')
-              .insert([{
-                client_id: clientId,
-                name: item.item_name.trim(),
-                unit: 'ш',
-                unit_price: unitPrice,
-                current_stock: 0
-              }])
+              .insert([{ client_id: clientId, name: item.item_name.trim(), unit: 'ш', unit_price: unitPrice, current_stock: 0 }])
               .select()
               .single();
-
-            if (!createIngErr && newIng) {
-              targetIngredient = newIng;
-            }
+            if (newIng) targetIngredient = newIng;
           }
 
           if (targetIngredient) {
@@ -121,10 +111,10 @@ export async function POST(request: Request) {
               worker_name: workerName, 
               date: currentDate 
             });
-            successMsg += `• 🥐 [Агуулахын Хөрөнгө] ${targetIngredient.name}: ${item.quantity} ${targetIngredient.unit || 'ш'} (${(item.total_cost || 0).toLocaleString()}₮) [${payMethod === 'cash' ? 'Бэлэн' : 'Данс'}]\n`;
+            successMsg += `• 🥐 [Агуулах] ${targetIngredient.name}: ${item.quantity} ${targetIngredient.unit || 'ш'} (${(item.total_cost || 0).toLocaleString()}₮)\n`;
           }
         } else {
-          // [Б. ХҮНСНИЙ БУС ЗҮЙЛС (Сальфетка, Угаалгын шингэн)] -> 100% OPEX Зардал
+          // Хүнсний бус OPEX
           logsToInsert.push({ 
             client_id: clientId, 
             ingredient_id: null,
@@ -138,10 +128,11 @@ export async function POST(request: Request) {
             worker_name: workerName, 
             date: currentDate 
           });
-          successMsg += `• 🧼 [OPEX Зардал] ${item.item_name}: ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮) [${payMethod === 'cash' ? 'Бэлэн' : 'Данс'}]\n`;
+          successMsg += `• 🧼 [OPEX] ${item.item_name}: ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮)\n`;
         }
       }
 
+      // ⚡ БҮХ БАРААГ ЗЭРЭГ ХАДГАЛАХ (1-хэн хүсэлтээр)
       if (logsToInsert.length > 0) {
         await supabaseAdmin.from('inventory_logs').insert(logsToInsert);
       }
@@ -150,8 +141,7 @@ export async function POST(request: Request) {
     // 3. ТЕКСТ БИЧИХ ҮЕД
     if (text) {
       const lower = text.toLowerCase().trim();
-
-      // ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (Хэрэв тоотой зарлага байвал)
+// ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (0.2 СЕКУНДЭД ШУУД ХАДГАЛАХ)
       const hasNumbers = /\d/.test(text);
       const isLikelyOperation = hasNumbers && (
         lower.includes("асга") || lower.includes("мууд") || lower.includes("орлоо") || 
@@ -176,6 +166,7 @@ export async function POST(request: Request) {
 
             if (logError) throw logError;
 
+            // ⚡ ШУУД ХАРИУ БУЦААХ (Санхүүгийн хүнд мотор руу орохгүй тул 0.2с хурдтай болно!)
             return NextResponse.json({
               success: true,
               is_log: true,
@@ -184,6 +175,15 @@ export async function POST(request: Request) {
             });
           }
         }
+      }
+
+      // Хэрэв Kiosk ажилтан санхүүгийн асуулт асуувал хүнд мотор ажиллуулахгүйгээр шууд татгалзана
+      if (!isOwner) {
+        return NextResponse.json({
+          success: true,
+          is_log: false,
+          message: "🔒 Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой. Би зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй."
+        });
       }
  // 💡 ОГНООГ ТОХИРУУЛЖ, getAnalyticsData-Г ЭНД ГАНЦХАН УДАА ДУУДНА:
       // =========================================================================

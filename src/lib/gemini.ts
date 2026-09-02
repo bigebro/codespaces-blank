@@ -42,7 +42,13 @@ export async function parseOperationalText(text: string, ingredientsList: string
         const currentKey = API_KEYS[keyIdx];
     try {
       const ai = new GoogleGenerativeAI(currentKey);
-      const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
+      const model = ai.getGenerativeModel({ 
+        model: 'gemini-3.6-flash',
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json"
+  }
+});
       const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: `System: ${systemPrompt}\n\nUser Message: "${text}"` }] }]
       });
@@ -129,9 +135,17 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
   for (const key of API_KEYS) {
     const keyIdx = (currentKeyIndex + API_KEYS.indexOf(key)) % API_KEYS.length;
         const currentKey = API_KEYS[keyIdx];
+  // ⚡ ЗАСВАР: Хурдан gemini-1.5-flash загвар + цэвэр JSON шууд гаргах тохиргоо:
     try {
       const ai = new GoogleGenerativeAI(currentKey);
-      const model = ai.getGenerativeModel({ model: 'gemini-3.6-flash' });
+      const model = ai.getGenerativeModel({ 
+        model: 'gemini-3.6-flash',
+        generationConfig: {
+          temperature: 0.1, // Баримт үнэн зөв, хурдан уншихад хамгийн тохиромжтой
+          responseMimeType: "application/json" // Илүү текст үүсгэхгүй шууд 0.8с-д JSON буцаана
+        }
+      });
+
       const response = await model.generateContent({
         contents: [{
           role: 'user',
