@@ -283,7 +283,8 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [productsPasteText, setProductsPasteText] = useState('');
   const [productsImportSuccess, setProductsImportSuccess] = useState(false);
   const [myPin, setMyPin] = useState('');
-
+  const [invSearch, setInvSearch] = useState('');
+  const [invFilter, setInvFilter] = useState<'all' | 'low' | 'critical'>('all');
   // 🔒 Kiosk түгжээний State-үүд:
  const [isKioskLocked, setIsKioskLocked] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -1977,16 +1978,19 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             ) : (
               <div className="overflow-x-auto max-h-[600px]">
                 <table className="w-full text-left border-collapse">
-                  <thead>
+                 <thead>
                     <tr className="border-b border-slate-900 text-slate-400 text-xs font-bold uppercase tracking-wider sticky top-0 bg-slate-950 z-10">
                       <th className="py-3 px-4">Барааны Нэр</th>
                       <th className="py-3 px-4">Нэгж</th>
-                       <th className="py-3 px-4 text-center">Өдөр бүр тоолох (A-Class)</th> 
-                      <th className="py-3 px-4 text-right">Стандарт Өртөг</th>
-                        <th className="py-3 px-4 text-right">Хэвийн Нөөц (Par)</th>
-                        <th className="py-3 px-4 text-right">Нийлүүлэх (Lead Days)</th>
-                        <th className="py-3 px-4 text-right">Захиалга (Suggestion)</th>
-                      <th className="py-3 px-4 text-right">Бодит тоолсон үлдэгдэл</th>
+                      <th className="py-3 px-4 text-center">A-Class</th> 
+                      <th className="py-3 px-4 text-right">Өртөг</th>
+                      <th className="py-3 px-4 text-right">Хэвийн Нөөц (Par)</th>
+                      <th className="py-3 px-4 text-right">Нийлүүлэх (Lead)</th>
+                      <th className="py-3 px-4 text-right">Захиалга</th>
+                      {/* 📦 1. СИСТЕМД БАЙГАА БОДИТ ҮЛДЭГДЛИЙГ ХАРУУЛАХ БАГАНА */}
+                      <th className="py-3 px-4 text-right text-emerald-400">Одоогийн Үлдэгдэл</th>
+                      {/* ✍️ 2. ШИНЭЭР ЗАСАЖ ТООЛОХ INPUT БАГАНА */}
+                      <th className="py-3 px-4 text-right">Тооллого засах</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-900 text-sm">
@@ -1994,54 +1998,57 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                       <tr key={ing.id} className="hover:bg-slate-900/20 transition-all duration-150">
                         <td className="py-3 px-4 font-bold text-slate-200">{ing.name}</td>
                         <td className="py-3 px-4 text-slate-400">{ing.unit}</td>
-                        {/* ЭНЭ ШИНЭ CHECKBOX-ИЙГ НЭМНЭ */}
                         <td className="py-2 px-4 text-center">
                           <input 
                             type="checkbox"
                             checked={ing.is_critical || false}
                             onChange={(e) => handleIngredientUpdate(ing.id, 'is_critical', e.target.checked)}
-                            className="w-5 h-5 accent-emerald-500 bg-slate-900 border-slate-700 rounded cursor-pointer"
+                            className="w-4 h-4 accent-emerald-500 bg-slate-900 border-slate-700 rounded cursor-pointer"
                           />
                         </td>
                         <td className="py-3 px-4 text-right text-slate-300">
-                          {parseFloat(ing.unit_price).toLocaleString()}
-                        </td>{/* 1. EDITABLE PAR LEVEL INPUT [2] */}
-                      <td className="py-2 px-4 text-right">
-                        <input 
-                          type="number"
-                          step="any"
-                          value={ing.par_level !== undefined ? ing.par_level : 0}
-                          onChange={(e) => handleIngredientUpdate(ing.id, 'par_level', e.target.value)}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-right text-white focus:outline-none focus:border-emerald-500 font-bold text-xs w-24"
-                        />
-                      </td>
+                          {parseFloat(ing.unit_price).toLocaleString()}₮
+                        </td>
+                        <td className="py-2 px-4 text-right">
+                          <input 
+                            type="number"
+                            step="any"
+                            value={ing.par_level !== undefined ? ing.par_level : 0}
+                            onChange={(e) => handleIngredientUpdate(ing.id, 'par_level', e.target.value)}
+                            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-right text-white text-xs w-20"
+                          />
+                        </td>
+                        <td className="py-2 px-4 text-right">
+                          <input 
+                            type="number"
+                            value={ing.lead_time_days !== undefined ? ing.lead_time_days : 1}
+                            onChange={(e) => handleIngredientUpdate(ing.id, 'lead_time_days', e.target.value)}
+                            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-right text-white text-xs w-16"
+                          />
+                        </td>
+                        <td className="py-3 px-4 text-right font-black text-blue-400">
+                          {liveAnalytics?.all_inventory_data?.find((i: any) => i.name === ing.name)?.suggested_order || 0} {ing.unit}
+                        </td>
 
-                      {/* 2. EDITABLE LEAD TIME INPUT [2] */}
-                      <td className="py-2 px-4 text-right">
-                        <input 
-                          type="number"
-                          value={ing.lead_time_days !== undefined ? ing.lead_time_days : 1}
-                          onChange={(e) => handleIngredientUpdate(ing.id, 'lead_time_days', e.target.value)}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-right text-white focus:outline-none focus:border-emerald-500 font-bold text-xs w-16"
-                        />
-                      </td>
+                        {/* 📦 БААЗАД ХАДГАЛАГДСАН БОДИТ ҮЛДЭГДЭЛ (95ш, 100ш, 680ш гэж ногооноор харагдана) */}
+                        <td className="py-3 px-4 text-right font-black text-emerald-400">
+                          {parseFloat(ing.current_stock || 0).toLocaleString()} {ing.unit}
+                        </td>
 
-                      {/* 3. CALCULATED ORDER SUGGESTION (Pulls from your live API payload) [2, 3] */}
-                      <td className="py-3.5 px-4 text-right font-black text-blue-400">
-                        {liveAnalytics?.all_inventory_data?.find((i: any) => i.name === ing.name)?.suggested_order || 0} {ing.unit}
-                      </td>
+                        {/* ✍️ ЗАХИРАЛ ГАРААРАА ӨӨРЧЛӨХ INPUT */}
                         <td className="py-2 px-4 text-right">
                           <input 
                             type="number" 
                             step="any"
-                            value={bulkStock[ing.id] !== undefined ? bulkStock[ing.id] : ""}
+                            value={bulkStock[ing.id] !== undefined ? bulkStock[ing.id] : (ing.current_stock || '')}
                             onChange={(e) => {
                               setBulkStock({
                                 ...bulkStock,
                                 [ing.id]: e.target.value
                               });
                             }}
-                            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-right text-white focus:outline-none focus:border-emerald-500 font-bold text-sm w-32"
+                            placeholder="Тоо..."
+                            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-right text-white font-bold text-xs w-28 focus:border-emerald-500"
                           />
                         </td>
                       </tr>
