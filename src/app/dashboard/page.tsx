@@ -1461,63 +1461,74 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
      
         </div>
 
-     
-     {/* Navigation Tabs */}
-        <div className="flex gap-3 mb-8 border-b border-slate-900 pb-4 overflow-x-auto items-center">
-          
-          {/* 👑 ЗӨВХӨН ЭЗЭНД ХАРАГДАХ САНХҮҮГИЙН ЦЭСҮҮД */}
+ {/* Navigation Tabs */}
+        <div className="flex gap-4 mb-8 border-b border-slate-900 pb-4 overflow-x-auto">
           {isOwner && (
-            <>
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-              >
-                📊 Санхүүгийн Хяналт
-              </button>
-              <button 
+            <><button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'dashboard' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+            >
+              📊 Санхүүгийн Хяналт
+            </button>
+            <button 
                 onClick={() => setActiveTab('ai_cfo')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'ai_cfo' ? 'bg-blue-500 text-slate-950 shadow-lg' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'ai_cfo' ? 'bg-blue-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
               >
                 🤖 AI Зөвлөх (CFO Chat)
               </button>
             </>
           )}
-
-          {/* 👨‍🍳 АЖИЛТАН БА ЭЗЭНД: ӨДӨР ТУТМЫН ҮЙЛ АЖИЛЛАГААНЫ БҮРТГЭЛ */}
           <button 
-            onClick={() => setActiveTab('operations')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'operations' ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+          onClick={() => setActiveTab('operations')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'operations' || (userRole === 'barista' && activeTab === 'dashboard') ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
           >
             📝 Үйл ажиллагааны бүртгэл ({userRole})
           </button>
-
-          {/* 📱 АЖИЛТАНД: ГАЛ ТОГООНЫ KIOSK РУУ ОРОХ ТОВЧ */}
-          {!isOwner && (
-            <>
+              {!isOwner && (
             <button 
               onClick={() => router.push('/kiosk')}
-              className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all"
             >
               📱 Гал тогооны Kiosk нээх
             </button>
 
-              <button onClick={() => setActiveTab('sales')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'sales' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📈 Борлуулалт</button>
-              <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>🗂️ Агуулахын Тооллого</button>
-              <button onClick={() => setActiveTab('import')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'import' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📥 Бөөнөөр Импортлох</button>
-            </>
           )}
-
-          {/* 👑 БУСАД ЭЗНИЙ УДИРДЛАГЫН ТАБУУД */}
-          {isOwner && (
-            <>
-              <button onClick={() => setActiveTab('sales')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'sales' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📈 Борлуулалт</button>
-              <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>🗂️ Агуулахын Тооллого</button>
-              <button onClick={() => setActiveTab('import')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'import' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📥 Бөөнөөр Импортлох</button>
-              <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'tasks' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📋 Ажлын Даалгавар & Цалин</button>
-              <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>⚙️ Санхүүгийн Тохиргоо</button>
-            </>
-          )}
-
+           <button 
+                onClick={() => setActiveTab('sales')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'sales' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                📈 Борлуулалт Оруулах
+              </button>
+              <button 
+                onClick={() => setActiveTab('inventory')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'inventory' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                🗂️ Агуулахын Тооллого (Google Sheet Grid)
+              </button>
+              <button 
+                onClick={() => setActiveTab('import')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'import' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                📥 Бөөнөөр Импортлох (Excel Paste)
+              </button>
+              {isOwner && (
+                <>
+              <button 
+                onClick={() => setActiveTab('tasks')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'tasks' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                📋 Ажлын Даалгавар (Tasks)
+              </button>
+               <button 
+                onClick={() => setActiveTab('settings')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                ⚙️ Санхүүгийн Тохиргоо
+              </button>
+              </>
+               )}
+            
+         
         </div>
 
         {/* 1. FINANCIAL DASHBOARD TAB */}
@@ -2577,7 +2588,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
 
         {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
         {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'ai_cfo' && activeTab !== 'operations' && activeTab !=='sales' && activeTab !=='dashboard' && activeTab !=='settings' &&(
-          <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
+          <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8 mt-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
               <div>
                 <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
