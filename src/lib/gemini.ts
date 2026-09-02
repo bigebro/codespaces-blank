@@ -135,7 +135,7 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
   for (const key of API_KEYS) {
     const keyIdx = (currentKeyIndex + API_KEYS.indexOf(key)) % API_KEYS.length;
         const currentKey = API_KEYS[keyIdx];
-  // ⚡ ЗАСВАР: Хурдан gemini-1.5-flash загвар + цэвэр JSON шууд гаргах тохиргоо:
+  // 
     try {
       const ai = new GoogleGenerativeAI(currentKey);
       const model = ai.getGenerativeModel({ 

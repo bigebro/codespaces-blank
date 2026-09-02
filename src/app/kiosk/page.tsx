@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { Coffee, CheckCircle, Users, LogOut, Camera, Trash2, Key, MessageSquare, CheckSquare, ListOrdered, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useRouter } from 'next/navigation';
 
 // 🚀 KIOSK ТАБЛЕТ ДЭЭР 0MS ХУРДТАЙ, ХЭТ ГӨЛГӨР ЧАТНЫ БҮРЭЛДЭХҮҮН (OUTSIDE KIOSKPAGE)
 function KioskAiChatSection({ 
@@ -19,7 +20,6 @@ function KioskAiChatSection({
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
-
   const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
@@ -234,6 +234,7 @@ function KioskAiChatSection({
 
 
  function KioskPage() {
+  const router = useRouter(); 
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'menu' | 'ai_chat' | 'tasks' | 'close_shift'>('select_worker');
   const [workers, setWorkers] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
@@ -253,7 +254,14 @@ function KioskAiChatSection({
   const [inventoryToCount, setInventoryToCount] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
 
-  useEffect(() => { fetchKioskData(); }, []);
+  useEffect(() => { fetchKioskData();
+
+        // Kiosk горимд орсныг тэмдэглэж түгжих:
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('kiosk_device_locked', 'true');
+    }
+
+   }, []);
 
   const fetchKioskData = async () => {
     const { data: profiles } = await supabase.from('profiles').select('*').neq('role', 'owner');
@@ -321,54 +329,67 @@ function KioskAiChatSection({
   };
 
   // 2. PIN VERIFICATION WITH DAILY TASK MEMORY
-  const handleVerifyPin = async () => {
-    if (pin === '1234' || pin === '1111') {
-      const workerName = selectedWorker.email.split('@')[0];
-      const workerDisplayName = (selectedWorker.full_name || workerName).trim();
-      const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
-      const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
+const handleVerifyPin = async () => {
+    if (!selectedWorker) return;
+    const hasExistingPin = selectedWorker.pin_code && selectedWorker.pin_code.trim() !== '';
 
-      // Load tasks with 24-hour daily memory!
-      const liveTasks = await loadLiveTodayTasks(tenantId, selectedWorker);
-
-      // Check for active shift
-      let { data: shift } = await supabase
-        .from('shifts')
-        .select('*')
-        .eq('client_id', tenantId)
-        .eq('is_active', true)
-        .order('start_time', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!shift) {
-        const { data: newShift, error: insertError } = await supabase.from('shifts').insert([{
-          client_id: tenantId,
-          character_role: fullNameRole,
-          is_active: true,
-          daily_tasks_checklist: liveTasks,
-          telegram_chat_id: selectedWorker.telegram_chat_id || 0
-        }]).select().single();
-
-        if (insertError || !newShift) {
-          setMsg(`❌ Датабэйс алдаа: ${insertError?.message || 'Ээлж үүсгэж чадсангүй.'}`);
-          setPin('');
-          return;
-        }
-        shift = newShift;
-      } else {
-        await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', shift.id);
-        shift.daily_tasks_checklist = liveTasks;
+    // 1. АНХ УДАА ОРЖ БАЙГАА БОЛ: Шинэ PIN-ийг хадгалаад шууд ээлж рүү оруулна
+    if (!hasExistingPin) {
+      if (pin.length !== 4) {
+        setMsg("Шинэ PIN код заавал 4 оронтой тоо байх ёстой!");
+        return;
       }
-
-      setActiveShift(shift);
-      setTasks(liveTasks);
-      setStep('menu');
-      setPin('');
-    } else {
-      setMsg("Буруу PIN код!");
-      setPin('');
+      await supabase.from('profiles').update({ pin_code: pin }).eq('id', selectedWorker.id);
+      selectedWorker.pin_code = pin;
+    } 
+    // 2. ӨМНӨ НЬ PIN ЗОХИОСОН БОЛ: Тулгаж шалгана
+    else {
+      if (pin !== selectedWorker.pin_code) {
+        setMsg("❌ Буруу PIN код! Мартсан бол Dashboard руу орж одоогийн PIN-ээ харна уу.");
+        setPin('');
+        return;
+      }
     }
+
+    // Ээлжийг нээх:
+    const workerName = selectedWorker.email.split('@')[0];
+    const workerDisplayName = (selectedWorker.full_name || workerName).trim();
+    const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
+    const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
+
+    const liveTasks = await loadLiveTodayTasks(tenantId, selectedWorker);
+
+    let { data: shift } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('client_id', tenantId)
+      .eq('is_active', true)
+      .order('start_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!shift) {
+      const { data: newShift, error: insertError } = await supabase.from('shifts').insert([{
+        client_id: tenantId,
+        character_role: fullNameRole,
+        is_active: true,
+        daily_tasks_checklist: liveTasks,
+        telegram_chat_id: selectedWorker.telegram_chat_id || 0
+      }]).select().single();
+
+      if (insertError || !newShift) {
+        setMsg(`❌ Алдаа: ${insertError?.message || 'Ээлж үүсгэж чадсангүй.'}`);
+        setPin('');
+        return;
+      }
+      shift = newShift;
+    }
+
+    setActiveShift(shift);
+    setTasks(liveTasks);
+    setStep('menu');
+    setPin('');
+    setMsg('');
   };
 
   // 3. LIVE SYNC ON TASK SCREEN OPEN
@@ -516,15 +537,26 @@ const completeTask = async (index: number) => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6">
       <header className="flex justify-between items-center border-b border-slate-900 pb-4 mb-6">
+       
         <div className="flex items-center gap-3">
           <Coffee className="h-8 w-8 text-emerald-400" />
           <div><h1 className="text-xl font-black">SF KITCHEN KIOSK</h1><p className="text-xs text-slate-500 uppercase font-bold">Smart AI Mode</p></div>
         </div>
-        {selectedWorker && (
-          <button onClick={() => { setSelectedWorker(null); setStep('select_worker'); setChatHistory([]); }} className="bg-rose-500/10 text-rose-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-            <LogOut className="h-4 w-4" /> Гарах
+      <div className="flex items-center gap-3">
+          {/* 🔒 ЭЗЭНД ЗОРИУЛСАН DASHBOARD РУУ БУЦАХ ХОЛБООС */}
+          <button 
+            onClick={() => router.push('/dashboard')} 
+            className="text-slate-500 hover:text-slate-300 text-xs font-bold flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800"
+          >
+            🔒 Dashboard
           </button>
-        )}
+
+          {selectedWorker && (
+            <button onClick={() => { setSelectedWorker(null); setStep('select_worker'); setChatHistory([]); }} className="bg-rose-500/10 text-rose-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
+              <LogOut className="h-4 w-4" /> Гарах
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center">
@@ -545,18 +577,39 @@ const completeTask = async (index: number) => {
           </div>
         )}
 
-        {/* 2. PIN CODE */}
+    
+       {/* 2. PIN ДЭЛГЭЦ */}
         {step === 'pin_code' && (
           <div className="bg-slate-900/40 p-8 rounded-3xl max-w-sm w-full text-center border border-slate-900">
-            <h2 className="text-lg font-bold mb-4 text-emerald-400">PIN код оруулна уу</h2>
-            <div className="bg-slate-950 p-4 rounded-2xl text-2xl tracking-widest font-black mb-6">{pin.replace(/./g, '•')}</div>
+            <h2 className="text-lg font-bold mb-1 text-emerald-400">
+              {selectedWorker?.pin_code ? "PIN код оруулна уу" : "✨ Шинэ 4 оронтой PIN зохионо уу"}
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">
+              {selectedWorker?.pin_code ? "Өөрийн хувийн нууц кодыг хийнэ үү" : "Энэ код цаашид таны ээлжинд нэвтрэх нууц код болно"}
+            </p>
+
+            <div className="bg-slate-950 p-4 rounded-2xl text-2xl tracking-widest font-black mb-6">
+              {pin ? pin.replace(/./g, '•') : <span className="text-slate-700">••••</span>}
+            </div>
+
             <div className="grid grid-cols-3 gap-4">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                <button key={num} onClick={() => setPin(p=>p.length<4?p+num:p)} className="bg-slate-950 py-4 rounded-xl text-xl font-black">{num}</button>
+                <button key={num} onClick={() => setPin(p => p.length < 4 ? p + num : p)} className="bg-slate-950 hover:bg-slate-900 py-4 rounded-xl text-xl font-black">{num}</button>
               ))}
               <button onClick={() => setPin('')} className="bg-rose-500/10 text-rose-400 rounded-xl text-xs font-bold">Clear</button>
-              <button onClick={() => setPin(p=>p.length<4?p+'0':p)} className="bg-slate-950 py-4 rounded-xl text-xl font-black">0</button>
-              <button onClick={handleVerifyPin} className="bg-emerald-500 text-slate-950 rounded-xl text-sm font-black">ОК</button>
+              <button onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} className="bg-slate-950 hover:bg-slate-900 py-4 rounded-xl text-xl font-black">0</button>
+              <button onClick={handleVerifyPin} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-sm font-black">ОК</button>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-900 flex flex-col gap-2">
+              {selectedWorker?.pin_code && (
+                <p className="text-[11px] text-slate-500">
+                  💡 Кодоо мартсан бол өөрийн Dashboard руу орж одоогийн PIN-ээ харна уу.
+                </p>
+              )}
+              <button onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} className="text-xs text-slate-400 hover:text-white font-bold">
+                ← Буцах (Ажилтан солих)
+              </button>
             </div>
           </div>
         )}

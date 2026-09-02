@@ -7,7 +7,8 @@ import {
   TrendingUp, Trash2, Cpu, Layers, DollarSign, Percent, Activity, 
   AlertTriangle, Database, Coffee, PlusCircle, History, CheckCircle, 
   Undo2, Layers3, Building, Save, Check, FileSpreadsheet, UploadCloud, 
-  Eye, EyeOff, Bot // <--- Add Bot here!
+  Eye, EyeOff, Bot, // <--- Add Bot here!
+  ShieldAlert
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -206,7 +207,7 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [userClient, setUserClient] = useState<string>('SF Coffee');
   // Navigation State
-const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | 'inventory' | 'import' | 'tasks'| 'settings'| 'ai_cfo'>('dashboard');
+const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' | 'inventory' | 'import' | 'tasks' | 'settings' | 'ai_cfo'>('dashboard');
   // 2. Динамик Тохиргооны State-үүд
   const [fixedAssets, setFixedAssets] = useState<any[]>([]);
   const [fixedOpexList, setFixedOpexList] = useState<any[]>([]);
@@ -223,7 +224,8 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | '
   const [newOpexName, setNewOpexName] = useState('');
   const [newOpexCost, setNewOpexCost] = useState('');
   const [newOpexCategory, setNewOpexCategory] = useState('Байр, ашиглалт');
-  const [userRole, setUserRole] = useState<'owner' | 'barista'>('owner');
+  const [userRole, setUserRole] = useState<string>('Ажилтан');
+  const [isOwner, setIsOwner] = useState(false);
   const [shifts, setShifts] = useState<any[]>([]);
   const [activeClient, setActiveClient] = useState<string | 'Cafe B'>(userClient);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -279,8 +281,47 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'barista' | 'sales' | '
   const [recipesPasteText, setRecipesPasteText] = useState('');
   const [recipesImportSuccess, setRecipesImportSuccess] = useState(false);
   const [productsPasteText, setProductsPasteText] = useState('');
-const [productsImportSuccess, setProductsImportSuccess] = useState(false);
+  const [productsImportSuccess, setProductsImportSuccess] = useState(false);
+  const [myPin, setMyPin] = useState('');
 
+  // 🔒 Kiosk түгжээний State-үүд:
+ const [isKioskLocked, setIsKioskLocked] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('kiosk_device_locked') === 'true';
+    }
+    return false;
+  });
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
+
+  // Эзний нууц үгээр түгжээг тайлах функц:
+  const handleUnlockDashboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!unlockPassword || !user?.email) return;
+    setIsUnlocking(true);
+    setUnlockError('');
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: unlockPassword
+      });
+
+      if (error) {
+        setUnlockError("❌ Нууц үг буруу байна!");
+      } else {
+        // Түгжээ амжилттай тайлагдлаа:
+        sessionStorage.removeItem('kiosk_device_locked');
+        setIsKioskLocked(false);
+        setUnlockPassword('');
+      }
+    } catch (err: any) {
+      setUnlockError(err.message || "Түгжээ тайлахад алдаа гарлаа.");
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
 
 
   // June 2026 Demo Data
@@ -373,26 +414,35 @@ const checkUserSession = async () => {
     } else {
       setUser(session.user);
       
-      // 1. Fetch real branch and role from database
+  // ✍️ ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, client_id')
+        .select('role, client_id, pin_code')
         .eq('id', session.user.id)
         .single();
+        
+      if (profile?.pin_code) {
+        setMyPin(profile.pin_code);
+      }
 
-      const realBranch = profile?.client_id || session.user.user_metadata?.client_id || '';
+      const realBranch = (profile?.client_id || session.user.user_metadata?.client_id || 'SF Coffee').trim();
       
       if (realBranch) {
         setUserClient(realBranch);
         setActiveClient(realBranch);
         
-        if (profile?.role) {
-          setUserRole(profile.role);
-          if (profile.role === 'barista') {
-            setActiveTab('barista');
-          }
+        // 🔒 Үүргийг цэвэрлэж шалгах:
+        const rawRole = (profile?.role || session.user.user_metadata?.role || 'Ажилтан').trim();
+        const userIsOwner = rawRole.toLowerCase() === 'owner';
+        setIsOwner(userIsOwner);
+        setUserRole(userIsOwner ? 'owner' : rawRole) // Бааз дээрх 'Тогооч', 'Бармен' гэдэг нэр нь шууд хадгалагдана
+
+         if (userIsOwner) {
+          setActiveTab('dashboard');
+        } else {
+          setActiveTab('operations');
         }
-        // 2. Fetch ONLY this branch's data after resolving real identity [2, 3]
+
         fetchDatabaseData(realBranch);
       }
     }
@@ -1257,6 +1307,9 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     setEndDate(lastDay);
     fetchDatabaseData(activeClient, firstDay, lastDay);
   };
+
+
+  
   console.log(liveAnalytics?.menu_performance,"menu_performance")
   console.log(liveAnalytics?.financial_ladder,"financial_ladder")
   console.log(liveAnalytics?.tax_summary,"tax_summary")
@@ -1281,7 +1334,76 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
   console.log(liveAnalytics?.total_logged_other,"total_logged_other")
   console.log(liveAnalytics?.total_surplus_savings,"total_surplus_savings")
   console.log(liveAnalytics?.efficiency,"efficiency")
+// 🔒 ХЭРЭВ KIOSK ГАЛ ТОГООНЫ ТӨХӨӨРӨМЖӨӨС ОРОХ ГЭЖ БАЙГАА БОЛ ЭНЭ ДЭЛГЭЦ ГАРНА:
+  if (isKioskLocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-slate-900/60 p-8 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md text-center">
+          
+          <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 w-fit mx-auto mb-4">
+            <ShieldAlert className="h-8 w-8 text-emerald-400" />
+          </div>
 
+          <h2 className="text-xl font-black text-white">Санхүүгийн Самбар Түгжигдсэн</h2>
+          <p className="text-xs text-slate-400 mt-1 mb-6">
+            Энэ төхөөрөмж Kiosk горимд байна. Санхүүгийн мэдээлэл харахын тулд Эзний нууц үгээ оруулна уу.
+          </p>
+
+          {unlockError && (
+            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-3 rounded-xl mb-4 text-xs font-bold">
+              {unlockError}
+            </div>
+          )}
+
+          <form onSubmit={handleUnlockDashboard} className="space-y-4">
+            <input 
+              type="password"
+              required
+              value={unlockPassword}
+              onChange={e => setUnlockPassword(e.target.value)}
+              placeholder="Эзний нууц үг оруулах..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-emerald-500 outline-none text-center tracking-widest"
+            />
+
+            <button 
+              type="submit"
+              disabled={isUnlocking}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl transition text-sm shadow-lg"
+            >
+              {isUnlocking ? "Шалгаж байна..." : "🔓 Эзний эрхээр түгжээ тайлах"}
+            </button>
+          </form>
+
+          {/* 🔄 АЖИЛТАН ӨӨРИЙН ХАЯГААР НЭВТРЭХ СОНГОЛТ */}
+          <div className="mt-4 text-center">
+            <button 
+              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                sessionStorage.removeItem('kiosk_device_locked');
+                router.push('/login');
+              }}
+              className="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold"
+            >
+              🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
+            </button>
+          </div>
+
+          {/* 📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧ */}
+          <div className="mt-4 pt-4 border-t border-slate-900">
+            <button 
+              type="button"
+              onClick={() => router.push('/kiosk')}
+              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2"
+            >
+              📱 Гал тогооны Kiosk руу буцах
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
     
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
@@ -1339,67 +1461,63 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
      
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-4 mb-8 border-b border-slate-900 pb-4 overflow-x-auto">
-          {userRole === 'owner' && (
-            <><button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'dashboard' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-            >
-              📊 Санхүүгийн Хяналт
-            </button>
-            <button 
+     
+     {/* Navigation Tabs */}
+        <div className="flex gap-3 mb-8 border-b border-slate-900 pb-4 overflow-x-auto items-center">
+          
+          {/* 👑 ЗӨВХӨН ЭЗЭНД ХАРАГДАХ САНХҮҮГИЙН ЦЭСҮҮД */}
+          {isOwner && (
+            <>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+              >
+                📊 Санхүүгийн Хяналт
+              </button>
+              <button 
                 onClick={() => setActiveTab('ai_cfo')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'ai_cfo' ? 'bg-blue-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'ai_cfo' ? 'bg-blue-500 text-slate-950 shadow-lg' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
               >
                 🤖 AI Зөвлөх (CFO Chat)
               </button>
             </>
           )}
+
+          {/* 👨‍🍳 АЖИЛТАН БА ЭЗЭНД: ӨДӨР ТУТМЫН ҮЙЛ АЖИЛЛАГААНЫ БҮРТГЭЛ */}
           <button 
-            onClick={() => setActiveTab('barista')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'barista' || (userRole === 'barista' && activeTab === 'dashboard') ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
+            onClick={() => setActiveTab('operations')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'operations' ? 'bg-emerald-500 text-slate-950 shadow-lg' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
           >
-            ☕ Бариста Портал (Inputs)
+            📝 Үйл ажиллагааны бүртгэл ({userRole})
           </button>
-          
+
+          {/* 📱 АЖИЛТАНД: ГАЛ ТОГООНЫ KIOSK РУУ ОРОХ ТОВЧ */}
+          {!isOwner && (
             <>
-              <button 
-                onClick={() => setActiveTab('sales')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'sales' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-              >
-                📈 Борлуулалт Оруулах
-              </button>
-              <button 
-                onClick={() => setActiveTab('inventory')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'inventory' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-              >
-                🗂️ Агуулахын Тооллого (Google Sheet Grid)
-              </button>
-              <button 
-                onClick={() => setActiveTab('import')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'import' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-              >
-                📥 Бөөнөөр Импортлох (Excel Paste)
-              </button>
-              {userRole === 'owner' && (
-              <button 
-                onClick={() => setActiveTab('tasks')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === 'tasks' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-              >
-                📋 Ажлын Даалгавар (Tasks)
-              </button>
-               )}
-              {userRole === 'owner' && (
-              <button 
-                onClick={() => setActiveTab('settings')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}
-              >
-                ⚙️ Санхүүгийн Тохиргоо
-              </button>
-            )}
+            <button 
+              onClick={() => router.push('/kiosk')}
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all flex items-center gap-1.5"
+            >
+              📱 Гал тогооны Kiosk нээх
+            </button>
+
+              <button onClick={() => setActiveTab('sales')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'sales' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📈 Борлуулалт</button>
+              <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>🗂️ Агуулахын Тооллого</button>
+              <button onClick={() => setActiveTab('import')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'import' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📥 Бөөнөөр Импортлох</button>
             </>
-         
+          )}
+
+          {/* 👑 БУСАД ЭЗНИЙ УДИРДЛАГЫН ТАБУУД */}
+          {isOwner && (
+            <>
+              <button onClick={() => setActiveTab('sales')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'sales' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📈 Борлуулалт</button>
+              <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>🗂️ Агуулахын Тооллого</button>
+              <button onClick={() => setActiveTab('import')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'import' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📥 Бөөнөөр Импортлох</button>
+              <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'tasks' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>📋 Ажлын Даалгавар & Цалин</button>
+              <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900/50 text-slate-400 hover:text-white'}`}>⚙️ Санхүүгийн Тохиргоо</button>
+            </>
+          )}
+
         </div>
 
         {/* 1. FINANCIAL DASHBOARD TAB */}
@@ -1530,7 +1648,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                       <p className="text-sm text-slate-500 italic text-center py-8">Хаягдал бүртгэгдээгүй байна.</p>
                     )
                   ) : (
-                    demoWasters[activeClient].map((w, idx) => (
+                    (demoWasters[activeClient] || demoWasters["SF Coffee"] || []).map((w, idx) => (
                       <div key={idx} className="border-b border-slate-900 pb-4 last:border-0 last:pb-0">
                         <div className="flex justify-between font-semibold">
                           <span className="text-slate-200 text-sm">{w.name}</span>
@@ -1555,8 +1673,53 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             />
           </div>
         )}
-        {/* 3. BARISTA STAFF PORTAL (INPUTS) */}
-        {activeTab === 'barista' && (
+        {/* 3.  STAFF PORTAL (INPUTS) */}
+        {activeTab === 'operations' && (
+              <div>
+            
+            {/* 🔐 ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
+            {userRole !== 'owner' && (
+              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    🔐 Миний Kiosk PIN код
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Гал тогооны дундын таблет дээр нэвтрэх нууц код: 
+                    <span className="ml-2 font-mono font-black text-xs text-emerald-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-700">
+                      {myPin || "1234 (Анхдагч)"}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <input 
+                    type="password"
+                    maxLength={4}
+                    value={myPin}
+                    onChange={e => setMyPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Шинэ PIN (4 тоо)"
+                    className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-center text-white font-bold text-xs tracking-widest w-32 focus:border-emerald-500 outline-none"
+                  />
+                  <button 
+                    type="button"
+                    onClick={async () => {
+                      if (myPin.length !== 4) {
+                        alert("PIN код заавал 4 оронтой тоо байх ёстой!");
+                        return;
+                      }
+                      const { error } = await supabase.from('profiles').update({ pin_code: myPin }).eq('id', user.id);
+                      if (error) alert(`Алдаа: ${error.message}`);
+                      else alert("Таны хувийн PIN код амжилттай солигдлоо! ✅");
+                    }}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition"
+                  >
+                    Шинэчлэх
+                  </button>
+                </div>
+              </div>
+            )}
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 lg:col-span-2">
               <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-emerald-400">
@@ -1719,6 +1882,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 )}
               </div>
             </div>
+          </div>
           </div>
         )}
 
@@ -1951,7 +2115,9 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               </form>
 
             </div>
-              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+              {userRole ==='owner' && (
+                <>
+                   <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
             <div className="flex items-center gap-2 mb-2">
               <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
               <h3 className="text-lg font-bold">1. Түүхий эд, Үнэ бөөнөөр оруулах</h3>
@@ -2051,7 +2217,13 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
       Цэсний үнийг хадгалах (Import Menu)
     </button>
   </form>
-</div>
+          </div>
+                </>
+
+              )}
+
+           
+
           </div>
           
         )}
@@ -2404,7 +2576,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
         )}
 
         {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
-        {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'ai_cfo' && activeTab !== 'barista' && activeTab !=='sales' && activeTab !=='dashboard' && activeTab !=='settings' &&(
+        {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'ai_cfo' && activeTab !== 'operations' && activeTab !=='sales' && activeTab !=='dashboard' && activeTab !=='settings' &&(
           <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
               <div>
@@ -2572,7 +2744,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
         )}
 
         {/* Live Database Inventory Table (Visible across all tabs except inventory bulk editor & bulk paste tabs) */}
-        {activeTab !== 'inventory' && activeTab !== 'import' && activeTab !=='ai_cfo' && activeTab !=='barista' && activeTab !=='tasks' && activeTab !=='sales' && activeTab !=='settings' && (
+        {activeTab !== 'inventory' && activeTab !== 'import' && activeTab !=='ai_cfo' && activeTab !=='operations' && activeTab !=='tasks' && activeTab !=='sales' && activeTab !=='settings' && (
           <div className="mt-8 bg-slate-900/30 p-6 rounded-2xl border border-slate-900">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-900">
               <div>
@@ -2860,7 +3032,11 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
 )}
       </div>
     </div>
+
+    
   );
+
+  
 }
 
 
