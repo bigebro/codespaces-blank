@@ -142,14 +142,7 @@ if (imageBase64) {
     if (text) {
       const lower = text.toLowerCase().trim();
 // ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (0.2 СЕКУНДЭД ШУУД ХАДГАЛАХ)
-      const hasNumbers = /\d/.test(text);
-      const isLikelyOperation = hasNumbers && (
-        lower.includes("асга") || lower.includes("мууд") || lower.includes("орлоо") || 
-        lower.includes("авав") || lower.includes("авсан") || lower.includes("тоолов") || 
-        lower.includes("үлдэгдэл") || lower.includes("турш") || lower.includes("хоол")
-      );
-
-      if (isLikelyOperation) {
+       if (!isOwner) {
         const aiAnalysis = await parseOperationalText(text, allowedNames);
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
@@ -166,7 +159,6 @@ if (imageBase64) {
 
             if (logError) throw logError;
 
-            // ⚡ ШУУД ХАРИУ БУЦААХ (Санхүүгийн хүнд мотор руу орохгүй тул 0.2с хурдтай болно!)
             return NextResponse.json({
               success: true,
               is_log: true,
@@ -175,17 +167,17 @@ if (imageBase64) {
             });
           }
         }
-      }
 
-      // Хэрэв Kiosk ажилтан санхүүгийн асуулт асуувал хүнд мотор ажиллуулахгүйгээр шууд татгалзана
-      if (!isOwner) {
+        // Хэрэв зарлага биш энгийн текст байвал шууд 0.01с-д хариулна:
         return NextResponse.json({
           success: true,
           is_log: false,
-          message: "🔒 Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой. Би зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй."
+          message: "🔒 Би зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан')."
         });
       }
- // 💡 ОГНООГ ТОХИРУУЛЖ, getAnalyticsData-Г ЭНД ГАНЦХАН УДАА ДУУДНА:
+
+      // =========================================================================
+      // ЗӨВХӨН ЭЗЭН БАЙВАЛ Л ДООШОО ГҮЙЖ САНХҮҮГИЙН МОТОР АЖИЛЛАНА:
       // =========================================================================
       let activeStart = body.startDate;
       let activeEnd = body.endDate;
