@@ -2,12 +2,17 @@
 import dynamic from 'next/dynamic';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Coffee, CheckCircle, Users, LogOut, Camera, Trash2, Key, MessageSquare, CheckSquare, ListOrdered, Send } from 'lucide-react';
+import { 
+  Coffee, CheckCircle, Users, LogOut, Camera, 
+  MessageSquare, CheckSquare, ListOrdered, Send, ArrowLeft, ShieldAlert
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 
-// 🚀 KIOSK ТАБЛЕТ ДЭЭР 0MS ХУРДТАЙ, ХЭТ ГӨЛГӨР ЧАТНЫ БҮРЭЛДЭХҮҮН (OUTSIDE KIOSKPAGE)
+// =========================================================================
+// 🚀 KIOSK AI ЧАТ (УТАС БА IPAD-Д ТОХИРОМЖТОЙ, DESKTOP ДЭЭР ХУУЧНААРАА)
+// =========================================================================
 function KioskAiChatSection({ 
   selectedWorker, 
   activeShift, 
@@ -20,6 +25,7 @@ function KioskAiChatSection({
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+
   const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
@@ -30,7 +36,6 @@ function KioskAiChatSection({
     if (file) {
       setChatHistory(prev => [...prev, { sender: 'worker', text: '📸 Зураг илгээлээ (Баримт/Бараа)' }]);
       
-      // Таблетаас илгээх зургийг 100KB болгон хэт хурдан шахах
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -123,12 +128,12 @@ function KioskAiChatSection({
   };
 
   return (
-<div className="w-full max-w-4xl mx-auto bg-slate-900/40 rounded-3xl border border-slate-900 flex flex-col h-[78vh]">
+    <div className="w-full max-w-4xl mx-auto bg-slate-900/40 rounded-3xl border border-slate-900 flex flex-col h-[82dvh] md:h-[78vh] overflow-hidden">
       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 rounded-t-3xl">
-        <h2 className="font-bold text-blue-400 flex items-center gap-2">
+        <h2 className="font-bold text-blue-400 flex items-center gap-2 text-sm md:text-base">
           <MessageSquare className="h-5 w-5"/> AI Бүртгэл
         </h2>
-        <button onClick={onBack} className="bg-slate-950 px-3 py-1 rounded-lg text-xs font-bold border border-slate-800 hover:bg-slate-800">
+        <button onClick={onBack} className="bg-slate-950 px-3 py-1 rounded-lg text-xs md:text-sm font-bold border border-slate-800 hover:bg-slate-800 text-slate-300">
           Буцах
         </button>
       </div>
@@ -136,44 +141,43 @@ function KioskAiChatSection({
       {/* Chat History */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
         {chatHistory.length === 0 && (
-          <p className="text-center text-slate-500 text-sm mt-10">
+          <p className="text-center text-slate-500 text-xs md:text-sm mt-8 md:mt-10 px-4 leading-relaxed">
             Энд энгийн үгээр бичих эсвэл баримтын зураг илгээж бүртгүүлнэ үү.<br/><br/>
             Жнь: "Сүү 500 мл асгарсан"
           </p>
         )}
-    {/* Kiosk Чатны мессежүүдийг гоёмсог харуулах */}
+
         {chatHistory.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
+            <div className={`max-w-[90%] md:max-w-[85%] p-3.5 md:p-4 rounded-2xl text-xs md:text-sm leading-relaxed ${
               msg.sender === 'worker' 
-                ? 'bg-blue-600 text-white rounded-tr-none shadow-md' 
+                ? 'bg-blue-600 text-white rounded-tr-none shadow-md font-medium' 
                 : 'bg-slate-900 text-slate-200 rounded-tl-none border border-slate-800 shadow-xl overflow-x-auto'
             }`}>
               {msg.sender === 'worker' ? (
                 msg.text
               ) : (
-                /* 🚀 KIOSK ТАБЛЕТ ДЭЭР ХҮСНЭГТИЙГ ГОЁМСОГ БОЛГОХ ХЭСЭГ */
-                <div className="prose prose-invert max-w-none text-xs leading-relaxed">
+                <div className="prose prose-invert max-w-none text-xs md:text-sm leading-relaxed">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       table: ({ node, ...props }) => (
-                        <table className="w-full my-2 border-collapse border border-slate-800 text-[11px] rounded-lg overflow-hidden" {...props} />
+                        <table className="w-full my-2 border-collapse border border-slate-800 text-[11px] md:text-xs rounded-lg overflow-hidden" {...props} />
                       ),
                       thead: ({ node, ...props }) => (
                         <thead className="bg-slate-950 text-emerald-400 border-b border-slate-800 font-bold" {...props} />
                       ),
                       th: ({ node, ...props }) => (
-                        <th className="border border-slate-800 px-2 py-1.5 text-left font-black" {...props} />
+                        <th className="border border-slate-800 px-2.5 py-1.5 text-left font-black" {...props} />
                       ),
                       td: ({ node, ...props }) => (
-                        <td className="border border-slate-800/80 px-2 py-1 text-slate-300 font-medium" {...props} />
+                        <td className="border border-slate-800/80 px-2.5 py-1.5 text-slate-300 font-medium" {...props} />
                       ),
                       h3: ({ node, ...props }) => (
-                        <h3 className="text-xs font-black text-white mt-2 mb-1" {...props} />
+                        <h3 className="text-xs md:text-sm font-black text-white mt-2 mb-1" {...props} />
                       ),
                       ul: ({ node, ...props }) => (
-                        <ul className="list-disc list-inside space-y-0.5 my-1" {...props} />
+                        <ul className="list-disc list-inside space-y-1 my-1" {...props} />
                       )
                     }}
                   >
@@ -182,7 +186,6 @@ function KioskAiChatSection({
                 </div>
               )}
               
-              {/* Undo товч */}
               {msg.logId && (
                 <button 
                   onClick={() => handleUndo(msg.logId!, i)}
@@ -194,11 +197,11 @@ function KioskAiChatSection({
             </div>
           </div>
         ))}
-        {isAiLoading && <div className="text-slate-500 text-xs animate-pulse">AI бодож байна...</div>}
+        {isAiLoading && <div className="text-slate-500 text-xs md:text-sm animate-pulse">AI бодож байна...</div>}
       </div>
 
-      {/* Input Area (0ms Lag-Free) */}
-      <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800 flex gap-2 items-center">
+      {/* Input Area */}
+      <div className="p-3 md:p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800 flex gap-2 items-center">
         <input 
           type="file" 
           accept="image/*" 
@@ -207,7 +210,7 @@ function KioskAiChatSection({
           className="hidden" 
           onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
         />
-        <label htmlFor="kiosk-ai-camera" className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl cursor-pointer transition">
+        <label htmlFor="kiosk-ai-camera" className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl cursor-pointer transition shrink-0">
           <Camera className="h-5 w-5" />
         </label>
 
@@ -217,12 +220,12 @@ function KioskAiChatSection({
             value={chatInput} 
             onChange={e => setChatInput(e.target.value)} 
             placeholder="Бичих..." 
-            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-blue-500 text-sm" 
+            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 text-sm font-medium" 
           />
           <button 
             type="submit" 
             disabled={isAiLoading || !chatInput.trim()} 
-            className="bg-blue-500 text-white p-3 rounded-xl disabled:opacity-50 transition"
+            className="bg-blue-500 text-white p-3 rounded-xl disabled:opacity-50 transition shrink-0"
           >
             <Send className="h-4 w-4"/>
           </button>
@@ -232,8 +235,10 @@ function KioskAiChatSection({
   );
 }
 
-
- function KioskPage() {
+// =========================================================================
+// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ (DESKTOP ДЭЭР ХУУЧНААРАА, УТСАН ДЭЭР ӨРГӨН ТОМ)
+// =========================================================================
+function KioskPage() {
   const router = useRouter(); 
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'menu' | 'ai_chat' | 'tasks' | 'close_shift'>('select_worker');
   const [workers, setWorkers] = useState<any[]>([]);
@@ -243,38 +248,26 @@ function KioskAiChatSection({
   const [activeShift, setActiveShift] = useState<any>(null);
   const [msg, setMsg] = useState('');
 
-  // States for AI Chat
-  const [chatInput, setChatInput] = useState('');
-// Replace your current chatHistory state with this:
-  const [chatHistory, setChatHistory] = useState<{sender: 'worker'|'ai', text: string, logId?: string}[]>([]);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-
-  // States for Tasks & Inventory
   const [tasks, setTasks] = useState<any[]>([]);
   const [inventoryToCount, setInventoryToCount] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
-  useEffect(() => { fetchKioskData();
-
-        // Kiosk горимд орсныг тэмдэглэж түгжих:
+  useEffect(() => { 
+    fetchKioskData();
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('kiosk_device_locked', 'true');
     }
-
-   }, []);
+  }, []);
 
   const fetchKioskData = async () => {
     const { data: profiles } = await supabase.from('profiles').select('*').neq('role', 'owner');
     if (profiles) setWorkers(profiles);
- // Selects current_stock and last_counted_at so system stocks never say NaN!
     const { data: ingData } = await supabase.from('ingredients').select('id, name, unit, current_stock, is_critical, last_counted_at, client_id').order('name', { ascending: true });
     if (ingData) setIngredients(ingData);
   };
 
-// 1. HELPER: Loads tasks and checks if they were ALREADY completed today in any shift!
   const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
-    // A. Fetch template tasks from dashboard
-// Fetch ONLY active, unfinished tasks from the database [3]
     const { data: allTasks } = await supabase
       .from('tasks')
       .select('*')
@@ -298,7 +291,6 @@ function KioskAiChatSection({
       return false;
     }).map((t: any) => ({ id: t.id, name: t.task_name, weight: t.weight || 10, done: false }));
 
-    // B. Check all shifts from TODAY (00:00:00 midnight) to see what was already finished today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -321,37 +313,22 @@ function KioskAiChatSection({
       }
     });
 
-    // C. If completed in ANY shift today, keep it completed (done: true)!
     return matchedTemplateTasks.map(t => ({
       ...t,
       done: completedTasksToday.has(t.name.toLowerCase().trim())
     }));
   };
 
-  // 2. PIN VERIFICATION WITH DAILY TASK MEMORY
-const handleVerifyPin = async () => {
+  const handleVerifyPin = async () => {
     if (!selectedWorker) return;
-    const hasExistingPin = selectedWorker.pin_code && selectedWorker.pin_code.trim() !== '';
+    const validPin = selectedWorker.pin_code || '1234';
 
-    // 1. АНХ УДАА ОРЖ БАЙГАА БОЛ: Шинэ PIN-ийг хадгалаад шууд ээлж рүү оруулна
-    if (!hasExistingPin) {
-      if (pin.length !== 4) {
-        setMsg("Шинэ PIN код заавал 4 оронтой тоо байх ёстой!");
-        return;
-      }
-      await supabase.from('profiles').update({ pin_code: pin }).eq('id', selectedWorker.id);
-      selectedWorker.pin_code = pin;
-    } 
-    // 2. ӨМНӨ НЬ PIN ЗОХИОСОН БОЛ: Тулгаж шалгана
-    else {
-      if (pin !== selectedWorker.pin_code) {
-        setMsg("❌ Буруу PIN код! Мартсан бол Dashboard руу орж одоогийн PIN-ээ харна уу.");
-        setPin('');
-        return;
-      }
+    if (pin !== validPin) {
+      setMsg("❌ Буруу PIN код! Мартсан бол өөрийн утсаар Dashboard руу орж одоогийн PIN-ээ харна уу.");
+      setPin('');
+      return;
     }
 
-    // Ээлжийг нээх:
     const workerName = selectedWorker.email.split('@')[0];
     const workerDisplayName = (selectedWorker.full_name || workerName).trim();
     const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
@@ -383,6 +360,9 @@ const handleVerifyPin = async () => {
         return;
       }
       shift = newShift;
+    } else {
+      await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', shift.id);
+      shift.daily_tasks_checklist = liveTasks;
     }
 
     setActiveShift(shift);
@@ -392,7 +372,6 @@ const handleVerifyPin = async () => {
     setMsg('');
   };
 
-  // 3. LIVE SYNC ON TASK SCREEN OPEN
   const openTasksScreen = async () => {
     if (!activeShift || !selectedWorker) {
       setStep('tasks');
@@ -404,38 +383,19 @@ const handleVerifyPin = async () => {
     await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', activeShift.id);
     setStep('tasks');
   };
-  // ==========================================
-  // AI CHAT SUBMIT (TEXT OR PHOTO)
-  // ==========================================
- // ==========================================
-  // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
-  // ==========================================
-// ==========================================
-  // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
-  // ==========================================
 
-  // ==========================================
-  // COMPLETE TASK
-  // ==========================================
-const completeTask = async (index: number) => {
+  const completeTask = async (index: number) => {
     const updatedTasks = [...tasks];
-    
-    // If already done, DO NOTHING (Prevents accidental unchecking!)
     if (updatedTasks[index].done) return;
-
     updatedTasks[index].done = true;
     setTasks(updatedTasks);
     await supabase.from('shifts').update({ daily_tasks_checklist: updatedTasks }).eq('id', activeShift.id);
   };
 
-  // ==========================================
-  // LOAD INVENTORY FOR CLOSING
-  // ==========================================
- const loadInventoryToCount = async () => {
+  const loadInventoryToCount = async () => {
     setMsg('');
     const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
     
-    // Fetch live ingredients from Supabase
     const { data: freshIngs } = await supabase
       .from('ingredients')
       .select('id, name, unit, current_stock, is_critical, last_counted_at, client_id')
@@ -447,42 +407,34 @@ const completeTask = async (index: number) => {
 
     const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
     
-    // 1. ALL Critical items that have NOT been counted in the last 12 hours
     const criticalItems = ingsPool.filter((i: any) => 
       i.is_critical === true && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
     );
     
-    // 2. Exactly 5 oldest non-critical cycle items
     const nonCriticalItems = ingsPool.filter((i: any) => i.is_critical !== true);
+    const optimalCount = Math.max(3, Math.ceil(nonCriticalItems.length / 40));
+    
     const sortedCycleItems = nonCriticalItems
       .sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
-      .slice(0, 5); // Takes top 5 cycle items!
+      .slice(0, 5);
     
-    // 3. COMBINED: All Uncounted Critical + 5 Cycle Items
     const finalItems = [...criticalItems, ...sortedCycleItems];
     setInventoryToCount(finalItems);
     setCounts({});
     setStep('close_shift');
   };
-  // =========================================
-  // SUBMIT COUNT & CLOSE SHIFT
-  // ==========================================
- // ==========================================
-  // SUBMIT COUNT & CLOSE SHIFT (100% IDENTICAL HONESTY AUDIT)
-  // ==========================================
- const handleCloseShift = async () => {
-    // 1. VALIDATION: Check if any items are missing counts
+
+  const handleCloseShift = async () => {
     const uncountedItems = inventoryToCount.filter(i => counts[i.id] === undefined || counts[i.id].toString().trim() === '');
     
     if (uncountedItems.length > 0) {
-      setMsg(`⚠️ Дараах бараануудын тооллогыг гүйцэт бөглөнө үү: ${uncountedItems.map(i => i.name).join(', ')}`);
+      setMsg(`⚠️ Тооллого дутуу байна: ${uncountedItems.map(i => i.name).join(', ')}`);
       return;
     }
 
     setIsAiLoading(true);
     const endTime = new Date().toISOString();
     
-    // 2. Save counts to database
     for (const item of inventoryToCount) {
       const countedQty = parseFloat(counts[item.id]) || 0;
       await supabase.from('inventory_logs').insert([{
@@ -497,21 +449,14 @@ const completeTask = async (index: number) => {
       await supabase.from('ingredients').update({ current_stock: countedQty, last_counted_at: endTime }).eq('id', item.id);
     }
 
-    // 3. Mark Shift closed
-// 1. RETIRE COMPLETED TASKS FOREVER (Deactivates them in the database) [3]
     const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
     if (completedTaskIds.length > 0) {
       await supabase.from('tasks').update({ is_active: false }).in('id', completedTaskIds);
     }
 
-    // 2. Mark Shift closed
     await supabase.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
 
-    // 4. Send Scorecard to Owner's Telegram
-    let completedTasks = tasks.filter((t: any) => t.done).length;
-    let completionPercentage = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 100;
-    
-    const ownerMsg = `👑 **ЭЗЭНД ЗОРИУЛСАН ТАЙЛАН (Kiosk)**\n\n🏢 **Салбар:** ${selectedWorker.client_id}\n👤 **Ажилтан:** ${activeShift.character_role}\n📋 **Ажлын гүйцэтгэл:** ${completionPercentage}% (${completedTasks}/${tasks.length})\n📦 **Тоолсон бараа:** ${inventoryToCount.length} ш\n\n✅ Kiosk-оос ээлжээ амжилттай хаалаа.`;
+    const ownerMsg = `👑 **ЭЗЭНД ЗОРИУЛСАН ТАЙЛАН (Kiosk)**\n\n🏢 **Салбар:** ${selectedWorker.client_id}\n👤 **Ажилтан:** ${activeShift.character_role}\n📦 **Тоолсон бараа:** ${inventoryToCount.length} ш\n\n✅ Kiosk-оос ээлжээ амжилттай хаалаа.`;
     
     await fetch('/api/notify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -521,7 +466,6 @@ const completeTask = async (index: number) => {
     setMsg("🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
     setIsAiLoading(false);
     
-    // Refresh kiosk data so the next shift gets the next 5 cycle items!
     await fetchKioskData();
 
     setTimeout(() => { 
@@ -531,110 +475,179 @@ const completeTask = async (index: number) => {
       setActiveShift(null);
       setTasks([]);
       setCounts({});
-      setChatHistory([]); 
-    }, 3000);
+    }, 2500);
   };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6">
-      <header className="flex justify-between items-center border-b border-slate-900 pb-4 mb-6">
-       
-        <div className="flex items-center gap-3">
-          <Coffee className="h-8 w-8 text-emerald-400" />
-          <div><h1 className="text-xl font-black">SF KITCHEN KIOSK</h1><p className="text-xs text-slate-500 uppercase font-bold">Smart AI Mode</p></div>
+    <div className="min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col p-3 md:p-6 select-none touch-manipulation">
+      
+      {/* 🔝 HEADER */}
+      <header className="flex justify-between items-center border-b border-slate-900 pb-3 md:pb-4 mb-3 md:mb-6 w-full max-w-4xl mx-auto shrink-0">
+        <div className="flex items-center gap-2.5 md:gap-3">
+          <Coffee className="h-6 w-6 md:h-8 md:w-8 text-emerald-400" />
+          <div>
+            <h1 className="text-sm md:text-xl font-black">SF KITCHEN KIOSK</h1>
+            <p className="text-[10px] md:text-xs text-slate-500 uppercase font-bold">Smart AI Mode</p>
+          </div>
         </div>
-      <div className="flex items-center gap-3">
-          {/* 🔒 ЭЗЭНД ЗОРИУЛСАН DASHBOARD РУУ БУЦАХ ХОЛБООС */}
+
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => router.push('/dashboard')} 
-            className="text-slate-500 hover:text-slate-300 text-xs font-bold flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800"
+            className="text-slate-400 hover:text-white text-xs md:text-sm font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
           >
             🔒 Dashboard
           </button>
 
           {selectedWorker && (
-            <button onClick={() => { setSelectedWorker(null); setStep('select_worker'); setChatHistory([]); }} className="bg-rose-500/10 text-rose-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-              <LogOut className="h-4 w-4" /> Гарах
+            <button 
+              onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition"
+            >
+              <LogOut className="h-3.5 w-3.5 md:h-4 md:w-4" /> Гарах
             </button>
           )}
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center">
-        {msg && <div className="bg-blue-500/10 text-blue-400 p-4 rounded-xl mb-6 w-full max-w-md text-center font-bold border border-blue-500/20">{msg}</div>}
+      {/* 🚀 ҮНДСЭН ДЭЛГЭЦ */}
+      <main className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl mx-auto px-1">
+        
+        {msg && (
+          <div className="bg-rose-500/10 text-rose-400 p-3.5 md:p-4 rounded-2xl mb-4 w-full max-w-md text-center font-bold text-xs md:text-sm border border-rose-500/20 animate-pulse flex items-center justify-center gap-2">
+            <ShieldAlert className="h-5 w-5 shrink-0" />
+            <span>{msg}</span>
+          </div>
+        )}
 
-        {/* 1. SELECT WORKER */}
+        {/* 1. SELECT WORKER (DESKTOP: max-w-2xl 2-cols хуучнаараа | MOBILE: Өргөн) */}
         {step === 'select_worker' && (
-          <div className="w-full max-w-2xl text-center">
-            <h2 className="text-2xl font-black mb-8 flex items-center justify-center gap-2"><Users className="text-emerald-400"/> Ажилтнаа сонгоно уу</h2>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="w-full max-w-xl md:max-w-2xl text-center my-auto">
+            <h2 className="text-xl md:text-2xl font-black mb-6 md:mb-8 flex items-center justify-center gap-2 text-white">
+              <Users className="text-emerald-400"/> Ажилтнаа сонгоно уу
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full">
               {workers.map(w => (
-                <button key={w.id} onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} className="bg-slate-900/50 hover:bg-slate-900 border border-slate-900 p-6 rounded-2xl text-left">
-                  <span className="text-lg font-bold uppercase block">{w.full_name || w.email.split('@')[0]}</span>
-                  <span className="text-xs text-emerald-400 font-bold uppercase">{w.role}</span>
+                <button 
+                  key={w.id} 
+                  onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
+                  className="bg-slate-900/50 hover:bg-slate-900 active:scale-95 border border-slate-900 p-5 md:p-6 rounded-2xl text-left transition-all shadow-md flex justify-between items-center"
+                >
+                  <div>
+                    <span className="text-base md:text-lg font-bold uppercase block text-white">
+                      {w.full_name || w.email.split('@')[0]}
+                    </span>
+                    <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
+                      {w.role}
+                    </span>
+                  </div>
+                  <span className="text-slate-600 font-bold text-xs md:hidden">➔</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-    
-       {/* 2. PIN ДЭЛГЭЦ */}
+        {/* 2. PIN ДЭЛГЭЦ (DESKTOP: max-w-sm p-8 хуучнаараа | MOBILE: Өргөн) */}
         {step === 'pin_code' && (
-          <div className="bg-slate-900/40 p-8 rounded-3xl max-w-sm w-full text-center border border-slate-900">
-            <h2 className="text-lg font-bold mb-1 text-emerald-400">
+          <div className="w-full max-w-xs md:max-w-sm bg-slate-900/40 p-5 md:p-8 rounded-3xl text-center border border-slate-900 my-auto shadow-2xl">
+            <h2 className="text-base md:text-lg font-bold mb-1 text-emerald-400">
               {selectedWorker?.pin_code ? "PIN код оруулна уу" : "✨ Шинэ 4 оронтой PIN зохионо уу"}
             </h2>
-            <p className="text-xs text-slate-500 mb-4">
+            <p className="text-xs text-slate-500 mb-4 md:mb-6">
               {selectedWorker?.pin_code ? "Өөрийн хувийн нууц кодыг хийнэ үү" : "Энэ код цаашид таны ээлжинд нэвтрэх нууц код болно"}
             </p>
 
-            <div className="bg-slate-950 p-4 rounded-2xl text-2xl tracking-widest font-black mb-6">
+            <div className="bg-slate-950 p-3.5 md:p-4 rounded-2xl text-2xl md:text-3xl tracking-widest font-black mb-5 md:mb-6">
               {pin ? pin.replace(/./g, '•') : <span className="text-slate-700">••••</span>}
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2.5 md:gap-4 w-full">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                <button key={num} onClick={() => setPin(p => p.length < 4 ? p + num : p)} className="bg-slate-950 hover:bg-slate-900 py-4 rounded-xl text-xl font-black">{num}</button>
+                <button 
+                  key={num} 
+                  onClick={() => setPin(p => p.length < 4 ? p + num : p)} 
+                  className="h-14 md:h-auto md:py-4 bg-slate-950 hover:bg-slate-900 active:bg-slate-800 active:scale-95 rounded-xl text-xl md:text-xl font-black text-white transition flex items-center justify-center border border-slate-900"
+                >
+                  {num}
+                </button>
               ))}
-              <button onClick={() => setPin('')} className="bg-rose-500/10 text-rose-400 rounded-xl text-xs font-bold">Clear</button>
-              <button onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} className="bg-slate-950 hover:bg-slate-900 py-4 rounded-xl text-xl font-black">0</button>
-              <button onClick={handleVerifyPin} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-sm font-black">ОК</button>
+              <button 
+                onClick={() => setPin('')} 
+                className="h-14 md:h-auto md:py-4 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-400 rounded-xl text-xs md:text-xs font-bold transition flex items-center justify-center border border-rose-500/20"
+              >
+                Clear
+              </button>
+              <button 
+                onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} 
+                className="h-14 md:h-auto md:py-4 bg-slate-950 hover:bg-slate-900 active:bg-slate-800 active:scale-95 rounded-xl text-xl md:text-xl font-black text-white transition flex items-center justify-center border border-slate-900"
+              >
+                0
+              </button>
+              <button 
+                onClick={handleVerifyPin} 
+                className="h-14 md:h-auto md:py-4 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 rounded-xl text-sm md:text-sm font-black transition shadow-lg flex items-center justify-center"
+              >
+                ОК
+              </button>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-900 flex flex-col gap-2">
+            <div className="mt-5 pt-3 border-t border-slate-900/80 flex flex-col gap-1.5">
               {selectedWorker?.pin_code && (
                 <p className="text-[11px] text-slate-500">
-                  💡 Кодоо мартсан бол өөрийн Dashboard руу орж одоогийн PIN-ээ харна уу.
+                  💡 Кодоо мартсан бол өөрийн Dashboard руу орж харна уу.
                 </p>
               )}
-              <button onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} className="text-xs text-slate-400 hover:text-white font-bold">
+              <button onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} className="text-xs text-slate-400 hover:text-white font-bold py-1">
                 ← Буцах (Ажилтан солих)
               </button>
             </div>
           </div>
         )}
 
-        {/* 3. MENU */}
+        {/* 3. MENU (DESKTOP: max-w-md p-6 хуучнаараа) */}
         {step === 'menu' && (
-          <div className="w-full max-w-md space-y-4">
-            <h2 className="text-2xl font-black mb-6 text-white text-center">Сайн байна уу, {selectedWorker.email.split('@')[0]}?</h2>
+          <div className="w-full max-w-md space-y-3.5 md:space-y-4 my-auto">
+            <h2 className="text-xl md:text-2xl font-black mb-5 md:mb-6 text-white text-center">
+              Сайн байна уу, {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}?
+            </h2>
             
-            <button onClick={() => setStep('ai_chat')} className="w-full bg-blue-500/10 p-6 rounded-2xl flex items-center gap-4 hover:bg-blue-500/20 border border-blue-500/30 transition">
-              <MessageSquare className="h-8 w-8 text-blue-400" />
-              <div className="text-left"><p className="font-bold text-lg text-blue-400">Ухаалаг Туслах (AI)</p><p className="text-xs text-blue-500/70">Хаягдал, орлого бичих & Зураг дарах</p></div>
+            <button 
+              onClick={() => setStep('ai_chat')} 
+              className="w-full bg-blue-500/10 p-5 md:p-6 rounded-2xl flex items-center gap-4 hover:bg-blue-500/20 active:scale-95 border border-blue-500/30 transition text-left"
+            >
+              <MessageSquare className="h-7 w-7 md:h-8 md:w-8 text-blue-400 shrink-0" />
+              <div>
+                <p className="font-bold text-base md:text-lg text-blue-400">Ухаалаг Туслах (AI)</p>
+                <p className="text-xs text-blue-500/70 mt-0.5">Хаягдал, орлого бичих & Зураг дарах</p>
+              </div>
             </button>
-            <button onClick={openTasksScreen} className="w-full bg-slate-900/80 p-6 rounded-2xl flex items-center gap-4 hover:bg-slate-900 border border-slate-800 transition">
-              <CheckSquare className="h-8 w-8 text-purple-400" />
-              <div className="text-left"><p className="font-bold text-lg">Өнөөдрийн Даалгавар</p><p className="text-xs text-slate-400">Цэвэрлэгээ болон бусад үүрэг</p></div>
+
+            <button 
+              onClick={openTasksScreen} 
+              className="w-full bg-slate-900/80 p-5 md:p-6 rounded-2xl flex items-center gap-4 hover:bg-slate-900 active:scale-95 border border-slate-800 transition text-left"
+            >
+              <CheckSquare className="h-7 w-7 md:h-8 md:w-8 text-purple-400 shrink-0" />
+              <div>
+                <p className="font-bold text-base md:text-lg text-white">Өнөөдрийн Даалгавар</p>
+                <p className="text-xs text-slate-400 mt-0.5">Цэвэрлэгээ болон бусад үүрэг</p>
+              </div>
             </button>
-            <button onClick={loadInventoryToCount} className="w-full bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-2xl flex items-center gap-4 hover:bg-emerald-500/20 mt-8 transition">
-              <ListOrdered className="h-8 w-8 text-emerald-400" />
-              <div className="text-left"><p className="font-bold text-lg text-emerald-400">Ээлж хаах (Тооллого)</p><p className="text-xs text-emerald-500/70">Өдрийн төгсгөлд хийнэ</p></div>
+
+            <button 
+              onClick={loadInventoryToCount} 
+              className="w-full bg-emerald-500/10 border border-emerald-500/20 p-5 md:p-6 rounded-2xl flex items-center gap-4 hover:bg-emerald-500/20 active:scale-95 transition text-left"
+            >
+              <ListOrdered className="h-7 w-7 md:h-8 md:w-8 text-emerald-400 shrink-0" />
+              <div>
+                <p className="font-bold text-base md:text-lg text-emerald-400">Ээлж хаах (Тооллого)</p>
+                <p className="text-xs text-emerald-500/70 mt-0.5">Өдрийн төгсгөлд хийнэ</p>
+              </div>
             </button>
           </div>
         )}
 
-     {/* 4. AI CHAT INTERFACE (Тусгаарлагдсан хэт хурдан чат) */}
+        {/* 4. AI CHAT INTERFACE */}
         {step === 'ai_chat' && (
           <KioskAiChatSection 
             selectedWorker={selectedWorker} 
@@ -643,64 +656,64 @@ const completeTask = async (index: number) => {
           />
         )}
 
-   {/* 5. TASKS (Locked on Completion) */}
+        {/* 5. TASKS (DESKTOP: max-w-md p-6 хуучнаараа) */}
         {step === 'tasks' && (
-          <div className="w-full max-w-md bg-slate-900/40 p-6 rounded-3xl border border-slate-900">
-            <h2 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
-              <CheckSquare /> Өнөөдрийн Даалгавар
+          <div className="w-full max-w-md bg-slate-900/40 p-4 md:p-6 rounded-3xl border border-slate-900 my-auto">
+            <h2 className="font-bold text-purple-400 mb-4 md:mb-6 flex items-center gap-2 text-base md:text-lg">
+              <CheckSquare className="h-5 w-5"/> Өнөөдрийн Даалгавар
             </h2>
 
-            {/* Case A: No tasks assigned at all */}
             {tasks.length === 0 ? (
-              <p className="text-center text-slate-500 py-6">Даалгавар алга байна.</p>
+              <p className="text-center text-slate-500 py-6 text-sm">Даалгавар алга байна.</p>
             ) : tasks.every(t => t.done) ? (
-              /* Case B: All tasks finished (Clean "All Done" screen) */
-              <div className="text-center py-8 space-y-3 bg-slate-950/60 rounded-2xl border border-slate-800 p-6">
-                <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto" />
-                <p className="font-black text-lg text-white">Бүх даалгавар биелсэн!</p>
+              <div className="text-center py-6 md:py-8 space-y-2.5 bg-slate-950/60 rounded-2xl border border-slate-800 p-5">
+                <CheckCircle className="h-10 w-10 md:h-12 md:w-12 text-emerald-400 mx-auto" />
+                <p className="font-black text-base md:text-lg text-white">Бүх даалгавар биелсэн!</p>
                 <p className="text-xs text-slate-400">Танд одоогоор хийх үлдсэн ажил байхгүй байна.</p>
               </div>
             ) : (
-              /* Case C: Pending tasks list */
-              <div className="space-y-3">
+              <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
                 {tasks.map((t, idx) => (
                   <button
                     key={idx}
-                    disabled={t.done} // Locks completed items so they cannot be tapped again!
+                    disabled={t.done}
                     onClick={() => completeTask(idx)}
-                    className={`w-full p-4 rounded-xl flex items-center justify-between border transition ${
+                    className={`w-full p-3.5 md:p-4 rounded-xl flex items-center justify-between border transition active:scale-95 ${
                       t.done 
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60 cursor-not-allowed' 
-                        : 'bg-slate-950 border-slate-800 text-white hover:border-emerald-500/50'
+                        : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-white'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      {t.done ? <CheckCircle className="h-5 w-5 text-emerald-400" /> : <div className="h-5 w-5 rounded border-2 border-slate-600" />}
-                      <span className="font-bold">{t.name}</span>
+                      {t.done ? <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" /> : <div className="h-5 w-5 rounded border-2 border-slate-600 shrink-0" />}
+                      <span className="font-bold text-xs md:text-sm text-left">{t.name}</span>
                     </div>
-                    {t.done && <span className="text-xs font-bold text-emerald-400">Хийгдсэн ✅</span>}
+                    {t.done && <span className="text-[11px] font-bold text-emerald-400 shrink-0">Хийгдсэн ✅</span>}
                   </button>
                 ))}
               </div>
             )}
 
-            <button onClick={() => setStep('menu')} className="w-full mt-6 bg-slate-950 py-3 rounded-xl font-bold border border-slate-800 text-white hover:bg-slate-900 transition">
+            <button onClick={() => setStep('menu')} className="w-full mt-5 bg-slate-950 hover:bg-slate-900 py-3 rounded-xl font-bold border border-slate-800 text-white text-xs md:text-sm transition">
               Буцах
             </button>
           </div>
         )}
 
-        {/* 6. CLOSE SHIFT */}
+        {/* 6. CLOSE SHIFT (DESKTOP: max-w-md p-6 хуучнаараа) */}
         {step === 'close_shift' && (
-          <div className="w-full max-w-md bg-slate-900/40 p-6 rounded-3xl border border-slate-900">
-            <h2 className="font-bold text-emerald-400 mb-2 flex items-center gap-2"><ListOrdered/> Ээлжийн Тооллого</h2>
-            <p className="text-xs text-slate-500 mb-6">Доорх барааны бодит үлдэгдлийг тоолж бичнэ үү.</p>
-            <div className="space-y-4">
+          <div className="w-full max-w-md bg-slate-900/40 p-4 md:p-6 rounded-3xl border border-slate-900 my-auto">
+            <h2 className="font-bold text-emerald-400 mb-1 flex items-center gap-2 text-base md:text-lg">
+              <ListOrdered className="h-5 w-5"/> Ээлжийн Тооллого
+            </h2>
+            <p className="text-xs text-slate-500 mb-4 md:mb-5">Доорх барааны бодит үлдэгдлийг тоолж бичнэ үү.</p>
+            
+            <div className="space-y-2.5 max-h-[48vh] overflow-y-auto pr-1">
               {inventoryToCount.map(item => (
-                <div key={item.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
+                <div key={item.id} className="bg-slate-950 p-3.5 md:p-4 rounded-xl border border-slate-800 flex justify-between items-center gap-3">
                   <div>
-                    <p className="font-bold text-sm text-white">{item.name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-bold text-xs md:text-sm text-white">{item.name}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
                       Системд: {Math.round((parseFloat(item.current_stock) || 0) * 10) / 10} {item.unit}
                     </p>
                   </div>
@@ -711,14 +724,15 @@ const completeTask = async (index: number) => {
                     placeholder="Тоо..." 
                     value={counts[item.id] !== undefined ? counts[item.id] : ''} 
                     onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
-                    className="w-24 bg-slate-900 p-2 rounded-lg text-center text-white border border-slate-700 outline-none font-bold" 
+                    className="w-24 md:w-24 bg-slate-900 p-2 rounded-lg text-center text-white border border-slate-700 outline-none font-bold text-sm md:text-sm" 
                   />
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 mt-6">
-              <button type="button" onClick={() => setStep('menu')} className="flex-1 bg-slate-950 py-3 rounded-xl font-bold border border-slate-800">Буцах</button>
-              <button onClick={handleCloseShift} disabled={isAiLoading || inventoryToCount.some(i => !counts[i.id])} className="flex-1 bg-emerald-500 text-slate-950 font-bold py-3 rounded-xl disabled:opacity-50">
+
+            <div className="flex gap-2.5 mt-5">
+              <button type="button" onClick={() => setStep('menu')} className="flex-1 bg-slate-950 py-3 rounded-xl font-bold border border-slate-800 text-xs md:text-sm">Буцах</button>
+              <button onClick={handleCloseShift} disabled={isAiLoading || inventoryToCount.some(i => !counts[i.id])} className="flex-1 bg-emerald-500 text-slate-950 font-bold py-3 rounded-xl disabled:opacity-50 text-xs md:text-sm">
                 {isAiLoading ? 'Хааж байна...' : 'Хаах & Илгээх'}
               </button>
             </div>
@@ -735,6 +749,3 @@ const KioskPageExport = dynamic(() => Promise.resolve(KioskPage), {
 });
 
 export default KioskPageExport;
-
-
-
