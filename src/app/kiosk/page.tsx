@@ -2,10 +2,7 @@
 import dynamic from 'next/dynamic';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { 
-  Coffee, CheckCircle, Users, LogOut, Camera, 
-  MessageSquare, CheckSquare, ListOrdered, Send 
-} from 'lucide-react';
+import { Coffee, CheckCircle, Users, LogOut, Camera, Trash2, Key, MessageSquare, CheckSquare, ListOrdered, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
@@ -23,7 +20,6 @@ function KioskAiChatSection({
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
-
   const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
@@ -34,6 +30,7 @@ function KioskAiChatSection({
     if (file) {
       setChatHistory(prev => [...prev, { sender: 'worker', text: '📸 Зураг илгээлээ (Баримт/Бараа)' }]);
       
+      // Таблетаас илгээх зургийг 100KB болгон хэт хурдан шахах
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -126,7 +123,7 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-slate-900/40 rounded-3xl border border-slate-900 flex flex-col h-[78vh]">
+<div className="w-full max-w-4xl mx-auto bg-slate-900/40 rounded-3xl border border-slate-900 flex flex-col h-[78vh]">
       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 rounded-t-3xl">
         <h2 className="font-bold text-blue-400 flex items-center gap-2">
           <MessageSquare className="h-5 w-5"/> AI Бүртгэл
@@ -144,6 +141,7 @@ function KioskAiChatSection({
             Жнь: "Сүү 500 мл асгарсан"
           </p>
         )}
+    {/* Kiosk Чатны мессежүүдийг гоёмсог харуулах */}
         {chatHistory.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed ${
@@ -154,6 +152,7 @@ function KioskAiChatSection({
               {msg.sender === 'worker' ? (
                 msg.text
               ) : (
+                /* 🚀 KIOSK ТАБЛЕТ ДЭЭР ХҮСНЭГТИЙГ ГОЁМСОГ БОЛГОХ ХЭСЭГ */
                 <div className="prose prose-invert max-w-none text-xs leading-relaxed">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
@@ -183,6 +182,7 @@ function KioskAiChatSection({
                 </div>
               )}
               
+              {/* Undo товч */}
               {msg.logId && (
                 <button 
                   onClick={() => handleUndo(msg.logId!, i)}
@@ -197,7 +197,7 @@ function KioskAiChatSection({
         {isAiLoading && <div className="text-slate-500 text-xs animate-pulse">AI бодож байна...</div>}
       </div>
 
-      {/* Input Area */}
+      {/* Input Area (0ms Lag-Free) */}
       <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800 flex gap-2 items-center">
         <input 
           type="file" 
@@ -207,7 +207,7 @@ function KioskAiChatSection({
           className="hidden" 
           onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
         />
-        <label htmlFor="kiosk-ai-camera" className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl cursor-pointer transition flex items-center justify-center">
+        <label htmlFor="kiosk-ai-camera" className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl cursor-pointer transition">
           <Camera className="h-5 w-5" />
         </label>
 
@@ -232,7 +232,8 @@ function KioskAiChatSection({
   );
 }
 
-function KioskPage() {
+
+ function KioskPage() {
   const router = useRouter(); 
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'menu' | 'ai_chat' | 'tasks' | 'close_shift'>('select_worker');
   const [workers, setWorkers] = useState<any[]>([]);
@@ -242,27 +243,38 @@ function KioskPage() {
   const [activeShift, setActiveShift] = useState<any>(null);
   const [msg, setMsg] = useState('');
 
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  // States for AI Chat
+  const [chatInput, setChatInput] = useState('');
+// Replace your current chatHistory state with this:
+  const [chatHistory, setChatHistory] = useState<{sender: 'worker'|'ai', text: string, logId?: string}[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // States for Tasks & Inventory
   const [tasks, setTasks] = useState<any[]>([]);
   const [inventoryToCount, setInventoryToCount] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
-  const [isAiLoading, setIsAiLoading] = useState(false);
 
-  useEffect(() => { 
-    fetchKioskData();
+  useEffect(() => { fetchKioskData();
+
+        // Kiosk горимд орсныг тэмдэглэж түгжих:
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('kiosk_device_locked', 'true');
     }
-  }, []);
+
+   }, []);
 
   const fetchKioskData = async () => {
     const { data: profiles } = await supabase.from('profiles').select('*').neq('role', 'owner');
     if (profiles) setWorkers(profiles);
+ // Selects current_stock and last_counted_at so system stocks never say NaN!
     const { data: ingData } = await supabase.from('ingredients').select('id, name, unit, current_stock, is_critical, last_counted_at, client_id').order('name', { ascending: true });
     if (ingData) setIngredients(ingData);
   };
 
+// 1. HELPER: Loads tasks and checks if they were ALREADY completed today in any shift!
   const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
+    // A. Fetch template tasks from dashboard
+// Fetch ONLY active, unfinished tasks from the database [3]
     const { data: allTasks } = await supabase
       .from('tasks')
       .select('*')
@@ -286,6 +298,7 @@ function KioskPage() {
       return false;
     }).map((t: any) => ({ id: t.id, name: t.task_name, weight: t.weight || 10, done: false }));
 
+    // B. Check all shifts from TODAY (00:00:00 midnight) to see what was already finished today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -308,18 +321,19 @@ function KioskPage() {
       }
     });
 
+    // C. If completed in ANY shift today, keep it completed (done: true)!
     return matchedTemplateTasks.map(t => ({
       ...t,
       done: completedTasksToday.has(t.name.toLowerCase().trim())
     }));
   };
 
-  // 2. PIN VERIFICATION
-  const handleVerifyPin = async () => {
+  // 2. PIN VERIFICATION WITH DAILY TASK MEMORY
+const handleVerifyPin = async () => {
     if (!selectedWorker) return;
     const hasExistingPin = selectedWorker.pin_code && selectedWorker.pin_code.trim() !== '';
 
-    // 1. АНХ УДАА ОРЖ БАЙГАА БОЛ:
+    // 1. АНХ УДАА ОРЖ БАЙГАА БОЛ: Шинэ PIN-ийг хадгалаад шууд ээлж рүү оруулна
     if (!hasExistingPin) {
       if (pin.length !== 4) {
         setMsg("Шинэ PIN код заавал 4 оронтой тоо байх ёстой!");
@@ -328,15 +342,16 @@ function KioskPage() {
       await supabase.from('profiles').update({ pin_code: pin }).eq('id', selectedWorker.id);
       selectedWorker.pin_code = pin;
     } 
-    // 2. ӨМНӨ НЬ PIN ЗОХИОСОН БОЛ:
+    // 2. ӨМНӨ НЬ PIN ЗОХИОСОН БОЛ: Тулгаж шалгана
     else {
       if (pin !== selectedWorker.pin_code) {
         setMsg("❌ Буруу PIN код! Мартсан бол Dashboard руу орж одоогийн PIN-ээ харна уу.");
         setPin('');
         return;
       }
-    } // 👈 ЭНЭ ХААЛТ ДУТУУ БАЙСНЫГ ЗАСАВ!
+    }
 
+    // Ээлжийг нээх:
     const workerName = selectedWorker.email.split('@')[0];
     const workerDisplayName = (selectedWorker.full_name || workerName).trim();
     const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
@@ -363,14 +378,11 @@ function KioskPage() {
       }]).select().single();
 
       if (insertError || !newShift) {
-        setMsg(`❌ Датабэйс алдаа: ${insertError?.message || 'Ээлж үүсгэж чадсангүй.'}`);
+        setMsg(`❌ Алдаа: ${insertError?.message || 'Ээлж үүсгэж чадсангүй.'}`);
         setPin('');
         return;
       }
       shift = newShift;
-    } else {
-      await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', shift.id);
-      shift.daily_tasks_checklist = liveTasks;
     }
 
     setActiveShift(shift);
@@ -380,6 +392,7 @@ function KioskPage() {
     setMsg('');
   };
 
+  // 3. LIVE SYNC ON TASK SCREEN OPEN
   const openTasksScreen = async () => {
     if (!activeShift || !selectedWorker) {
       setStep('tasks');
@@ -391,19 +404,38 @@ function KioskPage() {
     await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', activeShift.id);
     setStep('tasks');
   };
+  // ==========================================
+  // AI CHAT SUBMIT (TEXT OR PHOTO)
+  // ==========================================
+ // ==========================================
+  // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
+  // ==========================================
+// ==========================================
+  // AI CHAT SUBMIT (SUPER FAST COMPRESSION)
+  // ==========================================
 
-  const completeTask = async (index: number) => {
+  // ==========================================
+  // COMPLETE TASK
+  // ==========================================
+const completeTask = async (index: number) => {
     const updatedTasks = [...tasks];
+    
+    // If already done, DO NOTHING (Prevents accidental unchecking!)
     if (updatedTasks[index].done) return;
+
     updatedTasks[index].done = true;
     setTasks(updatedTasks);
     await supabase.from('shifts').update({ daily_tasks_checklist: updatedTasks }).eq('id', activeShift.id);
   };
 
-  const loadInventoryToCount = async () => {
+  // ==========================================
+  // LOAD INVENTORY FOR CLOSING
+  // ==========================================
+ const loadInventoryToCount = async () => {
     setMsg('');
     const tenantId = (selectedWorker.client_id || 'SF Coffee').trim();
     
+    // Fetch live ingredients from Supabase
     const { data: freshIngs } = await supabase
       .from('ingredients')
       .select('id, name, unit, current_stock, is_critical, last_counted_at, client_id')
@@ -415,22 +447,31 @@ function KioskPage() {
 
     const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
     
+    // 1. ALL Critical items that have NOT been counted in the last 12 hours
     const criticalItems = ingsPool.filter((i: any) => 
       i.is_critical === true && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
     );
     
+    // 2. Exactly 5 oldest non-critical cycle items
     const nonCriticalItems = ingsPool.filter((i: any) => i.is_critical !== true);
     const sortedCycleItems = nonCriticalItems
       .sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
-      .slice(0, 5);
+      .slice(0, 5); // Takes top 5 cycle items!
     
+    // 3. COMBINED: All Uncounted Critical + 5 Cycle Items
     const finalItems = [...criticalItems, ...sortedCycleItems];
     setInventoryToCount(finalItems);
     setCounts({});
     setStep('close_shift');
   };
-
-  const handleCloseShift = async () => {
+  // =========================================
+  // SUBMIT COUNT & CLOSE SHIFT
+  // ==========================================
+ // ==========================================
+  // SUBMIT COUNT & CLOSE SHIFT (100% IDENTICAL HONESTY AUDIT)
+  // ==========================================
+ const handleCloseShift = async () => {
+    // 1. VALIDATION: Check if any items are missing counts
     const uncountedItems = inventoryToCount.filter(i => counts[i.id] === undefined || counts[i.id].toString().trim() === '');
     
     if (uncountedItems.length > 0) {
@@ -441,6 +482,7 @@ function KioskPage() {
     setIsAiLoading(true);
     const endTime = new Date().toISOString();
     
+    // 2. Save counts to database
     for (const item of inventoryToCount) {
       const countedQty = parseFloat(counts[item.id]) || 0;
       await supabase.from('inventory_logs').insert([{
@@ -455,13 +497,17 @@ function KioskPage() {
       await supabase.from('ingredients').update({ current_stock: countedQty, last_counted_at: endTime }).eq('id', item.id);
     }
 
+    // 3. Mark Shift closed
+// 1. RETIRE COMPLETED TASKS FOREVER (Deactivates them in the database) [3]
     const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
     if (completedTaskIds.length > 0) {
       await supabase.from('tasks').update({ is_active: false }).in('id', completedTaskIds);
     }
 
+    // 2. Mark Shift closed
     await supabase.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
 
+    // 4. Send Scorecard to Owner's Telegram
     let completedTasks = tasks.filter((t: any) => t.done).length;
     let completionPercentage = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 100;
     
@@ -475,6 +521,7 @@ function KioskPage() {
     setMsg("🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
     setIsAiLoading(false);
     
+    // Refresh kiosk data so the next shift gets the next 5 cycle items!
     await fetchKioskData();
 
     setTimeout(() => { 
@@ -487,15 +534,16 @@ function KioskPage() {
       setChatHistory([]); 
     }, 3000);
   };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6">
       <header className="flex justify-between items-center border-b border-slate-900 pb-4 mb-6">
+       
         <div className="flex items-center gap-3">
           <Coffee className="h-8 w-8 text-emerald-400" />
           <div><h1 className="text-xl font-black">SF KITCHEN KIOSK</h1><p className="text-xs text-slate-500 uppercase font-bold">Smart AI Mode</p></div>
         </div>
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3">
+          {/* 🔒 ЭЗЭНД ЗОРИУЛСАН DASHBOARD РУУ БУЦАХ ХОЛБООС */}
           <button 
             onClick={() => router.push('/dashboard')} 
             className="text-slate-500 hover:text-slate-300 text-xs font-bold flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800"
@@ -520,21 +568,17 @@ function KioskPage() {
             <h2 className="text-2xl font-black mb-8 flex items-center justify-center gap-2"><Users className="text-emerald-400"/> Ажилтнаа сонгоно уу</h2>
             <div className="grid grid-cols-2 gap-4">
               {workers.map(w => (
-                <button key={w.id} onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} className="bg-slate-900/50 hover:bg-slate-900 border border-slate-900 p-6 rounded-2xl text-left flex justify-between items-center">
-                  <div>
-                    <span className="text-lg font-bold uppercase block">{w.full_name || w.email.split('@')[0]}</span>
-                    <span className="text-xs text-emerald-400 font-bold uppercase">{w.role}</span>
-                  </div>
-                  <div className="bg-slate-950 px-3 py-2 rounded-xl text-slate-500 font-bold text-xs">
-                    ➔
-                  </div>
+                <button key={w.id} onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} className="bg-slate-900/50 hover:bg-slate-900 border border-slate-900 p-6 rounded-2xl text-left">
+                  <span className="text-lg font-bold uppercase block">{w.full_name || w.email.split('@')[0]}</span>
+                  <span className="text-xs text-emerald-400 font-bold uppercase">{w.role}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* 2. PIN CODE */}
+    
+       {/* 2. PIN ДЭЛГЭЦ */}
         {step === 'pin_code' && (
           <div className="bg-slate-900/40 p-8 rounded-3xl max-w-sm w-full text-center border border-slate-900">
             <h2 className="text-lg font-bold mb-1 text-emerald-400">
@@ -550,11 +594,11 @@ function KioskPage() {
 
             <div className="grid grid-cols-3 gap-4">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                <button key={num} onClick={() => setPin(p => p.length < 4 ? p + num : p)} className="bg-slate-950 hover:bg-slate-800 active:scale-95 py-4 rounded-xl text-xl font-black">{num}</button>
+                <button key={num} onClick={() => setPin(p => p.length < 4 ? p + num : p)} className="bg-slate-950 hover:bg-slate-900 py-4 rounded-xl text-xl font-black">{num}</button>
               ))}
-              <button onClick={() => setPin('')} className="bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-400 rounded-xl text-xs font-bold flex items-center justify-center">Clear</button>
-              <button onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} className="bg-slate-950 hover:bg-slate-800 active:scale-95 py-4 rounded-xl text-xl font-black">0</button>
-              <button onClick={handleVerifyPin} className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 rounded-xl text-sm font-black flex items-center justify-center">ОК</button>
+              <button onClick={() => setPin('')} className="bg-rose-500/10 text-rose-400 rounded-xl text-xs font-bold">Clear</button>
+              <button onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} className="bg-slate-950 hover:bg-slate-900 py-4 rounded-xl text-xl font-black">0</button>
+              <button onClick={handleVerifyPin} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-sm font-black">ОК</button>
             </div>
 
             <div className="mt-6 pt-4 border-t border-slate-900 flex flex-col gap-2">
@@ -590,7 +634,7 @@ function KioskPage() {
           </div>
         )}
 
-        {/* 4. AI CHAT INTERFACE */}
+     {/* 4. AI CHAT INTERFACE (Тусгаарлагдсан хэт хурдан чат) */}
         {step === 'ai_chat' && (
           <KioskAiChatSection 
             selectedWorker={selectedWorker} 
@@ -599,27 +643,30 @@ function KioskPage() {
           />
         )}
 
-        {/* 5. TASKS */}
+   {/* 5. TASKS (Locked on Completion) */}
         {step === 'tasks' && (
           <div className="w-full max-w-md bg-slate-900/40 p-6 rounded-3xl border border-slate-900">
             <h2 className="font-bold text-purple-400 mb-6 flex items-center gap-2">
               <CheckSquare /> Өнөөдрийн Даалгавар
             </h2>
 
+            {/* Case A: No tasks assigned at all */}
             {tasks.length === 0 ? (
               <p className="text-center text-slate-500 py-6">Даалгавар алга байна.</p>
             ) : tasks.every(t => t.done) ? (
+              /* Case B: All tasks finished (Clean "All Done" screen) */
               <div className="text-center py-8 space-y-3 bg-slate-950/60 rounded-2xl border border-slate-800 p-6">
                 <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto" />
                 <p className="font-black text-lg text-white">Бүх даалгавар биелсэн!</p>
                 <p className="text-xs text-slate-400">Танд одоогоор хийх үлдсэн ажил байхгүй байна.</p>
               </div>
             ) : (
+              /* Case C: Pending tasks list */
               <div className="space-y-3">
                 {tasks.map((t, idx) => (
                   <button
                     key={idx}
-                    disabled={t.done}
+                    disabled={t.done} // Locks completed items so they cannot be tapped again!
                     onClick={() => completeTask(idx)}
                     className={`w-full p-4 rounded-xl flex items-center justify-between border transition ${
                       t.done 
@@ -688,3 +735,6 @@ const KioskPageExport = dynamic(() => Promise.resolve(KioskPage), {
 });
 
 export default KioskPageExport;
+
+
+
