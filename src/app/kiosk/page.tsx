@@ -10,9 +10,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 
-// =========================================================================
-// 🚀 KIOSK AI ЧАТ (ТОМ ТОД ТЕКСТ, ТОМ INPUT, ТОМ КАМЕР БҮХИЙ ХЭСЭГ)
-// =========================================================================
 function KioskAiChatSection({ 
   selectedWorker, 
   activeShift, 
@@ -128,18 +125,16 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto h-[82vh] sm:h-[85vh] flex flex-col bg-[#0d1527] rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
-      {/* Чат толгой */}
+    <div className="w-full h-full flex-1 flex flex-col bg-[#0d1527] rounded-3xl border border-slate-800 overflow-hidden shadow-2xl min-h-0">
       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
         <h2 className="font-black text-blue-400 flex items-center gap-2.5 text-lg sm:text-xl">
-          <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7"/> AI Туслах & Бүртгэл
+          <MessageSquare className="h-6 w-6"/> AI Туслах & Бүртгэл
         </h2>
-        <button onClick={onBack} className="bg-slate-950 px-4 py-2 rounded-xl text-sm font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95">
+        <button onClick={onBack} className="bg-slate-950 px-4 py-2 rounded-xl text-sm font-bold border border-slate-800 hover:bg-slate-800 text-slate-300">
           ← Буцах
         </button>
       </div>
       
-      {/* Мессежүүд (ТОМ, ТОД 16-18PX ТЕКСТ) */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
         {chatHistory.length === 0 && (
           <div className="text-center text-slate-400 text-base sm:text-lg mt-8 sm:mt-16 space-y-3 max-w-md mx-auto">
@@ -156,7 +151,7 @@ function KioskAiChatSection({
 
         {chatHistory.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[88%] sm:max-w-[80%] p-4 sm:p-5 rounded-2xl text-base sm:text-lg leading-relaxed ${
+            <div className={`max-w-[90%] sm:max-w-[80%] p-4 sm:p-5 rounded-2xl text-base sm:text-lg leading-relaxed ${
               msg.sender === 'worker' 
                 ? 'bg-blue-600 text-white rounded-tr-none shadow-md font-semibold' 
                 : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800 shadow-xl overflow-x-auto'
@@ -179,15 +174,6 @@ function KioskAiChatSection({
                       ),
                       td: ({ node, ...props }) => (
                         <td className="border border-slate-800/80 px-3 py-2 text-slate-200 font-medium" {...props} />
-                      ),
-                      h3: ({ node, ...props }) => (
-                        <h3 className="text-lg sm:text-xl font-black text-white mt-3 mb-1.5" {...props} />
-                      ),
-                      ul: ({ node, ...props }) => (
-                        <ul className="list-disc list-inside space-y-1.5 my-2" {...props} />
-                      ),
-                      li: ({ node, ...props }) => (
-                        <li className="text-base sm:text-lg" {...props} />
                       )
                     }}
                   >
@@ -210,7 +196,6 @@ function KioskAiChatSection({
         {isAiLoading && <div className="text-blue-400 text-base animate-pulse font-bold">AI бодож байна...</div>}
       </div>
 
-      {/* Input хэсэг (ТОМ КАМЕР БА ӨРГӨН ТАЛБАР) */}
       <div className="p-4 bg-slate-900 border-t border-slate-800 flex gap-3 items-center shrink-0">
         <input 
           type="file" 
@@ -245,9 +230,6 @@ function KioskAiChatSection({
   );
 }
 
-// =========================================================================
-// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ (ТОМ ТОВЧЛУУР, ТОД ҮСЭГ, САМСУНГ S20 БА IPAD-Д ТӨГС)
-// =========================================================================
 function KioskPage() {
   const router = useRouter(); 
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'menu' | 'ai_chat' | 'tasks' | 'close_shift'>('select_worker');
@@ -478,10 +460,10 @@ function KioskPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#070b14] text-slate-100 flex flex-col justify-between p-3 sm:p-6 select-none touch-manipulation">
+    <div className="w-full min-h-[100dvh] bg-[#070b14] text-slate-100 flex flex-col p-3 sm:p-6 select-none touch-manipulation">
       
-      {/* 🔝 HEADER */}
-      <header className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-3 max-w-md sm:max-w-xl mx-auto w-full shrink-0">
+      {/* 🔝 HEADER (ӨРГӨНӨӨРӨӨ ТЭЛНЭ) */}
+      <header className="flex justify-between items-center border-b border-slate-800/80 pb-3 mb-3 max-w-2xl mx-auto w-full shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
             <Coffee className="h-5 w-5 text-emerald-400" />
@@ -511,8 +493,8 @@ function KioskPage() {
         </div>
       </header>
 
-      {/* 🚀 ҮНДСЭН ДЭЛГЭЦҮҮД (ТОМ ХУРУУНЫ ТОЧНОСТ БҮХИЙ КАРТУУД) */}
-      <main className="flex-1 flex flex-col items-center justify-center w-full max-w-md sm:max-w-xl mx-auto py-1">
+      {/* 🚀 ҮНДСЭН ХЭСЭГ (УТАСНЫ ӨРГӨНИЙГ 100% БҮРЭН ЭЗЭЛНЭ) */}
+      <main className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl mx-auto py-1">
         
         {msg && (
           <div className="bg-rose-500/10 text-rose-400 p-4 rounded-2xl mb-3 w-full text-center font-bold text-sm border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
@@ -551,10 +533,6 @@ function KioskPage() {
                 </button>
               ))}
             </div>
-
-            <div className="text-center text-xs text-slate-500 pt-6">
-              SF Kitchen Kiosk • Secure Touch Interface
-            </div>
           </div>
         )}
 
@@ -562,7 +540,6 @@ function KioskPage() {
         {step === 'pin_code' && (
           <div className="w-full bg-[#0d1527]/95 p-6 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl my-auto flex flex-col items-center">
             
-            {/* Гарчиг */}
             <div className="text-center mb-4">
               <h2 className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
               <p className="text-sm text-slate-300 font-medium mt-1">
@@ -575,7 +552,7 @@ function KioskPage() {
               </div>
             </div>
 
-            {/* PIN Dots (Том, тод ногоон цэгүүд) */}
+            {/* PIN Dots */}
             <div className="bg-[#060b17] border border-slate-800/90 rounded-2xl py-4 px-8 flex justify-center items-center gap-5 w-full max-w-[280px] mb-6">
               {[0, 1, 2, 3].map((dotIndex) => (
                 <div 
@@ -601,7 +578,6 @@ function KioskPage() {
                 </button>
               ))}
               
-              {/* CLEAR */}
               <button 
                 onClick={() => setPin('')} 
                 className="h-18 sm:h-20 bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border border-rose-900/40 text-rose-400 rounded-2xl text-base sm:text-lg font-black transition-all flex items-center justify-center"
@@ -609,7 +585,6 @@ function KioskPage() {
                 Clear
               </button>
 
-              {/* 0 */}
               <button 
                 onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} 
                 className="h-18 sm:h-20 bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border border-slate-800/80 rounded-2xl text-3xl sm:text-4xl font-black text-white transition-all shadow-lg flex items-center justify-center"
@@ -617,7 +592,6 @@ function KioskPage() {
                 0
               </button>
 
-              {/* OK */}
               <button 
                 onClick={handleVerifyPin} 
                 className="h-18 sm:h-20 bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl text-lg sm:text-xl font-black transition-all shadow-[0_0_20px_rgba(16,185,129,0.5)] flex items-center justify-center"
@@ -626,7 +600,6 @@ function KioskPage() {
               </button>
             </div>
 
-            {/* Доод заавар */}
             <div className="text-center space-y-2 w-full pt-1">
               <p className="text-xs text-slate-400 leading-relaxed">
                 💡 Анхдагч PIN код: <strong className="text-white">1234</strong><br />
@@ -642,7 +615,7 @@ function KioskPage() {
           </div>
         )}
 
-        {/* 3. MENU (ТОМ, ӨНГӨЛӨГ КАРТУУД) */}
+        {/* 3. MENU */}
         {step === 'menu' && (
           <div className="w-full bg-[#0d1527]/95 p-6 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl my-auto space-y-4">
             <div className="text-center mb-5">
@@ -732,11 +705,11 @@ function KioskPage() {
                   >
                     <div className="flex items-center gap-3.5">
                       {t.done ? (
-                        <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" />
+                        <CheckCircle className="h-7 w-7 text-emerald-400 shrink-0" />
                       ) : (
-                        <div className="h-6 w-6 rounded-lg border-2 border-slate-600 shrink-0" />
+                        <div className="h-7 w-7 rounded-lg border-2 border-slate-600 shrink-0" />
                       )}
-                      <span className="font-bold text-sm sm:text-base text-left">{t.name}</span>
+                      <span className="font-bold text-base text-left">{t.name}</span>
                     </div>
                     {t.done && <span className="text-xs font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
                   </button>
@@ -756,8 +729,8 @@ function KioskPage() {
         {/* 6. CLOSE SHIFT */}
         {step === 'close_shift' && (
           <div className="w-full bg-[#0d1527]/95 p-6 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl my-auto">
-            <h2 className="text-xl sm:text-2xl font-black text-emerald-400 mb-1 flex items-center gap-2">
-              <ListOrdered className="h-6 w-6" /> Ээлжийн Тооллого
+            <h2 className="text-xl sm:text-2xl font-black text-emerald-400 mb-1 flex items-center gap-2.5">
+              <ListOrdered className="h-7 w-7" /> Ээлжийн Тооллого
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mb-4">Хөргөгч/лангуун дахь бодит үлдэгдлийг тоолж бичнэ үү.</p>
             
