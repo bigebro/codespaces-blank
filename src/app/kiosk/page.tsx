@@ -4,14 +4,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { 
   Coffee, CheckCircle, Users, LogOut, Camera, 
-  MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert, Sparkles
+  MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 
 // =========================================================================
-// 🚀 GOOGLE AI STUDIO CHAT INTERFACE FOR MOBILE & TABLET
+// 🚀 KIOSK AI ЧАТ (CHATGPT / AI STUDIO ШИГ UI БОЛОН AUTO-EXPAND/SCROLL)
 // =========================================================================
 function KioskAiChatSection({ 
   selectedWorker, 
@@ -26,19 +26,19 @@ function KioskAiChatSection({
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   
+  // Автоматаар доош гүйлгэх болон бичих талбарын хэмжээг удирдах Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Шинэ мессеж нэмэгдэхэд үргэлж хамгийн доод хэсэг рүү гүйлгэх
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Шинэ мессеж нэмэгдэх үед үргэлж хамгийн доод тал руу автоматаар scroll хийх
   useEffect(() => {
-    scrollToBottom();
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100); // UI render хийгдэхэд жижиг хугацаа өгнө
+    return () => clearTimeout(timer);
   }, [chatHistory, isAiLoading]);
 
-  const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
+  const handleAiChatSubmit = async (e?: React.FormEvent | React.KeyboardEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
 
@@ -73,10 +73,11 @@ function KioskAiChatSection({
 
     const payloadText = chatInput;
     
-    // Илгээсний дараа textarea-г цэвэрлэж, өндрийг анхны хэмжээнд оруулах
+    // Илгээсний дараа бичих талбарыг цэвэрлэж, өндрийг нь буцаан хэвийн болгох
     setChatInput('');
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = 'auto'; 
+      textareaRef.current.focus(); // Гарыг буулгахгүйгээр үргэлжлүүлэн бичих боломжтой хэвээр үлдээнэ
     }
 
     try {
@@ -145,77 +146,66 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0b0f19] overflow-hidden relative">
-      
-      {/* 1. TOP BAR (Google Studio Header Style) */}
-      <div className="h-14 px-4 border-b border-slate-800/70 flex justify-between items-center bg-[#070b14]/90 backdrop-blur-md shrink-0 z-10">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-blue-500/10 p-2 rounded-xl border border-blue-500/20 text-blue-400">
-            <Sparkles className="h-4 w-4 text-blue-400 animate-pulse" />
-          </div>
-          <div>
-            <h2 className="font-bold text-white text-sm flex items-center gap-2">
-              Kiosk AI Assistant
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">ONLINE</span>
-            </h2>
-            <p className="text-[11px] text-slate-400 font-medium">SF Coffee Back-of-House</p>
-          </div>
-        </div>
-
-        <button 
-          onClick={onBack} 
-          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300 hover:text-white active:scale-95 transition"
-        >
+    <div className="w-full h-full flex-1 flex flex-col bg-[#0d1527] rounded-[2rem] border border-slate-800 overflow-hidden shadow-2xl min-h-0 relative">
+      {/* Толгой */}
+      <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
+        <h2 className="font-black text-blue-400 flex items-center gap-2.5 text-lg sm:text-xl">
+          <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7"/> AI Туслах & Бүртгэл
+        </h2>
+        <button onClick={onBack} className="bg-slate-950 px-4 py-2 rounded-xl text-sm sm:text-base font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95">
           ← Буцах
         </button>
       </div>
       
-      {/* 2. CHAT MESSAGES SCROLL CONTAINER (ONLY THIS SCROLLS) */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-6 space-y-5 min-h-0 custom-scrollbar">
+      {/* Мессежүүд */}
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-0 pb-6">
         {chatHistory.length === 0 && (
-          <div className="text-center text-slate-400 text-sm mt-8 space-y-3 max-w-sm mx-auto px-4">
-            <div className="bg-blue-500/10 p-4 rounded-3xl border border-blue-500/20 w-fit mx-auto shadow-inner">
-              <Camera className="h-8 w-8 text-blue-400" />
+          <div className="text-center text-slate-300 text-base sm:text-lg mt-10 sm:mt-16 space-y-3.5 max-w-md mx-auto">
+            <div className="bg-blue-500/10 p-5 rounded-3xl border border-blue-500/20 w-fit mx-auto">
+              <Camera className="h-10 w-10 text-blue-400" />
             </div>
-            <p className="font-bold text-white text-base">Гал тогооны ухаалаг туслах</p>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Баримтын зураг дарж оруулах эсвэл хаягдал, зарлагаа бичнэ үү.<br />
-              <span className="text-slate-500 block mt-1">Жишээ: "500 мл сүү асгарсан", "Хоолонд 2 өндөг орлоо"</span>
+            <p className="font-black text-white text-xl">Гал тогооны ухаалаг туслах</p>
+            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              Баримтын зураг дарж оруулах эсвэл хаягдал зарлагаа бичнэ үү.<br />
+              (Жишээ: "500 мл сүү асгарсан", "Хоолонд 2 өндөг орлоо")
             </p>
           </div>
         )}
 
         {chatHistory.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-2xl text-sm sm:text-base leading-relaxed ${
+            <div className={`max-w-[90%] sm:max-w-[85%] p-4 sm:p-5 text-base sm:text-lg leading-relaxed ${
               msg.sender === 'worker' 
-                ? 'bg-[#1e293b] text-white rounded-tr-none border border-slate-700/60 shadow-lg font-medium' 
-                : 'bg-[#111827] text-slate-200 rounded-tl-none border border-slate-800 shadow-xl overflow-x-auto'
+                ? 'bg-blue-600 text-white rounded-3xl rounded-tr-md shadow-md font-medium' 
+                : 'bg-transparent text-slate-100 rounded-2xl overflow-x-auto'
             }`}>
               {msg.sender === 'worker' ? (
                 msg.text
               ) : (
-                <div className="prose prose-invert max-w-none text-sm sm:text-base leading-relaxed">
+                <div className="prose prose-invert max-w-none text-base sm:text-lg leading-relaxed">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       table: ({ node, ...props }) => (
-                        <table className="w-full my-2 border-collapse border border-slate-800 text-xs sm:text-sm rounded-xl overflow-hidden" {...props} />
+                        <table className="w-full my-3 border-collapse border border-slate-800 text-sm sm:text-base rounded-xl overflow-hidden" {...props} />
                       ),
                       thead: ({ node, ...props }) => (
                         <thead className="bg-slate-950 text-emerald-400 border-b border-slate-800 font-bold" {...props} />
                       ),
                       th: ({ node, ...props }) => (
-                        <th className="border border-slate-800 px-3 py-2 text-left font-black" {...props} />
+                        <th className="border border-slate-800 px-3.5 py-2.5 text-left font-black" {...props} />
                       ),
                       td: ({ node, ...props }) => (
-                        <td className="border border-slate-800/80 px-3 py-1.5 text-slate-300 font-medium" {...props} />
+                        <td className="border border-slate-800/80 px-3.5 py-2 text-slate-200 font-medium" {...props} />
                       ),
                       h3: ({ node, ...props }) => (
-                        <h3 className="text-sm sm:text-base font-black text-white mt-2 mb-1" {...props} />
+                        <h3 className="text-lg sm:text-xl font-black text-white mt-3 mb-1.5" {...props} />
                       ),
                       ul: ({ node, ...props }) => (
-                        <ul className="list-disc list-inside space-y-1 my-1.5" {...props} />
+                        <ul className="list-disc list-inside space-y-1.5 my-2" {...props} />
+                      ),
+                      li: ({ node, ...props }) => (
+                        <li className="text-base sm:text-lg" {...props} />
                       )
                     }}
                   >
@@ -227,7 +217,7 @@ function KioskAiChatSection({
               {msg.logId && (
                 <button 
                   onClick={() => handleUndo(msg.logId!, i)}
-                  className="mt-2.5 w-full bg-slate-950/80 border border-slate-800 hover:bg-rose-500/20 hover:text-rose-400 py-2 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5"
+                  className="mt-3 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 py-3 rounded-xl font-bold text-sm sm:text-base transition"
                 >
                   Буцаах ↩️ (Undo)
                 </button>
@@ -235,82 +225,76 @@ function KioskAiChatSection({
             </div>
           </div>
         ))}
-        {isAiLoading && (
-          <div className="flex items-center gap-2 text-blue-400 text-xs font-semibold pl-2">
-            <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping"></span>
-            AI хариулж байна...
-          </div>
-        )}
+        {isAiLoading && <div className="text-blue-400 text-base animate-pulse font-bold px-4">AI бодож байна...</div>}
         
-        {/* Scroll anchor */}
-        <div ref={messagesEndRef} className="h-2" />
+        {/* АВТОМАТААР ДООШ ГҮЙЛГЭХ ЗОРИУЛАЛТТАЙ ХООСОН DIV */}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. GOOGLE AI STUDIO PROMPT BOX (Anchored at bottom, floating rounded card) */}
-      <div className="p-3 sm:p-4 bg-[#070b14]/95 border-t border-slate-800/80 shrink-0 z-10 backdrop-blur-md">
+      {/* Input хэсэг (AI Studio шиг нэгдсэн хэлбэртэй UI) */}
+      <div className="p-3 sm:p-4 bg-[#0d1527] border-t border-slate-800/50 shrink-0 w-full">
         <form 
           onSubmit={handleAiChatSubmit} 
-          className="max-w-2xl mx-auto bg-[#131722] border border-slate-700/80 focus-within:border-blue-500/80 rounded-3xl p-2.5 shadow-2xl transition-all"
+          className="flex items-end gap-2 bg-slate-900 border border-slate-700 rounded-[2rem] p-1.5 focus-within:border-blue-500/60 focus-within:bg-slate-900 transition-all w-full shadow-inner"
         >
-          {/* Textarea */}
+          {/* Зураг оруулах товч (Бөөрөнхий дотор) */}
+          <input 
+            type="file" 
+            accept="image/*" 
+            capture="environment" 
+            id="kiosk-ai-camera" 
+            className="hidden" 
+            onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
+          />
+          <label 
+            htmlFor="kiosk-ai-camera" 
+            className="shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-slate-800 hover:bg-slate-700 rounded-full flex items-center justify-center cursor-pointer mb-0.5 ml-0.5 transition-colors"
+          >
+            <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" />
+          </label>
+
+          {/* Текст бичих хэсэг (Автоматаар өндөр нь томордог) */}
           <textarea 
             ref={textareaRef}
             rows={1}
             value={chatInput} 
             onChange={e => {
               setChatInput(e.target.value);
-              e.target.style.height = 'auto';
+              e.target.style.height = 'auto'; // Reset хийж байж шинэ хэмжээг тооцно
               e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
             }} 
             onKeyDown={e => {
+              // Enter дарахад шууд илгээгдэнэ. Shift+Enter үед шинэ мөрөнд шилжинэ.
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleAiChatSubmit();
+                if (chatInput.trim()) handleAiChatSubmit();
               }
             }}
             placeholder="Энд бичих..." 
-            className="w-full bg-transparent border-none outline-none focus:ring-0 text-white placeholder-slate-500 text-sm sm:text-base leading-relaxed px-3 py-1.5 resize-none max-h-[120px] overflow-y-auto custom-scrollbar" 
+            className="flex-1 bg-transparent text-white text-base sm:text-lg resize-none outline-none py-2.5 sm:py-3 px-2 placeholder:text-slate-500 self-center" 
+            style={{ height: 'auto', minHeight: '44px', maxHeight: '120px' }}
           />
 
-          {/* Bottom Action Bar (Inside the prompt container) */}
-          <div className="flex justify-between items-center pt-2 px-1 border-t border-slate-800/40 mt-1">
-            <div className="flex items-center gap-2">
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                id="kiosk-ai-camera" 
-                className="hidden" 
-                onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
-              />
-              <label 
-                htmlFor="kiosk-ai-camera" 
-                className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white cursor-pointer transition flex items-center gap-1.5 text-xs font-semibold"
-                title="Баримтын зураг дарах"
-              >
-                <Camera className="h-4 w-4 text-emerald-400" />
-                <span className="hidden sm:inline">Баримт зураг</span>
-              </label>
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={isAiLoading || !chatInput.trim()} 
-              className="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-4 py-2 rounded-full disabled:opacity-30 transition font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md"
-            >
-              <span>Илгээх</span>
-              <Send className="h-3.5 w-3.5"/>
-            </button>
-          </div>
+          {/* Илгээх товч (Текст бичсэн үед л асдаг) */}
+          <button 
+            type="submit" 
+            disabled={isAiLoading || !chatInput.trim()} 
+            className={`shrink-0 h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all mb-0.5 mr-0.5 ${
+              chatInput.trim() && !isAiLoading 
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                : 'bg-transparent text-slate-600'
+            }`}
+          >
+            <Send className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
         </form>
       </div>
-
     </div>
   );
 }
 
 // =========================================================================
-// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ (100% FIXED VIEWPORT LOCK)
+// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ 
 // =========================================================================
 function KioskPage() {
   const router = useRouter(); 
@@ -394,7 +378,7 @@ function KioskPage() {
     const validPin = selectedWorker.pin_code || '1234';
 
     if (pin !== validPin) {
-      setMsg("❌ Буруу PIN код! Та өөрийн PIN кодоо шалгана уу.");
+      setMsg("❌ Буруу PIN код! Мартсан бол өөрийн утсаар Dashboard руу орж одоогийн PIN-ээ харна уу.");
       setPin('');
       return;
     }
@@ -542,155 +526,168 @@ function KioskPage() {
   };
 
   return (
-    // 🔒 100% FIXED VIEWPORT LOCK: Гадаад дэлгэц хэзээ ч scroll хийхгүй
-    <div className="fixed inset-0 w-full h-[100dvh] bg-[#070b14] text-slate-100 flex flex-col overflow-hidden select-none touch-manipulation">
+    // 🔒 w-full min-h-[100dvh]: Утасны дэлгэцийг бүтнээр нь дүүргэнэ
+    <div className="w-full min-h-[100dvh] bg-[#070b14] text-slate-100 flex flex-col p-2.5 sm:p-5 select-none touch-manipulation">
       
-      {/* 🔝 HEADER (AI ЧАТААС БУСАД ҮЕД ХАРАГДАНА) */}
-      {step !== 'ai_chat' && (
-        <header className="w-full max-w-2xl mx-auto flex justify-between items-center border-b border-slate-800/80 p-3 sm:p-4 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-              <Coffee className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase">SF KITCHEN KIOSK</h1>
-              <p className="text-[10px] text-emerald-400 font-bold uppercase">Smart Operations</p>
-            </div>
+      {/* 🔝 HEADER */}
+      <header className="w-full max-w-2xl mx-auto flex justify-between items-center border-b border-slate-800/80 pb-3 mb-2 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+            <Coffee className="h-6 w-6 text-emerald-400" />
           </div>
+          <div>
+            <h1 className="text-base sm:text-lg font-black tracking-tight text-white uppercase">SF KITCHEN KIOSK</h1>
+            <p className="text-xs text-emerald-400 font-bold uppercase">Smart Operations</p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => router.push('/dashboard')} 
+            className="text-slate-300 hover:text-white text-xs sm:text-sm font-bold bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-800 active:scale-95 transition flex items-center gap-1"
+          >
+            🔒 Dashboard
+          </button>
+
+          {selectedWorker && (
             <button 
-              onClick={() => router.push('/dashboard')} 
-              className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
+              onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1 active:scale-95 transition"
             >
-              🔒 Dashboard
+              <LogOut className="h-4 w-4" /> Гарах
             </button>
+          )}
+        </div>
+      </header>
 
-            {selectedWorker && (
-              <button 
-                onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
-                className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 transition"
-              >
-                <LogOut className="h-3.5 w-3.5" /> Гарах
-              </button>
-            )}
-          </div>
-        </header>
-      )}
-
-      {/* 🚀 MAIN CONTENT CONTAINER */}
-      <main className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      {/* 🚀 ҮНДСЭН ХЭСЭГ (ДЭЛГЭЦИЙН 100% ӨРГӨН БА ӨНДРИЙГ ЭЗЭЛНЭ) */}
+      <main className="w-full max-w-2xl mx-auto flex-1 flex flex-col min-h-0 py-1">
         
-        {msg && step !== 'ai_chat' && (
-          <div className="mx-4 mt-2 bg-rose-500/10 text-rose-400 p-3 rounded-2xl text-center font-bold text-xs border border-rose-500/20 flex items-center justify-center gap-2 shrink-0">
-            <ShieldAlert className="h-4 w-4 shrink-0" />
+        {msg && (
+          <div className="bg-rose-500/10 text-rose-400 p-4 rounded-2xl mb-2 w-full text-center font-bold text-sm border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
+            <ShieldAlert className="h-5 w-5 shrink-0" />
             <span>{msg}</span>
           </div>
         )}
 
         {/* 1. SELECT WORKER */}
         {step === 'select_worker' && (
-          <div className="w-full max-w-xl mx-auto flex-1 p-5 flex flex-col justify-between overflow-y-auto">
+          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
             <div className="text-center pt-2 shrink-0">
-              <div className="bg-emerald-500/10 p-3.5 rounded-3xl border border-emerald-500/20 w-fit mx-auto mb-2.5">
-                <Users className="text-emerald-400 h-8 w-8"/>
+              <div className="bg-emerald-500/10 p-4 rounded-3xl border border-emerald-500/20 w-fit mx-auto mb-3">
+                <Users className="text-emerald-400 h-9 w-9"/>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-white">Ажилтнаа сонгоно уу</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Нэр дээрээ дарж ээлжиндээ нэвтэрнэ үү</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-white">Ажилтнаа сонгоно уу</h2>
+              <p className="text-sm text-slate-400 mt-1">Өөрийн нэр дээр товшиж ээлжиндээ нэвтэрнэ үү</p>
             </div>
 
-            <div className="space-y-3 w-full my-auto py-4">
+            <div className="space-y-4 w-full my-auto py-4">
               {workers.map(w => (
                 <button 
                   key={w.id} 
                   onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
-                  className="bg-[#0d1527] hover:bg-slate-800 active:scale-95 border-2 border-slate-800/80 hover:border-emerald-500/50 p-4 sm:p-5 rounded-2xl text-left transition-all shadow-lg flex justify-between items-center group w-full"
+                  className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-5 sm:p-6 rounded-2xl text-left transition-all shadow-lg flex justify-between items-center group w-full"
                 >
                   <div>
-                    <span className="text-lg sm:text-xl font-black text-white uppercase block group-hover:text-emerald-400 transition">
+                    <span className="text-xl sm:text-2xl font-black text-white uppercase block group-hover:text-emerald-400 transition">
                       {w.full_name || w.email.split('@')[0]}
                     </span>
-                    <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
+                    <span className="text-sm text-emerald-400 font-bold uppercase mt-1 block">
                       🏷️ {w.role}
                     </span>
                   </div>
-                  <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-xs">
+                  <div className="bg-slate-950 p-3.5 rounded-2xl text-slate-500 group-hover:text-emerald-400 font-black text-sm">
                     ➔
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className="text-center text-[10px] text-slate-500 pt-2 shrink-0">
+            <div className="text-center text-xs text-slate-500 pt-2 shrink-0">
               SF Kitchen Kiosk • Secure Operations
             </div>
           </div>
         )}
 
-        {/* 2. PIN CODE */}
+        {/* 2. PIN ДЭЛГЭЦ */}
         {step === 'pin_code' && (
-          <div className="w-full max-w-sm mx-auto flex-1 p-4 flex flex-col justify-between items-center overflow-y-auto">
+          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between items-center my-auto">
+            
+            {/* Гарчиг */}
             <div className="text-center pt-1 w-full shrink-0">
-              <h2 className="text-xl sm:text-2xl font-black text-emerald-400">PIN код оруулна уу</h2>
-              <p className="text-xs text-slate-300 mt-0.5 font-medium">
-                👤 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
+              <h2 className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
+              <p className="text-sm sm:text-base text-slate-300 font-medium mt-1">
+                Өөрийн хувийн нууц кодыг хийнэ үү
               </p>
+              <div className="mt-2 inline-block bg-slate-950 px-5 py-2 rounded-2xl border border-slate-800">
+                <span className="text-sm sm:text-base text-emerald-300 font-black">
+                  👤 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]} ({selectedWorker?.role})
+                </span>
+              </div>
             </div>
 
             {/* PIN Dots */}
-            <div className="bg-[#0b1329] border border-slate-800 rounded-2xl py-3 px-8 flex justify-center items-center gap-5 my-2 shrink-0">
+            <div className="bg-[#060b17] border border-slate-800/90 rounded-2xl py-4 px-10 flex justify-center items-center gap-6 w-full max-w-[300px] my-3 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
                 <div 
                   key={dotIndex} 
-                  className={`h-4 w-4 rounded-full transition-all duration-150 ${
+                  className={`h-5 w-5 rounded-full transition-all duration-150 ${
                     pin.length > dotIndex 
-                      ? 'bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-125' 
+                      ? 'bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.9)] scale-125' 
                       : 'bg-slate-800'
                   }`}
                 />
               ))}
             </div>
 
-            {/* Keypad */}
-            <div className="grid grid-cols-3 gap-2.5 w-full my-auto">
+            {/* Keypad Grid */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full max-w-md my-auto">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
                 <button 
                   key={num} 
                   onClick={() => setPin(p => p.length < 4 ? p + num : p)} 
-                  className="h-16 w-full bg-[#0d1527] hover:bg-slate-800 active:scale-95 border border-slate-800 rounded-2xl text-2xl font-black text-white transition-all shadow-md flex items-center justify-center"
+                  className="h-20 sm:h-24 w-full bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800 rounded-2xl sm:rounded-3xl text-3xl sm:text-4xl font-black text-white transition-all shadow-xl flex items-center justify-center"
                 >
                   {num}
                 </button>
               ))}
               
+              {/* CLEAR */}
               <button 
                 onClick={() => setPin('')} 
-                className="h-16 w-full bg-rose-950/30 hover:bg-rose-900/40 active:scale-95 border border-rose-900/40 text-rose-400 rounded-2xl text-sm font-black transition-all flex items-center justify-center"
+                className="h-20 sm:h-24 w-full bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl sm:rounded-3xl text-lg sm:text-xl font-black transition-all shadow-xl flex items-center justify-center"
               >
                 Clear
               </button>
 
+              {/* 0 */}
               <button 
                 onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} 
-                className="h-16 w-full bg-[#0d1527] hover:bg-slate-800 active:scale-95 border border-slate-800 rounded-2xl text-2xl font-black text-white transition-all shadow-md flex items-center justify-center"
+                className="h-20 sm:h-24 w-full bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800 rounded-2xl sm:rounded-3xl text-3xl sm:text-4xl font-black text-white transition-all shadow-xl flex items-center justify-center"
               >
                 0
               </button>
 
+              {/* OK */}
               <button 
                 onClick={handleVerifyPin} 
-                className="h-16 w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl text-lg font-black transition-all shadow-lg flex items-center justify-center"
+                className="h-20 sm:h-24 w-full bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl sm:rounded-3xl text-xl sm:text-2xl font-black transition-all shadow-[0_0_30px_rgba(16,185,129,0.5)] flex items-center justify-center"
               >
                 OK
               </button>
             </div>
 
-            <div className="text-center w-full pt-1 shrink-0">
+            {/* Доод заавар */}
+            <div className="text-center space-y-2 w-full pt-2 shrink-0">
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                💡 Анхдагч PIN код: <strong className="text-white">1234</strong><br />
+                (Хэрэв мартсан бол өөрийн Dashboard руу орж харна уу)
+              </p>
               <button 
                 onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
-                className="text-xs text-slate-400 hover:text-white font-bold"
+                className="text-sm text-slate-400 hover:text-white font-bold flex items-center justify-center gap-1 mx-auto pt-1"
               >
-                ← Ажилтан солих
+                ← Буцах (Ажилтан солих)
               </button>
             </div>
           </div>
@@ -698,62 +695,62 @@ function KioskPage() {
 
         {/* 3. MENU */}
         {step === 'menu' && (
-          <div className="w-full max-w-xl mx-auto flex-1 p-5 flex flex-col justify-between overflow-y-auto">
+          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
             <div className="text-center pt-2 shrink-0">
-              <h2 className="text-xl sm:text-2xl font-black text-white">Сайн байна уу?</h2>
-              <p className="text-sm sm:text-base text-emerald-400 font-bold mt-0.5 uppercase">
+              <h2 className="text-2xl sm:text-3xl font-black text-white">Сайн байна уу?</h2>
+              <p className="text-base sm:text-lg text-emerald-400 font-bold mt-1 uppercase">
                 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
               </p>
             </div>
             
-            <div className="space-y-3.5 w-full flex-1 flex flex-col justify-center my-4">
+            <div className="space-y-4 w-full flex-1 flex flex-col justify-evenly my-2">
               <button 
                 onClick={() => setStep('ai_chat')} 
-                className="w-full p-5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 rounded-3xl flex items-center gap-4 border border-blue-500/30 transition shadow-lg text-left"
+                className="w-full flex-1 min-h-[6.5rem] bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 p-5 sm:p-6 rounded-3xl flex items-center gap-5 border border-blue-500/30 transition shadow-xl text-left"
               >
-                <div className="bg-blue-500/20 p-3.5 rounded-2xl border border-blue-500/30 shrink-0">
-                  <MessageSquare className="h-7 w-7 text-blue-400" />
+                <div className="bg-blue-500/20 p-4 rounded-2xl border border-blue-500/30 shrink-0">
+                  <MessageSquare className="h-8 w-8 sm:h-9 sm:w-9 text-blue-400" />
                 </div>
                 <div>
-                  <p className="font-black text-lg text-blue-400">Ухаалаг Туслах (AI Chat)</p>
-                  <p className="text-xs text-slate-300 mt-0.5">Зарлага бичих & Баримтын зураг дарах</p>
+                  <p className="font-black text-xl sm:text-2xl text-blue-400">Ухаалаг Туслах (AI)</p>
+                  <p className="text-sm sm:text-base text-slate-300 mt-1">Зарлага бичих & Баримтын зураг дарах</p>
                 </div>
               </button>
 
               <button 
                 onClick={openTasksScreen} 
-                className="w-full p-5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-3xl flex items-center gap-4 border border-purple-500/30 transition shadow-lg text-left"
+                className="w-full flex-1 min-h-[6.5rem] bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 p-5 sm:p-6 rounded-3xl flex items-center gap-5 border border-purple-500/30 transition shadow-xl text-left"
               >
-                <div className="bg-purple-500/20 p-3.5 rounded-2xl border border-purple-500/30 shrink-0">
-                  <CheckSquare className="h-7 w-7 text-purple-400" />
+                <div className="bg-purple-500/20 p-4 rounded-2xl border border-purple-500/30 shrink-0">
+                  <CheckSquare className="h-8 w-8 sm:h-9 sm:w-9 text-purple-400" />
                 </div>
                 <div>
-                  <p className="font-black text-lg text-purple-400">Өнөөдрийн Даалгавар</p>
-                  <p className="text-xs text-slate-300 mt-0.5">Цэвэрлэгээ, тохиргоо болон үүргүүд</p>
+                  <p className="font-black text-xl sm:text-2xl text-purple-400">Өнөөдрийн Даалгавар</p>
+                  <p className="text-sm sm:text-base text-slate-300 mt-1">Цэвэрлэгээ, тохиргоо болон үүргүүд</p>
                 </div>
               </button>
 
               <button 
                 onClick={loadInventoryToCount} 
-                className="w-full p-5 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-3xl flex items-center gap-4 border border-emerald-500/30 transition shadow-lg text-left"
+                className="w-full flex-1 min-h-[6.5rem] bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 p-5 sm:p-6 rounded-3xl flex items-center gap-5 border border-emerald-500/30 transition shadow-xl text-left"
               >
-                <div className="bg-emerald-500/20 p-3.5 rounded-2xl border border-emerald-500/30 shrink-0">
-                  <ListOrdered className="h-7 w-7 text-emerald-400" />
+                <div className="bg-emerald-500/20 p-4 rounded-2xl border border-emerald-500/30 shrink-0">
+                  <ListOrdered className="h-8 w-8 sm:h-9 sm:w-9 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="font-black text-lg text-emerald-400">Ээлж хаах (Тооллого)</p>
-                  <p className="text-xs text-slate-300 mt-0.5">Өдрийн төгсгөлд бараа тоолох</p>
+                  <p className="font-black text-xl sm:text-2xl text-emerald-400">Ээлж хаах (Тооллого)</p>
+                  <p className="text-sm sm:text-base text-slate-300 mt-1">Өдрийн төгсгөлд бараа тоолох</p>
                 </div>
               </button>
             </div>
 
-            <div className="text-center text-[10px] text-slate-500 pt-2 shrink-0">
+            <div className="text-center text-xs text-slate-500 pt-2 shrink-0">
               Ээлжийн үйл ажиллагаа идэвхтэй байна
             </div>
           </div>
         )}
 
-        {/* 4. AI CHAT INTERFACE (GOOGLE AI STUDIO MOBILE VIEW) */}
+        {/* 4. AI CHAT INTERFACE */}
         {step === 'ai_chat' && (
           <KioskAiChatSection 
             selectedWorker={selectedWorker} 
@@ -764,42 +761,42 @@ function KioskPage() {
 
         {/* 5. TASKS */}
         {step === 'tasks' && (
-          <div className="w-full max-w-xl mx-auto flex-1 p-5 flex flex-col justify-between overflow-hidden">
+          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <h2 className="text-xl font-black text-purple-400 mb-3 flex items-center gap-2.5 shrink-0">
-                <CheckSquare className="h-6 w-6" /> Өнөөдрийн Даалгавар
+              <h2 className="text-2xl font-black text-purple-400 mb-4 flex items-center gap-3 shrink-0">
+                <CheckSquare className="h-7 w-7" /> Өнөөдрийн Даалгавар
               </h2>
 
               {tasks.length === 0 ? (
-                <p className="text-center text-slate-400 py-10 text-sm my-auto">Даалгавар алга байна.</p>
+                <p className="text-center text-slate-400 py-10 text-lg my-auto">Даалгавар алга байна.</p>
               ) : tasks.every(t => t.done) ? (
-                <div className="text-center py-8 space-y-2 bg-slate-900/60 rounded-3xl border border-slate-800 p-5 my-auto">
-                  <CheckCircle className="h-10 w-10 text-emerald-400 mx-auto" />
-                  <p className="font-black text-lg text-white">Бүх даалгавар биелсэн!</p>
-                  <p className="text-xs text-slate-400">Танд хийх үлдсэн ажил байхгүй байна.</p>
+                <div className="text-center py-10 space-y-3 bg-slate-950/60 rounded-3xl border border-slate-800 p-6 my-auto">
+                  <CheckCircle className="h-14 w-14 text-emerald-400 mx-auto" />
+                  <p className="font-black text-2xl text-white">Бүх даалгавар биелсэн!</p>
+                  <p className="text-base text-slate-400">Танд хийх үлдсэн ажил байхгүй байна.</p>
                 </div>
               ) : (
-                <div className="space-y-2.5 overflow-y-auto pr-1 flex-1 py-1 custom-scrollbar">
+                <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 py-2">
                   {tasks.map((t, idx) => (
                     <button
                       key={idx}
                       disabled={t.done}
                       onClick={() => completeTask(idx)}
-                      className={`w-full p-4 rounded-2xl flex items-center justify-between border transition active:scale-95 ${
+                      className={`w-full p-5 rounded-2xl flex items-center justify-between border-2 transition active:scale-95 ${
                         t.done 
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60 cursor-not-allowed' 
-                          : 'bg-slate-900 hover:bg-slate-800/80 border-slate-800 text-white'
+                          : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-white'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-4">
                         {t.done ? (
-                          <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" />
+                          <CheckCircle className="h-8 w-8 text-emerald-400 shrink-0" />
                         ) : (
-                          <div className="h-6 w-6 rounded-lg border border-slate-600 shrink-0" />
+                          <div className="h-8 w-8 rounded-xl border-2 border-slate-600 shrink-0" />
                         )}
-                        <span className="font-bold text-sm text-left">{t.name}</span>
+                        <span className="font-bold text-base sm:text-lg text-left">{t.name}</span>
                       </div>
-                      {t.done && <span className="text-xs font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
+                      {t.done && <span className="text-sm font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
                     </button>
                   ))}
                 </div>
@@ -808,7 +805,7 @@ function KioskPage() {
 
             <button 
               onClick={() => setStep('menu')} 
-              className="w-full mt-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-bold py-3.5 rounded-2xl text-sm transition shrink-0"
+              className="w-full mt-4 bg-slate-950 hover:bg-slate-900 border-2 border-slate-800 text-white font-black py-4 rounded-2xl text-base transition shrink-0"
             >
               ← Буцах
             </button>
@@ -817,19 +814,19 @@ function KioskPage() {
 
         {/* 6. CLOSE SHIFT */}
         {step === 'close_shift' && (
-          <div className="w-full max-w-xl mx-auto flex-1 p-5 flex flex-col justify-between overflow-hidden">
+          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <h2 className="text-xl font-black text-emerald-400 mb-1 flex items-center gap-2 shrink-0">
-                <ListOrdered className="h-6 w-6" /> Ээлжийн Тооллого
+              <h2 className="text-2xl font-black text-emerald-400 mb-1 flex items-center gap-3 shrink-0">
+                <ListOrdered className="h-7 w-7" /> Ээлжийн Тооллого
               </h2>
-              <p className="text-xs text-slate-400 mb-3 shrink-0">Бодит үлдэгдлийг тоолж бичнэ үү.</p>
+              <p className="text-sm text-slate-400 mb-4 shrink-0">Хөргөгч/лангуун дахь бодит үлдэгдлийг тоолж бичнэ үү.</p>
               
-              <div className="space-y-2.5 overflow-y-auto pr-1 flex-1 py-1 custom-scrollbar">
+              <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 py-2">
                 {inventoryToCount.map(item => (
-                  <div key={item.id} className="bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
+                  <div key={item.id} className="bg-slate-950 p-4 sm:p-5 rounded-2xl border-2 border-slate-800 flex justify-between items-center gap-3">
                     <div>
-                      <p className="font-bold text-sm text-white">{item.name}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
+                      <p className="font-black text-base sm:text-lg text-white">{item.name}</p>
+                      <p className="text-xs sm:text-sm text-slate-400 mt-1">
                         Системд: {Math.round((parseFloat(item.current_stock) || 0) * 10) / 10} {item.unit}
                       </p>
                     </div>
@@ -840,25 +837,25 @@ function KioskPage() {
                       placeholder="Тоо..." 
                       value={counts[item.id] !== undefined ? counts[item.id] : ''} 
                       onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
-                      className="w-28 sm:w-32 h-12 bg-slate-950 px-3 rounded-xl text-center text-white border border-slate-700 font-bold text-lg focus:border-emerald-500 outline-none" 
+                      className="w-32 sm:w-40 h-14 bg-slate-900 px-4 rounded-2xl text-center text-white border-2 border-slate-700 font-black text-xl focus:border-emerald-500 outline-none" 
                     />
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="flex gap-2.5 mt-3 shrink-0">
+            <div className="flex gap-3 mt-4 shrink-0">
               <button 
                 type="button" 
                 onClick={() => setStep('menu')} 
-                className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold py-3.5 rounded-2xl text-sm transition"
+                className="flex-1 bg-slate-950 hover:bg-slate-900 border-2 border-slate-800 text-slate-300 font-black py-4 rounded-2xl text-base transition"
               >
                 Буцах
               </button>
               <button 
                 onClick={handleCloseShift} 
                 disabled={isAiLoading || inventoryToCount.some(i => !counts[i.id])} 
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3.5 rounded-2xl text-sm transition disabled:opacity-50 shadow-lg"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-4 rounded-2xl text-base transition disabled:opacity-50 shadow-lg"
               >
                 {isAiLoading ? 'Хааж байна...' : 'Хаах & Илгээх'}
               </button>
@@ -867,23 +864,6 @@ function KioskPage() {
         )}
 
       </main>
-
-      {/* Global CSS for Custom Sleek Scrollbar (Hides ugly default scrollbars) */}
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1e293b;
-          border-radius: 9999px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #334155;
-        }
-      `}</style>
     </div>
   );
 }
