@@ -1,17 +1,17 @@
 "use client";
 import dynamic from 'next/dynamic';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { 
   Coffee, CheckCircle, Users, LogOut, Camera, 
-  MessageSquare, CheckSquare, ListOrdered, Send, ArrowLeft, ShieldAlert
+  MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 
 // =========================================================================
-// 🚀 KIOSK AI ЧАТ (MAX BIG FONT, ТОМ INPUT, ТОМ КАМЕР)
+// 🚀 KIOSK AI ЧАТ (АВТОМАТААР ТОМОРДОГ БОЛОН АВТОМАТААР ДООШ ГҮЙДЭГ)
 // =========================================================================
 function KioskAiChatSection({ 
   selectedWorker, 
@@ -25,6 +25,15 @@ function KioskAiChatSection({
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  // Автоматаар доош гүйлгэх болон бичих талбарын хэмжээг удирдах Refs
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Шинэ мессеж нэмэгдэх үед үргэлж хамгийн доод тал руу автоматаар scroll хийх
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, isAiLoading]);
 
   const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
     if (e) e.preventDefault();
@@ -60,7 +69,13 @@ function KioskAiChatSection({
     }
 
     const payloadText = chatInput;
+    
+    // Илгээсний дараа бичих талбарыг цэвэрлэж, өндрийг нь буцаан хэвийн болгох
     setChatInput('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '64px'; // Анхны өндөр (h-16)
+      textareaRef.current.blur(); // Гарыг буулгах (Keyboard dismiss)
+    }
 
     try {
       const res = await fetch('/api/kiosk-ai', {
@@ -128,7 +143,7 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full h-full flex-1 flex flex-col bg-[#0d1527] rounded-[2rem] border border-slate-800 overflow-hidden shadow-2xl min-h-0">
+    <div className="w-full h-full flex-1 flex flex-col bg-[#0d1527] rounded-[2rem] border border-slate-800 overflow-hidden shadow-2xl min-h-0 relative">
       {/* Толгой */}
       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
         <h2 className="font-black text-blue-400 flex items-center gap-2.5 text-lg sm:text-xl">
@@ -139,8 +154,8 @@ function KioskAiChatSection({
         </button>
       </div>
       
-      {/* Мессежүүд (ТОМ 16-18PX ТЕКСТ) */}
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-0">
+      {/* Мессежүүд */}
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-0 pb-10">
         {chatHistory.length === 0 && (
           <div className="text-center text-slate-300 text-base sm:text-lg mt-10 sm:mt-16 space-y-3.5 max-w-md mx-auto">
             <div className="bg-blue-500/10 p-5 rounded-3xl border border-blue-500/20 w-fit mx-auto">
@@ -208,10 +223,13 @@ function KioskAiChatSection({
           </div>
         ))}
         {isAiLoading && <div className="text-blue-400 text-base animate-pulse font-bold">AI бодож байна...</div>}
+        
+        {/* АВТОМАТААР ДООШ ГҮЙЛГЭХ ЗОРИУЛАЛТТАЙ ХООСОН DIV */}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input хэсэг (ТОМ 64PX ӨНДӨРТЭЙ ТАЛБАР БА КАМЕР) */}
-      <div className="p-4 bg-slate-900 border-t border-slate-800 flex gap-3 items-center shrink-0">
+      {/* Input хэсэг (Автоматаар томордог textarea) */}
+      <div className="p-4 bg-slate-900 border-t border-slate-800 flex gap-3 items-end shrink-0">
         <input 
           type="file" 
           accept="image/*" 
@@ -224,18 +242,32 @@ function KioskAiChatSection({
           <Camera className="h-8 w-8 text-emerald-400" />
         </label>
 
-        <form onSubmit={handleAiChatSubmit} className="flex-1 flex gap-2">
-          <input 
-            type="text" 
+        <form onSubmit={handleAiChatSubmit} className="flex-1 flex gap-2 items-end">
+          <textarea 
+            ref={textareaRef}
+            rows={1}
             value={chatInput} 
-            onChange={e => setChatInput(e.target.value)} 
+            onChange={e => {
+              setChatInput(e.target.value);
+              // Текстийн уртаас хамаарч өндрийг автоматаар сунгах
+              e.target.style.height = 'auto';
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
+            }} 
+            onKeyDown={e => {
+              // Enter дарахад шууд илгээгдэнэ (Гэхдээ Shift+Enter дарвал шинэ мөрөнд шилжинэ)
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleAiChatSubmit();
+              }
+            }}
             placeholder="Энд бичих..." 
-            className="flex-1 h-16 bg-slate-950 border border-slate-800 rounded-2xl px-5 text-white focus:outline-none focus:border-blue-500 text-base sm:text-lg font-medium" 
+            className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-blue-500 text-base sm:text-lg font-medium resize-none overflow-y-auto leading-relaxed max-h-[150px]" 
+            style={{ minHeight: '64px' }}
           />
           <button 
             type="submit" 
             disabled={isAiLoading || !chatInput.trim()} 
-            className="h-16 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-6 sm:px-7 rounded-2xl disabled:opacity-50 transition font-black flex items-center justify-center shrink-0"
+            className="h-16 w-16 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-2xl disabled:opacity-50 transition font-black flex items-center justify-center shrink-0"
           >
             <Send className="h-6 w-6"/>
           </button>
@@ -246,7 +278,7 @@ function KioskAiChatSection({
 }
 
 // =========================================================================
-// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ (MAX BIG ХЭМЖЭЭТЭЙ ТОВЧЛУУРУУД БА КАРТ)
+// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ 
 // =========================================================================
 function KioskPage() {
   const router = useRouter(); 
@@ -561,7 +593,7 @@ function KioskPage() {
           </div>
         )}
 
-        {/* 2. PIN ДЭЛГЭЦ (MAX BIG: 80PX ӨНДӨРТЭЙ ТОМ ТОВЧЛУУРУУД, 36PX ЦИФР) */}
+        {/* 2. PIN ДЭЛГЭЦ */}
         {step === 'pin_code' && (
           <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between items-center my-auto">
             
@@ -578,7 +610,7 @@ function KioskPage() {
               </div>
             </div>
 
-            {/* PIN Dots (ТОМ ЦЭГҮҮД) */}
+            {/* PIN Dots */}
             <div className="bg-[#060b17] border border-slate-800/90 rounded-2xl py-4 px-10 flex justify-center items-center gap-6 w-full max-w-[300px] my-3 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
                 <div 
@@ -592,7 +624,7 @@ function KioskPage() {
               ))}
             </div>
 
-            {/* Keypad Grid (АВАРГА ТОМ 80PX ӨНДӨРТЭЙ ТОВЧНУУД) */}
+            {/* Keypad Grid */}
             <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full max-w-md my-auto">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
                 <button 
@@ -645,7 +677,7 @@ function KioskPage() {
           </div>
         )}
 
-        {/* 3. MENU (ТОМ АВАРГА 3 КАРТ) */}
+        {/* 3. MENU */}
         {step === 'menu' && (
           <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
             <div className="text-center pt-2 shrink-0">
