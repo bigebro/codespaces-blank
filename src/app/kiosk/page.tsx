@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 
 // =========================================================================
-// 🚀 1. KIOSK AI ЧАТ (ТОМОРСОН ТЕКСТ & ТОД УНШИГДАХ ЧАТ)
+// 🚀 1. KIOSK AI ЧАТ (GOOGLE AI STUDIO / CHATGPT ХЭЛБЭРТЭЙ ЦЭВЭРХЭН UI)
 // =========================================================================
 function KioskAiChatSection({ 
   selectedWorker, 
@@ -135,26 +135,29 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0d1527] rounded-3xl border border-slate-800/80 shadow-2xl p-4 sm:p-5 overflow-hidden">
-      {/* 🔝 Чатны Дэд Толгой (ТОМ ХЭМЖЭЭТЭЙ) */}
-      <div className="flex justify-between items-center pb-3 border-b border-slate-800 shrink-0 px-1">
-        <h2 className="font-black text-blue-400 flex items-center gap-2.5 text-lg sm:text-xl">
-          <MessageSquare className="h-7 w-7"/> AI Туслах & Бүртгэл
+    <div className="w-full h-full flex flex-col bg-[#0d1527] rounded-3xl border border-slate-800 shadow-xl p-3 sm:p-4 overflow-hidden">
+      {/* Дэд толгой */}
+      <div className="flex justify-between items-center pb-2.5 border-b border-slate-800/80 shrink-0">
+        <h2 className="font-bold text-blue-400 flex items-center gap-2 text-base">
+          <MessageSquare className="h-5 w-5"/> AI Туслах & Бүртгэл
         </h2>
-        <button onClick={onBack} className="bg-slate-900 px-6 py-6 rounded-xl text-xl sm:text-3xl font-bold border border-slate-800 hover:bg-slate-800 text-slate-200 active:scale-95">
+        <button 
+          onClick={onBack} 
+          className="bg-slate-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95 transition"
+        >
           ← Буцах
         </button>
       </div>
       
-      {/* Чатны мессежүүд: ТОМ ҮСЭГТЭЙ (text-lg / text-xl) */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4 overscroll-contain px-1">
+      {/* Мессежүүд (Зөвхөн энэ хэсэг дотроо гүйнэ) */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-3 overscroll-contain pr-1">
         {chatHistory.length === 0 && (
-          <div className="text-center text-slate-400 text-base sm:text-lg mt-8 space-y-3">
-            <div className="bg-blue-500/10 p-5 rounded-3xl border border-blue-500/20 w-fit mx-auto">
-              <Camera className="h-12 w-12 text-blue-400" />
+          <div className="text-center text-slate-400 text-xs sm:text-sm mt-8 space-y-2">
+            <div className="bg-blue-500/10 p-3.5 rounded-2xl border border-blue-500/20 w-fit mx-auto">
+              <Camera className="h-7 w-7 text-blue-400" />
             </div>
-            <p className="font-black text-white text-xl sm:text-2xl">Гал тогооны ухаалаг туслах</p>
-            <p className="text-sm sm:text-base text-slate-300 max-w-sm mx-auto leading-relaxed">
+            <p className="font-black text-white text-base">Гал тогооны ухаалаг туслах</p>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
               Баримтын зураг дарж оруулах эсвэл хаягдлаа бичнэ үү.<br />(Жишээ: "500 мл сүү асгарсан")
             </p>
           </div>
@@ -162,15 +165,15 @@ function KioskAiChatSection({
 
         {chatHistory.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] p-4 sm:p-5 rounded-3xl text-base sm:text-lg leading-relaxed ${
+            <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${
               msg.sender === 'worker' 
-                ? 'bg-blue-600 text-white rounded-tr-none font-bold shadow-lg' 
-                : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800/90 shadow-lg'
+                ? 'bg-blue-600 text-white rounded-tr-none font-medium shadow-md' 
+                : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800/80 shadow-md'
             }`}>
               {msg.sender === 'worker' ? (
                 msg.text
               ) : (
-                <div className="prose prose-invert max-w-none text-base sm:text-lg leading-relaxed font-medium">
+                <div className="prose prose-invert max-w-none text-sm leading-relaxed font-normal">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.text}
                   </ReactMarkdown>
@@ -180,7 +183,7 @@ function KioskAiChatSection({
               {msg.logId && (
                 <button 
                   onClick={() => handleUndo(msg.logId!, i)}
-                  className="mt-3 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 py-2.5 rounded-xl font-black text-sm transition"
+                  className="mt-2 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 py-1.5 rounded-lg font-bold text-xs transition"
                 >
                   Буцаах ↩️ (Undo)
                 </button>
@@ -188,24 +191,24 @@ function KioskAiChatSection({
             </div>
           </div>
         ))}
-        {isAiLoading && <div className="text-blue-400 text-base animate-pulse font-bold px-2">AI бодож байна...</div>}
+        {isAiLoading && <div className="text-blue-400 text-xs animate-pulse font-bold px-2">AI бодож байна...</div>}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 🎯 Prompt Input: ТОМ ТЕКСТТЭЙ (text-[18px] sm:text-[20px]) */}
+      {/* Google AI Studio шиг босоо картан Input */}
       <div className="pt-2 shrink-0 w-full">
         <form 
           onSubmit={handleAiChatSubmit} 
-          className="bg-[#1e293b] border border-slate-700 rounded-3xl p-3 sm:p-4 flex flex-col gap-3 shadow-2xl focus-within:border-blue-500 w-full"
+          className="bg-[#1e293b] border border-slate-700 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg focus-within:border-blue-500 w-full"
         >
           <textarea 
             ref={textareaRef}
-            rows={2}
+            rows={1}
             value={chatInput} 
             onChange={e => {
               setChatInput(e.target.value);
               e.target.style.height = 'auto';
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
             }} 
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -213,40 +216,39 @@ function KioskAiChatSection({
                 if (chatInput.trim()) handleAiChatSubmit();
               }
             }}
-            placeholder="Start typing a prompt..." 
-            className="w-full bg-transparent text-white leading-relaxed resize-none outline-none placeholder:text-slate-500 text-[18px] sm:text-[20px] px-1 font-semibold" 
-            style={{ minHeight: '54px', maxHeight: '140px' }}
+            placeholder="Зарлага бичих, асуух..." 
+            className="w-full bg-transparent text-white text-[16px] leading-relaxed resize-none outline-none placeholder:text-slate-500 px-1" 
+            style={{ minHeight: '40px', maxHeight: '100px' }}
           />
 
-          <div className="flex justify-between items-center pt-2.5 border-t border-slate-800/80 shrink-0">
-            <div className="flex items-center">
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                id="kiosk-ai-camera" 
-                className="hidden" 
-                onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
-              />
-              <label 
-                htmlFor="kiosk-ai-camera" 
-                className="h-22 w-22 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-md"
-              >
-                <Camera className="h-22 px-2 w-22 text-emerald-400 " />
-              </label>
-            </div>
+          <div className="flex justify-between items-center pt-1.5 border-t border-slate-800/60 shrink-0">
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment" 
+              id="kiosk-ai-camera" 
+              className="hidden" 
+              onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
+            />
+            <label 
+              htmlFor="kiosk-ai-camera" 
+              className="h-9 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1.5 cursor-pointer text-emerald-400 font-bold text-xs transition-colors"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Зураг</span>
+            </label>
 
             <button 
               type="submit" 
               disabled={isAiLoading || !chatInput.trim()} 
-              className={`h-22 px-7 rounded-full font-black text-3xl flex items-center gap-2 transition-all ${
+              className={`h-9 px-5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                 chatInput.trim() && !isAiLoading 
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-xl active:scale-95' 
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md active:scale-95' 
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed'
               }`}
             >
-              <span>{isAiLoading ? "Running..." : "Run"}</span>
-              <Send className="h-13 w-13" />
+              <span>{isAiLoading ? "Уншиж байна..." : "Илгээх"}</span>
+              <Send className="h-3.5 w-3.5" />
             </button>
           </div>
         </form>
@@ -256,7 +258,7 @@ function KioskAiChatSection({
 }
 
 // =========================================================================
-// 📱 2. ҮНДСЭН KIOSK ДЭЛГЭЦ (ТОМ ТЕКСТ & ТОМ КАРТУУД)
+// 📱 2. ҮНДСЭН KIOSK ДЭЛГЭЦ (PROPORTIONAL MOBILE-FIRST LAYOUT)
 // =========================================================================
 function KioskPage() {
   const router = useRouter(); 
@@ -335,9 +337,10 @@ function KioskPage() {
     }));
   };
 
+  // ⚡ 0ms шуурхай даралт
   const handleKeypadPress = (digit: string) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate(10);
+      window.navigator.vibrate(8);
     }
     setPin(p => p.length < 4 ? p + digit : p);
   };
@@ -499,30 +502,25 @@ function KioskPage() {
   };
 
   return (
-    <div className="h-[100dvh] w-full bg-[#070b14] text-slate-100 flex flex-col p-3 sm:p-5 select-none overflow-hidden touch-none">
+    // 🔒 h-[100dvh] + overflow-hidden: Дэлгэц төгс түгжигдэж, зөвхөн цэвэр хэмжээгээр суух бүтэц
+    <div className="h-[100dvh] w-full bg-[#070b14] text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       
-      <style jsx global>{`
-        input, textarea, select {
-          font-size: 33px !important;
-        }
-      `}</style>
-
-      {/* 🔝 ТОМОРСОН HEADER (ТОД ТЕКСТ & ТОМ ТОВЧ) */}
-      <header className="w-full flex justify-between items-center border-b border-slate-800/80 pb-3 mb-3 shrink-0 px-2">
-        <div className="flex items-center gap-3">
-          <div className="bg-emerald-500/10 p-2.5 rounded-2xl border border-emerald-500/20">
-            <Coffee className="h-7 w-7 text-emerald-400" />
+      {/* 🔝 ТОЛГОЙ (HEADER) */}
+      <header className="w-full max-w-md flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
+        <div className="flex items-center gap-2">
+          <div className="bg-emerald-500/10 p-1.5 rounded-xl border border-emerald-500/20">
+            <Coffee className="h-5 w-5 text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-white uppercase">SF KITCHEN KIOSK</h1>
-            <p className="text-xs sm:text-sm text-emerald-400 font-extrabold uppercase">Smart Operations</p>
+            <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase">SF KITCHEN KIOSK</h1>
+            <p className="text-[10px] text-emerald-400 font-bold uppercase">Smart Operations</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => router.push('/dashboard')} 
-            className="text-slate-200 hover:text-white text-xl sm:text-3xl font-black bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 active:scale-95 transition"
+            className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
           >
             🔒 Dashboard
           </button>
@@ -530,9 +528,9 @@ function KioskPage() {
           {selectedWorker && (
             <button 
               onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
-              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3.5 py-2 rounded-xl text-xl sm:text-3xl font-black active:scale-95 transition flex items-center gap-1.5"
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition flex items-center gap-1"
             >
-              <LogOut className="h-6 w-8" />
+              <LogOut className="h-3.5 w-3.5" />
               <span>Гарах</span>
             </button>
           )}
@@ -540,88 +538,88 @@ function KioskPage() {
       </header>
 
       {/* 🚀 ҮНДСЭН ХЭСЭГ */}
-      <main className="w-full flex-1 min-h-0 flex flex-col overflow-hidden">
+      <main className="w-full max-w-md flex-1 min-h-0 flex flex-col overflow-hidden">
         
         {msg && (
-          <div className="bg-rose-500/10 text-rose-400 p-3.5 rounded-2xl mb-2.5 w-full text-center font-black text-sm border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
-            <ShieldAlert className="h-5 w-5 shrink-0" />
+          <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
+            <ShieldAlert className="h-4 w-4 shrink-0" />
             <span>{msg}</span>
           </div>
         )}
 
         {/* 1. SELECT WORKER */}
         {step === 'select_worker' && (
-          <div className="w-full h-full bg-[#0d1527] p-5 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-between overflow-hidden">
-            <div className="text-center pt-3 shrink-0">
-              <div className="bg-emerald-500/10 p-5 rounded-3xl border border-emerald-500/20 w-fit mx-auto mb-3">
-                <Users className="text-emerald-400 h-10 w-10"/>
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+            <div className="text-center pt-2 shrink-0">
+              <div className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/20 w-fit mx-auto mb-2">
+                <Users className="text-emerald-400 h-7 w-7"/>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white">Ажилтнаа сонгоно уу</h2>
-              <p className="text-sm sm:text-base text-slate-400 mt-1 font-medium">Өөрийн нэр дээр товшиж ээлжиндээ нэвтэрнэ үү</p>
+              <h2 className="text-xl sm:text-2xl font-black text-white">Ажилтнаа сонгоно уу</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Өөрийн нэр дээр товшиж ээлжиндээ нэвтэрнэ үү</p>
             </div>
 
-            <div className="space-y-4 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
+            <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
               {workers.map(w => (
                 <button 
                   key={w.id} 
                   onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
-                  className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-5 rounded-2xl text-left transition-all shadow-lg flex justify-between items-center group w-full"
+                  className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full"
                 >
                   <div>
-                    <span className="text-xl sm:text-2xl font-black text-white uppercase block group-hover:text-emerald-400 transition">
+                    <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-emerald-400 transition">
                       {w.full_name || w.email.split('@')[0]}
                     </span>
-                    <span className="text-sm font-black text-emerald-400 uppercase mt-1 block">
+                    <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
                       🏷️ {w.role}
                     </span>
                   </div>
-                  <div className="bg-slate-950 p-3 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-sm">
+                  <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-xs">
                     ➔
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className="text-center text-xs text-slate-500 pb-1 shrink-0">
+            <div className="text-center text-[10px] text-slate-500 pb-1 shrink-0">
               SF Kitchen Kiosk • Secure Operations
             </div>
           </div>
         )}
 
-        {/* 2. PIN ДЭЛГЭЦ */}
+        {/* 2. PIN ДЭЛГЭЦ: ХУРУУНД ЭВТЭЙ ТОМ ТОВЧЛУУРУУД (text-3xl) */}
         {step === 'pin_code' && (
-          <div className="w-full h-full bg-[#0d1527] p-5 sm:p-7 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-between items-center overflow-hidden touch-none">
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
             
-            <div className="text-center w-full shrink-0 pt-2">
-              <h2 className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
-              <p className="text-sm sm:text-base text-slate-300 font-bold mt-1">Өөрийн хувийн нууц кодыг хийнэ үү</p>
-              <div className="mt-2.5 inline-block bg-slate-950 px-5 py-2 rounded-2xl border border-slate-800">
-                <span className="text-2xl text-emerald-300 font-black">
+            <div className="text-center w-full shrink-0 pt-1">
+              <h2 className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
+              <p className="text-xs text-slate-300 font-medium mt-0.5">Өөрийн хувийн нууц кодыг хийнэ үү</p>
+              <div className="mt-1.5 inline-block bg-slate-950 px-3.5 py-1 rounded-xl border border-slate-800">
+                <span className="text-xs sm:text-sm text-emerald-300 font-black">
                   👤 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]} ({selectedWorker?.role})
                 </span>
               </div>
             </div>
 
             {/* PIN Цэгүүд */}
-            <div className="bg-[#060b17] border border-slate-800 rounded-2xl py-3.5 px-8 flex justify-center items-center gap-6 w-full max-w-[280px] my-2 shrink-0">
+            <div className="bg-[#060b17] border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
                 <div 
                   key={dotIndex} 
-                  className={`h-5 w-5 rounded-full transition-all duration-75 ${
-                    pin.length > dotIndex ? 'bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.9)] scale-125' : 'bg-slate-800'
+                  className={`h-3.5 w-3.5 rounded-full transition-all duration-75 ${
+                    pin.length > dotIndex ? 'bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-110' : 'bg-slate-800'
                   }`}
                 />
               ))}
             </div>
 
-            {/* ⚡ АВАРГА ТОМ ТОД ТОВЧЛУУРУУД (text-5xl) */}
-            <div className="grid grid-cols-3 gap-3.5 sm:gap-4 w-full flex-1 max-h-[58vh] my-2 px-1">
+            {/* ⚡ ШУУРХАЙ 0ms КЛАВИАТУР */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full flex-1 max-h-[50vh] sm:max-h-[52vh] my-1 px-1">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
                 <button 
                   key={num} 
                   type="button"
                   onPointerDown={(e) => { e.preventDefault(); handleKeypadPress(num); }}
-                  className="w-full h-full min-h-[64px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-4xl sm:text-8xl font-black text-white shadow-xl flex items-center justify-center select-none"
+                  className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
                 >
                   {num}
                 </button>
@@ -630,7 +628,7 @@ function KioskPage() {
               <button 
                 type="button"
                 onPointerDown={(e) => { e.preventDefault(); handleKeypadClear(); }}
-                className="w-full h-full min-h-[64px] bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl text-xl sm:text-5xl font-black shadow-xl flex items-center justify-center select-none"
+                className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform"
               >
                 Clear
               </button>
@@ -638,7 +636,7 @@ function KioskPage() {
               <button 
                 type="button"
                 onPointerDown={(e) => { e.preventDefault(); handleKeypadPress('0'); }}
-                className="w-full h-full min-h-[64px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-4xl sm:text-8xl font-black text-white shadow-xl flex items-center justify-center select-none"
+                className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
               >
                 0
               </button>
@@ -646,18 +644,18 @@ function KioskPage() {
               <button 
                 type="button"
                 onPointerDown={(e) => { e.preventDefault(); handleVerifyPin(); }}
-                className="w-full h-full min-h-[64px] bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl text-2xl sm:text-5xl font-black shadow-[0_0_25px_rgba(16,185,129,0.5)] flex items-center justify-center select-none"
+                className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center select-none transition-transform"
               >
                 OK
               </button>
             </div>
 
             {/* Доод заавар */}
-            <div className="text-center space-y-1.5 w-full pt-1 shrink-0">
-              <p className="text-xs sm:text-sm text-slate-400">💡 Анхдагч PIN: <strong className="text-white font-black">1234</strong></p>
+            <div className="text-center space-y-1 w-full pt-1 shrink-0">
+              <p className="text-[11px] text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
               <button 
                 onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
-                className="text-xl sm:text-xl text-slate-400 hover:text-white font-bold"
+                className="text-xs text-slate-400 hover:text-white font-bold"
               >
                 ← Буцах (Ажилтан солих)
               </button>
@@ -665,77 +663,68 @@ function KioskPage() {
           </div>
         )}
 
-        {/* 3. MENU: ТОМ АГУУЛГАТАЙ БҮРЭН ДҮҮРЭН 3 КАРТ (ТОМОРСОН ТЕКСТТЭЙ) */}
+        {/* 3. MENU: ДЭЛГЭЦИЙН ӨНДРИЙГ ТЭГШ ДҮҮРГЭСЭН 3 КАРТ */}
         {step === 'menu' && (
-          <div className="w-full h-full bg-[#0d1527] p-5 sm:p-7 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-between overflow-hidden touch-none">
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden touch-none">
             
-            <div className="text-center pt-2 shrink-0">
-              <h2 className="text-2xl sm:text-3xl font-black text-white">Сайн байна уу?</h2>
-              <p className="text-xl sm:text-2xl text-emerald-400 font-black mt-1 uppercase tracking-wide">
+            <div className="text-center pt-1 shrink-0">
+              <h2 className="text-xl sm:text-2xl font-black text-white">Сайн байна уу?</h2>
+              <p className="text-base sm:text-lg text-emerald-400 font-black mt-0.5 uppercase tracking-wide">
                 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
               </p>
             </div>
             
-            {/* 🌟 3 ТОМ КАРТ: text-2xl/text-3xl гарчигтай, text-base тайлбартай */}
-            <div className="flex-1 flex flex-col justify-between gap-4 my-5 w-full">
-              
+            <div className="flex-1 flex flex-col justify-between gap-3 my-3 w-full">
               <button 
                 onClick={() => setStep('ai_chat')} 
-                className="flex-1 w-full min-h-[105px] p-5 sm:p-6 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 rounded-3xl flex items-center justify-between border-2 border-blue-500/30 transition shadow-xl text-left group"
+                className="flex-1 w-full min-h-[90px] p-4 sm:p-5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 rounded-2xl flex items-center justify-between border-2 border-blue-500/30 transition shadow-md text-left group"
               >
-                <div className="flex items-center gap-5">
-                  <div className="bg-blue-500/20 p-4 rounded-2xl border border-blue-500/30 shrink-0">
-                    <MessageSquare className="h-10 w-10 sm:h-12 sm:w-12 text-blue-400" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-500/20 p-3 rounded-xl border border-blue-500/30 shrink-0">
+                    <MessageSquare className="h-7 w-7 text-blue-400" />
                   </div>
                   <div>
-                    <p className="font-black text-2xl sm:text-3xl text-blue-400">Ухаалаг Туслах (AI)</p>
-                    <p className="text-base sm:text-lg text-slate-200 mt-1 font-semibold leading-relaxed">
-                      Хаягдал, орлого бичих & Баримтын зураг дарах
-                    </p>
+                    <p className="font-black text-base sm:text-lg text-blue-400">Ухаалаг Туслах (AI)</p>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">Хаягдал, орлого бичих & Баримтын зураг дарах</p>
                   </div>
                 </div>
-                <ChevronRight className="h-9 w-9 text-blue-400/50 group-hover:text-blue-400 transition shrink-0" />
+                <ChevronRight className="h-6 w-6 text-blue-400/50 group-hover:text-blue-400 transition shrink-0" />
               </button>
 
               <button 
                 onClick={openTasksScreen} 
-                className="flex-1 w-full min-h-[105px] p-5 sm:p-6 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-3xl flex items-center justify-between border-2 border-purple-500/30 transition shadow-xl text-left group"
+                className="flex-1 w-full min-h-[90px] p-4 sm:p-5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl flex items-center justify-between border-2 border-purple-500/30 transition shadow-md text-left group"
               >
-                <div className="flex items-center gap-5">
-                  <div className="bg-purple-500/20 p-4 rounded-2xl border border-purple-500/30 shrink-0">
-                    <CheckSquare className="h-10 w-10 sm:h-12 sm:w-12 text-purple-400" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-purple-500/20 p-3 rounded-xl border border-purple-500/30 shrink-0">
+                    <CheckSquare className="h-7 w-7 text-purple-400" />
                   </div>
                   <div>
-                    <p className="font-black text-2xl sm:text-3xl text-purple-400">Өнөөдрийн Даалгавар</p>
-                    <p className="text-base sm:text-lg text-slate-200 mt-1 font-semibold leading-relaxed">
-                      Цэвэрлэгээ болон ээлжийн үүргүүд
-                    </p>
+                    <p className="font-black text-base sm:text-lg text-purple-400">Өнөөдрийн Даалгавар</p>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">Цэвэрлэгээ болон ээлжийн үүргүүд</p>
                   </div>
                 </div>
-                <ChevronRight className="h-9 w-9 text-purple-400/50 group-hover:text-purple-400 transition shrink-0" />
+                <ChevronRight className="h-6 w-6 text-purple-400/50 group-hover:text-purple-400 transition shrink-0" />
               </button>
 
               <button 
                 onClick={loadInventoryToCount} 
-                className="flex-1 w-full min-h-[105px] p-5 sm:p-6 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-3xl flex items-center justify-between border-2 border-emerald-500/30 transition shadow-xl text-left group"
+                className="flex-1 w-full min-h-[90px] p-4 sm:p-5 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-2xl flex items-center justify-between border-2 border-emerald-500/30 transition shadow-md text-left group"
               >
-                <div className="flex items-center gap-5">
-                  <div className="bg-emerald-500/20 p-4 rounded-2xl border border-emerald-500/30 shrink-0">
-                    <ListOrdered className="h-10 w-10 sm:h-12 sm:w-12 text-emerald-400" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-emerald-500/20 p-3 rounded-xl border border-emerald-500/30 shrink-0">
+                    <ListOrdered className="h-7 w-7 text-emerald-400" />
                   </div>
                   <div>
-                    <p className="font-black text-2xl sm:text-3xl text-emerald-400">Ээлж хаах (Тооллого)</p>
-                    <p className="text-base sm:text-lg text-slate-200 mt-1 font-semibold leading-relaxed">
-                      Өдрийн төгсгөлд бараа тоолж ээлж хаах
-                    </p>
+                    <p className="font-black text-base sm:text-lg text-emerald-400">Ээлж хаах (Тооллого)</p>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">Өдрийн төгсгөлд бараа тоолж ээлж хаах</p>
                   </div>
                 </div>
-                <ChevronRight className="h-9 w-9 text-emerald-400/50 group-hover:text-emerald-400 transition shrink-0" />
+                <ChevronRight className="h-6 w-6 text-emerald-400/50 group-hover:text-emerald-400 transition shrink-0" />
               </button>
-
             </div>
 
-            <div className="text-center text-xs text-slate-500 shrink-0 pb-1">
+            <div className="text-center text-[10px] text-slate-500 shrink-0 pb-1">
               Ээлжийн үйл ажиллагаа идэвхтэй байна
             </div>
           </div>
@@ -752,35 +741,35 @@ function KioskPage() {
 
         {/* 5. TASKS */}
         {step === 'tasks' && (
-          <div className="w-full h-full bg-[#0d1527] p-5 sm:p-7 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-between overflow-hidden">
-            <h2 className="text-2xl font-black text-purple-400 mb-3 flex items-center gap-2.5 shrink-0">
-              <CheckSquare className="h-7 w-7" /> Өнөөдрийн Даалгавар
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+            <h2 className="text-lg sm:text-xl font-black text-purple-400 mb-2 flex items-center gap-2 shrink-0">
+              <CheckSquare className="h-5 w-5" /> Өнөөдрийн Даалгавар
             </h2>
 
             {tasks.length === 0 ? (
-              <p className="text-center text-slate-400 py-8 text-lg font-bold my-auto">Даалгавар алга байна.</p>
+              <p className="text-center text-slate-400 py-8 text-sm my-auto">Даалгавар алга байна.</p>
             ) : (
-              <div className="space-y-3 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
+              <div className="space-y-2 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
                 {tasks.map((t, idx) => (
                   <button
                     key={idx}
                     disabled={t.done}
                     onClick={() => completeTask(idx)}
-                    className={`w-full p-5 rounded-2xl flex items-center justify-between border-2 transition active:scale-95 ${
+                    className={`w-full p-3.5 rounded-xl flex items-center justify-between border transition active:scale-95 ${
                       t.done 
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60' 
                         : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       {t.done ? (
-                        <CheckCircle className="h-7 w-7 text-emerald-400 shrink-0" />
+                        <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
                       ) : (
-                        <div className="h-7 w-7 rounded-lg border-2 border-slate-600 shrink-0" />
+                        <div className="h-5 w-5 rounded-lg border-2 border-slate-600 shrink-0" />
                       )}
-                      <span className="font-black text-base sm:text-lg text-left">{t.name}</span>
+                      <span className="font-bold text-sm text-left">{t.name}</span>
                     </div>
-                    {t.done && <span className="text-sm font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
+                    {t.done && <span className="text-xs font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
                   </button>
                 ))}
               </div>
@@ -788,29 +777,29 @@ function KioskPage() {
 
             <button 
               onClick={() => setStep('menu')} 
-              className="w-full mt-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-white font-black py-12 rounded-2xl text-3xl transition shrink-0 active:scale-95"
+              className="w-full mt-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shrink-0 active:scale-95"
             >
               ← Буцах
             </button>
           </div>
         )}
 
-        {/* 6. CLOSE SHIFT / ТООЛЛОГО (ТОМОРСОН ТЕКСТ & ТОМ INPUT) */}
+        {/* 6. CLOSE SHIFT / ТООЛЛОГО */}
         {step === 'close_shift' && (
-          <div className="w-full h-full bg-[#0d1527] p-5 sm:p-7 rounded-3xl border border-slate-800 shadow-2xl flex flex-col justify-between overflow-hidden">
-            <div className="shrink-0 pb-2">
-              <h2 className="text-2xl font-black text-emerald-400 mb-1 flex items-center gap-2.5">
-                <ListOrdered className="h-7 w-7" /> Ээлжийн Тооллого
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+            <div className="shrink-0">
+              <h2 className="text-lg sm:text-xl font-black text-emerald-400 mb-0.5 flex items-center gap-2">
+                <ListOrdered className="h-5 w-5" /> Ээлжийн Тооллого
               </h2>
-              <p className="text-sm text-slate-300 font-semibold">Хөргөгч/лангуун дахь бодит үлдэгдлийг тоолж бичнэ үү.</p>
+              <p className="text-xs text-slate-400 mb-2">Хөргөгч/лангуун дахь бодит үлдэгдлийг тоолж бичнэ үү.</p>
             </div>
             
-            <div className="space-y-3.5 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
+            <div className="space-y-2 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
               {inventoryToCount.map(item => (
-                <div key={item.id} className="bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 flex justify-between items-center gap-4">
+                <div key={item.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-3">
                   <div>
-                    <p className="font-black text-base sm:text-xl text-white">{item.name}</p>
-                    <p className="text-xs sm:text-sm text-slate-400 mt-1 font-bold">
+                    <p className="font-bold text-sm text-white">{item.name}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
                       Системд: {Math.round((parseFloat(item.current_stock) || 0) * 10) / 10} {item.unit}
                     </p>
                   </div>
@@ -821,24 +810,24 @@ function KioskPage() {
                     placeholder="Тоо..." 
                     value={counts[item.id] !== undefined ? counts[item.id] : ''} 
                     onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
-                    className="w-28 sm:w-36 h-14 bg-slate-900 px-4 rounded-2xl text-center text-white border-2 border-slate-700 font-black text-xl sm:text-2xl focus:border-emerald-500 outline-none shadow-inner" 
+                    className="w-24 h-10 bg-slate-900 px-3 rounded-xl text-center text-white border border-slate-700 font-bold text-base focus:border-emerald-500 outline-none" 
                   />
                 </div>
               ))}
             </div>
 
-            <div className="flex gap-3 mt-3 shrink-0">
+            <div className="flex gap-2.5 mt-2.5 shrink-0">
               <button 
                 type="button" 
                 onClick={() => setStep('menu')} 
-                className="flex-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-black py-12 rounded-2xl text-xl sm:text-3xl transition active:scale-95"
+                className="flex-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-3 rounded-xl text-xs transition active:scale-95"
               >
                 Буцах
               </button>
               <button 
                 onClick={handleCloseShift} 
                 disabled={isAiLoading || inventoryToCount.some(i => !counts[i.id])} 
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-12 rounded-2xl text-xl sm:text-3xl transition disabled:opacity-50 shadow-xl"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-50 shadow-md"
               >
                 {isAiLoading ? 'Хааж байна...' : 'Хаах & Илгээх'}
               </button>

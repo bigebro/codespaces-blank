@@ -1339,14 +1339,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
   if (isKioskLocked) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl bg-slate-900/60 p-22 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md text-center">
+        <div className="w-full max-w-md bg-slate-900/60 p-8 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md text-center">
           
           <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 w-fit mx-auto mb-4">
-            <ShieldAlert className="h-12 w-12 text-emerald-400" />
+            <ShieldAlert className="h-8 w-8 text-emerald-400" />
           </div>
 
-          <h2 className="text-2xl font-black text-white">Санхүүгийн Самбар Түгжигдсэн</h2>
-          <p className="text-2xs text-slate-400 mt-1 mb-6">
+          <h2 className="text-xl font-black text-white">Санхүүгийн Самбар Түгжигдсэн</h2>
+          <p className="text-xs text-slate-400 mt-1 mb-6">
             Энэ төхөөрөмж Kiosk горимд байна. Санхүүгийн мэдээлэл харахын тулд Эзний нууц үгээ оруулна уу.
           </p>
 
@@ -1356,27 +1356,27 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             </div>
           )}
 
-          <form onSubmit={handleUnlockDashboard} className="space-y-8">
+          <form onSubmit={handleUnlockDashboard} className="space-y-4">
             <input 
               type="password"
               required
               value={unlockPassword}
               onChange={e => setUnlockPassword(e.target.value)}
               placeholder="Эзний нууц үг оруулах..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-6 text-white text-xl font-semibold focus:border-emerald-500 outline-none text-center tracking-widest"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-emerald-500 outline-none text-center tracking-widest"
             />
 
             <button 
               type="submit"
               disabled={isUnlocking}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-6 rounded-xl transition text-xl shadow-lg"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl transition text-sm shadow-lg"
             >
               {isUnlocking ? "Шалгаж байна..." : "🔓 Эзний эрхээр түгжээ тайлах"}
             </button>
           </form>
 
           {/* 🔄 АЖИЛТАН ӨӨРИЙН ХАЯГААР НЭВТРЭХ СОНГОЛТ */}
-          <div className="mt-8 text-center">
+          <div className="mt-4 text-center">
             <button 
               type="button"
               onClick={async () => {
@@ -1384,7 +1384,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 sessionStorage.removeItem('kiosk_device_locked');
                 router.push('/login');
               }}
-              className="text-xl text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold"
+              className="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold"
             >
               🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
             </button>
@@ -1395,7 +1395,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             <button 
               type="button"
               onClick={() => router.push('/kiosk')}
-              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-6 rounded-xl text-xl transition flex items-center justify-center gap-2"
+              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2"
             >
               📱 Гал тогооны Kiosk руу буцах
             </button>
