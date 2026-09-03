@@ -426,19 +426,28 @@ export async function getAnalyticsData(
       });
     }
   }
-
-// 💡 2. ҮНДСЭН ХӨРӨНГИЙН ЭЛЭГДЭЛ (Бодит огнооны зөрүүгээр сарыг бодно)
+// 💡 2. ҮНДСЭН ХӨРӨНГИЙН ЭЛЭГДЭЛ БА МӨНГӨН УРСГАЛ (Cashflow fix)
   let totalMonthlyDepreciation = 0;
+  let fixedAssetsPurchasedThisMonthBank = 0; // 👈 ШИНЭ: Энэ сард дансаар авсан хөрөнгийн үнэ
   const currentDate = new Date(finalEndDate);
 
   const processedFixedAssets = (rawFixedAssets || []).map((fa: any) => {
     const cost = parseFloat(fa.initial_cost) || 0;
     const months = parseInt(fa.useful_months) || 60;
     const monthlyDep = months > 0 ? Math.round(cost / months) : 0;
-    totalMonthlyDepreciation += monthlyDep;
-
-    // Авсан огнооноос хойш хэдэн сар өнгөрснийг бодитоор бодох
+    
     const pDate = new Date(fa.purchase_date || '2025-01-01');
+    
+    // Хэрэв энэ хөрөнгийг ЯГ ЭНЭ САРД худалдаж авсан бол банкнаас мөнгийг нь хасна!
+    if (pDate >= new Date(startDay) && pDate <= new Date(endDay)) {
+      fixedAssetsPurchasedThisMonthBank += cost;
+    }
+
+    // Хэрэв авсан сараас хойш хугацаа өнгөрсөн бол л элэгдэл тооцно
+    if (currentDate >= pDate) {
+      totalMonthlyDepreciation += monthlyDep;
+    }
+
     const monthsPassed = Math.max(0, (currentDate.getFullYear() - pDate.getFullYear()) * 12 + (currentDate.getMonth() - pDate.getMonth()));
     const accumulatedDep = Math.min(cost, monthlyDep * monthsPassed);
     const bookValue = Math.max(0, cost - accumulatedDep);
@@ -446,7 +455,7 @@ export async function getAnalyticsData(
     return {
       name: fa.name,
       code: fa.code || 'FA',
-      purchaseDate: fa.purchase_date || '2025-01-01',
+      purchaseDate: fa.purchase_date,
       initialCost: cost,
       usefulMonths: months,
       monthlyDep: monthlyDep,
@@ -454,31 +463,39 @@ export async function getAnalyticsData(
       bookValue: bookValue
     };
   });
+
+  // 💡 3. ТАТВАРЫН ТООЦООЛОЛ БА НӨАТ-ЫН САЛГАЛТ (Double Taxation fix)
+  const isAbove300M = (totalRevenue * 12) > 300000000;
+  
+  // ПОС-ын нийт орлогоос НӨАТ-ыг салгах (1.1-т хувааж Цэвэр орлогыг олно)
+  const netRevenue = Math.round(totalRevenue / 1.1); 
+  const estimatedVat10Pct = totalRevenue - netRevenue; // Төрд өгөх НӨАТ
+  
   const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
   const adjustedOpex = (dynamicOpexTotal + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther + totalMonthlyDepreciation) || 0;
-  const finalEbit = (totalRevenue - adjustedCogs - adjustedOpex) || 0;
   
-  // 💡 3. ТАТВАРЫН РЕЖИМ (Эзний сонголт эсвэл 300 саяын босго)
-  const isAbove300M = (totalRevenue * 12) > 300000000;
-  const simplifiedTax1Pct = Math.round(totalRevenue * 0.01);
+  // Ашгийг НӨАТ-гүй ЦЭВЭР ОРЛОГООС бодно!
+  const finalEbit = (netRevenue - adjustedCogs - adjustedOpex) || 0; 
+  
+  const simplifiedTax1Pct = Math.round(netRevenue * 0.01);
   const standardTax10Pct = finalEbit > 0 ? Math.round(finalEbit * 0.10) : 0;
-  const estimatedVat10Pct = Math.round((totalRevenue / 1.1) * 0.1);
 
   let activeTaxAmount = simplifiedTax1Pct;
   if (rawSettings?.tax_mode === 'standard_10pct' || (rawSettings?.tax_mode === 'auto' && isAbove300M)) {
     activeTaxAmount = standardTax10Pct;
   }
 
-  // 💡 4. КАСС VS БАНК МӨНГӨН УРСГАЛ (Эхний үлдэгдлийг `client_settings`-ээс авна)
+  // 💡 4. КАСС VS БАНК МӨНГӨН УРСГАЛ 
   const cashInitial = parseFloat(rawSettings?.initial_cash) || 0;
   const bankInitial = parseFloat(rawSettings?.initial_bank) || 0;
   const cashOutOpexCash = Math.round(adjustedOpex * 0.20);
   const cashOutOpexBank = Math.round(adjustedOpex * 0.80);
   
   const cashEndBalance = cashInitial + cashRevenue - totalPurchasesCashPaid - cashOutOpexCash - Math.round(totalOwnerDraws * 0.3);
-  const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7);
+  // 👈 ШИНЭ: Үндсэн хөрөнгө авсан мөнгийг банкнаас хасч Мөнгөн урсгалыг бодитоор тэнцүүлнэ
+  const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7) - fixedAssetsPurchasedThisMonthBank;
 
-  // 💡 5. ЦАЛИНГИЙН ДИНАМИК ТОХИРГОО (`profiles` хүснэгтээс ажилтны цагийн үнэлгээг авна)
+  // 💡 5. ЦАЛИНГИЙН ДИНАМИК ТОХИРГОО (HHOAT Discount fix)
   const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
 
   (rawShifts || []).forEach((shift: any) => {
@@ -507,9 +524,15 @@ export async function getAnalyticsData(
     const hoursDecimal = Math.round((data.totalMinutes / 60) * 10) / 10;
     const baseSalary = isFixed ? Math.round(rate) : Math.round(hoursDecimal * rate);
     const grossSalary = baseSalary;
-    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% Ажилтны НДШ
+    
+    // Татварын хуулийн бодолтууд
+    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% НДШ
     const employerNdsh = Math.round(grossSalary * 0.125); // 12.5% Байгууллагын НДШ
-    const hhoatDeduction = Math.round((grossSalary - ndshDeduction) * 0.10); // 10% ХХОАТ
+    
+    // 👈 ШИНЭ: Монгол улсын хуулиар олгогдох ХХОАТ-ын 30,000₮-ийн хөнгөлөлтийг хасна
+    const hhoatRaw = Math.round((grossSalary - ndshDeduction) * 0.10);
+    const hhoatDeduction = Math.max(0, hhoatRaw - 30000); 
+    
     const netTakeHome = grossSalary - ndshDeduction - hhoatDeduction;
 
     return {
@@ -555,15 +578,16 @@ export async function getAnalyticsData(
 
   return {
     financial_ladder: {
-      revenue: totalRevenue,
+      revenue: totalRevenue,       // ПОС-ын Нийт Орлого (НӨАТ-тай)
+      net_revenue: netRevenue,     // Цэвэр орлого (P&L дээр гарна)
       actual_cogs: adjustedCogs,
       theo_cogs: totalTheoCogs,
-      gross_margin: totalRevenue > 0 ? ((totalRevenue - adjustedCogs) / totalRevenue * 100).toFixed(2) + "%" : "0%",
+      gross_margin: netRevenue > 0 ? ((netRevenue - adjustedCogs) / netRevenue * 100).toFixed(2) + "%" : "0%",
       opex: adjustedOpex,
       depreciation: totalMonthlyDepreciation,
       ebit: finalEbit,
       net_profit: Math.round(finalEbit - activeTaxAmount) || 0,
-      net_margin: totalRevenue > 0 ? (((finalEbit - activeTaxAmount) / totalRevenue) * 100).toFixed(2) + "%" : "0%"
+      net_margin: netRevenue > 0 ? (((finalEbit - activeTaxAmount) / netRevenue) * 100).toFixed(2) + "%" : "0%"
     },
     tax_summary: {
       is_above_300m: isAbove300M,
@@ -576,7 +600,8 @@ export async function getAnalyticsData(
     purchases_summary: {
       total_purchases: totalPurchasesWithEbarimt + totalPurchasesNoEbarimt,
       with_ebarimt: totalPurchasesWithEbarimt,
-      without_ebarimt: totalPurchasesNoEbarimt
+      without_ebarimt: totalPurchasesNoEbarimt,
+      fixed_assets_invested: fixedAssetsPurchasedThisMonthBank // Хөрөнгө оруулалтын мөнгөн урсгал
     },
     cashflow_summary: {
       cash_in_total: totalRevenue,
@@ -589,6 +614,7 @@ export async function getAnalyticsData(
       cash_out_opex_cash: cashOutOpexCash,
       cash_out_opex_bank: cashOutOpexBank,
       owner_draws: totalOwnerDraws,
+      fixed_assets_paid: fixedAssetsPurchasedThisMonthBank,
       end_cash_balance: cashEndBalance,
       end_bank_balance: bankEndBalance,
       net_total_balance: cashEndBalance + bankEndBalance
