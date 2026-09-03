@@ -169,7 +169,7 @@ if (!mounted) {
       onChange={(e) => setEmail(e.target.value)}
       required
       placeholder="name@example.com"
-      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-xl font-semibold transition"
     />
 
     
@@ -222,7 +222,7 @@ if (!mounted) {
           onChange={(e) => setFullName(e.target.value)}
           required={isSignUp && signupRole === 'staff'}
           placeholder="Жишээ: Бат, Нараа, Билгүүн"
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-xl font-semibold transition"
         />
       </div>
     )}
@@ -237,7 +237,7 @@ if (!mounted) {
         onChange={(e) => setCompanyName(e.target.value)}
         required={isSignUp}
         placeholder={signupRole === 'owner' ? "Жишээ: SF Coffee" : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"}
-        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-xl font-semibold transition"
       />
     </div>
   </div>
@@ -254,7 +254,7 @@ if (!mounted) {
           onChange={(e) => setPassword(e.target.value)}
           required={!isForgotPassword}
           placeholder="••••••••"
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-emerald-500 text-xl font-semibold transition"
         />
         <button
           type="button"
