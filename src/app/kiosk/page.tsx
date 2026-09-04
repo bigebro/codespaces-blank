@@ -11,26 +11,233 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
+// =========================================================================
+// 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
+// =========================================================================
+const MN_NUMBERS = [
+  { w: "нэг зуун", v: 100 }, { w: "хоёр зуун", v: 200 }, { w: "гурван зуун", v: 300 },
+  { w: "арван есөн", v: 19 }, { w: "арван ес", v: 19 },
+  { w: "арван найман", v: 18 }, { w: "арван найм", v: 18 },
+  { w: "арван долоон", v: 17 }, { w: "арван долоо", v: 17 },
+  { w: "арван зургаан", v: 16 }, { w: "арван зургаа", v: 16 },
+  { w: "арван таван", v: 15 }, { w: "арван тав", v: 15 },
+  { w: "арван дөрвөн", v: 14 }, { w: "арван дөрөв", v: 14 },
+  { w: "арван гурван", v: 13 }, { w: "арван гурав", v: 13 },
+  { w: "арван хоёр", v: 12 }, { w: "арван нэгэн", v: 11 }, { w: "арван нэг", v: 11 },
+  { w: "арван", v: 10 }, { w: "арав", v: 10 },
+  { w: "хорин", v: 20 }, { w: "хорь", v: 20 },
+  { w: "гучин", v: 30 }, { w: "гуч", v: 30 },
+  { w: "дөчин", v: 40 }, { w: "дөч", v: 40 },
+  { w: "тавин", v: 50 }, { w: "тавь", v: 50 },
+  { w: "жаран", v: 60 }, { w: "жар", v: 60 },
+  { w: "далан", v: 70 }, { w: "дал", v: 70 },
+  { w: "наян", v: 80 }, { w: "ная", v: 80 },
+  { w: "ерэн", v: 90 }, { w: "ер", v: 90 },
+  { w: "нэгэн", v: 1 }, { w: "нэг", v: 1 }, { w: "ганц", v: 1 },
+  { w: "хоёр", v: 2 }, { w: "гурав", v: 3 }, { w: "дөрвөн", v: 4 }, { w: "дөрөв", v: 4 },
+  { w: "таван", v: 5 }, { w: "тав", v: 5 }, { w: "зургаан", v: 6 }, { w: "зургаа", v: 6 },
+  { w: "долоон", v: 7 }, { w: "долоо", v: 7 }, { w: "найман", v: 8 }, { w: "найм", v: 8 },
+  { w: "есөн", v: 9 }, { w: "ес", v: 9 },
+  { w: "хагас", v: 0.5 }, { w: "тал", v: 0.5 }
+];
 
-const MN_NUMBER_WORDS: Record<string, number> = {
-  "тал": 0.5, "хагас": 0.5, "нэг": 1, "нэгэн": 1, "ганц": 1,
-  "хоёр": 2, "гурав": 3, "дөрөв": 4, "тав": 5, "зургаа": 6,
-  "долоо": 7, "найм": 8, "ес": 9, "арав": 10, "хорь": 20, "гуч": 30
+// =========================================================================
+// 🇲🇳 2. ТАНЫ ЖАГСААЛТЫН БҮХ БАРАА БАГТСАН АВАРГА ТОЛЬ БИЧИГ (100% COMPLETE)
+// =========================================================================
+const EN_TO_MN_DICT: Record<string, string[]> = {
+  // Товчлолууд
+  "syr": ["сироп", "шүүс", "бурам"],
+  "fr": ["жимс", "жимсний", "жимстэй"],
+  "cr": ["крем", "цөцгий", "хөөс"],
+  "bl": ["хар", "үхрийн нүд", "хөх"],
+  "veg": ["ногоо", "ургамлын"],
+  "vegg": ["ногоо", "хүнсний ногоо"],
+  "veggies": ["ногоо", "хүнсний ногоо"],
+  "c": ["цуу", "алимны цуу"],
+  "can": ["лаазтай", "нөөшилсөн", "лааз"],
+  "canned": ["лаазтай", "нөөшилсөн"],
+  "chick": ["тахиа", "тахианы"],
+  "pickl": ["дарсан", "даршилсан"],
+  "mascarp": ["маскарпоне"],
+  "boulillon": ["бульон", "шөл"],
+
+  // Сүү, Өндөг, Цөцгий, Бяслаг
+  "milk": ["сүү", "сү", "милк"],
+  "egg": ["өндөг", "өндөгний"],
+  "eggs": ["өндөг", "өндөгний"],
+  "butter": ["масло", "цөцгийн тос"],
+  "cheese": ["бяслаг", "сыр", "чеддер", "зүссэн бяслаг"],
+  "cream": ["өрөм", "крем", "балун", "цөцгий", "вип", "зөөхий"],
+  "creamy": ["цөцгийтэй", "кремтэй"],
+  "sauer": ["зөөхий", "исгэлэн"],
+  "sour": ["зөөхий"],
+  "balloon": ["балун", "бөмбөлөг"],
+  "yogurt": ["тараг", "иогурт"],
+  "moloko": ["молоко", "өтгөрүүлсэн сүү"],
+  "whipped": ["хөөсрүүлсэн", "вип", "хутгасан"],
+
+  // Кофе, Цай, Ундаанууд
+  "bean": ["үр", "үрэл", "кофе", "шош"],
+  "beans": ["үр", "үрэл", "кофе", "шош"],
+  "coffee": ["кофе", "эспрессо"],
+  "espresso": ["эспрессо", "кофе"],
+  "kick": ["кик", "хүчтэй кофе"],
+  "tea": ["цай", "байхуу", "хөндмөл", "ханд"],
+  "teas": ["цай", "цайнууд"],
+  "brew": ["ханд", "хандалсан", "чанасан"],
+  "matcha": ["матча", "ногоон цай"],
+  "chai": ["чай", "цай", "масала"],
+  "rooibos": ["ройбос", "улаан цай"],
+  "hibis": ["хибискус", "сарнай"],
+  "butterfl": ["эрвээхэй", "цэнхэр цай"],
+  "green": ["ногоон", "ногоон цай"],
+  "bulbous": ["булцуут", "ургамал"],
+  "water": ["ус", "цэвэр ус", "рашаан"],
+  "bonaque": ["ус", "бонакуа"],
+  "soda": ["сода", "хийжүүлсэн", "хийтэй"],
+  "cola": ["кола", "ундаа"],
+  "laaztai": ["лаазтай", "лааз"],
+  "craft": ["крафт"],
+  "soft": ["ундаа", "хийжүүлсэн"],
+  "drink": ["ундаа", "жүүс"],
+  "juice": ["шүүс", "жүүс", "цэвэр шүүс"],
+  "calpis": ["калпис"],
+  "tonic": ["тоник"],
+  "orice": ["орис", "будааны"],
+
+  // Сироп, Чихэрлэг
+  "syrup": ["сироп", "шүүс", "бурам"],
+  "sugar": ["сахар", "элсэн чихэр"],
+  "sweetener": ["сахар орлуулагч", "чихэрлэг"],
+  "honey": ["зөгийн бал", "бал"],
+  "caramel": ["карамель", "чихэр"],
+  "vanilla": ["ваниль", "ваниллийн"],
+  "hazelnut": ["самар", "самрын", "хазелнат"],
+  "pistacchio": ["пистачио", "фисташка"],
+  "pistachio": ["пистачио", "фисташка"],
+  "cinnamon": ["шанц", "синнамон", "савхан шанц"],
+  "chocolate": ["шоколад", "шоко", "какао", "халуун шоколад"],
+  "choco": ["шоко", "шоколад"],
+  "cocoa": ["какао"],
+  "mocha": ["мока"],
+  "mint": ["гаа", "гааны", "минт"],
+  "curasao": ["кюрасао", "курасао"],
+  "grenade": ["анар", "гренадин"],
+
+  // Мах, Уураг
+  "beef": ["үхэр", "үхрийн мах", "үхрийн"],
+  "pork": ["гахай", "гахайн мах"],
+  "chicken": ["тахиа", "тахианы мах", "цээж мах"],
+  "sheep": ["хонь", "хонины мах", "хонины"],
+  "lamb": ["хурга", "хурганы мах"],
+  "bacon": ["бекон", "гахайн мах"],
+  "salami": ["салями", "хиам", "зайдас"],
+  "patty": ["таташ", "махан таташ", "бургерын мах"],
+  "tuna": ["туна", "загас", "загасны мах"],
+  "ground": ["татсан", "татсан мах"],
+
+  // Жимс
+  "apple": ["алим", "алимны"],
+  "banana": ["гадил", "банан"],
+  "lemon": ["нимбэг", "лимон", "нимбэгний"],
+  "orange": ["жүрж", "апельсин"],
+  "grapefruit": ["бэрсүүт жүрж", "грейпфрут"],
+  "kiwi": ["киви"],
+  "peach": ["тоор", "тоорын"],
+  "mango": ["манго", "мангоны"],
+  "passion": ["пашн", "маркуяа"],
+  "cherry": ["интоор", "интоорын"],
+  "berry": ["жимс", "жимсгэнэ"],
+  "strawberry": ["гүзээлзгэнэ", "гүзээлзгэний"],
+  "raspberry": ["бөөрөлзгөнө", "бөөрөлзгөний"],
+  "blueberry": ["нэрс", "нэрсний"],
+  "currant": ["үхрийн нүд", "үхрийн нүдний"],
+  "buckthorn": ["чацаргана", "чацарганы"],
+  "fruits": ["жимс", "жимснүүд"],
+  "wildberry": ["зэрлэг жимс", "ойн жимс"],
+  "sea": ["чацаргана", "далайн"],
+
+  // Ногоо, Ургамал
+  "tomato": ["улаан лооль", "помидор", "лооль"],
+  "tomatoes": ["улаан лооль", "помидор"],
+  "cucumber": ["өргөст хэмх", "огурцы"],
+  "carrot": ["лууван", "луувангийн"],
+  "onion": ["сонгино", "сонгинын"],
+  "garlic": ["сармис", "сармисны"],
+  "lettuce": ["салат", "салатны навч", "байцаа"],
+  "celery": ["селерей", "яншуй"],
+  "selleries": ["селерей", "яншуй"],
+  "parsley": ["яншуй", "яншуйны"],
+  "pepper": ["чинжүү", "перец", "чинжүүний"],
+  "sweet": ["амтат", "чихэрлэг"],
+  "corn": ["эрдэнэ шиш", "кукуруз"],
+  "pumpkin": ["хулуу", "хулууны"],
+  "ginger": ["цагаан гаа", "гаа"],
+  "herbs": ["өвс", "ургамал", "хатаасан ногоо"],
+  "farm": ["фермийн", "ногооны"],
+  "plant": ["ургамал", "булцуут"],
+
+  // Гурил, Сүмс, Нарийн боов
+  "bread": ["талх", "хэрчсэн", "зүссэн"],
+  "bun": ["талх", "булочка", "бургерын талх"],
+  "flour": ["гурил", "гурилан"],
+  "powder": ["нунтаг", "паудэр", "пудр", "хөөлгөгч"],
+  "power": ["нунтаг", "паудэр"],
+  "sauce": ["соус", "сүмс", "амтлагч"],
+  "burger": ["бургер", "бургерын"],
+  "ketchup": ["кетчуп"],
+  "mayo": ["майонез"],
+  "mustard": ["гич", "мустард"],
+  "oil": ["тос", "ургамлын тос", "олив", "чидун"],
+  "olive": ["олив", "чидун"],
+  "vinegar": ["уксус", "цуу"],
+  "salt": ["давс"],
+  "tabasco": ["табаско"],
+  "worchest": ["ворчестер"],
+  "seasonings": ["амтлагч", "хольц"],
+  "various": ["төрөл бүрийн", "холимог"],
+  "chips": ["үртэс", "чипс"],
+  "slice": ["хэрчим", "зүсэм"],
+  "piece": ["хэсэг", "хэрчим"],
+  "stick": ["савх", "мод"],
+  "velvet": ["велвет", "хамба"],
+  "ladies": ["савоярди", "хуруу", "жигнэмэг"],
+  "finger": ["хуруу", "савоярди"],
+  "baking": ["жигнэх", "хөөлгөгч"],
+  "dried": ["хатаасан"],
+  "fresh": ["шинэ", "шинэхэн"],
+  "sliced": ["зүссэн", "хэрчсэн"],
+  "hot": ["халуун"],
+  "black": ["хар", "үхрийн нүд"],
+  "blue": ["хөх", "цэнхэр"],
+  "red": ["улаан"],
+
+  // Сав баглаа
+  "cup": ["аяга", "стакан"],
+  "lid": ["таг", "бөглөө"],
+  "straw": ["соруул", "гуурс"],
+  "napkin": ["сальфетка", "арчуур", "цаас"],
+  "bag": ["уут", "тор", "хүүдий"]
 };
+
 // =========================================================================
-// ⚡ 1. MONGOLIAN FAST LOCAL PARSER (0.01ms Deterministic Match)
+// 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
-function advancedMongolianVoiceParser(rawText: string, ingredients: any[]) {
+export function advancedMongolianVoiceParser(
+  rawText: string, 
+  ingredients: any[], 
+  learnedAliases: { phrase: string; ingredient_id: string }[] = []
+) {
   let text = rawText.toLowerCase().trim();
 
-  // 1. Амаар хэлсэн монгол тоог тоон цифр болгох ("хоёр литр" -> "2 литр")
-  for (const [word, val] of Object.entries(MN_NUMBER_WORDS)) {
-    const reg = new RegExp(`\\b${word}\\b`, 'gi');
-    text = text.replace(reg, val.toString());
+  // 1. Амаар хэлсэн тоог цифр болгох
+  for (const { w, v } of MN_NUMBERS) {
+    const reg = new RegExp(`(^|[\\s,.:;!?])${w}(?=[\\s,.:;!?]|$)`, 'gi');
+    text = text.replace(reg, `$1${v} `);
   }
 
-  // 2. Тоо болон хэмжих нэгжийг салгах
-  const numMatch = text.match(/(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг|хайрцаг|уут)?/);
+  // 2. Тоо ба нэгжийг ялгах
+  const numMatch = text.match(/(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг|хайрцаг|уут|багц|сав)?/);
   if (!numMatch) return null;
 
   let qty = parseFloat(numMatch[1]);
@@ -41,47 +248,85 @@ function advancedMongolianVoiceParser(rawText: string, ingredients: any[]) {
 
   // 3. Үйлдлийг язгуураар нь таних
   let type: 'spoilage' | 'purchase' | 'staff_meal' | 'testing' | null = null;
-  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус/.test(text)) type = 'spoilage';
-  else if (/ава|авс|татан|ирл|нэм/.test(text)) type = 'purchase';
-  else if (/хоол|идс|уусан/.test(text)) type = 'staff_meal';
-  else if (/турш|амт/.test(text)) type = 'testing';
+  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс/.test(text)) type = 'spoilage';
+  else if (/ава|авс|татан|ирл|нэм|худалд|оруул|авчир/.test(text)) type = 'purchase';
+  else if (/хоол|идс|уус|ажилчдын|цайны/.test(text)) type = 'staff_meal';
+  else if (/турш|амт|шалга/.test(text)) type = 'testing';
 
   if (!type) return null;
 
-  // 4. Түүхий эдийг Монгол ба Англи нэршлээр тааруулах
-  let matchedIng = ingredients.find(ing => text.includes(ing.name.toLowerCase().trim()));
-  
-  if (!matchedIng) {
-    const MN_SYNONYMS: Record<string, string[]> = {
-      "Milk": ["сүү", "сү", "милк"],
-      "Beans": ["кофе", "үр", "үрэл"],
-      "Eggs": ["өндөг", "өндөгний"],
-      "Bread": ["талх", "талхны", "булочка"],
-      "Butter": ["масло", "цөцгийн тос"],
-      "Sugar": ["сахар", "элсэн чихэр"],
-      "Syrup": ["сироп", "чихэрлэг"],
-      "Cheese": ["бяслаг", "чеддер", "сыр"]
-    };
-
-    for (const [engName, syns] of Object.entries(MN_SYNONYMS)) {
-      if (syns.some(s => text.includes(s))) {
-        matchedIng = ingredients.find(ing => ing.name.toLowerCase().includes(engName.toLowerCase()));
-        if (matchedIng) break;
+  // 4. 🧠 FEEDBACK LOOP: Өмнө нь Gemini-аас суралцсан үгсийг хамгийн түрүүнд шалгах! (0.001ms)
+  for (const alias of learnedAliases) {
+    if (text.includes(alias.phrase.toLowerCase().trim())) {
+      const matched = ingredients.find(i => i.id === alias.ingredient_id);
+      if (matched) {
+        return {
+          is_transaction: true,
+          success: true,
+          item_id: matched.id,
+          item_name: matched.name,
+          unit: matched.unit,
+          quantity: type === 'purchase' ? Math.abs(qty) : -Math.abs(qty),
+          type: type,
+          notes: `${rawText} (🧠 Суралцсан үг)`
+        };
       }
     }
   }
 
-  if (!matchedIng) return null;
+  // 5. ОНООНЫ МАШИН: Таны 100+ барааг үг үгээр нь шалгах
+  let bestMatch: any = null;
+  let highestScore = 0;
+
+  for (const ing of ingredients) {
+    let currentScore = 0;
+    const dbNameLower = ing.name.toLowerCase();
+
+    // Бүтэн нэрээрээ байвал шууд 100 оноо!
+    if (text.includes(dbNameLower)) {
+      currentScore += 100;
+    }
+
+    const dbWords = dbNameLower.split(/[\s.\-\/]+/);
+
+    for (const word of dbWords) {
+      if (word.length < 2) continue;
+
+      if (text.includes(word)) {
+        currentScore += 15;
+      }
+
+      const mnSynonyms = EN_TO_MN_DICT[word] || [];
+      for (const syn of mnSynonyms) {
+        if (syn.length <= 2) {
+          const safeReg = new RegExp(`(^|[\\s,.:;!?])${syn}(?=[\\s,.:;!?]|$)`, 'i');
+          if (safeReg.test(text)) currentScore += 20;
+        } else if (text.includes(syn)) {
+          currentScore += 20;
+        }
+      }
+    }
+
+    if (currentScore > highestScore) {
+      highestScore = currentScore;
+      bestMatch = ing;
+    }
+  }
+
+  // Багадаа 1 үг бүтэн таарсан (20 оноо) байх ёстой
+  if (highestScore < 20 || !bestMatch) {
+    return null; // Олсонгүй -> Gemini руу илгээнэ!
+  }
 
   return {
     is_transaction: true,
     success: true,
-    item_id: matchedIng.id,
-    item_name: matchedIng.name,
-    unit: matchedIng.unit,
+    item_id: bestMatch.id,
+    item_name: bestMatch.name,
+    unit: bestMatch.unit,
     quantity: type === 'purchase' ? Math.abs(qty) : -Math.abs(qty),
     type: type,
-    notes: `${rawText} (🎙️ Монгол дуут бүртгэл)`
+    notes: `${rawText} (⚡ Local Parser)`
   };
 }
 // =========================================================================
@@ -115,11 +360,13 @@ function KioskAiChatSection({
   selectedWorker, 
   activeShift, 
   ingredients,
+  learnedAliases = [],
   onBack 
 }: { 
   selectedWorker: any; 
   activeShift: any; 
   ingredients: any[];
+  learnedAliases?: any[];
   onBack: () => void; 
 }) {
   const [chatInput, setChatInput] = useState('');
@@ -127,7 +374,7 @@ function KioskAiChatSection({
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  
+    
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -320,7 +567,7 @@ function KioskAiChatSection({
       });
     } else {
       // ⚡ 0.01ms LOCAL MONGOLIAN MATCH (Сервер, AI дуудахгүйгээр шууд баазад хадгалах)
-      const localMatch = advancedMongolianVoiceParser(textToProcess, ingredients);
+      const localMatch = advancedMongolianVoiceParser(textToProcess, ingredients, learnedAliases);
       if (localMatch && localMatch.success) {
         const { data: newLog, error } = await supabase.from('inventory_logs').insert([{
           client_id: selectedWorker.client_id,
@@ -558,6 +805,7 @@ function KioskPage() {
   const [tenantClientId, setTenantClientId] = useState<string>('SF Coffee');
   const [workers, setWorkers] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
+  const [learnedAliases, setLearnedAliases] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [pin, setPin] = useState('');
   const [activeShift, setActiveShift] = useState<any>(null);
@@ -649,6 +897,14 @@ function KioskPage() {
       .order('name', { ascending: true });
 
     if (ingData) setIngredients(ingData);
+
+    const { data: aliasesData } = await supabase
+    .from('learned_aliases')
+    .select('phrase, ingredient_id')
+    .ilike('client_id', client);
+
+    if (aliasesData) setLearnedAliases(aliasesData);
+
   };
 
   const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
@@ -1346,6 +1602,7 @@ function KioskPage() {
             selectedWorker={selectedWorker} 
             activeShift={activeShift} 
             ingredients={ingredients}
+            learnedAliases={learnedAliases}
             onBack={() => setStep('menu')} 
           />
         )}

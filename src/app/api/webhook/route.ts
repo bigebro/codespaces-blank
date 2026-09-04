@@ -56,6 +56,13 @@ const WORKER_BOT_PROMPT = `
      "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
 `;
 
+function getApiKeys(): string[] {
+  const raw = process.env.GEMINI_API_KEY || "";
+  return raw.replace(/["']/g, "").split(",").map(k => k.trim()).filter(Boolean);
+}
+
+    let currentKeyIndex = 0;
+
 export async function POST(request: Request) {
   let currentChatId: number | null = null;
   const reqUrl = new URL(request.url);
@@ -667,19 +674,18 @@ export async function POST(request: Request) {
     };
 
 
-    const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
+const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
 
     // 💡 Түлхүүрүүд дундуур эргэлдэх
-    const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
-    let currentKeyIndex = 0;
+
     let replyText = "";
     let lastErrorDetails = "";
 
-    const maxTries = Math.min(API_KEYS.length, 2);
+      const keys = getApiKeys();
 
-    for (let attempt = 0; attempt < maxTries; attempt++) {
-      const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
-      const currentKey = API_KEYS[keyIdx];
+    for (let attempt = 0; attempt < keys.length; attempt++) {
+   const keyIdx = (currentKeyIndex + attempt) % keys.length;
+      const currentKey = keys[keyIdx];
 
       try {
         const activeGenAI = new GoogleGenerativeAI(currentKey);
@@ -700,9 +706,8 @@ export async function POST(request: Request) {
       } catch (err: any) {
         lastErrorDetails = err.message || String(err);
         console.warn(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
-        if (lastErrorDetails.includes("429") || lastErrorDetails.includes("503")) {
-          break;
-        }
+        currentKeyIndex = (keyIdx + 1) % keys.length;
+        continue;
       }
     }
 

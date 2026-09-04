@@ -59,6 +59,58 @@ const WORKER_KIOSK_PROMPT = `
   - Санхүүгийн ашиг, орлого асуувал: "🔒 Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой." гэж хариул.
 `;
 
+// 🔑 1. Түлхүүрүүдийг цэвэрлэж унших функц (.env-ээс үргэлж шинээр авна)
+function getApiKeys(): string[] {
+  const raw = process.env.GEMINI_API_KEY || "";
+  return raw.replace(/["']/g, "").split(",").map(k => k.trim()).filter(Boolean);
+}
+
+let globalKeyIndex = 0;
+
+// ⚡ 2. ГАЦДАГГҮЙ ТҮЛХҮҮР ШИЛЖҮҮЛЭГЧ МОТОР
+async function callGeminiStreamWithFailover(systemPrompt: string, promptPayload: string) {
+  const keys = getApiKeys();
+  if (keys.length === 0) {
+    throw new Error("GEMINI_API_KEY олдсонгүй (.env.local шалгана уу)");
+  }
+
+  let lastError = "";
+
+  // 💡 Бүх түлхүүрийг дарааллын дагуу шалгана (Хэзээ ч 429 дээр break хийхгүй!)
+  for (let attempt = 0; attempt < keys.length; attempt++) {
+    const keyIdx = (globalKeyIndex + attempt) % keys.length;
+    const currentKey = keys[keyIdx];
+
+    try {
+      const activeGenAI = new GoogleGenerativeAI(currentKey);
+      const model = activeGenAI.getGenerativeModel({ 
+        model: 'gemini-3.6-flash', // 👈 gemini-3.6-flash хэвээрээ
+        generationConfig: { temperature: 0.2 }
+      });
+
+      const response = await model.generateContentStream({
+        contents: [{ role: 'user', parts: [{ text: `System: ${systemPrompt}\n\nInput Data: ${promptPayload}` }] }]
+      });
+
+      // Хэрэв амжилттай болсон бол дараагийн хүсэлтэд энэ түлхүүрээс эхэлнэ
+      globalKeyIndex = keyIdx;
+      return response;
+
+    } catch (err: any) {
+      lastError = err.message || String(err);
+      console.warn(`[GEMINI ТҮЛХҮҮР #${keyIdx + 1} АЛДАА: 429/Гацалт гарлаа. Дараагийн түлхүүр рүү шилжиж байна...]`, lastError);
+      
+      // Алдаа заасан тул дараагийн хүсэлтийг шууд дараагийн түлхүүр рүү үсэргэнэ
+      globalKeyIndex = (keyIdx + 1) % keys.length;
+      
+      // 💡 ЗАСВАР: Хэзээ ч break хийхгүй, үлдсэн бүх түлхүүрийг шалгана!
+      continue;
+    }
+  }
+
+  throw new Error(lastError);
+}  
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -113,10 +165,17 @@ export async function POST(request: Request) {
         }
       `;
 
-      let aiResult: any = null;
-      for (const key of API_KEYS) {
+     let aiResult: any = null;
+      const keys = getApiKeys();
+      let lastAudioError = "";
+
+      // 💡 ТҮЛХҮҮРҮҮД ДЭЭР ДАРААЛАЛ АЛДАГДАХГҮЙ ҮСЭРДЭГ ШИНЭ ЛООП:
+      for (let attempt = 0; attempt < keys.length; attempt++) {
+        const keyIdx = (globalKeyIndex + attempt) % keys.length;
+        const currentKey = keys[keyIdx];
+
         try {
-          const ai = new GoogleGenerativeAI(key);
+          const ai = new GoogleGenerativeAI(currentKey);
           const model = ai.getGenerativeModel({
             model: 'gemini-3.6-flash',
             generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
@@ -134,9 +193,15 @@ export async function POST(request: Request) {
 
           const textRes = response.response.text();
           aiResult = JSON.parse(textRes.replace(/```json|```/g, "").trim());
-          if (aiResult) break;
+          if (aiResult) {
+            globalKeyIndex = keyIdx; // 👈 Амжилттай түлхүүрийг санаж хадгална!
+            break;
+          }
         } catch (e: any) {
-          console.warn("Gemini Audio listening attempt error:", e.message);
+          lastAudioError = e.message || String(e);
+          console.warn(`[AUDIO KEY #${keyIdx + 1} 429/Error]: Дараагийн түлхүүр рүү шилжиж байна...`, lastAudioError);
+          globalKeyIndex = (keyIdx + 1) % keys.length; // 👈 1-р түлхүүр гацвал шууд 2-р түлхүүр рүү үсэрнэ
+          continue;
         }
       }
 
@@ -162,9 +227,12 @@ export async function POST(request: Request) {
         }
       }
 
+      // Хэрэв бүх түлхүүр 429 болсон бол жинхэнэ шалтгааныг нь хэлнэ
       return NextResponse.json({
         success: false,
-        message: "🎙️ Дууг сайн сонсож чадсангүй. Та ахин тод хэлнэ үү."
+        message: lastAudioError.includes("429") 
+          ? "⚠️ Бүх AI түлхүүрийн түр хязгаар хүрсэн байна. 1 минут хүлээгээд дахин ярина уу." 
+          : "🎙️ Дууг сайн сонсож чадсангүй. Та микрофондоо арай ойртоод дахин тод хэлнэ үү."
       });
     }
 // 2. ЗУРАГ БҮРТГЭХ (E-Barimt эсвэл Барааны зураг)
@@ -243,14 +311,21 @@ if (imageBase64) {
     // 3. ТЕКСТ БИЧИХ ҮЕД
     if (text) {
       const lower = text.toLowerCase().trim();
-// ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (0.2 СЕКУНДЭД ШУУД ХАДГАЛАХ)
-       if (!isOwner) {
-        const aiAnalysis = await parseOperationalText(text, allowedNames);
+
+      // ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
+      if (!isOwner) {
+        // 1. Баазаас өмнө нь суралцсан алиасуудыг татах
+        const { data: learnedAliases } = await supabaseAdmin
+          .from('learned_aliases')
+          .select('phrase, ingredient_id')
+          .eq('client_id', clientId);
+
+        // 2. Local Parser-аар 0.001ms-д шалгах
+        const aiAnalysis = await parseOperationalText(text, allowedNames, learnedAliases || []);
         
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
-          const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
+          const ingredient = ingredients?.find(i => i.name.toLowerCase().trim() === aiAnalysis.item_name.toLowerCase().trim());
           if (ingredient) {
-            // Баазад асинхрон хадгалах
             const { data: log } = await supabaseAdmin.from('inventory_logs').insert([{
               client_id: clientId,
               ingredient_id: ingredient.id,
@@ -261,11 +336,22 @@ if (imageBase64) {
               date: new Date().toISOString()
             }]).select().single();
 
+            // 🧠 FEEDBACK LOOP: Хэрэв энэ гүйлгээг Gemini таньсан бол, хэлсэн үгийг нь баазад АВТОМАТААР БҮРТГЭНЭ!
+            // Дараагийн удаа Local Parser өөрөө Gemini-гүйгээр 0.001ms-д танина!
+            const cleanPhrase = text.replace(/[\d\.]+/g, '').replace(/литр|мл|кг|гр|грамм|ш|ширхэг|асгасан|авсан|муудсан/gi, '').trim();
+            if (cleanPhrase.length > 2) {
+              await supabaseAdmin.from('learned_aliases').upsert([{
+                client_id: clientId,
+                phrase: cleanPhrase.toLowerCase(),
+                ingredient_id: ingredient.id
+              }], { onConflict: 'client_id,phrase' });
+            }
+
             return NextResponse.json({
               success: true,
               is_log: true,
               log_id: log?.id,
-              message: `📝 **Бүртгэгдлээ (0.01s):**\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`
+              message: `📝 **Бүртгэгдлээ (0.01s):**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`
             });
           }
         }
@@ -276,6 +362,8 @@ if (imageBase64) {
           message: "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан')."
         });
       }
+
+
 
       // =========================================================================
       // ЗӨВХӨН ЭЗЭН БАЙВАЛ Л ДООШОО ГҮЙЖ САНХҮҮГИЙН МОТОР АЖИЛЛАНА:
@@ -401,47 +489,20 @@ if (imageBase64) {
      
       // =========================================================================
       // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
-  
 
-      const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${text}`;
-
+   
+    const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${text}`;
       let responseStream = null;
-      let lastErrorMsg = "";
-
-      // 💡 Хэт удаан хүлээж 504 болохоос сэргийлж хамгийн ихдээ эхний 2 түлхүүрийг л шалгана
-      const maxAttempts = Math.min(API_KEYS.length, 2);
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const keyIdx = (currentKeyIndex + attempt) % API_KEYS.length;
-        const currentKey = API_KEYS[keyIdx];
-
-        try {
-          const activeGenAI = new GoogleGenerativeAI(currentKey);
-          const model = activeGenAI.getGenerativeModel({ 
-            model: 'gemini-3.6-flash',
-            generationConfig: { temperature: 0.3 }
-          });
-
-          responseStream = await model.generateContentStream({
-            contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
-          });
-
-          if (responseStream) {
-            currentKeyIndex = keyIdx;
-            break;
-          }
-        } catch (err: any) {
-          lastErrorMsg = err.message || String(err);
-          console.warn(`Key #${keyIdx + 1} error:`, lastErrorMsg);
-        }
-      }
-
-      if (!responseStream) {
+      try {
+        responseStream = await callGeminiStreamWithFailover(ACTIVE_PROMPT, promptPayload);
+      } catch (err: any) {
         return NextResponse.json({ 
           success: false, 
-          message: getFriendlyErrorMessage(lastErrorMsg) 
+          message:getFriendlyErrorMessage(err.message || String(err)) 
         });
       }
+
+   
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
