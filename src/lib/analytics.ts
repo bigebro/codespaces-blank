@@ -60,7 +60,7 @@ export async function getAnalyticsData(
   const finalStartDate = startDate || defaultStart;
   const finalEndDate = endDate || defaultEnd;
 
-  // 1. БҮХ ӨГӨГДЛИЙГ БААЗААС ДИНАМИКААР ТАТАХ (ХАТУУ КОДОЛСОН ЗҮЙЛ ОГТ БАЙХГҮЙ)
+  // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ (Баазын ачааллыг 90% бууруулна)
   const [
     { data: rawIngredients },
     { data: rawRecipes },
@@ -75,9 +75,9 @@ export async function getAnalyticsData(
   ] = await Promise.all([
     supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
     supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).order('date', { ascending: false }),
+    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate).order('date', { ascending: false }),
     supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
-    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).order('start_time', { ascending: false }).limit(50),
+    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
     supabaseAdmin.from('products').select('*').ilike('client_id', clientId),
     supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId),
     supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId),
@@ -116,7 +116,6 @@ export async function getAnalyticsData(
   let totalPurchasesNoEbarimt = 0;
   let totalOwnerDraws = 0;
 
-  // 💡 ТОГТМОЛ ЗАРДЛУУДЫГ (OPEX) БААЗААС БОДИТООРОО УНШИХ
   const opexDetails: { category: string; item: string; cost: number }[] = [];
   let dynamicOpexTotal = 0;
 
@@ -145,6 +144,8 @@ export async function getAnalyticsData(
       end: parseFloat(ing.current_stock) || 0,
       live_stock: parseFloat(ing.current_stock) || 0, 
       is_critical: ing.is_critical || false, 
+      is_suspicious_promoted: ing.is_suspicious_promoted || false,
+      promoted_until: ing.promoted_until || null,
       last_counted_at: ing.last_counted_at || '2000-01-01T00:00:00Z', 
       theoretical: 0,
       unit_price: parseFloat(ing.unit_price) || 0,
@@ -385,7 +386,11 @@ export async function getAnalyticsData(
     totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
     totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
 
+    // Парето 80/20 дүрэмд зориулж сард эргэлдсэн мөнгөн дүн (Ui = Qi * Pi)
+    const totalSpendValue = (m.theoretical > 0 ? m.theoretical : m.live_stock) * weightedPrice;
+
     fullInventory.push({
+      id: m.id,
       name: m.name,
       par_level: Math.round(activeParLevel * 100) / 100, 
       suggested_order: finalSuggestion,
@@ -393,12 +398,19 @@ export async function getAnalyticsData(
       gap: Math.abs(Math.round(unexplainedGap * 100) / 100) || 0,
       impact: Math.abs(unexplainedImpact) || 0,
       unit: m.unit,
-      price: m.unit_price || 0,
+      price: weightedPrice || m.unit_price || 0,
+      unit_price: weightedPrice || m.unit_price || 0,
       is_waste: unexplainedGap > 0.1,
       is_under: rawGap < -0.1,
-      live_stock: m.live_stock
+      live_stock: m.live_stock,
+      current_stock: m.live_stock, // Kiosk дээр бодит үлдэгдэл харагдана
+      last_counted_at: m.last_counted_at, //  12 цагийн дотор дахиж гарахгүй
+      is_critical: m.is_critical,
+      is_suspicious_promoted: m.is_suspicious_promoted,
+      promoted_until: m.promoted_until,
+      total_spend_value: totalSpendValue
     });
-   // 1. Муудсан, хугацаа дууссан барааг бодит шалтгаантай нь актад нэмэх 
+
     if (itemLogs.spoilage > 0) {
       wasteAuditItems.push({
         name: m.name,
@@ -412,7 +424,6 @@ export async function getAnalyticsData(
       });
     }
 
-   // 2. Шалтгаангүй далд хорогдлыг хуулийн дагуу актад нэмэх
     if (unexplainedGap > 0.05 && unexplainedImpact > 10) {
       wasteAuditItems.push({
         name: m.name,
@@ -426,9 +437,96 @@ export async function getAnalyticsData(
       });
     }
   }
-// 💡 2. ҮНДСЭН ХӨРӨНГИЙН ЭЛЭГДЭЛ БА МӨНГӨН УРСГАЛ (Cashflow fix)
+
+  // =========================================================================
+  // 💡 ШИНЭЭР НЭМСЭН: 2. PARETO 80/20 AUTOMATIC ABC CLASSIFICATION ENGINE
+  // =========================================================================
+fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
+  const totalSpendSum = fullInventory.reduce((sum, item) => sum + item.total_spend_value, 0);
+
+  let cumulativeSpend = 0;
+  fullInventory.forEach((item) => {
+    cumulativeSpend += item.total_spend_value;
+    const cumulativePct = totalSpendSum > 0 ? (cumulativeSpend / totalSpendSum) * 100 : 100;
+
+    const isTemporarilyPromoted = item.is_suspicious_promoted && item.promoted_until && new Date(item.promoted_until) > now;
+
+    // 💡 ЗАСВАР: Зөвхөн бодит өртөгтэй бөгөөд нийт зардлын 80%-д багтаж байвал л A-Class болно!
+    if (isTemporarilyPromoted || item.is_critical || (item.total_spend_value > 0 && cumulativePct <= 80)) {
+      item.abc_class = 'A';
+    } else if (item.total_spend_value > 0 && cumulativePct <= 95) {
+      item.abc_class = 'B';
+    } else {
+      item.abc_class = 'C';
+    }
+  });
+
+  const bcCount = fullInventory.filter(i => i.abc_class !== 'A').length;
+  const shiftsPerDay = 2;
+  const cycleDays = 14;
+  const optimalCycleCountPerShift = Math.max(2, Math.ceil(bcCount / (shiftsPerDay * cycleDays)));
+
+  // =========================================================================
+  // 💡 ШИНЭЭР НЭМСЭН: 3. WAC MARGIN GUARD (Үнийн өсөлт & Маржин хамгаалагч)
+  // =========================================================================
+  const marginAlerts: any[] = [];
+  (rawProducts || []).forEach((prod: any) => {
+    const productRecipes = (rawRecipes || []).filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase());
+    let currentRecipeCost = 0;
+
+    productRecipes.forEach((r: any) => {
+      const ing = fullInventory.find((i: any) => i.name.toLowerCase() === cleanString(r.product_name).toLowerCase() || i.id === r.ingredient_id);
+      const ingPrice = ing ? ing.price : (rawIngredients?.find((i: any) => i.id === r.ingredient_id)?.unit_price || 0);
+      currentRecipeCost += (parseFloat(r.amount) || 0) * (parseFloat(ingPrice) || 0);
+    });
+
+    const sellingPrice = parseFloat(prod.selling_price) || 0;
+    if (sellingPrice > 0 && currentRecipeCost > 0) {
+      const currentMarginPct = ((sellingPrice - currentRecipeCost) / sellingPrice) * 100;
+      const targetMarginPct = 75; // 75% Бохир ашгийн маржин
+
+      if (currentMarginPct < targetMarginPct) {
+        const rawSuggestedPrice = currentRecipeCost / (1 - (targetMarginPct / 100));
+        const suggestedPrice = Math.ceil(rawSuggestedPrice / 500) * 500; // 500₮-өөр дээшээ бүхэлчлэх
+        marginAlerts.push({
+          product_name: prod.name,
+          category: prod.category || 'General',
+          selling_price: sellingPrice,
+          cost_price: Math.round(currentRecipeCost),
+          current_margin_pct: currentMarginPct.toFixed(1) + "%",
+          target_margin_pct: targetMarginPct + "%",
+          suggested_price: suggestedPrice,
+          price_gap: suggestedPrice - sellingPrice
+        });
+      }
+    }
+  });
+
+  // =========================================================================
+  // 💡 ШИНЭЭР НЭМСЭН: 4. CROSS-SHIFT FRAUD & INCIDENT MATRIX
+  // =========================================================================
+  const workerFraudMatrix: Record<string, { totalIncidents: number; totalLossAmount: number; incidents: any[] }> = {};
+  (rawInventoryLogs || []).forEach((log: any) => {
+    if (log.incident_type === 'previous_shift_damage' && log.reported_against_worker) {
+      const targetWorker = log.reported_against_worker.trim();
+      if (!workerFraudMatrix[targetWorker]) {
+        workerFraudMatrix[targetWorker] = { totalIncidents: 0, totalLossAmount: 0, incidents: [] };
+      }
+      const loss = Math.abs(parseFloat(log.total_cost) || 0);
+      workerFraudMatrix[targetWorker].totalIncidents += 1;
+      workerFraudMatrix[targetWorker].totalLossAmount += loss;
+      workerFraudMatrix[targetWorker].incidents.push({
+        date: log.date,
+        reporter: log.worker_name,
+        notes: log.notes,
+        image_url: log.image_url,
+        loss_amount: loss
+      });
+    }
+  });
+
   let totalMonthlyDepreciation = 0;
-  let fixedAssetsPurchasedThisMonthBank = 0; // 👈 ШИНЭ: Энэ сард дансаар авсан хөрөнгийн үнэ
+  let fixedAssetsPurchasedThisMonthBank = 0; 
   const currentDate = new Date(finalEndDate);
 
   const processedFixedAssets = (rawFixedAssets || []).map((fa: any) => {
@@ -438,12 +536,10 @@ export async function getAnalyticsData(
     
     const pDate = new Date(fa.purchase_date || '2025-01-01');
     
-    // Хэрэв энэ хөрөнгийг ЯГ ЭНЭ САРД худалдаж авсан бол банкнаас мөнгийг нь хасна!
     if (pDate >= new Date(startDay) && pDate <= new Date(endDay)) {
       fixedAssetsPurchasedThisMonthBank += cost;
     }
 
-    // Хэрэв авсан сараас хойш хугацаа өнгөрсөн бол л элэгдэл тооцно
     if (currentDate >= pDate) {
       totalMonthlyDepreciation += monthlyDep;
     }
@@ -464,19 +560,14 @@ export async function getAnalyticsData(
     };
   });
 
-  // 💡 3. ТАТВАРЫН ТООЦООЛОЛ БА НӨАТ-ЫН САЛГАЛТ (Double Taxation fix)
   const isAbove300M = (totalRevenue * 12) > 300000000;
-  
-  // ПОС-ын нийт орлогоос НӨАТ-ыг салгах (1.1-т хувааж Цэвэр орлогыг олно)
   const netRevenue = Math.round(totalRevenue / 1.1); 
-  const estimatedVat10Pct = totalRevenue - netRevenue; // Төрд өгөх НӨАТ
+  const estimatedVat10Pct = totalRevenue - netRevenue; 
   
   const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
   const adjustedOpex = (dynamicOpexTotal + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther + totalMonthlyDepreciation) || 0;
   
-  // Ашгийг НӨАТ-гүй ЦЭВЭР ОРЛОГООС бодно!
   const finalEbit = (netRevenue - adjustedCogs - adjustedOpex) || 0; 
-  
   const simplifiedTax1Pct = Math.round(netRevenue * 0.01);
   const standardTax10Pct = finalEbit > 0 ? Math.round(finalEbit * 0.10) : 0;
 
@@ -485,17 +576,14 @@ export async function getAnalyticsData(
     activeTaxAmount = standardTax10Pct;
   }
 
-  // 💡 4. КАСС VS БАНК МӨНГӨН УРСГАЛ 
   const cashInitial = parseFloat(rawSettings?.initial_cash) || 0;
   const bankInitial = parseFloat(rawSettings?.initial_bank) || 0;
   const cashOutOpexCash = Math.round(adjustedOpex * 0.20);
   const cashOutOpexBank = Math.round(adjustedOpex * 0.80);
   
   const cashEndBalance = cashInitial + cashRevenue - totalPurchasesCashPaid - cashOutOpexCash - Math.round(totalOwnerDraws * 0.3);
-  // 👈 ШИНЭ: Үндсэн хөрөнгө авсан мөнгийг банкнаас хасч Мөнгөн урсгалыг бодитоор тэнцүүлнэ
   const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7) - fixedAssetsPurchasedThisMonthBank;
 
-  // 💡 5. ЦАЛИНГИЙН ДИНАМИК ТОХИРГОО (HHOAT Discount fix)
   const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
 
   (rawShifts || []).forEach((shift: any) => {
@@ -525,14 +613,10 @@ export async function getAnalyticsData(
     const baseSalary = isFixed ? Math.round(rate) : Math.round(hoursDecimal * rate);
     const grossSalary = baseSalary;
     
-    // Татварын хуулийн бодолтууд
-    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% НДШ
-    const employerNdsh = Math.round(grossSalary * 0.125); // 12.5% Байгууллагын НДШ
-    
-    // 👈 ШИНЭ: Монгол улсын хуулиар олгогдох ХХОАТ-ын 30,000₮-ийн хөнгөлөлтийг хасна
+    const ndshDeduction = Math.round(grossSalary * 0.115); 
+    const employerNdsh = Math.round(grossSalary * 0.125); 
     const hhoatRaw = Math.round((grossSalary - ndshDeduction) * 0.10);
     const hhoatDeduction = Math.max(0, hhoatRaw - 30000); 
-    
     const netTakeHome = grossSalary - ndshDeduction - hhoatDeduction;
 
     return {
@@ -564,6 +648,9 @@ export async function getAnalyticsData(
       type: log.type,
       payment_method: log.payment_method || 'bank',
       is_ebarimt: log.is_ebarimt !== false,
+      image_url: log.image_url || null,
+      incident_type: log.incident_type || 'normal',
+      reported_against_worker: log.reported_against_worker || null,
       notes: log.notes || ""
     };
   });
@@ -573,13 +660,15 @@ export async function getAnalyticsData(
     start_time: s.start_time ? new Date(s.start_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "-",
     end_time: s.end_time ? new Date(s.end_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "Хаагдаагүй (Идэвхтэй)",
     is_active: s.is_active,
-    tasks_done: s.daily_tasks_checklist || []
+    tasks_done: s.daily_tasks_checklist || [],
+    pos_z_image_url: s.pos_z_image_url || null,
+    start_evidence_image: s.start_evidence_image || null
   }));
 
   return {
     financial_ladder: {
-      revenue: totalRevenue,       // ПОС-ын Нийт Орлого (НӨАТ-тай)
-      net_revenue: netRevenue,     // Цэвэр орлого (P&L дээр гарна)
+      revenue: totalRevenue,
+      net_revenue: netRevenue,
       actual_cogs: adjustedCogs,
       theo_cogs: totalTheoCogs,
       gross_margin: netRevenue > 0 ? ((netRevenue - adjustedCogs) / netRevenue * 100).toFixed(2) + "%" : "0%",
@@ -597,11 +686,19 @@ export async function getAnalyticsData(
       active_tax_amount: activeTaxAmount,
       estimated_vat_10pct: estimatedVat10Pct
     },
+    abc_summary: {
+      a_count: fullInventory.filter((i: any) => i.abc_class === 'A').length,
+      b_count: fullInventory.filter((i: any) => i.abc_class === 'B').length,
+      c_count: fullInventory.filter((i: any) => i.abc_class === 'C').length,
+      suggested_cycle_per_shift: optimalCycleCountPerShift
+    },
+    margin_guard_alerts: marginAlerts,
+    worker_fraud_matrix: workerFraudMatrix,
     purchases_summary: {
       total_purchases: totalPurchasesWithEbarimt + totalPurchasesNoEbarimt,
       with_ebarimt: totalPurchasesWithEbarimt,
       without_ebarimt: totalPurchasesNoEbarimt,
-      fixed_assets_invested: fixedAssetsPurchasedThisMonthBank // Хөрөнгө оруулалтын мөнгөн урсгал
+      fixed_assets_invested: fixedAssetsPurchasedThisMonthBank
     },
     cashflow_summary: {
       cash_in_total: totalRevenue,

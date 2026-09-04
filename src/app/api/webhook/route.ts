@@ -4,6 +4,24 @@ import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// ⚡ 1. Telegram Bot-д зориулсан 60 секундийн кэш
+const analyticsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000;
+
+async function getCachedAnalytics(clientId: string, start?: string, end?: string) {
+  const cacheKey = `${clientId}_${start || 'default'}_${end || 'default'}`;
+  const cached = analyticsCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  const freshData = await getAnalyticsData(clientId, start, end);
+  analyticsCache.set(cacheKey, { data: freshData, timestamp: Date.now() });
+  return freshData;
+}
+
+
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 
@@ -399,7 +417,7 @@ export async function POST(request: Request) {
         targetEnd = `${ym}-${String(lastDayNum).padStart(2, '0')}T23:59:59.999Z`;
       }
 
-      const data = await getAnalyticsData(tenantClientId, targetStart, targetEnd);
+      const data = await getCachedAnalytics(tenantClientId, targetStart, targetEnd);
       const fin = data.financial_ladder || {};
 
       const reportMarkdown = `📊 **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n` +
@@ -589,7 +607,7 @@ export async function POST(request: Request) {
       chatTargetEnd = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}T23:59:59.999Z`;
     }
 
-    const analyticsData = await getAnalyticsData(tenantClientId, chatTargetStart, chatTargetEnd);
+    const analyticsData = await getCachedAnalytics(tenantClientId, chatTargetStart, chatTargetEnd);
 
 
     const isOwner = userProfile?.role === 'owner';
@@ -629,7 +647,9 @@ export async function POST(request: Request) {
         name: i.name,
         live_stock: `${i.live_stock} ${i.unit}`,
         par_level: `${i.par_level} ${i.unit}`,
-        unit_price: `${i.price}₮`
+        unit_price: `${i.price}₮`,
+        abc_class: i.abc_class,
+        suggested_order: i.suggested_order
       })),
       all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
         name: m.name,
@@ -640,9 +660,12 @@ export async function POST(request: Request) {
       })),
       all_recipes: analyticsData.all_recipes,
       recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
+      margin_guard_alerts: analyticsData.margin_guard_alerts,
+      worker_fraud_matrix: analyticsData.worker_fraud_matrix,
       recent_worker_logs: analyticsData.recent_worker_logs,
       opex_breakdown: analyticsData.opex_details
     };
+
 
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
 

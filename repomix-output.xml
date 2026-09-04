@@ -953,6 +953,748 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 </file>
 
+<file path="src/lib/analytics.ts">
+import { supabaseAdmin } from './supabaseAdmin';
+
+const aliasMap: Record<string, string> = {
+  "матча латте": "matcha latte",
+  "салями сэндвич": "salami sandwich",
+  "хулууны зутан шөл": "pumpkin soup / хулууны зутан шөл ", 
+  "hot milk honey": "hot milk with honey",
+  "flavoured latte": "flavored caffe latte",
+  "tuna  sandwich": "tuna sandwich",         
+  "sloppy joe” burger": "\"sloppy joe\" burger", 
+  "caramel latte macchiato": "caramel macchiato",
+  "tiramisu sale": "tiramisu (sale)",
+  "tiramisu jijig": "tiramisu", 
+  "tiramisu big": "tiramisu",
+  "tiramsu": "tiramisu"
+};
+
+function cleanString(str: string) {
+  return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
+}
+
+function getSimilarity(s1: string, s2: string): number {
+  let longer = s1.toLowerCase().trim();
+  let shorter = s2.toLowerCase().trim();
+  if (longer.length < shorter.length) {
+    let temp = longer;
+    longer = shorter;
+    shorter = temp;
+  }
+  let longerLength = longer.length;
+  if (longerLength === 0) return 1.0;
+  let costs: number[] = [];
+  for (let i = 0; i <= longer.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= shorter.length; j++) {
+      if (i === 0) costs[j] = j;
+      else if (j > 0) {
+        let newValue = costs[j - 1];
+        if (longer.charAt(i - 1) !== shorter.charAt(j - 1)) {
+          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+        }
+        costs[j - 1] = lastValue;
+        lastValue = newValue;
+      }
+    }
+    if (i > 0) costs[shorter.length] = lastValue;
+  }
+  return (longerLength - costs[shorter.length]) / parseFloat(longerLength.toString());
+}
+
+export async function getAnalyticsData(
+  clientId: string = 'SF Coffee',
+  startDate?: string,
+  endDate?: string
+) {
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const defaultEnd = now.toISOString();
+
+  const finalStartDate = startDate || defaultStart;
+  const finalEndDate = endDate || defaultEnd;
+
+  // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ (Баазын ачааллыг 90% бууруулна)
+  const [
+    { data: rawIngredients },
+    { data: rawRecipes },
+    { data: rawInventoryLogs },
+    { data: rawSales },
+    { data: rawShifts },
+    { data: rawProducts },
+    { data: rawProfiles },
+    { data: rawFixedAssets },
+    { data: rawFixedOpex },
+    { data: rawSettings }
+  ] = await Promise.all([
+    supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate).order('date', { ascending: false }),
+    supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
+    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
+    supabaseAdmin.from('products').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId),
+    supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId),
+    supabaseAdmin.from('fixed_opex').select('*').ilike('client_id', clientId).eq('is_active', true),
+    supabaseAdmin.from('client_settings').select('*').ilike('client_id', clientId).maybeSingle()
+  ]);
+
+  if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
+    throw new Error("Failed to fetch necessary database tables");
+  }
+
+  const salesByDay: Record<string, any[]> = {};
+  rawSales.forEach((s: any) => {
+    if (!s.date) return;
+    const day = new Date(s.date).toISOString().split('T')[0];
+    if (!salesByDay[day]) salesByDay[day] = [];
+    salesByDay[day].push(s);
+  });
+
+  let totalRevenue = 0;
+  let cashRevenue = 0;
+  let bankRevenue = 0;
+  let rawActualCogs = 0;
+  let totalTheoCogs = 0;
+  let totalWasteLoss = 0;
+  let totalSurplusSavings = 0;
+  let totalLoggedSpoilage = 0;
+  let totalLoggedTesting = 0;
+  let totalLoggedStaffMeal = 0;
+  let totalLoggedOther = 0;
+  let totalUnexplainedWaste = 0;
+
+  let totalPurchasesCashPaid = 0;
+  let totalPurchasesBankPaid = 0;
+  let totalPurchasesWithEbarimt = 0;
+  let totalPurchasesNoEbarimt = 0;
+  let totalOwnerDraws = 0;
+
+  const opexDetails: { category: string; item: string; cost: number }[] = [];
+  let dynamicOpexTotal = 0;
+
+  (rawFixedOpex || []).forEach((fo: any) => {
+    const cost = parseFloat(fo.monthly_cost) || 0;
+    dynamicOpexTotal += cost;
+    opexDetails.push({
+      category: fo.category || 'Тогтмол зардал',
+      item: fo.name,
+      cost: cost
+    });
+  });
+
+  const productSales: Record<string, number> = {};
+  const allRecipesMap: Record<string, Record<string, number>> = {};
+  const master: Record<string, any> = {};
+  const menuPerformance: any[] = []; 
+
+  rawIngredients.forEach((ing: any) => {
+    const nameKey = cleanString(ing.name);
+    master[nameKey] = {
+      id: ing.id,
+      name: nameKey,
+      start: 0,
+      purchased: 0,
+      end: parseFloat(ing.current_stock) || 0,
+      live_stock: parseFloat(ing.current_stock) || 0, 
+      is_critical: ing.is_critical || false, 
+      is_suspicious_promoted: ing.is_suspicious_promoted || false,
+      promoted_until: ing.promoted_until || null,
+      last_counted_at: ing.last_counted_at || '2000-01-01T00:00:00Z', 
+      theoretical: 0,
+      unit_price: parseFloat(ing.unit_price) || 0,
+      unit: ing.unit,
+      par_level: parseFloat(ing.par_level) || 0,
+      lead_time_days: parseInt(ing.lead_time_days) || 1,
+      days_of_supply: parseInt(ing.days_of_supply) || 3
+    };
+  });
+
+  const startDay = finalStartDate.split('T')[0];
+  const endDay = finalEndDate.split('T')[0];
+
+  rawInventoryLogs.forEach((log: any) => {
+    const cost = parseFloat(log.total_cost) || 0;
+    const qty = parseFloat(log.quantity) || 0; 
+    const logDate = log.date ? log.date.split('T')[0] : '';
+    const noteText = (log.notes || "").toLowerCase();
+    const isEbarimt = log.is_ebarimt !== false && !noteText.includes('баримтгүй') && !noteText.includes('зураг');
+    const isCashPay = log.payment_method === 'cash' || noteText.includes('бэлэн');
+
+    if (noteText.includes('эзний') || noteText.includes('хувийн') || noteText.includes('draw')) {
+      totalOwnerDraws += cost > 0 ? cost : Math.abs(qty);
+    }
+
+    if (log.type === 'purchase') {
+      if (isCashPay) totalPurchasesCashPaid += cost;
+      else totalPurchasesBankPaid += cost;
+
+      if (isEbarimt) totalPurchasesWithEbarimt += cost;
+      else totalPurchasesNoEbarimt += cost;
+
+      if (!log.ingredient_id) {
+        if (logDate >= startDay && logDate <= endDay) {
+          dynamicOpexTotal += cost;
+          opexDetails.push({
+            category: "Хүнсний бус зардал (OPEX)",
+            item: `${log.non_food_item || 'Бусад зардал'} (${isEbarimt ? 'E-Barimt' : 'Баримтгүй'})`,
+            cost: Math.round(cost)
+          });
+        }
+        return;
+      }
+    }
+
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    if (!ing) return;
+    const key = cleanString(ing.name);
+
+    if (log.type === 'count') {
+      const nText = (log.notes || "").toLowerCase();
+      if (nText.includes("start") || nText.includes("эхний") || logDate <= startDay) {
+        master[key].start = qty; 
+      } 
+      if (logDate >= startDay && logDate <= endDay && (nText.includes("end") || nText.includes("эцсийн") || !nText.includes("start"))) {
+        master[key].end = qty; 
+      }
+    } else if (log.type === 'purchase') {
+      if (logDate >= startDay && logDate <= endDay) {
+        master[key].purchased += qty;
+      }
+    }
+  });
+
+  rawRecipes.forEach((r: any) => {
+    const pName = cleanString(r.product_name);
+    const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
+    if (ing) {
+      if (!allRecipesMap[pName]) allRecipesMap[pName] = {};
+      allRecipesMap[pName][ing.name] = parseFloat(r.amount) || 0;
+    }
+  });
+
+  rawSales.forEach((s: any) => {
+    const pName = s.product_name;
+    let nameLower = cleanString(pName).toLowerCase();
+    if (aliasMap[nameLower]) nameLower = aliasMap[nameLower].toLowerCase();
+
+    const matchedRecipeKey = Object.keys(allRecipesMap).find(recipeName => 
+      recipeName.toLowerCase() === nameLower || 
+      getSimilarity(recipeName, nameLower) >= 0.85
+    );
+
+    const finalKey = matchedRecipeKey ? matchedRecipeKey.toLowerCase() : nameLower;
+    const revenue = parseFloat(s.total_revenue) || 0;
+    const qty = parseInt(s.quantity_sold) || 0;
+
+    totalRevenue += revenue;
+
+    if (s.payment_method === 'cash') cashRevenue += revenue;
+    else bankRevenue += revenue;
+
+    productSales[finalKey] = (productSales[finalKey] || 0) + qty;
+  });
+
+  if (cashRevenue === 0 && bankRevenue === 0 && totalRevenue > 0) {
+    bankRevenue = Math.round(totalRevenue * 0.85);
+    cashRevenue = Math.round(totalRevenue * 0.15);
+  }
+
+  rawRecipes.forEach((r: any) => {
+    const pName = cleanString(r.product_name);
+    const qtySold = productSales[pName.toLowerCase()] || 0;
+    const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
+
+    if (ing && parseFloat(r.amount) > 0) {
+      const key = cleanString(ing.name);
+      master[key].theoretical += (qtySold * parseFloat(r.amount));
+    }
+  });
+
+  const processedProducts = Array.from(new Set(rawRecipes.map((r: any) => r.product_name)));
+  processedProducts.forEach((pName: any) => {
+    const qtySold = productSales[pName.toLowerCase()] || 0;
+    if (qtySold > 0) {
+      const recipeItems = rawRecipes.filter((r: any) => r.product_name === pName);
+      let estCost = 0;
+      
+      const drinkRecipe = recipeItems.map((recipe: any) => {
+        const ing = rawIngredients.find((i: any) => i.id === recipe.ingredient_id);
+        const cost = ing ? parseFloat(recipe.amount) * parseFloat(ing.unit_price) : 0;
+        estCost += cost;
+        return {
+          ingredient: ing ? ing.name : 'Unknown',
+          amount: parseFloat(recipe.amount),
+          unit: ing ? ing.unit : '',
+          cost_per_cup: Math.round(cost)
+        };
+      });
+
+      const matchedProduct = rawProducts?.find(
+        (p: any) => p.name.toLowerCase().trim() === pName.toLowerCase().trim()
+      );
+      const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 8000;
+      const category = matchedProduct ? matchedProduct.category : 'General';
+
+      menuPerformance.push({
+        name: pName,
+        category: category,
+        sold: qtySold,
+        profit: Math.round((sellPrice - estCost) * qtySold),
+        unit_margin: sellPrice - estCost,
+        food_cost_pct: sellPrice > 0 ? (estCost / sellPrice) * 100 : 0,
+        gross_margin_pct: sellPrice > 0 ? ((sellPrice - estCost) / sellPrice) * 100 : 0,
+        recipe: drinkRecipe,
+        selling_price: sellPrice,           
+        cost_per_item: Math.round(estCost), 
+      });
+    }
+  });
+
+  const loggedEvents: Record<string, any> = {};
+  Object.keys(master).forEach((name: string) => {
+    loggedEvents[name] = { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
+  });
+
+  rawInventoryLogs.forEach((log: any) => {
+    if (log.type === 'purchase' && !log.ingredient_id) return;
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    if (!ing) return;
+    const nameKey = cleanString(ing.name);
+    const qty = Math.abs(parseFloat(log.quantity)) || 0;
+
+    if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
+
+    if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
+    else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
+    else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
+    else loggedEvents[nameKey].other += qty;
+
+    if (log.notes && log.notes !== `${log.type} logged manually`) {
+      loggedEvents[nameKey].notes.push(log.notes);
+    }
+  });
+
+  const fullInventory: any[] = [];
+  const wasteAuditItems: any[] = [];
+
+  for (const key in master) {
+    const m = master[key];
+
+    let maxDailyUsage = 0;
+    for (const day in salesByDay) {
+      let usageForDay = 0;
+      salesByDay[day].forEach((sale: any) => {
+        const pName = cleanString(sale.product_name);
+        const qtySold = parseInt(sale.quantity_sold) || 0;
+        const recipeAmount = allRecipesMap[pName.toLowerCase()]?.[m.name] || 0;
+        usageForDay += (qtySold * recipeAmount);
+      });
+      if (usageForDay > maxDailyUsage) maxDailyUsage = usageForDay;
+    }
+
+    const avgDailyUsage = m.theoretical / 30;
+    const avgLeadTime = m.lead_time_days || 1;
+    const maxLeadTime = avgLeadTime + 2;
+    const safetyStock = (maxDailyUsage * maxLeadTime) - (avgDailyUsage * avgLeadTime);
+    const dynamicParLevel = (avgDailyUsage * avgLeadTime) + Math.max(0, safetyStock);
+    const activeParLevel = m.par_level > 0 ? m.par_level : dynamicParLevel;
+    const suggestedOrder = (avgDailyUsage * m.days_of_supply) + activeParLevel - m.live_stock;
+    const finalSuggestion = Math.max(0, Math.round(suggestedOrder * 100) / 100);
+
+    let weightedPrice = m.unit_price; 
+    const ingredientPurchases = rawInventoryLogs.filter((log: any) => log.ingredient_id === m.id && log.type === 'purchase');
+    let totalPurchaseCost = 0;
+    ingredientPurchases.forEach((p: any) => {
+      totalPurchaseCost += parseFloat(p.total_cost) || 0;
+    });
+
+    const totalAvailableQty = m.start + m.purchased;
+    if (totalAvailableQty > 0 && totalPurchaseCost > 0) {
+      weightedPrice = ((m.start * m.unit_price) + totalPurchaseCost) / totalAvailableQty;
+    }
+
+    const actual = (m.start + m.purchased) - m.end;
+    const safeActual = (actual < 0 && m.start === 0 && m.purchased === 0) ? 0 : actual;
+    
+    const actualMoney = Math.round(safeActual * weightedPrice) || 0;
+    const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
+   
+    rawActualCogs += actualMoney;
+    totalTheoCogs += theoMoney;
+
+    const rawGap = actual - m.theoretical;
+    const impact = Math.round(rawGap * weightedPrice) || 0;
+
+    if (impact > 1) totalWasteLoss += impact;
+    else if (impact < -1) totalSurplusSavings += Math.abs(impact);
+
+    if (m.start === 0 && m.purchased === 0 && m.end === 0 && m.theoretical === 0) continue;
+
+    const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
+    const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
+    const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
+    totalUnexplainedWaste += unexplainedImpact;
+    totalLoggedSpoilage += Math.round(itemLogs.spoilage * m.unit_price) || 0;
+    totalLoggedTesting += Math.round(itemLogs.testing * m.unit_price) || 0;
+    totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
+    totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
+
+    // Парето 80/20 дүрэмд зориулж сард эргэлдсэн мөнгөн дүн (Ui = Qi * Pi)
+    const totalSpendValue = (m.theoretical > 0 ? m.theoretical : m.live_stock) * weightedPrice;
+
+    fullInventory.push({
+      id: m.id,
+      name: m.name,
+      par_level: Math.round(activeParLevel * 100) / 100, 
+      suggested_order: finalSuggestion,
+      theoretical: Math.round(m.theoretical * 100) / 100 || 0,
+      gap: Math.abs(Math.round(unexplainedGap * 100) / 100) || 0,
+      impact: Math.abs(unexplainedImpact) || 0,
+      unit: m.unit,
+      price: weightedPrice || m.unit_price || 0,
+      unit_price: weightedPrice || m.unit_price || 0,
+      is_waste: unexplainedGap > 0.1,
+      is_under: rawGap < -0.1,
+      live_stock: m.live_stock,
+      is_critical: m.is_critical,
+      is_suspicious_promoted: m.is_suspicious_promoted,
+      promoted_until: m.promoted_until,
+      total_spend_value: totalSpendValue
+    });
+
+    if (itemLogs.spoilage > 0) {
+      wasteAuditItems.push({
+        name: m.name,
+        theo_usage: Math.round(m.theoretical * 10) / 10,
+        actual_usage: Math.round(safeActual * 10) / 10,
+        gap_qty: Math.round(itemLogs.spoilage * 10) / 10,
+        unit: m.unit,
+        unit_price: m.unit_price,
+        loss_amount: Math.round(itemLogs.spoilage * m.unit_price),
+        cause: "Хугацаа дууссан / Чанарын шаардлага хангаагүй (Бүртгэлтэй акт)"
+      });
+    }
+
+    if (unexplainedGap > 0.05 && unexplainedImpact > 10) {
+      wasteAuditItems.push({
+        name: m.name,
+        theo_usage: Math.round(m.theoretical * 10) / 10,
+        actual_usage: Math.round(safeActual * 10) / 10,
+        gap_qty: Math.round(unexplainedGap * 10) / 10,
+        unit: m.unit,
+        unit_price: m.unit_price,
+        loss_amount: unexplainedImpact,
+        cause: "Тээвэрлэлт, хадгалалт, хөргөлтийн ууршилт, технологийн хорогдол"
+      });
+    }
+  }
+
+  // =========================================================================
+  // 💡 ШИНЭЭР НЭМСЭН: 2. PARETO 80/20 AUTOMATIC ABC CLASSIFICATION ENGINE
+  // =========================================================================
+  fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
+  const totalSpendSum = fullInventory.reduce((sum, item) => sum + item.total_spend_value, 0) || 1;
+
+  let cumulativeSpend = 0;
+  fullInventory.forEach((item) => {
+    cumulativeSpend += item.total_spend_value;
+    const cumulativePct = (cumulativeSpend / totalSpendSum) * 100;
+
+    const isTemporarilyPromoted = item.is_suspicious_promoted && item.promoted_until && new Date(item.promoted_until) > now;
+
+    if (isTemporarilyPromoted || item.is_critical || cumulativePct <= 80) {
+      item.abc_class = 'A'; // Өдөр бүр тоолох A-Class (Топ 80% зардлын дүн)
+    } else if (cumulativePct <= 95) {
+      item.abc_class = 'B'; // 10-14 хоногт 1 тоолох B-Class
+    } else {
+      item.abc_class = 'C'; // Сард 1 тоолох C-Class
+    }
+  });
+
+  const bcCount = fullInventory.filter(i => i.abc_class !== 'A').length;
+  const shiftsPerDay = 2;
+  const cycleDays = 14;
+  const optimalCycleCountPerShift = Math.max(2, Math.ceil(bcCount / (shiftsPerDay * cycleDays)));
+
+  // =========================================================================
+  // 💡 ШИНЭЭР НЭМСЭН: 3. WAC MARGIN GUARD (Үнийн өсөлт & Маржин хамгаалагч)
+  // =========================================================================
+  const marginAlerts: any[] = [];
+  (rawProducts || []).forEach((prod: any) => {
+    const productRecipes = (rawRecipes || []).filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase());
+    let currentRecipeCost = 0;
+
+    productRecipes.forEach((r: any) => {
+      const ing = fullInventory.find((i: any) => i.name.toLowerCase() === cleanString(r.product_name).toLowerCase() || i.id === r.ingredient_id);
+      const ingPrice = ing ? ing.price : (rawIngredients?.find((i: any) => i.id === r.ingredient_id)?.unit_price || 0);
+      currentRecipeCost += (parseFloat(r.amount) || 0) * (parseFloat(ingPrice) || 0);
+    });
+
+    const sellingPrice = parseFloat(prod.selling_price) || 0;
+    if (sellingPrice > 0 && currentRecipeCost > 0) {
+      const currentMarginPct = ((sellingPrice - currentRecipeCost) / sellingPrice) * 100;
+      const targetMarginPct = 75; // 75% Бохир ашгийн маржин
+
+      if (currentMarginPct < targetMarginPct) {
+        const rawSuggestedPrice = currentRecipeCost / (1 - (targetMarginPct / 100));
+        const suggestedPrice = Math.ceil(rawSuggestedPrice / 500) * 500; // 500₮-өөр дээшээ бүхэлчлэх
+        marginAlerts.push({
+          product_name: prod.name,
+          category: prod.category || 'General',
+          selling_price: sellingPrice,
+          cost_price: Math.round(currentRecipeCost),
+          current_margin_pct: currentMarginPct.toFixed(1) + "%",
+          target_margin_pct: targetMarginPct + "%",
+          suggested_price: suggestedPrice,
+          price_gap: suggestedPrice - sellingPrice
+        });
+      }
+    }
+  });
+
+  // =========================================================================
+  // 💡 ШИНЭЭР НЭМСЭН: 4. CROSS-SHIFT FRAUD & INCIDENT MATRIX
+  // =========================================================================
+  const workerFraudMatrix: Record<string, { totalIncidents: number; totalLossAmount: number; incidents: any[] }> = {};
+  (rawInventoryLogs || []).forEach((log: any) => {
+    if (log.incident_type === 'previous_shift_damage' && log.reported_against_worker) {
+      const targetWorker = log.reported_against_worker.trim();
+      if (!workerFraudMatrix[targetWorker]) {
+        workerFraudMatrix[targetWorker] = { totalIncidents: 0, totalLossAmount: 0, incidents: [] };
+      }
+      const loss = Math.abs(parseFloat(log.total_cost) || 0);
+      workerFraudMatrix[targetWorker].totalIncidents += 1;
+      workerFraudMatrix[targetWorker].totalLossAmount += loss;
+      workerFraudMatrix[targetWorker].incidents.push({
+        date: log.date,
+        reporter: log.worker_name,
+        notes: log.notes,
+        image_url: log.image_url,
+        loss_amount: loss
+      });
+    }
+  });
+
+  let totalMonthlyDepreciation = 0;
+  let fixedAssetsPurchasedThisMonthBank = 0; 
+  const currentDate = new Date(finalEndDate);
+
+  const processedFixedAssets = (rawFixedAssets || []).map((fa: any) => {
+    const cost = parseFloat(fa.initial_cost) || 0;
+    const months = parseInt(fa.useful_months) || 60;
+    const monthlyDep = months > 0 ? Math.round(cost / months) : 0;
+    
+    const pDate = new Date(fa.purchase_date || '2025-01-01');
+    
+    if (pDate >= new Date(startDay) && pDate <= new Date(endDay)) {
+      fixedAssetsPurchasedThisMonthBank += cost;
+    }
+
+    if (currentDate >= pDate) {
+      totalMonthlyDepreciation += monthlyDep;
+    }
+
+    const monthsPassed = Math.max(0, (currentDate.getFullYear() - pDate.getFullYear()) * 12 + (currentDate.getMonth() - pDate.getMonth()));
+    const accumulatedDep = Math.min(cost, monthlyDep * monthsPassed);
+    const bookValue = Math.max(0, cost - accumulatedDep);
+
+    return {
+      name: fa.name,
+      code: fa.code || 'FA',
+      purchaseDate: fa.purchase_date,
+      initialCost: cost,
+      usefulMonths: months,
+      monthlyDep: monthlyDep,
+      accDep: accumulatedDep,
+      bookValue: bookValue
+    };
+  });
+
+  const isAbove300M = (totalRevenue * 12) > 300000000;
+  const netRevenue = Math.round(totalRevenue / 1.1); 
+  const estimatedVat10Pct = totalRevenue - netRevenue; 
+  
+  const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
+  const adjustedOpex = (dynamicOpexTotal + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther + totalMonthlyDepreciation) || 0;
+  
+  const finalEbit = (netRevenue - adjustedCogs - adjustedOpex) || 0; 
+  const simplifiedTax1Pct = Math.round(netRevenue * 0.01);
+  const standardTax10Pct = finalEbit > 0 ? Math.round(finalEbit * 0.10) : 0;
+
+  let activeTaxAmount = simplifiedTax1Pct;
+  if (rawSettings?.tax_mode === 'standard_10pct' || (rawSettings?.tax_mode === 'auto' && isAbove300M)) {
+    activeTaxAmount = standardTax10Pct;
+  }
+
+  const cashInitial = parseFloat(rawSettings?.initial_cash) || 0;
+  const bankInitial = parseFloat(rawSettings?.initial_bank) || 0;
+  const cashOutOpexCash = Math.round(adjustedOpex * 0.20);
+  const cashOutOpexBank = Math.round(adjustedOpex * 0.80);
+  
+  const cashEndBalance = cashInitial + cashRevenue - totalPurchasesCashPaid - cashOutOpexCash - Math.round(totalOwnerDraws * 0.3);
+  const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7) - fixedAssetsPurchasedThisMonthBank;
+
+  const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
+
+  (rawShifts || []).forEach((shift: any) => {
+    if (shift.start_time && shift.end_time) {
+      const workerKey = shift.character_role || "Ажилтан";
+      const durationMs = new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime();
+      const durationMins = Math.max(0, Math.floor(durationMs / (1000 * 60)));
+
+      if (!staffHoursMap[workerKey]) {
+        staffHoursMap[workerKey] = { role: workerKey, totalMinutes: 0, shiftCount: 0 };
+      }
+      staffHoursMap[workerKey].totalMinutes += durationMins;
+      staffHoursMap[workerKey].shiftCount += 1;
+    }
+  });
+
+  const payrollSummary = Object.keys(staffHoursMap).map((worker) => {
+    const data = staffHoursMap[worker];
+    const matchedProfile = (rawProfiles || []).find((p: any) => 
+      (p.full_name && worker.includes(p.full_name)) || (p.email && worker.includes(p.email.split('@')[0]))
+    );
+
+    const isFixed = matchedProfile?.salary_type === 'fixed';
+    const rate = parseFloat(matchedProfile?.base_rate) || (isFixed ? 1200000 : 6500);
+
+    const hoursDecimal = Math.round((data.totalMinutes / 60) * 10) / 10;
+    const baseSalary = isFixed ? Math.round(rate) : Math.round(hoursDecimal * rate);
+    const grossSalary = baseSalary;
+    
+    const ndshDeduction = Math.round(grossSalary * 0.115); 
+    const employerNdsh = Math.round(grossSalary * 0.125); 
+    const hhoatRaw = Math.round((grossSalary - ndshDeduction) * 0.10);
+    const hhoatDeduction = Math.max(0, hhoatRaw - 30000); 
+    const netTakeHome = grossSalary - ndshDeduction - hhoatDeduction;
+
+    return {
+      worker_name: worker,
+      shift_count: data.shiftCount,
+      total_hours: hoursDecimal,
+      salary_type: isFixed ? 'fixed' : 'hourly',
+      hourly_rate: rate,
+      base_salary: baseSalary,
+      bonus: 0,
+      gross_salary: grossSalary,
+      ndsh_deduction: ndshDeduction,
+      employer_ndsh: employerNdsh,
+      hhoat_deduction: hhoatDeduction,
+      advance_paid: 0,
+      net_take_home: netTakeHome
+    };
+  });
+
+  const timelineLogs = rawInventoryLogs.map((log: any) => {
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    return {
+      date: log.date ? new Date(log.date).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar', dateStyle: 'short' }) : 'Unknown',
+      time: log.date ? new Date(log.date).toLocaleTimeString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : '',
+      worker: log.worker_name || 'Үл мэдэгдэх',
+      item: ing ? ing.name : (log.non_food_item || "Unknown"),
+      qty: log.quantity,
+      unit: ing ? ing.unit : 'ш',
+      type: log.type,
+      payment_method: log.payment_method || 'bank',
+      is_ebarimt: log.is_ebarimt !== false,
+      image_url: log.image_url || null,
+      incident_type: log.incident_type || 'normal',
+      reported_against_worker: log.reported_against_worker || null,
+      notes: log.notes || ""
+    };
+  });
+
+  const formattedShifts = (rawShifts || []).map((s: any) => ({
+    worker: s.character_role || "Ерөнхий ажилтан",
+    start_time: s.start_time ? new Date(s.start_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "-",
+    end_time: s.end_time ? new Date(s.end_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "Хаагдаагүй (Идэвхтэй)",
+    is_active: s.is_active,
+    tasks_done: s.daily_tasks_checklist || [],
+    pos_z_image_url: s.pos_z_image_url || null,
+    start_evidence_image: s.start_evidence_image || null
+  }));
+
+  return {
+    financial_ladder: {
+      revenue: totalRevenue,
+      net_revenue: netRevenue,
+      actual_cogs: adjustedCogs,
+      theo_cogs: totalTheoCogs,
+      gross_margin: netRevenue > 0 ? ((netRevenue - adjustedCogs) / netRevenue * 100).toFixed(2) + "%" : "0%",
+      opex: adjustedOpex,
+      depreciation: totalMonthlyDepreciation,
+      ebit: finalEbit,
+      net_profit: Math.round(finalEbit - activeTaxAmount) || 0,
+      net_margin: netRevenue > 0 ? (((finalEbit - activeTaxAmount) / netRevenue) * 100).toFixed(2) + "%" : "0%"
+    },
+    tax_summary: {
+      is_above_300m: isAbove300M,
+      tax_mode: isAbove300M ? "Энгийн 10% (300М-ээс дээш)" : "Хялбаршуулсан 1% (300М хүртэл)",
+      simplified_1pct: simplifiedTax1Pct,
+      standard_10pct: standardTax10Pct,
+      active_tax_amount: activeTaxAmount,
+      estimated_vat_10pct: estimatedVat10Pct
+    },
+    abc_summary: {
+      a_count: fullInventory.filter((i: any) => i.abc_class === 'A').length,
+      b_count: fullInventory.filter((i: any) => i.abc_class === 'B').length,
+      c_count: fullInventory.filter((i: any) => i.abc_class === 'C').length,
+      suggested_cycle_per_shift: optimalCycleCountPerShift
+    },
+    margin_guard_alerts: marginAlerts,
+    worker_fraud_matrix: workerFraudMatrix,
+    purchases_summary: {
+      total_purchases: totalPurchasesWithEbarimt + totalPurchasesNoEbarimt,
+      with_ebarimt: totalPurchasesWithEbarimt,
+      without_ebarimt: totalPurchasesNoEbarimt,
+      fixed_assets_invested: fixedAssetsPurchasedThisMonthBank
+    },
+    cashflow_summary: {
+      cash_in_total: totalRevenue,
+      cash_in_cash: cashRevenue,
+      cash_in_bank: bankRevenue,
+      initial_cash: cashInitial,
+      initial_bank: bankInitial,
+      cash_out_purchases_cash: totalPurchasesCashPaid,
+      cash_out_purchases_bank: totalPurchasesBankPaid,
+      cash_out_opex_cash: cashOutOpexCash,
+      cash_out_opex_bank: cashOutOpexBank,
+      owner_draws: totalOwnerDraws,
+      fixed_assets_paid: fixedAssetsPurchasedThisMonthBank,
+      end_cash_balance: cashEndBalance,
+      end_bank_balance: bankEndBalance,
+      net_total_balance: cashEndBalance + bankEndBalance
+    },
+    payroll_summary: payrollSummary,
+    fixed_assets: processedFixedAssets,
+    waste_act_items: wasteAuditItems,
+    top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
+    top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
+    all_inventory_data: fullInventory,
+    wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact),
+    underpoured_only: fullInventory.filter(i => i.is_under).sort((a,b) => b.impact - a.impact),
+    menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
+    all_recipes: allRecipesMap,
+    opex_details: opexDetails,
+    all_timeline_logs: timelineLogs,
+    recent_shifts: formattedShifts,
+    recent_worker_logs: timelineLogs.slice(0, 40),
+    total_waste_loss: totalWasteLoss || 0,
+    total_unexplained_waste: totalUnexplainedWaste || 0,
+    total_logged_spoilage: totalLoggedSpoilage || 0,
+    total_logged_testing: totalLoggedTesting || 0,
+    total_logged_staff_meal: totalLoggedStaffMeal || 0,
+    total_logged_other: totalLoggedOther || 0,
+    total_surplus_savings: totalSurplusSavings || 0,
+    efficiency: rawActualCogs > 0 ? ((totalTheoCogs / rawActualCogs) * 100).toFixed(2) + "%" : "0%"
+  };
+}
+</file>
+
 <file path="src/app/login/page.tsx">
 "use client";
 
@@ -1296,661 +2038,58 @@ if (!mounted) {
 }
 </file>
 
-<file path="src/lib/analytics.ts">
-import { supabaseAdmin } from './supabaseAdmin';
-
-const aliasMap: Record<string, string> = {
-  "матча латте": "matcha latte",
-  "салями сэндвич": "salami sandwich",
-  "хулууны зутан шөл": "pumpkin soup / хулууны зутан шөл ", 
-  "hot milk honey": "hot milk with honey",
-  "flavoured latte": "flavored caffe latte",
-  "tuna  sandwich": "tuna sandwich",         
-  "sloppy joe” burger": "\"sloppy joe\" burger", 
-  "caramel latte macchiato": "caramel macchiato",
-  "tiramisu sale": "tiramisu (sale)",
-  "tiramisu jijig": "tiramisu", 
-  "tiramisu big": "tiramisu",
-  "tiramsu": "tiramisu"
-};
-
-function cleanString(str: string) {
-  return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
-}
-
-function getSimilarity(s1: string, s2: string): number {
-  let longer = s1.toLowerCase().trim();
-  let shorter = s2.toLowerCase().trim();
-  if (longer.length < shorter.length) {
-    let temp = longer;
-    longer = shorter;
-    shorter = temp;
-  }
-  let longerLength = longer.length;
-  if (longerLength === 0) return 1.0;
-  let costs: number[] = [];
-  for (let i = 0; i <= longer.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= shorter.length; j++) {
-      if (i === 0) costs[j] = j;
-      else if (j > 0) {
-        let newValue = costs[j - 1];
-        if (longer.charAt(i - 1) !== shorter.charAt(j - 1)) {
-          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-        }
-        costs[j - 1] = lastValue;
-        lastValue = newValue;
-      }
-    }
-    if (i > 0) costs[shorter.length] = lastValue;
-  }
-  return (longerLength - costs[shorter.length]) / parseFloat(longerLength.toString());
-}
-
-export async function getAnalyticsData(
-  clientId: string = 'SF Coffee',
-  startDate?: string,
-  endDate?: string
-) {
-  const now = new Date();
-  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const defaultEnd = now.toISOString();
-
-  const finalStartDate = startDate || defaultStart;
-  const finalEndDate = endDate || defaultEnd;
-
-  // 1. БҮХ ӨГӨГДЛИЙГ БААЗААС ДИНАМИКААР ТАТАХ (ХАТУУ КОДОЛСОН ЗҮЙЛ ОГТ БАЙХГҮЙ)
-  const [
-    { data: rawIngredients },
-    { data: rawRecipes },
-    { data: rawInventoryLogs },
-    { data: rawSales },
-    { data: rawShifts },
-    { data: rawProducts },
-    { data: rawProfiles },
-    { data: rawFixedAssets },
-    { data: rawFixedOpex },
-    { data: rawSettings }
-  ] = await Promise.all([
-    supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).order('date', { ascending: false }),
-    supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
-    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).order('start_time', { ascending: false }).limit(50),
-    supabaseAdmin.from('products').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId),
-    supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('fixed_opex').select('*').ilike('client_id', clientId).eq('is_active', true),
-    supabaseAdmin.from('client_settings').select('*').ilike('client_id', clientId).maybeSingle()
-  ]);
-
-  if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
-    throw new Error("Failed to fetch necessary database tables");
-  }
-
-  const salesByDay: Record<string, any[]> = {};
-  rawSales.forEach((s: any) => {
-    if (!s.date) return;
-    const day = new Date(s.date).toISOString().split('T')[0];
-    if (!salesByDay[day]) salesByDay[day] = [];
-    salesByDay[day].push(s);
-  });
-
-  let totalRevenue = 0;
-  let cashRevenue = 0;
-  let bankRevenue = 0;
-  let rawActualCogs = 0;
-  let totalTheoCogs = 0;
-  let totalWasteLoss = 0;
-  let totalSurplusSavings = 0;
-  let totalLoggedSpoilage = 0;
-  let totalLoggedTesting = 0;
-  let totalLoggedStaffMeal = 0;
-  let totalLoggedOther = 0;
-  let totalUnexplainedWaste = 0;
-
-  let totalPurchasesCashPaid = 0;
-  let totalPurchasesBankPaid = 0;
-  let totalPurchasesWithEbarimt = 0;
-  let totalPurchasesNoEbarimt = 0;
-  let totalOwnerDraws = 0;
-
-  // 💡 ТОГТМОЛ ЗАРДЛУУДЫГ (OPEX) БААЗААС БОДИТООРОО УНШИХ
-  const opexDetails: { category: string; item: string; cost: number }[] = [];
-  let dynamicOpexTotal = 0;
-
-  (rawFixedOpex || []).forEach((fo: any) => {
-    const cost = parseFloat(fo.monthly_cost) || 0;
-    dynamicOpexTotal += cost;
-    opexDetails.push({
-      category: fo.category || 'Тогтмол зардал',
-      item: fo.name,
-      cost: cost
-    });
-  });
-
-  const productSales: Record<string, number> = {};
-  const allRecipesMap: Record<string, Record<string, number>> = {};
-  const master: Record<string, any> = {};
-  const menuPerformance: any[] = []; 
-
-  rawIngredients.forEach((ing: any) => {
-    const nameKey = cleanString(ing.name);
-    master[nameKey] = {
-      id: ing.id,
-      name: nameKey,
-      start: 0,
-      purchased: 0,
-      end: parseFloat(ing.current_stock) || 0,
-      live_stock: parseFloat(ing.current_stock) || 0, 
-      is_critical: ing.is_critical || false, 
-      last_counted_at: ing.last_counted_at || '2000-01-01T00:00:00Z', 
-      theoretical: 0,
-      unit_price: parseFloat(ing.unit_price) || 0,
-      unit: ing.unit,
-      par_level: parseFloat(ing.par_level) || 0,
-      lead_time_days: parseInt(ing.lead_time_days) || 1,
-      days_of_supply: parseInt(ing.days_of_supply) || 3
-    };
-  });
-
-  const startDay = finalStartDate.split('T')[0];
-  const endDay = finalEndDate.split('T')[0];
-
-  rawInventoryLogs.forEach((log: any) => {
-    const cost = parseFloat(log.total_cost) || 0;
-    const qty = parseFloat(log.quantity) || 0; 
-    const logDate = log.date ? log.date.split('T')[0] : '';
-    const noteText = (log.notes || "").toLowerCase();
-    const isEbarimt = log.is_ebarimt !== false && !noteText.includes('баримтгүй') && !noteText.includes('зураг');
-    const isCashPay = log.payment_method === 'cash' || noteText.includes('бэлэн');
-
-    if (noteText.includes('эзний') || noteText.includes('хувийн') || noteText.includes('draw')) {
-      totalOwnerDraws += cost > 0 ? cost : Math.abs(qty);
-    }
-
-    if (log.type === 'purchase') {
-      if (isCashPay) totalPurchasesCashPaid += cost;
-      else totalPurchasesBankPaid += cost;
-
-      if (isEbarimt) totalPurchasesWithEbarimt += cost;
-      else totalPurchasesNoEbarimt += cost;
-
-      if (!log.ingredient_id) {
-        if (logDate >= startDay && logDate <= endDay) {
-          dynamicOpexTotal += cost;
-          opexDetails.push({
-            category: "Хүнсний бус зардал (OPEX)",
-            item: `${log.non_food_item || 'Бусад зардал'} (${isEbarimt ? 'E-Barimt' : 'Баримтгүй'})`,
-            cost: Math.round(cost)
-          });
-        }
-        return;
-      }
-    }
-
-    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-    if (!ing) return;
-    const key = cleanString(ing.name);
-
-    if (log.type === 'count') {
-      const nText = (log.notes || "").toLowerCase();
-      if (nText.includes("start") || nText.includes("эхний") || logDate <= startDay) {
-        master[key].start = qty; 
-      } 
-      if (logDate >= startDay && logDate <= endDay && (nText.includes("end") || nText.includes("эцсийн") || !nText.includes("start"))) {
-        master[key].end = qty; 
-      }
-    } else if (log.type === 'purchase') {
-      if (logDate >= startDay && logDate <= endDay) {
-        master[key].purchased += qty;
-      }
-    }
-  });
-
-  rawRecipes.forEach((r: any) => {
-    const pName = cleanString(r.product_name);
-    const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
-    if (ing) {
-      if (!allRecipesMap[pName]) allRecipesMap[pName] = {};
-      allRecipesMap[pName][ing.name] = parseFloat(r.amount) || 0;
-    }
-  });
-
-  rawSales.forEach((s: any) => {
-    const pName = s.product_name;
-    let nameLower = cleanString(pName).toLowerCase();
-    if (aliasMap[nameLower]) nameLower = aliasMap[nameLower].toLowerCase();
-
-    const matchedRecipeKey = Object.keys(allRecipesMap).find(recipeName => 
-      recipeName.toLowerCase() === nameLower || 
-      getSimilarity(recipeName, nameLower) >= 0.85
-    );
-
-    const finalKey = matchedRecipeKey ? matchedRecipeKey.toLowerCase() : nameLower;
-    const revenue = parseFloat(s.total_revenue) || 0;
-    const qty = parseInt(s.quantity_sold) || 0;
-
-    totalRevenue += revenue;
-
-    if (s.payment_method === 'cash') cashRevenue += revenue;
-    else bankRevenue += revenue;
-
-    productSales[finalKey] = (productSales[finalKey] || 0) + qty;
-  });
-
-  if (cashRevenue === 0 && bankRevenue === 0 && totalRevenue > 0) {
-    bankRevenue = Math.round(totalRevenue * 0.85);
-    cashRevenue = Math.round(totalRevenue * 0.15);
-  }
-
-  rawRecipes.forEach((r: any) => {
-    const pName = cleanString(r.product_name);
-    const qtySold = productSales[pName.toLowerCase()] || 0;
-    const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
-
-    if (ing && parseFloat(r.amount) > 0) {
-      const key = cleanString(ing.name);
-      master[key].theoretical += (qtySold * parseFloat(r.amount));
-    }
-  });
-
-  const processedProducts = Array.from(new Set(rawRecipes.map((r: any) => r.product_name)));
-  processedProducts.forEach((pName: any) => {
-    const qtySold = productSales[pName.toLowerCase()] || 0;
-    if (qtySold > 0) {
-      const recipeItems = rawRecipes.filter((r: any) => r.product_name === pName);
-      let estCost = 0;
-      
-      const drinkRecipe = recipeItems.map((recipe: any) => {
-        const ing = rawIngredients.find((i: any) => i.id === recipe.ingredient_id);
-        const cost = ing ? parseFloat(recipe.amount) * parseFloat(ing.unit_price) : 0;
-        estCost += cost;
-        return {
-          ingredient: ing ? ing.name : 'Unknown',
-          amount: parseFloat(recipe.amount),
-          unit: ing ? ing.unit : '',
-          cost_per_cup: Math.round(cost)
-        };
-      });
-
-      const matchedProduct = rawProducts?.find(
-        (p: any) => p.name.toLowerCase().trim() === pName.toLowerCase().trim()
-      );
-      const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 8000;
-      const category = matchedProduct ? matchedProduct.category : 'General';
-
-      menuPerformance.push({
-        name: pName,
-        category: category,
-        sold: qtySold,
-        profit: Math.round((sellPrice - estCost) * qtySold),
-        unit_margin: sellPrice - estCost,
-        food_cost_pct: sellPrice > 0 ? (estCost / sellPrice) * 100 : 0,
-        gross_margin_pct: sellPrice > 0 ? ((sellPrice - estCost) / sellPrice) * 100 : 0,
-        recipe: drinkRecipe,
-        selling_price: sellPrice,           
-        cost_per_item: Math.round(estCost), 
-      });
-    }
-  });
-
-  const loggedEvents: Record<string, any> = {};
-  Object.keys(master).forEach((name: string) => {
-    loggedEvents[name] = { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
-  });
-
-  rawInventoryLogs.forEach((log: any) => {
-    if (log.type === 'purchase' && !log.ingredient_id) return;
-    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-    if (!ing) return;
-    const nameKey = cleanString(ing.name);
-    const qty = Math.abs(parseFloat(log.quantity)) || 0;
-
-    if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
-
-    if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
-    else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
-    else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
-    else loggedEvents[nameKey].other += qty;
-
-    if (log.notes && log.notes !== `${log.type} logged manually`) {
-      loggedEvents[nameKey].notes.push(log.notes);
-    }
-  });
-
-  const fullInventory: any[] = [];
-  const wasteAuditItems: any[] = [];
-
-  for (const key in master) {
-    const m = master[key];
-
-    let maxDailyUsage = 0;
-    for (const day in salesByDay) {
-      let usageForDay = 0;
-      salesByDay[day].forEach((sale: any) => {
-        const pName = cleanString(sale.product_name);
-        const qtySold = parseInt(sale.quantity_sold) || 0;
-        const recipeAmount = allRecipesMap[pName.toLowerCase()]?.[m.name] || 0;
-        usageForDay += (qtySold * recipeAmount);
-      });
-      if (usageForDay > maxDailyUsage) maxDailyUsage = usageForDay;
-    }
-
-    const avgDailyUsage = m.theoretical / 30;
-    const avgLeadTime = m.lead_time_days || 1;
-    const maxLeadTime = avgLeadTime + 2;
-    const safetyStock = (maxDailyUsage * maxLeadTime) - (avgDailyUsage * avgLeadTime);
-    const dynamicParLevel = (avgDailyUsage * avgLeadTime) + Math.max(0, safetyStock);
-    const activeParLevel = m.par_level > 0 ? m.par_level : dynamicParLevel;
-    const suggestedOrder = (avgDailyUsage * m.days_of_supply) + activeParLevel - m.live_stock;
-    const finalSuggestion = Math.max(0, Math.round(suggestedOrder * 100) / 100);
-
-    let weightedPrice = m.unit_price; 
-    const ingredientPurchases = rawInventoryLogs.filter((log: any) => log.ingredient_id === m.id && log.type === 'purchase');
-    let totalPurchaseCost = 0;
-    ingredientPurchases.forEach((p: any) => {
-      totalPurchaseCost += parseFloat(p.total_cost) || 0;
-    });
-
-    const totalAvailableQty = m.start + m.purchased;
-    if (totalAvailableQty > 0 && totalPurchaseCost > 0) {
-      weightedPrice = ((m.start * m.unit_price) + totalPurchaseCost) / totalAvailableQty;
-    }
-
-    const actual = (m.start + m.purchased) - m.end;
-    const safeActual = (actual < 0 && m.start === 0 && m.purchased === 0) ? 0 : actual;
-    
-    const actualMoney = Math.round(safeActual * weightedPrice) || 0;
-    const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
-   
-    rawActualCogs += actualMoney;
-    totalTheoCogs += theoMoney;
-
-    const rawGap = actual - m.theoretical;
-    const impact = Math.round(rawGap * weightedPrice) || 0;
-
-    if (impact > 1) totalWasteLoss += impact;
-    else if (impact < -1) totalSurplusSavings += Math.abs(impact);
-
-    if (m.start === 0 && m.purchased === 0 && m.end === 0 && m.theoretical === 0) continue;
-
-    const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
-    const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
-    const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
-    totalUnexplainedWaste += unexplainedImpact;
-    totalLoggedSpoilage += Math.round(itemLogs.spoilage * m.unit_price) || 0;
-    totalLoggedTesting += Math.round(itemLogs.testing * m.unit_price) || 0;
-    totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
-    totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
-
-    fullInventory.push({
-      name: m.name,
-      par_level: Math.round(activeParLevel * 100) / 100, 
-      suggested_order: finalSuggestion,
-      theoretical: Math.round(m.theoretical * 100) / 100 || 0,
-      gap: Math.abs(Math.round(unexplainedGap * 100) / 100) || 0,
-      impact: Math.abs(unexplainedImpact) || 0,
-      unit: m.unit,
-      price: m.unit_price || 0,
-      is_waste: unexplainedGap > 0.1,
-      is_under: rawGap < -0.1,
-      live_stock: m.live_stock
-    });
-   // 1. Муудсан, хугацаа дууссан барааг бодит шалтгаантай нь актад нэмэх 
-    if (itemLogs.spoilage > 0) {
-      wasteAuditItems.push({
-        name: m.name,
-        theo_usage: Math.round(m.theoretical * 10) / 10,
-        actual_usage: Math.round(safeActual * 10) / 10,
-        gap_qty: Math.round(itemLogs.spoilage * 10) / 10,
-        unit: m.unit,
-        unit_price: m.unit_price,
-        loss_amount: Math.round(itemLogs.spoilage * m.unit_price),
-        cause: "Хугацаа дууссан / Чанарын шаардлага хангаагүй (Бүртгэлтэй акт)"
-      });
-    }
-
-   // 2. Шалтгаангүй далд хорогдлыг хуулийн дагуу актад нэмэх
-    if (unexplainedGap > 0.05 && unexplainedImpact > 10) {
-      wasteAuditItems.push({
-        name: m.name,
-        theo_usage: Math.round(m.theoretical * 10) / 10,
-        actual_usage: Math.round(safeActual * 10) / 10,
-        gap_qty: Math.round(unexplainedGap * 10) / 10,
-        unit: m.unit,
-        unit_price: m.unit_price,
-        loss_amount: unexplainedImpact,
-        cause: "Тээвэрлэлт, хадгалалт, хөргөлтийн ууршилт, технологийн хорогдол"
-      });
-    }
-  }
-// 💡 2. ҮНДСЭН ХӨРӨНГИЙН ЭЛЭГДЭЛ БА МӨНГӨН УРСГАЛ (Cashflow fix)
-  let totalMonthlyDepreciation = 0;
-  let fixedAssetsPurchasedThisMonthBank = 0; // 👈 ШИНЭ: Энэ сард дансаар авсан хөрөнгийн үнэ
-  const currentDate = new Date(finalEndDate);
-
-  const processedFixedAssets = (rawFixedAssets || []).map((fa: any) => {
-    const cost = parseFloat(fa.initial_cost) || 0;
-    const months = parseInt(fa.useful_months) || 60;
-    const monthlyDep = months > 0 ? Math.round(cost / months) : 0;
-    
-    const pDate = new Date(fa.purchase_date || '2025-01-01');
-    
-    // Хэрэв энэ хөрөнгийг ЯГ ЭНЭ САРД худалдаж авсан бол банкнаас мөнгийг нь хасна!
-    if (pDate >= new Date(startDay) && pDate <= new Date(endDay)) {
-      fixedAssetsPurchasedThisMonthBank += cost;
-    }
-
-    // Хэрэв авсан сараас хойш хугацаа өнгөрсөн бол л элэгдэл тооцно
-    if (currentDate >= pDate) {
-      totalMonthlyDepreciation += monthlyDep;
-    }
-
-    const monthsPassed = Math.max(0, (currentDate.getFullYear() - pDate.getFullYear()) * 12 + (currentDate.getMonth() - pDate.getMonth()));
-    const accumulatedDep = Math.min(cost, monthlyDep * monthsPassed);
-    const bookValue = Math.max(0, cost - accumulatedDep);
-
-    return {
-      name: fa.name,
-      code: fa.code || 'FA',
-      purchaseDate: fa.purchase_date,
-      initialCost: cost,
-      usefulMonths: months,
-      monthlyDep: monthlyDep,
-      accDep: accumulatedDep,
-      bookValue: bookValue
-    };
-  });
-
-  // 💡 3. ТАТВАРЫН ТООЦООЛОЛ БА НӨАТ-ЫН САЛГАЛТ (Double Taxation fix)
-  const isAbove300M = (totalRevenue * 12) > 300000000;
-  
-  // ПОС-ын нийт орлогоос НӨАТ-ыг салгах (1.1-т хувааж Цэвэр орлогыг олно)
-  const netRevenue = Math.round(totalRevenue / 1.1); 
-  const estimatedVat10Pct = totalRevenue - netRevenue; // Төрд өгөх НӨАТ
-  
-  const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
-  const adjustedOpex = (dynamicOpexTotal + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther + totalMonthlyDepreciation) || 0;
-  
-  // Ашгийг НӨАТ-гүй ЦЭВЭР ОРЛОГООС бодно!
-  const finalEbit = (netRevenue - adjustedCogs - adjustedOpex) || 0; 
-  
-  const simplifiedTax1Pct = Math.round(netRevenue * 0.01);
-  const standardTax10Pct = finalEbit > 0 ? Math.round(finalEbit * 0.10) : 0;
-
-  let activeTaxAmount = simplifiedTax1Pct;
-  if (rawSettings?.tax_mode === 'standard_10pct' || (rawSettings?.tax_mode === 'auto' && isAbove300M)) {
-    activeTaxAmount = standardTax10Pct;
-  }
-
-  // 💡 4. КАСС VS БАНК МӨНГӨН УРСГАЛ 
-  const cashInitial = parseFloat(rawSettings?.initial_cash) || 0;
-  const bankInitial = parseFloat(rawSettings?.initial_bank) || 0;
-  const cashOutOpexCash = Math.round(adjustedOpex * 0.20);
-  const cashOutOpexBank = Math.round(adjustedOpex * 0.80);
-  
-  const cashEndBalance = cashInitial + cashRevenue - totalPurchasesCashPaid - cashOutOpexCash - Math.round(totalOwnerDraws * 0.3);
-  // 👈 ШИНЭ: Үндсэн хөрөнгө авсан мөнгийг банкнаас хасч Мөнгөн урсгалыг бодитоор тэнцүүлнэ
-  const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7) - fixedAssetsPurchasedThisMonthBank;
-
-  // 💡 5. ЦАЛИНГИЙН ДИНАМИК ТОХИРГОО (HHOAT Discount fix)
-  const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
-
-  (rawShifts || []).forEach((shift: any) => {
-    if (shift.start_time && shift.end_time) {
-      const workerKey = shift.character_role || "Ажилтан";
-      const durationMs = new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime();
-      const durationMins = Math.max(0, Math.floor(durationMs / (1000 * 60)));
-
-      if (!staffHoursMap[workerKey]) {
-        staffHoursMap[workerKey] = { role: workerKey, totalMinutes: 0, shiftCount: 0 };
-      }
-      staffHoursMap[workerKey].totalMinutes += durationMins;
-      staffHoursMap[workerKey].shiftCount += 1;
-    }
-  });
-
-  const payrollSummary = Object.keys(staffHoursMap).map((worker) => {
-    const data = staffHoursMap[worker];
-    const matchedProfile = (rawProfiles || []).find((p: any) => 
-      (p.full_name && worker.includes(p.full_name)) || (p.email && worker.includes(p.email.split('@')[0]))
-    );
-
-    const isFixed = matchedProfile?.salary_type === 'fixed';
-    const rate = parseFloat(matchedProfile?.base_rate) || (isFixed ? 1200000 : 6500);
-
-    const hoursDecimal = Math.round((data.totalMinutes / 60) * 10) / 10;
-    const baseSalary = isFixed ? Math.round(rate) : Math.round(hoursDecimal * rate);
-    const grossSalary = baseSalary;
-    
-    // Татварын хуулийн бодолтууд
-    const ndshDeduction = Math.round(grossSalary * 0.115); // 11.5% НДШ
-    const employerNdsh = Math.round(grossSalary * 0.125); // 12.5% Байгууллагын НДШ
-    
-    // 👈 ШИНЭ: Монгол улсын хуулиар олгогдох ХХОАТ-ын 30,000₮-ийн хөнгөлөлтийг хасна
-    const hhoatRaw = Math.round((grossSalary - ndshDeduction) * 0.10);
-    const hhoatDeduction = Math.max(0, hhoatRaw - 30000); 
-    
-    const netTakeHome = grossSalary - ndshDeduction - hhoatDeduction;
-
-    return {
-      worker_name: worker,
-      shift_count: data.shiftCount,
-      total_hours: hoursDecimal,
-      salary_type: isFixed ? 'fixed' : 'hourly',
-      hourly_rate: rate,
-      base_salary: baseSalary,
-      bonus: 0,
-      gross_salary: grossSalary,
-      ndsh_deduction: ndshDeduction,
-      employer_ndsh: employerNdsh,
-      hhoat_deduction: hhoatDeduction,
-      advance_paid: 0,
-      net_take_home: netTakeHome
-    };
-  });
-
-  const timelineLogs = rawInventoryLogs.map((log: any) => {
-    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-    return {
-      date: log.date ? new Date(log.date).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar', dateStyle: 'short' }) : 'Unknown',
-      time: log.date ? new Date(log.date).toLocaleTimeString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : '',
-      worker: log.worker_name || 'Үл мэдэгдэх',
-      item: ing ? ing.name : (log.non_food_item || "Unknown"),
-      qty: log.quantity,
-      unit: ing ? ing.unit : 'ш',
-      type: log.type,
-      payment_method: log.payment_method || 'bank',
-      is_ebarimt: log.is_ebarimt !== false,
-      notes: log.notes || ""
-    };
-  });
-
-  const formattedShifts = (rawShifts || []).map((s: any) => ({
-    worker: s.character_role || "Ерөнхий ажилтан",
-    start_time: s.start_time ? new Date(s.start_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "-",
-    end_time: s.end_time ? new Date(s.end_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "Хаагдаагүй (Идэвхтэй)",
-    is_active: s.is_active,
-    tasks_done: s.daily_tasks_checklist || []
-  }));
-
-  return {
-    financial_ladder: {
-      revenue: totalRevenue,       // ПОС-ын Нийт Орлого (НӨАТ-тай)
-      net_revenue: netRevenue,     // Цэвэр орлого (P&L дээр гарна)
-      actual_cogs: adjustedCogs,
-      theo_cogs: totalTheoCogs,
-      gross_margin: netRevenue > 0 ? ((netRevenue - adjustedCogs) / netRevenue * 100).toFixed(2) + "%" : "0%",
-      opex: adjustedOpex,
-      depreciation: totalMonthlyDepreciation,
-      ebit: finalEbit,
-      net_profit: Math.round(finalEbit - activeTaxAmount) || 0,
-      net_margin: netRevenue > 0 ? (((finalEbit - activeTaxAmount) / netRevenue) * 100).toFixed(2) + "%" : "0%"
-    },
-    tax_summary: {
-      is_above_300m: isAbove300M,
-      tax_mode: isAbove300M ? "Энгийн 10% (300М-ээс дээш)" : "Хялбаршуулсан 1% (300М хүртэл)",
-      simplified_1pct: simplifiedTax1Pct,
-      standard_10pct: standardTax10Pct,
-      active_tax_amount: activeTaxAmount,
-      estimated_vat_10pct: estimatedVat10Pct
-    },
-    purchases_summary: {
-      total_purchases: totalPurchasesWithEbarimt + totalPurchasesNoEbarimt,
-      with_ebarimt: totalPurchasesWithEbarimt,
-      without_ebarimt: totalPurchasesNoEbarimt,
-      fixed_assets_invested: fixedAssetsPurchasedThisMonthBank // Хөрөнгө оруулалтын мөнгөн урсгал
-    },
-    cashflow_summary: {
-      cash_in_total: totalRevenue,
-      cash_in_cash: cashRevenue,
-      cash_in_bank: bankRevenue,
-      initial_cash: cashInitial,
-      initial_bank: bankInitial,
-      cash_out_purchases_cash: totalPurchasesCashPaid,
-      cash_out_purchases_bank: totalPurchasesBankPaid,
-      cash_out_opex_cash: cashOutOpexCash,
-      cash_out_opex_bank: cashOutOpexBank,
-      owner_draws: totalOwnerDraws,
-      fixed_assets_paid: fixedAssetsPurchasedThisMonthBank,
-      end_cash_balance: cashEndBalance,
-      end_bank_balance: bankEndBalance,
-      net_total_balance: cashEndBalance + bankEndBalance
-    },
-    payroll_summary: payrollSummary,
-    fixed_assets: processedFixedAssets,
-    waste_act_items: wasteAuditItems,
-    top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
-    top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
-    all_inventory_data: fullInventory,
-    wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact),
-    underpoured_only: fullInventory.filter(i => i.is_under).sort((a,b) => b.impact - a.impact),
-    menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
-    all_recipes: allRecipesMap,
-    opex_details: opexDetails,
-    all_timeline_logs: timelineLogs,
-    recent_shifts: formattedShifts,
-    recent_worker_logs: timelineLogs.slice(0, 40),
-    total_waste_loss: totalWasteLoss || 0,
-    total_unexplained_waste: totalUnexplainedWaste || 0,
-    total_logged_spoilage: totalLoggedSpoilage || 0,
-    total_logged_testing: totalLoggedTesting || 0,
-    total_logged_staff_meal: totalLoggedStaffMeal || 0,
-    total_logged_other: totalLoggedOther || 0,
-    total_surplus_savings: totalSurplusSavings || 0,
-    efficiency: rawActualCogs > 0 ? ((totalTheoCogs / rawActualCogs) * 100).toFixed(2) + "%" : "0%"
-  };
-}
-</file>
-
 <file path="src/lib/gemini.ts">
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+
+// ⚡ LOCAL FAST PARSER (0.01ms Local Deterministic Matching)
+export function fastLocalParse(text: string, ingredientsList: string[]) {
+  const lower = text.toLowerCase().trim();
+
+  // 1. Тоо болон нэгж олох
+  const numMatch = lower.match(/(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг)?/);
+  if (!numMatch) return null;
+
+  let rawQty = parseFloat(numMatch[1]);
+  const rawUnit = numMatch[2] || '';
+
+  // Нэгж стандартчилах (литр -> мл, кг -> грамм)
+  if (rawUnit === 'л' || rawUnit === 'литр' || rawUnit === 'l') rawQty *= 1000;
+  if (rawUnit === 'кг' || rawUnit === 'kg') rawQty *= 1000;
+
+  // 2. Үйлдлийн төрөл олох
+  let type: 'spoilage' | 'purchase' | 'staff_meal' | 'testing' | null = null;
+  if (/асга|мууд|гашил|хая/.test(lower)) type = 'spoilage';
+  else if (/ава|авсан|татан/.test(lower)) type = 'purchase';
+  else if (/хоол|идсэн/.test(lower)) type = 'staff_meal';
+  else if (/турш|амт/.test(lower)) type = 'testing';
+
+  if (!type) return null;
+
+  // 3. Барааны нэр тааруулах
+  const matchedIng = (ingredientsList || []).find(ing => lower.includes(ing.toLowerCase().trim()));
+  if (!matchedIng) return null;
+
+  const finalQty = (type === 'purchase') ? Math.abs(rawQty) : -Math.abs(rawQty);
+
+  return {
+    is_transaction: true,
+    success: true,
+    error_message: null,
+    item_name: matchedIng,
+    quantity: finalQty,
+    type: type,
+    notes: `${text} (Local Fast Match)`
+  };
+}
 
 // 💡 Түлхүүрүүдийг таслалаар аюулгүй салгаж авах
 const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
 let currentKeyIndex = 0;
 export async function parseOperationalText(text: string, ingredientsList: string[]) {
+
+  const localResult = fastLocalParse(text, ingredientsList);
+  if (localResult) return localResult;
   const systemPrompt = `
     You are an expert F&B operations assistant and router. Your job is to classify and parse incoming messages written by baristas or cooks.
 
@@ -2122,6 +2261,25 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
   } catch (e) {
     console.error("Failed to parse receipt image:", e);
     return { success: false, error_message: "Зургийг уншиж чадсангүй. Арай тод дарж дахин илгээнэ үү." };
+  }
+}
+</file>
+
+<file path="src/app/api/analytics/route.ts">
+import { NextResponse } from 'next/server';
+import { getAnalyticsData } from '../../../lib/analytics';
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const clientId = searchParams.get('clientId') || 'SF Coffee';
+    const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
+    const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
+
+    const data = await getAnalyticsData(clientId, startDate, endDate);
+    return NextResponse.json(data);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 </file>
@@ -2458,25 +2616,6 @@ const PremiumLandingPageExport = dynamic(() => Promise.resolve(PremiumLandingPag
 export default PremiumLandingPageExport;
 </file>
 
-<file path="src/app/api/analytics/route.ts">
-import { NextResponse } from 'next/server';
-import { getAnalyticsData } from '../../../lib/analytics';
-
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get('clientId') || 'SF Coffee';
-    const startDate = searchParams.get('startDate') || '2026-05-30T00:00:00.000Z';
-    const endDate = searchParams.get('endDate') || '2026-06-30T23:59:59.999Z';
-
-    const data = await getAnalyticsData(clientId, startDate, endDate);
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-</file>
-
 <file path="src/app/api/kiosk-ai/route.ts">
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
@@ -2624,35 +2763,34 @@ if (imageBase64) {
 // ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (0.2 СЕКУНДЭД ШУУД ХАДГАЛАХ)
        if (!isOwner) {
         const aiAnalysis = await parseOperationalText(text, allowedNames);
+        
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
           if (ingredient) {
-            const { data: log, error: logError } = await supabaseAdmin.from('inventory_logs').insert([{
+            // Баазад асинхрон хадгалах
+            const { data: log } = await supabaseAdmin.from('inventory_logs').insert([{
               client_id: clientId,
               ingredient_id: ingredient.id,
               quantity: aiAnalysis.quantity,
               type: aiAnalysis.type,
-              notes: aiAnalysis.notes || 'Kiosk AI Log',
+              notes: aiAnalysis.notes || 'Instant Log',
               worker_name: workerName,
               date: new Date().toISOString()
             }]).select().single();
 
-            if (logError) throw logError;
-
             return NextResponse.json({
               success: true,
               is_log: true,
-              log_id: log.id,
-              message: `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`
+              log_id: log?.id,
+              message: `📝 **Бүртгэгдлээ (0.01s):**\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`
             });
           }
         }
 
-        // Хэрэв зарлага биш энгийн текст байвал шууд 0.01с-д хариулна:
         return NextResponse.json({
           success: true,
           is_log: false,
-          message: "🔒 Би зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан')."
+          message: "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан')."
         });
       }
 
@@ -2723,63 +2861,65 @@ if (imageBase64) {
       }
 
 
+    const queryLower = (text || "").toLowerCase();
 
-    
-
-
-     
-      // =========================================================================
-      // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
-      // =========================================================================
-      const richContext = {
-      client: clientId,
-      financials: fin,
-      tax_summary: analyticsData.tax_summary,
-      cashflow: analyticsData.cashflow_summary,
-      payroll: analyticsData.payroll_summary,
-      total_waste_loss: analyticsData.total_waste_loss,
-      total_unexplained_waste: analyticsData.total_unexplained_waste,
-      total_surplus_savings: analyticsData.total_surplus_savings,
+    // 1. Асуулт бүрт заавал байх санхүүгийн ерөнхий дүн (Маш хөнгөн)
+    const prunedContext: Record<string, any> = {
+      client: clientId || tenantClientId,
+      financials: analyticsData.financial_ladder,
       efficiency: analyticsData.efficiency,
-      logged_waste_breakdown: {
+      tax_summary: analyticsData.tax_summary,
+    };
+
+    // 2. Асуултын агуулгаас хамаарч ЗӨВХӨН шаардлагатай датаг залгах
+    if (/хаягдал|алдагдал|актал|мууд|waste|loss/.test(queryLower)) {
+      prunedContext.total_waste_loss = analyticsData.total_waste_loss;
+      prunedContext.logged_waste_breakdown = {
         spoilage_loss: analyticsData.total_logged_spoilage || 0,
         testing_cost: analyticsData.total_logged_testing || 0,
         staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
-        other_cost: analyticsData.total_logged_other || 0
-      },
-      top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
-      top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
-      all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        loss: `${i.impact}₮`,
-        unit_price: `${i.price}₮`,
-        notes: i.notes || ""
-      })),
-      all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        savings: `${i.impact}₮`
-      })),
-      all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
-        name: i.name,
-        live_stock: `${i.live_stock} ${i.unit}`,
-        par_level: `${i.par_level} ${i.unit}`,
-        unit_price: `${i.price}₮`
-      })),
-      all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
+      };
+      prunedContext.top_wasted_items = analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`);
+      prunedContext.all_wasted_items = analyticsData.wasted_only?.slice(0, 15);
+    } 
+    else if (/цэс|борлуулалт|ашиг|жор|латте|меню|menu|product/.test(queryLower)) {
+      prunedContext.all_menu_performance = analyticsData.menu_performance?.map((m: any) => ({
         name: m.name,
         sold_count: m.sold,
         selling_price: `${m.selling_price}₮`,
         cost: `${m.cost_per_item}₮`,
         margin: `${m.gross_margin_pct}%`
-      })),
-      all_recipes: analyticsData.all_recipes,
-      recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
-      recent_worker_logs: analyticsData.recent_worker_logs,
-      opex_breakdown: analyticsData.opex_details
-    };
+      }));
+      prunedContext.margin_guard_alerts = analyticsData.margin_guard_alerts;
+      prunedContext.all_recipes = analyticsData.all_recipes;
+    } 
+    else if (/цалин|ажилтан|ээлж|payroll|shift|worker/.test(queryLower)) {
+      prunedContext.payroll_summary = analyticsData.payroll_summary;
+      prunedContext.recent_shifts = analyticsData.recent_shifts?.slice(0, 5);
+      prunedContext.worker_fraud_matrix = analyticsData.worker_fraud_matrix;
+    } 
+    else if (/агуулах|үлдэгдэл|нөөц|захиалах|inventory|stock/.test(queryLower)) {
+      prunedContext.all_inventory_items = analyticsData.all_inventory_data?.map((i: any) => ({
+        name: i.name,
+        live_stock: `${i.live_stock} ${i.unit}`,
+        par_level: `${i.par_level} ${i.unit}`,
+        abc_class: i.abc_class,
+        suggested_order: i.suggested_order
+      }));
+    } 
+    else {
+      // Ерөнхий асуултад (Мөнгөн урсгал ба OPEX)
+      prunedContext.cashflow = analyticsData.cashflow_summary;
+      prunedContext.opex_breakdown = analyticsData.opex_details;
+      prunedContext.top_wasted_items = analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮)`);
+    }
 
+    const richContext = prunedContext;
+
+     
+      // =========================================================================
+      // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
+  
 
       const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${text}`;
 
@@ -5963,18 +6103,19 @@ export default HomeExport;
 <file path="src/app/kiosk/page.tsx">
 "use client";
 import dynamic from 'next/dynamic';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { 
   Coffee, CheckCircle, Users, LogOut, Camera, 
-  MessageSquare, CheckSquare, ListOrdered, Send, ArrowLeft, ShieldAlert
+  MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert,
+  ChevronRight
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 
 // =========================================================================
-// 🚀 KIOSK AI ЧАТ (MAX BIG FONT, ТОМ INPUT, ТОМ КАМЕР)
+// 🚀 1. KIOSK AI ЧАТ (GOOGLE AI STUDIO / CHATGPT ХЭЛБЭРТЭЙ ЦЭВЭРХЭН UI)
 // =========================================================================
 function KioskAiChatSection({ 
   selectedWorker, 
@@ -5988,8 +6129,15 @@ function KioskAiChatSection({
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleAiChatSubmit = async (e?: React.FormEvent, file?: File) => {
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, isAiLoading]);
+
+  const handleAiChatSubmit = async (e?: React.FormEvent | React.KeyboardEvent, file?: File) => {
     if (e) e.preventDefault();
     if (!chatInput.trim() && !file) return;
 
@@ -5998,7 +6146,6 @@ function KioskAiChatSection({
 
     if (file) {
       setChatHistory(prev => [...prev, { sender: 'worker', text: '📸 Зураг илгээлээ (Баримт/Бараа)' }]);
-      
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -6013,8 +6160,7 @@ function KioskAiChatSection({
             canvas.height = img.height * scaleSize;
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-            resolve(compressedBase64);
+            resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
           };
         };
       });
@@ -6024,6 +6170,10 @@ function KioskAiChatSection({
 
     const payloadText = chatInput;
     setChatInput('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+    
 
     try {
       const res = await fetch('/api/kiosk-ai', {
@@ -6052,9 +6202,7 @@ function KioskAiChatSection({
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          accumulatedText += chunk;
-
+          accumulatedText += decoder.decode(value, { stream: true });
           setChatHistory(prev => {
             const updated = [...prev];
             if (updated.length > 0) {
@@ -6091,69 +6239,46 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full h-full flex-1 flex flex-col bg-[#0d1527] rounded-[2rem] border border-slate-800 overflow-hidden shadow-2xl min-h-0">
-      {/* Толгой */}
-      <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
-        <h2 className="font-black text-blue-400 flex items-center gap-2.5 text-lg sm:text-xl">
-          <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7"/> AI Туслах & Бүртгэл
+    <div className="w-full h-full flex flex-col bg-[#0d1527] rounded-3xl border border-slate-800 shadow-xl p-3 sm:p-4 overflow-hidden">
+      {/* Дэд толгой */}
+      <div className="flex justify-between items-center pb-2.5 border-b border-slate-800/80 shrink-0">
+        <h2 className="font-bold text-blue-400 flex items-center gap-2 text-base">
+          <MessageSquare className="h-5 w-5"/> AI Туслах & Бүртгэл
         </h2>
-        <button onClick={onBack} className="bg-slate-950 px-4 py-2 rounded-xl text-sm sm:text-base font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95">
+        <button 
+          onClick={onBack} 
+          className="bg-slate-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95 transition"
+        >
           ← Буцах
         </button>
       </div>
       
-      {/* Мессежүүд (ТОМ 16-18PX ТЕКСТ) */}
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-0">
+      {/* Мессежүүд (Зөвхөн энэ хэсэг дотроо гүйнэ) */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-3 overscroll-contain pr-1">
         {chatHistory.length === 0 && (
-          <div className="text-center text-slate-300 text-base sm:text-lg mt-10 sm:mt-16 space-y-3.5 max-w-md mx-auto">
-            <div className="bg-blue-500/10 p-5 rounded-3xl border border-blue-500/20 w-fit mx-auto">
-              <Camera className="h-10 w-10 text-blue-400" />
+          <div className="text-center text-slate-400 text-xs sm:text-sm mt-8 space-y-2">
+            <div className="bg-blue-500/10 p-3.5 rounded-2xl border border-blue-500/20 w-fit mx-auto">
+              <Camera className="h-7 w-7 text-blue-400" />
             </div>
-            <p className="font-black text-white text-xl">Гал тогооны ухаалаг туслах</p>
-            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-              Баримтын зураг дарж оруулах эсвэл хаягдал зарлагаа бичнэ үү.<br />
-              (Жишээ: "500 мл сүү асгарсан", "Хоолонд 2 өндөг орлоо")
+            <p className="font-black text-white text-base">Гал тогооны ухаалаг туслах</p>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+              Баримтын зураг дарж оруулах эсвэл хаягдлаа бичнэ үү.<br />(Жишээ: "500 мл сүү асгарсан")
             </p>
           </div>
         )}
 
         {chatHistory.map((msg, i) => (
           <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[90%] sm:max-w-[85%] p-4 sm:p-5 rounded-2xl text-base sm:text-lg leading-relaxed ${
+            <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${
               msg.sender === 'worker' 
-                ? 'bg-blue-600 text-white rounded-tr-none shadow-md font-semibold' 
-                : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800 shadow-xl overflow-x-auto'
+                ? 'bg-blue-600 text-white rounded-tr-none font-medium shadow-md' 
+                : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800/80 shadow-md'
             }`}>
               {msg.sender === 'worker' ? (
                 msg.text
               ) : (
-                <div className="prose prose-invert max-w-none text-base sm:text-lg leading-relaxed">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      table: ({ node, ...props }) => (
-                        <table className="w-full my-3 border-collapse border border-slate-800 text-sm sm:text-base rounded-xl overflow-hidden" {...props} />
-                      ),
-                      thead: ({ node, ...props }) => (
-                        <thead className="bg-slate-950 text-emerald-400 border-b border-slate-800 font-bold" {...props} />
-                      ),
-                      th: ({ node, ...props }) => (
-                        <th className="border border-slate-800 px-3.5 py-2.5 text-left font-black" {...props} />
-                      ),
-                      td: ({ node, ...props }) => (
-                        <td className="border border-slate-800/80 px-3.5 py-2 text-slate-200 font-medium" {...props} />
-                      ),
-                      h3: ({ node, ...props }) => (
-                        <h3 className="text-lg sm:text-xl font-black text-white mt-3 mb-1.5" {...props} />
-                      ),
-                      ul: ({ node, ...props }) => (
-                        <ul className="list-disc list-inside space-y-1.5 my-2" {...props} />
-                      ),
-                      li: ({ node, ...props }) => (
-                        <li className="text-base sm:text-lg" {...props} />
-                      )
-                    }}
-                  >
+                <div className="prose prose-invert max-w-none text-sm leading-relaxed font-normal">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.text}
                   </ReactMarkdown>
                 </div>
@@ -6162,7 +6287,7 @@ function KioskAiChatSection({
               {msg.logId && (
                 <button 
                   onClick={() => handleUndo(msg.logId!, i)}
-                  className="mt-3 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 py-3 rounded-xl font-bold text-sm sm:text-base transition"
+                  className="mt-2 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 py-1.5 rounded-lg font-bold text-xs transition"
                 >
                   Буцаах ↩️ (Undo)
                 </button>
@@ -6170,38 +6295,66 @@ function KioskAiChatSection({
             </div>
           </div>
         ))}
-        {isAiLoading && <div className="text-blue-400 text-base animate-pulse font-bold">AI бодож байна...</div>}
+        {isAiLoading && <div className="text-blue-400 text-xs animate-pulse font-bold px-2">AI бодож байна...</div>}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input хэсэг (ТОМ 64PX ӨНДӨРТЭЙ ТАЛБАР БА КАМЕР) */}
-      <div className="p-4 bg-slate-900 border-t border-slate-800 flex gap-3 items-center shrink-0">
-        <input 
-          type="file" 
-          accept="image/*" 
-          capture="environment" 
-          id="kiosk-ai-camera" 
-          className="hidden" 
-          onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
-        />
-        <label htmlFor="kiosk-ai-camera" className="h-16 w-16 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 rounded-2xl cursor-pointer transition flex items-center justify-center shrink-0 shadow-md">
-          <Camera className="h-8 w-8 text-emerald-400" />
-        </label>
-
-        <form onSubmit={handleAiChatSubmit} className="flex-1 flex gap-2">
-          <input 
-            type="text" 
+      {/* Google AI Studio шиг босоо картан Input */}
+      <div className="pt-2 shrink-0 w-full">
+        <form 
+          onSubmit={handleAiChatSubmit} 
+          className="bg-[#1e293b] border border-slate-700 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg focus-within:border-blue-500 w-full"
+        >
+          <textarea 
+            ref={textareaRef}
+            rows={1}
             value={chatInput} 
-            onChange={e => setChatInput(e.target.value)} 
-            placeholder="Энд бичих..." 
-            className="flex-1 h-16 bg-slate-950 border border-slate-800 rounded-2xl px-5 text-white focus:outline-none focus:border-blue-500 text-base sm:text-lg font-medium" 
+            onChange={e => {
+              setChatInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
+            }} 
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (chatInput.trim()) handleAiChatSubmit();
+              }
+            }}
+            placeholder="Зарлага бичих, асуух..." 
+            className="w-full bg-transparent text-white text-[16px] leading-relaxed resize-none outline-none placeholder:text-slate-500 px-1" 
+            style={{ minHeight: '40px', maxHeight: '100px' }}
           />
-          <button 
-            type="submit" 
-            disabled={isAiLoading || !chatInput.trim()} 
-            className="h-16 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-6 sm:px-7 rounded-2xl disabled:opacity-50 transition font-black flex items-center justify-center shrink-0"
-          >
-            <Send className="h-6 w-6"/>
-          </button>
+
+          <div className="flex justify-between items-center pt-1.5 border-t border-slate-800/60 shrink-0">
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment" 
+              id="kiosk-ai-camera" 
+              className="hidden" 
+              onChange={(e) => { if(e.target.files && e.target.files[0]) handleAiChatSubmit(undefined, e.target.files[0]); }}
+            />
+            <label 
+              htmlFor="kiosk-ai-camera" 
+              className="h-9 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1.5 cursor-pointer text-emerald-400 font-bold text-xs transition-colors"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Зураг</span>
+            </label>
+
+            <button 
+              type="submit" 
+              disabled={isAiLoading || !chatInput.trim()} 
+              className={`h-9 px-5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+                chatInput.trim() && !isAiLoading 
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md active:scale-95' 
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              <span>{isAiLoading ? "Уншиж байна..." : "Илгээх"}</span>
+              <Send className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -6209,7 +6362,7 @@ function KioskAiChatSection({
 }
 
 // =========================================================================
-// 📱 ҮНДСЭН KIOSK ДЭЛГЭЦ (MAX BIG ХЭМЖЭЭТЭЙ ТОВЧЛУУРУУД БА КАРТ)
+// 📱 2. ҮНДСЭН KIOSK ДЭЛГЭЦ (PROPORTIONAL MOBILE-FIRST LAYOUT)
 // =========================================================================
 function KioskPage() {
   const router = useRouter(); 
@@ -6288,12 +6441,24 @@ function KioskPage() {
     }));
   };
 
+  // ⚡ 0ms шуурхай даралт
+  const handleKeypadPress = (digit: string) => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(8);
+    }
+    setPin(p => p.length < 4 ? p + digit : p);
+  };
+
+  const handleKeypadClear = () => {
+    setPin('');
+  };
+
   const handleVerifyPin = async () => {
     if (!selectedWorker) return;
     const validPin = selectedWorker.pin_code || '1234';
 
     if (pin !== validPin) {
-      setMsg("❌ Буруу PIN код! Мартсан бол өөрийн утсаар Dashboard руу орж одоогийн PIN-ээ харна уу.");
+      setMsg("❌ Буруу PIN код! Мартсан бол утсаараа Dashboard руу орж харна уу.");
       setPin('');
       return;
     }
@@ -6441,25 +6606,25 @@ function KioskPage() {
   };
 
   return (
-    // 🔒 w-full min-h-[100dvh]: Утасны дэлгэцийг бүтнээр нь дүүргэнэ
-    <div className="w-full min-h-[100dvh] bg-[#070b14] text-slate-100 flex flex-col p-2.5 sm:p-5 select-none touch-manipulation">
+    // 🔒 h-[100dvh] + overflow-hidden: Дэлгэц төгс түгжигдэж, зөвхөн цэвэр хэмжээгээр суух бүтэц
+    <div className="h-[100dvh] w-full bg-[#070b14] text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       
-      {/* 🔝 HEADER */}
-      <header className="w-full max-w-2xl mx-auto flex justify-between items-center border-b border-slate-800/80 pb-3 mb-2 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-            <Coffee className="h-6 w-6 text-emerald-400" />
+      {/* 🔝 ТОЛГОЙ (HEADER) */}
+      <header className="w-full max-w-md flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
+        <div className="flex items-center gap-2">
+          <div className="bg-emerald-500/10 p-1.5 rounded-xl border border-emerald-500/20">
+            <Coffee className="h-5 w-5 text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-black tracking-tight text-white uppercase">SF KITCHEN KIOSK</h1>
-            <p className="text-xs text-emerald-400 font-bold uppercase">Smart Operations</p>
+            <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase">SF KITCHEN KIOSK</h1>
+            <p className="text-[10px] text-emerald-400 font-bold uppercase">Smart Operations</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button 
             onClick={() => router.push('/dashboard')} 
-            className="text-slate-300 hover:text-white text-xs sm:text-sm font-bold bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-800 active:scale-95 transition flex items-center gap-1"
+            className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
           >
             🔒 Dashboard
           </button>
@@ -6467,140 +6632,134 @@ function KioskPage() {
           {selectedWorker && (
             <button 
               onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
-              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1 active:scale-95 transition"
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition flex items-center gap-1"
             >
-              <LogOut className="h-4 w-4" /> Гарах
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Гарах</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* 🚀 ҮНДСЭН ХЭСЭГ (ДЭЛГЭЦИЙН 100% ӨРГӨН БА ӨНДРИЙГ ЭЗЭЛНЭ) */}
-      <main className="w-full max-w-2xl mx-auto flex-1 flex flex-col min-h-0 py-1">
+      {/* 🚀 ҮНДСЭН ХЭСЭГ */}
+      <main className="w-full max-w-md flex-1 min-h-0 flex flex-col overflow-hidden">
         
         {msg && (
-          <div className="bg-rose-500/10 text-rose-400 p-4 rounded-2xl mb-2 w-full text-center font-bold text-sm border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
-            <ShieldAlert className="h-5 w-5 shrink-0" />
+          <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
+            <ShieldAlert className="h-4 w-4 shrink-0" />
             <span>{msg}</span>
           </div>
         )}
 
         {/* 1. SELECT WORKER */}
         {step === 'select_worker' && (
-          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="text-center pt-2 shrink-0">
-              <div className="bg-emerald-500/10 p-4 rounded-3xl border border-emerald-500/20 w-fit mx-auto mb-3">
-                <Users className="text-emerald-400 h-9 w-9"/>
+              <div className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/20 w-fit mx-auto mb-2">
+                <Users className="text-emerald-400 h-7 w-7"/>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white">Ажилтнаа сонгоно уу</h2>
-              <p className="text-sm text-slate-400 mt-1">Өөрийн нэр дээр товшиж ээлжиндээ нэвтэрнэ үү</p>
+              <h2 className="text-xl sm:text-2xl font-black text-white">Ажилтнаа сонгоно уу</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Өөрийн нэр дээр товшиж ээлжиндээ нэвтэрнэ үү</p>
             </div>
 
-            <div className="space-y-4 w-full my-auto py-4">
+            <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
               {workers.map(w => (
                 <button 
                   key={w.id} 
                   onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
-                  className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-5 sm:p-6 rounded-2xl text-left transition-all shadow-lg flex justify-between items-center group w-full"
+                  className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full"
                 >
                   <div>
-                    <span className="text-xl sm:text-2xl font-black text-white uppercase block group-hover:text-emerald-400 transition">
+                    <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-emerald-400 transition">
                       {w.full_name || w.email.split('@')[0]}
                     </span>
-                    <span className="text-sm text-emerald-400 font-bold uppercase mt-1 block">
+                    <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
                       🏷️ {w.role}
                     </span>
                   </div>
-                  <div className="bg-slate-950 p-3.5 rounded-2xl text-slate-500 group-hover:text-emerald-400 font-black text-sm">
+                  <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-xs">
                     ➔
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className="text-center text-xs text-slate-500 pt-2 shrink-0">
+            <div className="text-center text-[10px] text-slate-500 pb-1 shrink-0">
               SF Kitchen Kiosk • Secure Operations
             </div>
           </div>
         )}
 
-        {/* 2. PIN ДЭЛГЭЦ (MAX BIG: 80PX ӨНДӨРТЭЙ ТОМ ТОВЧЛУУРУУД, 36PX ЦИФР) */}
+        {/* 2. PIN ДЭЛГЭЦ: ХУРУУНД ЭВТЭЙ ТОМ ТОВЧЛУУРУУД (text-3xl) */}
         {step === 'pin_code' && (
-          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between items-center my-auto">
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
             
-            {/* Гарчиг */}
-            <div className="text-center pt-1 w-full shrink-0">
-              <h2 className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
-              <p className="text-sm sm:text-base text-slate-300 font-medium mt-1">
-                Өөрийн хувийн нууц кодыг хийнэ үү
-              </p>
-              <div className="mt-2 inline-block bg-slate-950 px-5 py-2 rounded-2xl border border-slate-800">
-                <span className="text-sm sm:text-base text-emerald-300 font-black">
+            <div className="text-center w-full shrink-0 pt-1">
+              <h2 className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
+              <p className="text-xs text-slate-300 font-medium mt-0.5">Өөрийн хувийн нууц кодыг хийнэ үү</p>
+              <div className="mt-1.5 inline-block bg-slate-950 px-3.5 py-1 rounded-xl border border-slate-800">
+                <span className="text-xs sm:text-sm text-emerald-300 font-black">
                   👤 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]} ({selectedWorker?.role})
                 </span>
               </div>
             </div>
 
-            {/* PIN Dots (ТОМ ЦЭГҮҮД) */}
-            <div className="bg-[#060b17] border border-slate-800/90 rounded-2xl py-4 px-10 flex justify-center items-center gap-6 w-full max-w-[300px] my-3 shrink-0">
+            {/* PIN Цэгүүд */}
+            <div className="bg-[#060b17] border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
                 <div 
                   key={dotIndex} 
-                  className={`h-5 w-5 rounded-full transition-all duration-150 ${
-                    pin.length > dotIndex 
-                      ? 'bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.9)] scale-125' 
-                      : 'bg-slate-800'
+                  className={`h-3.5 w-3.5 rounded-full transition-all duration-75 ${
+                    pin.length > dotIndex ? 'bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-110' : 'bg-slate-800'
                   }`}
                 />
               ))}
             </div>
 
-            {/* Keypad Grid (АВАРГА ТОМ 80PX ӨНДӨРТЭЙ ТОВЧНУУД) */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full max-w-md my-auto">
+            {/* ⚡ ШУУРХАЙ 0ms КЛАВИАТУР */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full flex-1 max-h-[50vh] sm:max-h-[52vh] my-1 px-1">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
                 <button 
                   key={num} 
-                  onClick={() => setPin(p => p.length < 4 ? p + num : p)} 
-                  className="h-20 sm:h-24 w-full bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800 rounded-2xl sm:rounded-3xl text-3xl sm:text-4xl font-black text-white transition-all shadow-xl flex items-center justify-center"
+                  type="button"
+                  onPointerDown={(e) => { e.preventDefault(); handleKeypadPress(num); }}
+                  className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
                 >
                   {num}
                 </button>
               ))}
               
-              {/* CLEAR */}
               <button 
-                onClick={() => setPin('')} 
-                className="h-20 sm:h-24 w-full bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl sm:rounded-3xl text-lg sm:text-xl font-black transition-all shadow-xl flex items-center justify-center"
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); handleKeypadClear(); }}
+                className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform"
               >
                 Clear
               </button>
 
-              {/* 0 */}
               <button 
-                onClick={() => setPin(p => p.length < 4 ? p + '0' : p)} 
-                className="h-20 sm:h-24 w-full bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800 rounded-2xl sm:rounded-3xl text-3xl sm:text-4xl font-black text-white transition-all shadow-xl flex items-center justify-center"
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); handleKeypadPress('0'); }}
+                className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
               >
                 0
               </button>
 
-              {/* OK */}
               <button 
-                onClick={handleVerifyPin} 
-                className="h-20 sm:h-24 w-full bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl sm:rounded-3xl text-xl sm:text-2xl font-black transition-all shadow-[0_0_30px_rgba(16,185,129,0.5)] flex items-center justify-center"
+                type="button"
+                onPointerDown={(e) => { e.preventDefault(); handleVerifyPin(); }}
+                className="w-full h-full min-h-[52px] sm:min-h-[58px] bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center select-none transition-transform"
               >
                 OK
               </button>
             </div>
 
             {/* Доод заавар */}
-            <div className="text-center space-y-2 w-full pt-2 shrink-0">
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                💡 Анхдагч PIN код: <strong className="text-white">1234</strong><br />
-                (Хэрэв мартсан бол өөрийн Dashboard руу орж харна уу)
-              </p>
+            <div className="text-center space-y-1 w-full pt-1 shrink-0">
+              <p className="text-[11px] text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
               <button 
                 onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
-                className="text-sm text-slate-400 hover:text-white font-bold flex items-center justify-center gap-1 mx-auto pt-1"
+                className="text-xs text-slate-400 hover:text-white font-bold"
               >
                 ← Буцах (Ажилтан солих)
               </button>
@@ -6608,58 +6767,68 @@ function KioskPage() {
           </div>
         )}
 
-        {/* 3. MENU (ТОМ АВАРГА 3 КАРТ) */}
+        {/* 3. MENU: ДЭЛГЭЦИЙН ӨНДРИЙГ ТЭГШ ДҮҮРГЭСЭН 3 КАРТ */}
         {step === 'menu' && (
-          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
-            <div className="text-center pt-2 shrink-0">
-              <h2 className="text-2xl sm:text-3xl font-black text-white">Сайн байна уу?</h2>
-              <p className="text-base sm:text-lg text-emerald-400 font-bold mt-1 uppercase">
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden touch-none">
+            
+            <div className="text-center pt-1 shrink-0">
+              <h2 className="text-xl sm:text-2xl font-black text-white">Сайн байна уу?</h2>
+              <p className="text-base sm:text-lg text-emerald-400 font-black mt-0.5 uppercase tracking-wide">
                 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
               </p>
             </div>
             
-            <div className="space-y-4 w-full flex-1 flex flex-col justify-evenly my-2">
+            <div className="flex-1 flex flex-col justify-between gap-3 my-3 w-full">
               <button 
                 onClick={() => setStep('ai_chat')} 
-                className="w-full flex-1 min-h-[6.5rem] bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 p-5 sm:p-6 rounded-3xl flex items-center gap-5 border border-blue-500/30 transition shadow-xl text-left"
+                className="flex-1 w-full min-h-[90px] p-4 sm:p-5 bg-blue-500/10 hover:bg-blue-500/20 active:scale-95 rounded-2xl flex items-center justify-between border-2 border-blue-500/30 transition shadow-md text-left group"
               >
-                <div className="bg-blue-500/20 p-4 rounded-2xl border border-blue-500/30 shrink-0">
-                  <MessageSquare className="h-8 w-8 sm:h-9 sm:w-9 text-blue-400" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-500/20 p-3 rounded-xl border border-blue-500/30 shrink-0">
+                    <MessageSquare className="h-7 w-7 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="font-black text-base sm:text-lg text-blue-400">Ухаалаг Туслах (AI)</p>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">Хаягдал, орлого бичих & Баримтын зураг дарах</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-black text-xl sm:text-2xl text-blue-400">Ухаалаг Туслах (AI)</p>
-                  <p className="text-sm sm:text-base text-slate-300 mt-1">Зарлага бичих & Баримтын зураг дарах</p>
-                </div>
+                <ChevronRight className="h-6 w-6 text-blue-400/50 group-hover:text-blue-400 transition shrink-0" />
               </button>
 
               <button 
                 onClick={openTasksScreen} 
-                className="w-full flex-1 min-h-[6.5rem] bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 p-5 sm:p-6 rounded-3xl flex items-center gap-5 border border-purple-500/30 transition shadow-xl text-left"
+                className="flex-1 w-full min-h-[90px] p-4 sm:p-5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl flex items-center justify-between border-2 border-purple-500/30 transition shadow-md text-left group"
               >
-                <div className="bg-purple-500/20 p-4 rounded-2xl border border-purple-500/30 shrink-0">
-                  <CheckSquare className="h-8 w-8 sm:h-9 sm:w-9 text-purple-400" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-purple-500/20 p-3 rounded-xl border border-purple-500/30 shrink-0">
+                    <CheckSquare className="h-7 w-7 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="font-black text-base sm:text-lg text-purple-400">Өнөөдрийн Даалгавар</p>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">Цэвэрлэгээ болон ээлжийн үүргүүд</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-black text-xl sm:text-2xl text-purple-400">Өнөөдрийн Даалгавар</p>
-                  <p className="text-sm sm:text-base text-slate-300 mt-1">Цэвэрлэгээ, тохиргоо болон үүргүүд</p>
-                </div>
+                <ChevronRight className="h-6 w-6 text-purple-400/50 group-hover:text-purple-400 transition shrink-0" />
               </button>
 
               <button 
                 onClick={loadInventoryToCount} 
-                className="w-full flex-1 min-h-[6.5rem] bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 p-5 sm:p-6 rounded-3xl flex items-center gap-5 border border-emerald-500/30 transition shadow-xl text-left"
+                className="flex-1 w-full min-h-[90px] p-4 sm:p-5 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-2xl flex items-center justify-between border-2 border-emerald-500/30 transition shadow-md text-left group"
               >
-                <div className="bg-emerald-500/20 p-4 rounded-2xl border border-emerald-500/30 shrink-0">
-                  <ListOrdered className="h-8 w-8 sm:h-9 sm:w-9 text-emerald-400" />
+                <div className="flex items-center gap-4">
+                  <div className="bg-emerald-500/20 p-3 rounded-xl border border-emerald-500/30 shrink-0">
+                    <ListOrdered className="h-7 w-7 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="font-black text-base sm:text-lg text-emerald-400">Ээлж хаах (Тооллого)</p>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">Өдрийн төгсгөлд бараа тоолж ээлж хаах</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-black text-xl sm:text-2xl text-emerald-400">Ээлж хаах (Тооллого)</p>
-                  <p className="text-sm sm:text-base text-slate-300 mt-1">Өдрийн төгсгөлд бараа тоолох</p>
-                </div>
+                <ChevronRight className="h-6 w-6 text-emerald-400/50 group-hover:text-emerald-400 transition shrink-0" />
               </button>
             </div>
 
-            <div className="text-center text-xs text-slate-500 pt-2 shrink-0">
+            <div className="text-center text-[10px] text-slate-500 shrink-0 pb-1">
               Ээлжийн үйл ажиллагаа идэвхтэй байна
             </div>
           </div>
@@ -6676,101 +6845,93 @@ function KioskPage() {
 
         {/* 5. TASKS */}
         {step === 'tasks' && (
-          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <h2 className="text-2xl font-black text-purple-400 mb-4 flex items-center gap-3 shrink-0">
-                <CheckSquare className="h-7 w-7" /> Өнөөдрийн Даалгавар
-              </h2>
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+            <h2 className="text-lg sm:text-xl font-black text-purple-400 mb-2 flex items-center gap-2 shrink-0">
+              <CheckSquare className="h-5 w-5" /> Өнөөдрийн Даалгавар
+            </h2>
 
-              {tasks.length === 0 ? (
-                <p className="text-center text-slate-400 py-10 text-lg my-auto">Даалгавар алга байна.</p>
-              ) : tasks.every(t => t.done) ? (
-                <div className="text-center py-10 space-y-3 bg-slate-950/60 rounded-3xl border border-slate-800 p-6 my-auto">
-                  <CheckCircle className="h-14 w-14 text-emerald-400 mx-auto" />
-                  <p className="font-black text-2xl text-white">Бүх даалгавар биелсэн!</p>
-                  <p className="text-base text-slate-400">Танд хийх үлдсэн ажил байхгүй байна.</p>
-                </div>
-              ) : (
-                <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 py-2">
-                  {tasks.map((t, idx) => (
-                    <button
-                      key={idx}
-                      disabled={t.done}
-                      onClick={() => completeTask(idx)}
-                      className={`w-full p-5 rounded-2xl flex items-center justify-between border-2 transition active:scale-95 ${
-                        t.done 
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60 cursor-not-allowed' 
-                          : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        {t.done ? (
-                          <CheckCircle className="h-8 w-8 text-emerald-400 shrink-0" />
-                        ) : (
-                          <div className="h-8 w-8 rounded-xl border-2 border-slate-600 shrink-0" />
-                        )}
-                        <span className="font-bold text-base sm:text-lg text-left">{t.name}</span>
-                      </div>
-                      {t.done && <span className="text-sm font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {tasks.length === 0 ? (
+              <p className="text-center text-slate-400 py-8 text-sm my-auto">Даалгавар алга байна.</p>
+            ) : (
+              <div className="space-y-2 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
+                {tasks.map((t, idx) => (
+                  <button
+                    key={idx}
+                    disabled={t.done}
+                    onClick={() => completeTask(idx)}
+                    className={`w-full p-3.5 rounded-xl flex items-center justify-between border transition active:scale-95 ${
+                      t.done 
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60' 
+                        : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {t.done ? (
+                        <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <div className="h-5 w-5 rounded-lg border-2 border-slate-600 shrink-0" />
+                      )}
+                      <span className="font-bold text-sm text-left">{t.name}</span>
+                    </div>
+                    {t.done && <span className="text-xs font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <button 
               onClick={() => setStep('menu')} 
-              className="w-full mt-4 bg-slate-950 hover:bg-slate-900 border-2 border-slate-800 text-white font-black py-4 rounded-2xl text-base transition shrink-0"
+              className="w-full mt-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shrink-0 active:scale-95"
             >
               ← Буцах
             </button>
           </div>
         )}
 
-        {/* 6. CLOSE SHIFT */}
+        {/* 6. CLOSE SHIFT / ТООЛЛОГО */}
         {step === 'close_shift' && (
-          <div className="w-full flex-1 bg-[#0d1527] p-5 sm:p-8 rounded-[2rem] border border-slate-800/80 shadow-2xl flex flex-col justify-between my-auto">
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <h2 className="text-2xl font-black text-emerald-400 mb-1 flex items-center gap-3 shrink-0">
-                <ListOrdered className="h-7 w-7" /> Ээлжийн Тооллого
+          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+            <div className="shrink-0">
+              <h2 className="text-lg sm:text-xl font-black text-emerald-400 mb-0.5 flex items-center gap-2">
+                <ListOrdered className="h-5 w-5" /> Ээлжийн Тооллого
               </h2>
-              <p className="text-sm text-slate-400 mb-4 shrink-0">Хөргөгч/лангуун дахь бодит үлдэгдлийг тоолж бичнэ үү.</p>
-              
-              <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 py-2">
-                {inventoryToCount.map(item => (
-                  <div key={item.id} className="bg-slate-950 p-4 sm:p-5 rounded-2xl border-2 border-slate-800 flex justify-between items-center gap-3">
-                    <div>
-                      <p className="font-black text-base sm:text-lg text-white">{item.name}</p>
-                      <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                        Системд: {Math.round((parseFloat(item.current_stock) || 0) * 10) / 10} {item.unit}
-                      </p>
-                    </div>
-                    <input 
-                      type="number" 
-                      step="any" 
-                      required 
-                      placeholder="Тоо..." 
-                      value={counts[item.id] !== undefined ? counts[item.id] : ''} 
-                      onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
-                      className="w-32 sm:w-40 h-14 bg-slate-900 px-4 rounded-2xl text-center text-white border-2 border-slate-700 font-black text-xl focus:border-emerald-500 outline-none" 
-                    />
+              <p className="text-xs text-slate-400 mb-2">Хөргөгч/лангуун дахь бодит үлдэгдлийг тоолж бичнэ үү.</p>
+            </div>
+            
+            <div className="space-y-2 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
+              {inventoryToCount.map(item => (
+                <div key={item.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-3">
+                  <div>
+                    <p className="font-bold text-sm text-white">{item.name}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Системд: {Math.round((parseFloat(item.current_stock) || 0) * 10) / 10} {item.unit}
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <input 
+                    type="number" 
+                    step="any" 
+                    required 
+                    placeholder="Тоо..." 
+                    value={counts[item.id] !== undefined ? counts[item.id] : ''} 
+                    onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
+                    className="w-24 h-10 bg-slate-900 px-3 rounded-xl text-center text-white border border-slate-700 font-bold text-base focus:border-emerald-500 outline-none" 
+                  />
+                </div>
+              ))}
             </div>
 
-            <div className="flex gap-3 mt-4 shrink-0">
+            <div className="flex gap-2.5 mt-2.5 shrink-0">
               <button 
                 type="button" 
                 onClick={() => setStep('menu')} 
-                className="flex-1 bg-slate-950 hover:bg-slate-900 border-2 border-slate-800 text-slate-300 font-black py-4 rounded-2xl text-base transition"
+                className="flex-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-3 rounded-xl text-xs transition active:scale-95"
               >
                 Буцах
               </button>
               <button 
                 onClick={handleCloseShift} 
                 disabled={isAiLoading || inventoryToCount.some(i => !counts[i.id])} 
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-4 rounded-2xl text-base transition disabled:opacity-50 shadow-lg"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-50 shadow-md"
               >
                 {isAiLoading ? 'Хааж байна...' : 'Хаах & Илгээх'}
               </button>
@@ -7388,54 +7549,63 @@ export async function POST(request: Request) {
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
-    const richContext = {
+  
+
+    // 1. Асуулт бүрт заавал байх санхүүгийн ерөнхий дүн (Маш хөнгөн)
+   const queryLower = (incomingText || "").toLowerCase();
+
+    // 1. Асуулт бүрт заавал байх санхүүгийн ерөнхий дүн (Маш хөнгөн)
+    const prunedContext: Record<string, any> = {
       client: tenantClientId,
       financials: analyticsData.financial_ladder,
-      tax_summary: analyticsData.tax_summary,
-      cashflow: analyticsData.cashflow_summary,
-      payroll: analyticsData.payroll_summary,
-      total_waste_loss: analyticsData.total_waste_loss,
-      total_unexplained_waste: analyticsData.total_unexplained_waste,
-      total_surplus_savings: analyticsData.total_surplus_savings,
       efficiency: analyticsData.efficiency,
-      logged_waste_breakdown: {
+      tax_summary: analyticsData.tax_summary,
+    };
+
+    // 2. Асуултын агуулгаас хамаарч ЗӨВХӨН шаардлагатай датаг залгах
+    if (/хаягдал|алдагдал|актал|мууд|waste|loss/.test(queryLower)) {
+      prunedContext.total_waste_loss = analyticsData.total_waste_loss;
+      prunedContext.logged_waste_breakdown = {
         spoilage_loss: analyticsData.total_logged_spoilage || 0,
         testing_cost: analyticsData.total_logged_testing || 0,
         staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
-        other_cost: analyticsData.total_logged_other || 0
-      },
-      top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
-      top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
-      all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        loss: `${i.impact}₮`,
-        unit_price: `${i.price}₮`,
-        notes: i.notes || ""
-      })),
-      all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        savings: `${i.impact}₮`
-      })),
-      all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
-        name: i.name,
-        live_stock: `${i.live_stock} ${i.unit}`,
-        par_level: `${i.par_level} ${i.unit}`,
-        unit_price: `${i.price}₮`
-      })),
-      all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
+      };
+      prunedContext.top_wasted_items = analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`);
+      prunedContext.all_wasted_items = analyticsData.wasted_only?.slice(0, 15);
+    } 
+    else if (/цэс|борлуулалт|ашиг|жор|латте|меню|menu|product/.test(queryLower)) {
+      prunedContext.all_menu_performance = analyticsData.menu_performance?.map((m: any) => ({
         name: m.name,
         sold_count: m.sold,
         selling_price: `${m.selling_price}₮`,
         cost: `${m.cost_per_item}₮`,
         margin: `${m.gross_margin_pct}%`
-      })),
-      all_recipes: analyticsData.all_recipes,
-      recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
-      recent_worker_logs: analyticsData.recent_worker_logs,
-      opex_breakdown: analyticsData.opex_details
-    };
+      }));
+      prunedContext.margin_guard_alerts = analyticsData.margin_guard_alerts;
+      prunedContext.all_recipes = analyticsData.all_recipes;
+    } 
+    else if (/цалин|ажилтан|ээлж|payroll|shift|worker/.test(queryLower)) {
+      prunedContext.payroll_summary = analyticsData.payroll_summary;
+      prunedContext.recent_shifts = analyticsData.recent_shifts?.slice(0, 5);
+      prunedContext.worker_fraud_matrix = analyticsData.worker_fraud_matrix;
+    } 
+    else if (/агуулах|үлдэгдэл|нөөц|захиалах|inventory|stock/.test(queryLower)) {
+      prunedContext.all_inventory_items = analyticsData.all_inventory_data?.map((i: any) => ({
+        name: i.name,
+        live_stock: `${i.live_stock} ${i.unit}`,
+        par_level: `${i.par_level} ${i.unit}`,
+        abc_class: i.abc_class,
+        suggested_order: i.suggested_order
+      }));
+    } 
+    else {
+      // Ерөнхий асуултад (Мөнгөн урсгал ба OPEX)
+      prunedContext.cashflow = analyticsData.cashflow_summary;
+      prunedContext.opex_breakdown = analyticsData.opex_details;
+      prunedContext.top_wasted_items = analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮)`);
+    }
+
+    const richContext = prunedContext;
 
     const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
 

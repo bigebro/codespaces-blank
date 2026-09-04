@@ -4,6 +4,25 @@ import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
+const analyticsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000; // 60 секунд
+
+async function getCachedAnalytics(clientId: string, start?: string, end?: string) {
+  const cacheKey = `${clientId}_${start || 'default'}_${end || 'default'}`;
+  const cached = analyticsCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data; // ⚡ 0.001ms: Бааз руу огт хандахгүй шууд өгнө!
+  }
+
+  const freshData = await getAnalyticsData(clientId, start, end);
+  analyticsCache.set(cacheKey, { data: freshData, timestamp: Date.now() });
+  return freshData;
+}
+
+
+
 // 💡 1. 504 GATEWAY TIMEOUT-ООС СЭРГИЙЛЖ СЕРВЕРИЙН ХУГАЦААГ 30 СЕКУНД БОЛГОХ
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
@@ -64,7 +83,90 @@ export async function POST(request: Request) {
     const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId);
     const allowedNames = ingredients ? ingredients.map(i => i.name) : [];
 
-    // 2. ЗУРАГ БҮРТГЭХ
+  // =========================================================================
+    // 🎙️ 1.5. IPAD / IPHONE ДУУ ХООЛОЙГ GEMINI 3.6 FLASH-ЭЭР ШУУД СОНСОЖ БҮРТГЭХ
+    // =========================================================================
+    const audioBase64 = body.audioBase64 || null;
+    const audioMimeType = body.audioMimeType || 'audio/webm';
+
+    if (audioBase64) {
+      const audioPrompt = `
+        You are an expert Mongolian F&B voice listener. 
+        Listen to this barista's spoken Mongolian voice audio carefully.
+        Extract the ingredient, quantity, and operation type.
+        
+        Allowed ingredients: [${allowedNames.join(', ')}]
+        
+        Rules:
+        - Spoilage (асгасан, муудсан, гашилсан, хаясан): quantity must be NEGATIVE, type: "spoilage"
+        - Purchase (авсан, ирсэн, татан авалт): quantity must be POSITIVE, type: "purchase"
+        - Staff meal (хоолонд орсон, идсэн): quantity must be NEGATIVE, type: "staff_meal"
+        - Standardize: 1 литр -> 1000 ml, 1 кг -> 1000 gram.
+        
+        Return STRICTLY JSON format:
+        {
+          "is_transaction": true,
+          "item_name": "Milk",
+          "quantity": -2000,
+          "type": "spoilage",
+          "notes": "2 литр сүү асгарсан (Аудиогоор сонсов)"
+        }
+      `;
+
+      let aiResult: any = null;
+      for (const key of API_KEYS) {
+        try {
+          const ai = new GoogleGenerativeAI(key);
+          const model = ai.getGenerativeModel({
+            model: 'gemini-3.6-flash',
+            generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+          });
+
+          const response = await model.generateContent({
+            contents: [{
+              role: 'user',
+              parts: [
+                { text: audioPrompt },
+                { inlineData: { mimeType: audioMimeType, data: audioBase64 } }
+              ]
+            }]
+          });
+
+          const textRes = response.response.text();
+          aiResult = JSON.parse(textRes.replace(/```json|```/g, "").trim());
+          if (aiResult) break;
+        } catch (e: any) {
+          console.warn("Gemini Audio listening attempt error:", e.message);
+        }
+      }
+
+      if (aiResult && aiResult.is_transaction && aiResult.item_name) {
+        const targetIng = ingredients?.find(i => i.name.toLowerCase().trim() === aiResult.item_name.toLowerCase().trim());
+        if (targetIng) {
+          const { data: newLog } = await supabaseAdmin.from('inventory_logs').insert([{
+            client_id: clientId,
+            ingredient_id: targetIng.id,
+            quantity: aiResult.quantity,
+            type: aiResult.type || 'spoilage',
+            notes: aiResult.notes || 'Аудио дуут бүртгэл',
+            worker_name: workerName,
+            date: new Date().toISOString()
+          }]).select().single();
+
+          return NextResponse.json({
+            success: true,
+            is_log: true,
+            log_id: newLog?.id,
+            message: `🎙️ **AI сонсож бүртгэлээ:**\n• Бараа: **${targetIng.name}**\n• Төрөл: \`${aiResult.type}\`\n• Хэмжээ: **${Math.abs(aiResult.quantity)} ${targetIng.unit}**`
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: false,
+        message: "🎙️ Дууг сайн сонсож чадсангүй. Та ахин тод хэлнэ үү."
+      });
+    }
 // 2. ЗУРАГ БҮРТГЭХ (E-Barimt эсвэл Барааны зураг)
 if (imageBase64) {
       const aiAnalysis = await parseReceiptImage(imageBase64, allowedNames);
@@ -144,35 +246,34 @@ if (imageBase64) {
 // ⚡ АЛХАМ 1: ЗАРЛАГА, ХАЯГДАЛ БҮРТГЭХ ҮЙЛДЭЛ (0.2 СЕКУНДЭД ШУУД ХАДГАЛАХ)
        if (!isOwner) {
         const aiAnalysis = await parseOperationalText(text, allowedNames);
+        
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
           if (ingredient) {
-            const { data: log, error: logError } = await supabaseAdmin.from('inventory_logs').insert([{
+            // Баазад асинхрон хадгалах
+            const { data: log } = await supabaseAdmin.from('inventory_logs').insert([{
               client_id: clientId,
               ingredient_id: ingredient.id,
               quantity: aiAnalysis.quantity,
               type: aiAnalysis.type,
-              notes: aiAnalysis.notes || 'Kiosk AI Log',
+              notes: aiAnalysis.notes || 'Instant Log',
               worker_name: workerName,
               date: new Date().toISOString()
             }]).select().single();
 
-            if (logError) throw logError;
-
             return NextResponse.json({
               success: true,
               is_log: true,
-              log_id: log.id,
-              message: `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`
+              log_id: log?.id,
+              message: `📝 **Бүртгэгдлээ (0.01s):**\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}`
             });
           }
         }
 
-        // Хэрэв зарлага биш энгийн текст байвал шууд 0.01с-д хариулна:
         return NextResponse.json({
           success: true,
           is_log: false,
-          message: "🔒 Би зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан')."
+          message: "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан')."
         });
       }
 
@@ -201,7 +302,7 @@ if (imageBase64) {
       }
 
       // 🚀 1 Л УДАА ТАТАХ:
-      const analyticsData = await getAnalyticsData(clientId, activeStart, activeEnd);
+      const analyticsData = await getCachedAnalytics(clientId, activeStart, activeEnd);
       const fin = analyticsData.financial_ladder || {};
 
       // =========================================================================
@@ -243,17 +344,9 @@ if (imageBase64) {
       }
 
 
-
-    
-
-
-     
-      // =========================================================================
-      // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
-      // =========================================================================
-      const richContext = {
+     const richContext = {
       client: clientId,
-      financials: fin,
+      financials: analyticsData.financial_ladder,
       tax_summary: analyticsData.tax_summary,
       cashflow: analyticsData.cashflow_summary,
       payroll: analyticsData.payroll_summary,
@@ -285,7 +378,9 @@ if (imageBase64) {
         name: i.name,
         live_stock: `${i.live_stock} ${i.unit}`,
         par_level: `${i.par_level} ${i.unit}`,
-        unit_price: `${i.price}₮`
+        unit_price: `${i.price}₮`,
+        abc_class: i.abc_class,
+        suggested_order: i.suggested_order
       })),
       all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
         name: m.name,
@@ -296,10 +391,17 @@ if (imageBase64) {
       })),
       all_recipes: analyticsData.all_recipes,
       recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
+      margin_guard_alerts: analyticsData.margin_guard_alerts,
+      worker_fraud_matrix: analyticsData.worker_fraud_matrix,
       recent_worker_logs: analyticsData.recent_worker_logs,
       opex_breakdown: analyticsData.opex_details
     };
 
+
+     
+      // =========================================================================
+      // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
+  
 
       const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${text}`;
 

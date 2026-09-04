@@ -1,9 +1,127 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+
+
+// 🇲🇳 МОНГОЛ ХЭЛНИЙ ДУУ ХООЛОЙГ ТӨГС ТАНИХ СИСТЕМ
+const MN_NUMBER_WORDS: Record<string, number> = {
+  "тал": 0.5, "хагас": 0.5, "нэг": 1, "нэгэн": 1, "ганц": 1,
+  "хоёр": 2, "гурав": 3, "дөрөв": 4, "тав": 5, "зургаа": 6,
+  "долоо": 7, "найм": 8, "ес": 9, "арав": 10, "хорь": 20, "гуч": 30
+};
+
+export function advancedMongolianVoiceParser(rawText: string, ingredients: any[]) {
+  let text = rawText.toLowerCase().trim();
+
+  // 1. Амаар хэлсэн монгол тоог тоон цифр болгож хувиргах ("хоёр литр" -> "2 литр")
+  for (const [word, val] of Object.entries(MN_NUMBER_WORDS)) {
+    const reg = new RegExp(`\\b${word}\\b`, 'gi');
+    text = text.replace(reg, val.toString());
+  }
+
+  // 2. Тоо болон нэгжийг салгах
+  const numMatch = text.match(/(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг|хайрцаг|уут)?/);
+  if (!numMatch) return null;
+
+  let qty = parseFloat(numMatch[1]);
+  const unitStr = numMatch[2] || '';
+  if (['л', 'литр', 'l', 'кг', 'kg'].includes(unitStr)) {
+    qty *= 1000;
+  }
+
+  // 3. Үйлдлийн төрлийг язгуураар таних (ямар ч нөхцөл залгагдсан ойлгоно)
+  let type: 'spoilage' | 'purchase' | 'staff_meal' | 'testing' | null = null;
+  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус/.test(text)) type = 'spoilage';
+  else if (/ава|авс|татан|ирл|нэм/.test(text)) type = 'purchase';
+  else if (/хоол|идс|уусан/.test(text)) type = 'staff_meal';
+  else if (/турш|амт/.test(text)) type = 'testing';
+
+  if (!type) return null;
+
+  // 4. Түүхий эдийг Монгол ба Англи нэршлээр олох
+  let matchedIng = ingredients.find(ing => text.includes(ing.name.toLowerCase().trim()));
+  
+  if (!matchedIng) {
+    const MN_SYNONYMS: Record<string, string[]> = {
+      "Milk": ["сүү", "сү", "милк"],
+      "Beans": ["кофе", "үр", "үрэл"],
+      "Eggs": ["өндөг", "өндөгний"],
+      "Bread": ["талх", "талхны", "булочка"],
+      "Butter": ["масло", "цөцгийн тос"],
+      "Sugar": ["сахар", "элсэн чихэр"],
+      "Syrup": ["сироп", "чихэрлэг"],
+      "Cheese": ["бяслаг", "чеддер", "сыр"]
+    };
+
+    for (const [engName, syns] of Object.entries(MN_SYNONYMS)) {
+      if (syns.some(s => text.includes(s))) {
+        matchedIng = ingredients.find(ing => ing.name.toLowerCase().includes(engName.toLowerCase()));
+        if (matchedIng) break;
+      }
+    }
+  }
+
+  if (!matchedIng) return null;
+
+  return {
+    is_transaction: true,
+    success: true,
+    item_id: matchedIng.id,
+    item_name: matchedIng.name,
+    unit: matchedIng.unit,
+    quantity: type === 'purchase' ? Math.abs(qty) : -Math.abs(qty),
+    type: type,
+    notes: `${rawText} (🎙️ Монгол дуут бүртгэл)`
+  };
+}
+
+// ⚡ LOCAL FAST PARSER (0.01ms Local Deterministic Matching)
+export function fastLocalParse(text: string, ingredientsList: string[]) {
+  const lower = text.toLowerCase().trim();
+
+  // 1. Тоо болон нэгж олох
+  const numMatch = lower.match(/(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг)?/);
+  if (!numMatch) return null;
+
+  let rawQty = parseFloat(numMatch[1]);
+  const rawUnit = numMatch[2] || '';
+
+  // Нэгж стандартчилах (литр -> мл, кг -> грамм)
+  if (rawUnit === 'л' || rawUnit === 'литр' || rawUnit === 'l') rawQty *= 1000;
+  if (rawUnit === 'кг' || rawUnit === 'kg') rawQty *= 1000;
+
+  // 2. Үйлдлийн төрөл олох
+  let type: 'spoilage' | 'purchase' | 'staff_meal' | 'testing' | null = null;
+  if (/асга|мууд|гашил|хая/.test(lower)) type = 'spoilage';
+  else if (/ава|авсан|татан/.test(lower)) type = 'purchase';
+  else if (/хоол|идсэн/.test(lower)) type = 'staff_meal';
+  else if (/турш|амт/.test(lower)) type = 'testing';
+
+  if (!type) return null;
+
+  // 3. Барааны нэр тааруулах
+  const matchedIng = (ingredientsList || []).find(ing => lower.includes(ing.toLowerCase().trim()));
+  if (!matchedIng) return null;
+
+  const finalQty = (type === 'purchase') ? Math.abs(rawQty) : -Math.abs(rawQty);
+
+  return {
+    is_transaction: true,
+    success: true,
+    error_message: null,
+    item_name: matchedIng,
+    quantity: finalQty,
+    type: type,
+    notes: `${text} (Local Fast Match)`
+  };
+}
+
 // 💡 Түлхүүрүүдийг таслалаар аюулгүй салгаж авах
 const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
 let currentKeyIndex = 0;
 export async function parseOperationalText(text: string, ingredientsList: string[]) {
+
+  const localResult = fastLocalParse(text, ingredientsList);
+  if (localResult) return localResult;
   const systemPrompt = `
     You are an expert F&B operations assistant and router. Your job is to classify and parse incoming messages written by baristas or cooks.
 

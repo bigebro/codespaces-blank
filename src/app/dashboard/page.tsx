@@ -7,13 +7,12 @@ import {
   TrendingUp, Trash2, Cpu, Layers, DollarSign, Percent, Activity, 
   AlertTriangle, Database, Coffee, PlusCircle, History, CheckCircle, 
   Undo2, Layers3, Building, Save, Check, FileSpreadsheet, UploadCloud, 
-  Eye, EyeOff, Bot, // <--- Add Bot here!
-  ShieldAlert
+  Eye, EyeOff, Bot, ShieldAlert, Download,
+  Camera, X, ExternalLink // 👈 Add these 3
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
-import { Download } from 'lucide-react';
 import { exportAuditExcel } from '../../lib/exportAudit';
 
 
@@ -244,7 +243,7 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [uniqueProducts, setUniqueProducts] = useState<string[]>([]);
   const [isLive, setIsLive] = useState(true);
   const [loading, setLoading] = useState(true);
-
+  const [selectedImageModal, setSelectedImageModal] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
   // Bulk Edit State (The "Google Sheets" Feel)
   const [bulkStock, setBulkStock] = useState<Record<string, string>>({});
   const [isSavingBulk, setIsSavingBulk] = useState(false);
@@ -1672,7 +1671,74 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                   )}
                 </div>
               </div>
-            </div>
+
+              
+            </div>{/* 🛡️ WAC MARGIN GUARD ALERTS */}
+{liveAnalytics?.margin_guard_alerts?.length > 0 && (
+  <div className="mt-8 bg-amber-500/10 border border-amber-500/30 p-5 rounded-2xl">
+    <div className="flex items-center gap-2 mb-3">
+      <AlertTriangle className="h-5 w-5 text-amber-400" />
+      <h3 className="font-bold text-amber-300 text-sm">Маржин Хамгаалагч: Түүхий эдийн үнэ өссөн тул үнээ нэмэх шаардлагатай</h3>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {liveAnalytics.margin_guard_alerts.map((alert: any, idx: number) => (
+        <div key={idx} className="bg-slate-950/80 p-3.5 rounded-xl border border-amber-500/20 text-xs space-y-1">
+          <div className="flex justify-between font-bold">
+            <span className="text-white">{alert.product_name}</span>
+            <span className="text-rose-400">Маржин: {alert.current_margin_pct}</span>
+          </div>
+          <p className="text-slate-400">Одоогийн өртөг: <strong className="text-slate-200">{alert.cost_price.toLocaleString()}₮</strong></p>
+          <p className="text-emerald-400 font-black">
+            Зөвлөх зарах үнэ: {alert.suggested_price.toLocaleString()}₮ (+{alert.price_gap.toLocaleString()}₮)
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* 🚨 CROSS-SHIFT FRAUD & INCIDENT MATRIX */}
+{liveAnalytics?.worker_fraud_matrix && Object.keys(liveAnalytics.worker_fraud_matrix).length > 0 && (
+  <div className="mt-8 bg-slate-900/50 p-6 rounded-2xl border border-rose-900/40">
+    <div className="flex items-center gap-2 mb-4">
+      <ShieldAlert className="h-6 w-6 text-rose-400 animate-pulse" />
+      <div>
+        <h3 className="text-base font-black text-white">Ээлжийн Дампуурал & Шалтгаантай Хаягдлын Матриц</h3>
+        <p className="text-xs text-slate-400">Өмнөх ээлжийн алдагдал, эвдрэл үүсгэсэн гэж бусад ажилтнуудын мэдээлсэн дүн шинжилгээ</p>
+      </div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Object.entries(liveAnalytics.worker_fraud_matrix).map(([worker, data]: any) => (
+        <div key={worker} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-black text-sm text-white">👤 {worker}</span>
+            <span className="text-xs font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-lg border border-rose-500/20">
+              Нийт {data.totalIncidents} удаагийн зөрчил
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mb-3">
+            Учруулсан бодит хохирол: <strong className="text-rose-400 font-mono text-sm">-{data.totalLossAmount.toLocaleString()} ₮</strong>
+          </p>
+          <div className="space-y-1.5 border-t border-slate-900 pt-2">
+            {data.incidents.slice(0, 3).map((inc: any, i: number) => (
+              <div key={i} className="flex justify-between items-center text-[11px] text-slate-400">
+                <span className="truncate max-w-[220px]">• {inc.notes || "Шалтгаангүй хаягдал"}</span>
+                {inc.image_url && (
+                  <button 
+                    onClick={() => setSelectedImageModal({ url: inc.image_url, title: `Зөрчлийн зураг: ${worker}` })}
+                    className="text-emerald-400 underline font-bold ml-2 shrink-0 hover:text-emerald-300"
+                  >
+                    Зураг үзэх
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
           </div>
         )}
         {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
@@ -1974,11 +2040,11 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                   className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-500 outline-none w-full md:w-48"
                 />
                 
-                <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800 shrink-0">
-                  <button onClick={() => setInvFilter('all')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${invFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Бүгд</button>
-                  <button onClick={() => setInvFilter('low')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${invFilter === 'low' ? 'bg-rose-500/20 text-rose-400' : 'text-slate-500 hover:text-slate-300'}`}>⚠️ Дуусаж буй</button>
-                  <button onClick={() => setInvFilter('critical')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${invFilter === 'critical' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-500 hover:text-slate-300'}`}>⭐ A-Class</button>
-                </div>
+               <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800 shrink-0">
+                    <button onClick={() => setInvFilter('all')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${invFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Бүгд</button>
+                    <button onClick={() => setInvFilter('low')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${invFilter === 'low' ? 'bg-rose-500/20 text-rose-400' : 'text-slate-500 hover:text-slate-300'}`}>⚠️ Дуусаж буй</button>
+                    <button onClick={() => setInvFilter('critical')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${invFilter === 'critical' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-500 hover:text-slate-300'}`}>⭐ A-Class (Парето 80%)</button>
+                  </div>
 
                 <button 
                   onClick={handleBulkSave}
@@ -2015,27 +2081,61 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                   <tbody className="divide-y divide-slate-900 text-sm">
                     {ingredients
                       .filter(ing => {
-                        // 1. Хайлт хийх логик
-                        const matchSearch = ing.name.toLowerCase().includes(invSearch.toLowerCase());
-                        // 2. Шүүлтүүрийн логик
-                        const matchFilter = 
-                          invFilter === 'all' || 
-                          (invFilter === 'low' && parseFloat(ing.current_stock) <= 50) || 
-                          (invFilter === 'critical' && ing.is_critical);
-                        return matchSearch && matchFilter;
+                       const matchSearch = ing.name.toLowerCase().includes(invSearch.toLowerCase());
+    
+                           // 2. Тухайн барааны ABC ангиллыг олох
+                    const analItem = liveAnalytics?.all_inventory_data?.find((i: any) => i.id === ing.id || i.name.toLowerCase() === ing.name.toLowerCase());
+                    const isAClass = ing.is_critical || analItem?.abc_class === 'A';
+
+                    // 3. Шүүлтүүр (A-Class дээр дарахад Эзний чеклэсэн болон Паретогийн A-Class хоёулаа гарна)
+                    const matchFilter = 
+                      invFilter === 'all' || 
+                      (invFilter === 'low' && parseFloat(ing.current_stock) <= (ing.par_level || 50)) || 
+                      (invFilter === 'critical' && isAClass);
+
+                    return matchSearch && matchFilter;
                       })
                     .map((ing) => (
                       <tr key={ing.id} className="hover:bg-slate-900/20 transition-all duration-150">
-                        <td className="py-3 px-4 font-bold text-slate-200">{ing.name}</td>
+                     {/* Барааны нэр + Парето зэрэглэл */}
+                      <td className="py-3 px-4 font-bold text-slate-200">
+                        <div className="flex items-center gap-2">
+                          <span>{ing.name}</span>
+                          {(() => {
+                            const analItem = liveAnalytics?.all_inventory_data?.find((i: any) => i.id === ing.id || i.name.toLowerCase() === ing.name.toLowerCase());
+                            const abc = ing.is_critical ? 'A' : (analItem?.abc_class || 'C');
+                            return (
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                                abc === 'A' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' :
+                                abc === 'B' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                                'bg-slate-800/80 text-slate-400 border-slate-700'
+                              }`}>
+                                {abc}-Class
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </td>
                         <td className="py-3 px-4 text-slate-400">{ing.unit}</td>
-                        <td className="py-2 px-4 text-center">
-                          <input 
-                            type="checkbox"
-                            checked={ing.is_critical || false}
-                            onChange={(e) => handleIngredientUpdate(ing.id, 'is_critical', e.target.checked)}
-                            className="w-4 h-4 accent-emerald-500 bg-slate-900 border-slate-700 rounded cursor-pointer"
-                          />
-                        </td>
+                                              
+                            {/* Эзэн өөрөө заавал тоолох барааг сонгох Checkbox */}
+                            <td className="py-2 px-4 text-center">
+                              <input 
+                                type="checkbox"
+                                title="Энэ барааг өдөр бүр тоолох А-Class болгох"
+                                checked={ing.is_critical || false}
+                                onChange={async (e) => {
+                                  const checked = e.target.checked;
+                                  // UI-г шууд өөрчлөх
+                                  setIngredients(prev => prev.map(item => item.id === ing.id ? { ...item, is_critical: checked } : item));
+                                  // Баазад шууд хадгалах
+                                  await supabase.from('ingredients').update({ is_critical: checked }).eq('id', ing.id);
+                                  fetchDatabaseData(activeClient);
+                                }}
+                                className="w-4 h-4 accent-emerald-500 bg-slate-900 border-slate-700 rounded cursor-pointer"
+                              />
+                            </td>
+
                         <td className="py-3 px-4 text-right text-slate-300">
                           {parseFloat(ing.unit_price).toLocaleString()}₮
                         </td>
@@ -2556,6 +2656,7 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
 
                         return (
                           <tr key={s.id} className="hover:bg-slate-900/30">
+                            
                             <td className="py-3 px-2 font-bold text-slate-200">{s.character_role || "Ерөнхий ажилтан"}</td>
                             <td className="py-3 px-2 text-slate-400">{new Date(s.start_time).toLocaleString('mn-MN')}</td>
                             <td className="py-3 px-2 text-slate-400">{s.end_time ? new Date(s.end_time).toLocaleString('mn-MN') : "-"}</td>
@@ -2568,9 +2669,26 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                                 <span className="text-slate-500 italic">Даалгавар байхгүй</span>
                               )}
                             </td>
-                            <td className="py-3 px-2 text-right">
-                              <span className="bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg text-xs font-bold uppercase">Closed</span>
-                            </td>
+                            {/* Replace the Status <td> with this: */}
+                        <td className="py-3 px-2 text-right flex items-center justify-end gap-2">
+                          {s.start_evidence_image && (
+                            <button
+                              onClick={() => setSelectedImageModal({ url: s.start_evidence_image, title: `Ээлж эхлэх үеийн зураг: ${s.character_role}` })}
+                              className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-1 rounded-lg text-xs font-bold border border-blue-500/20 flex items-center gap-1"
+                            >
+                              <Camera className="h-3 w-3" /> Эхлэл
+                            </button>
+                          )}
+                          {s.pos_z_image_url && (
+                            <button
+                              onClick={() => setSelectedImageModal({ url: s.pos_z_image_url, title: `ПОС Z-Тайлан: ${s.character_role}` })}
+                              className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-lg text-xs font-bold border border-emerald-500/20 flex items-center gap-1"
+                            >
+                              <Camera className="h-3 w-3" /> Z-Тайлан
+                            </button>
+                          )}
+                          <span className="bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg text-xs font-bold uppercase">Closed</span>
+                        </td>
                           </tr>
                         );
                       })
@@ -2725,18 +2843,29 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                             {log.total_cost ? `${parseFloat(log.total_cost).toLocaleString()}₮` : "-"}
                           </td>
                           <td className="py-3 px-2 text-center">
-                            {isPhotoVerified ? (
-                              <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg text-xs font-bold border border-emerald-500/20">
-                                📸 Баримтын зурагтай
-                              </span>
-                            ) : log.type === 'purchase' ? (
-                              <span className="bg-rose-500/10 text-rose-400 px-2 py-1 rounded-lg text-xs font-bold border border-rose-500/20">
-                                ⚠️ Гараар шивсэн (Зураггүй)
-                              </span>
-                            ) : (
-                              <span className="text-slate-500 text-xs italic">Дотоод хөдөлгөөн</span>
-                            )}
-                          </td>
+                          {log.image_url ? (
+                            <button
+                              onClick={() => setSelectedImageModal({
+                                url: log.image_url,
+                                title: `📸 Нотлох баримт: ${name}`,
+                                subtitle: `${log.worker_name} • ${new Date(log.date).toLocaleString('mn-MN')}`
+                              })}
+                              className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-xs font-black transition flex items-center gap-1 mx-auto"
+                            >
+                              <Camera className="h-3 w-3" /> Зураг үзэх
+                            </button>
+                          ) : isPhotoVerified ? (
+                            <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg text-xs font-bold border border-emerald-500/20">
+                              📸 Баримттай
+                            </span>
+                          ) : log.type === 'purchase' ? (
+                            <span className="bg-rose-500/10 text-rose-400 px-2 py-1 rounded-lg text-xs font-bold border border-rose-500/20">
+                              ⚠️ Зураггүй
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 text-xs italic">Дотоод</span>
+                          )}
+                        </td>
                           <td className="py-3 px-2 text-slate-400 max-w-[200px] truncate">{log.notes || "-"}</td>
                           <td className="py-3 px-2 text-slate-400 text-xs font-mono">
                             {new Date(log.date).toLocaleString('mn-MN', { 
@@ -3078,6 +3207,54 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     </div>
   </div>
 )}
+
+{/* 📸 FULL-SCREEN EVIDENCE IMAGE VIEWER MODAL */}
+      {selectedImageModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setSelectedImageModal(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700 rounded-3xl p-5 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-base font-black text-white">{selectedImageModal.title}</h3>
+                {selectedImageModal.subtitle && (
+                  <p className="text-xs text-slate-400 mt-0.5">{selectedImageModal.subtitle}</p>
+                )}
+              </div>
+              <button 
+                onClick={() => setSelectedImageModal(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition"
+              >
+                ✕ Хаах
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 py-4 flex items-center justify-center overflow-auto">
+              <img 
+                src={selectedImageModal.url} 
+                alt="Evidence Preview" 
+                className="max-h-[65vh] w-auto rounded-2xl object-contain shadow-md border border-slate-800"
+              />
+            </div>
+
+            <div className="pt-2 border-t border-slate-800 flex justify-end">
+              <a 
+                href={selectedImageModal.url} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5"
+              >
+                <span>Эх хувилбараар нээх</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
 
