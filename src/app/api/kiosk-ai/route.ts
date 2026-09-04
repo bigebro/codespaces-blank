@@ -27,8 +27,6 @@ async function getCachedAnalytics(clientId: string, start?: string, end?: string
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 
-const API_KEYS = (process.env.GEMINI_API_KEY || "").split(",").map(k => k.trim()).filter(Boolean);
-let currentKeyIndex = 0;
 
 function getFriendlyErrorMessage(errorMsg: string): string {
   const errStr = (errorMsg || "").toLowerCase();
@@ -124,7 +122,7 @@ export async function POST(request: Request) {
     const isOwner = userRole === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
     const clientId = tenantClientId;
-
+    
     // 1. UNDO
     if (action === 'undo' && logId) {
       const { error } = await supabaseAdmin.from('inventory_logs').delete().eq('id', logId);
@@ -161,6 +159,7 @@ export async function POST(request: Request) {
           "item_name": "Milk",
           "quantity": -2000,
           "type": "spoilage",
+          "extracted_phrase": "сүү",
           "notes": "2 литр сүү асгарсан (Аудиогоор сонсов)"
         }
       `;
@@ -207,6 +206,7 @@ export async function POST(request: Request) {
 
       if (aiResult && aiResult.is_transaction && aiResult.item_name) {
         const targetIng = ingredients?.find(i => i.name.toLowerCase().trim() === aiResult.item_name.toLowerCase().trim());
+        
         if (targetIng) {
           const { data: newLog } = await supabaseAdmin.from('inventory_logs').insert([{
             client_id: clientId,
@@ -217,6 +217,21 @@ export async function POST(request: Request) {
             worker_name: workerName,
             date: new Date().toISOString()
           }]).select().single();
+
+           // 🧠 IPAD/IPHONE-ООР ХЭЛСЭН ДУУНААС Ч БАС ҮГЭЭ ЦЭЭЖИЛНЭ!
+          const cleanAudioPhrase = (aiResult.extracted_phrase || '')
+            .replace(/[\d\.]+/g, '')
+            .replace(/литр|мл|кг|гр|грамм|ш|ширхэг|хайрцаг|уут|асгасан|авсан|муудсан|аву/gi, '')
+            .trim()
+            .toLowerCase();
+
+          if (cleanAudioPhrase && cleanAudioPhrase.length >= 3) {
+            await supabaseAdmin.from('learned_aliases').upsert([{
+              client_id: clientId,
+              phrase: cleanAudioPhrase,
+              ingredient_id: targetIng.id
+            }], { onConflict: 'client_id,phrase' });
+          }
 
           return NextResponse.json({
             success: true,
@@ -336,13 +351,18 @@ if (imageBase64) {
               date: new Date().toISOString()
             }]).select().single();
 
-            // 🧠 FEEDBACK LOOP: Хэрэв энэ гүйлгээг Gemini таньсан бол, хэлсэн үгийг нь баазад АВТОМАТААР БҮРТГЭНЭ!
-            // Дараагийн удаа Local Parser өөрөө Gemini-гүйгээр 0.001ms-д танина!
-            const cleanPhrase = text.replace(/[\d\.]+/g, '').replace(/литр|мл|кг|гр|грамм|ш|ширхэг|асгасан|авсан|муудсан/gi, '').trim();
-            if (cleanPhrase.length > 2) {
+            const rawPhrase = aiAnalysis.extracted_phrase || text;
+            // Тоо болон үйл үгсийг цэвэрлэх
+            const cleanPhrase = rawPhrase
+              .replace(/[\d\.]+/g, '')
+              .replace(/литр|мл|кг|гр|грамм|ш|ширхэг|хайрцаг|уут|асгасан|авсан|муудсан|аву|авчлаа|гашлаа/gi, '')
+              .trim()
+              .toLowerCase();
+
+            if (cleanPhrase && cleanPhrase.length >= 3) {
               await supabaseAdmin.from('learned_aliases').upsert([{
                 client_id: clientId,
-                phrase: cleanPhrase.toLowerCase(),
+                phrase: cleanPhrase,
                 ingredient_id: ingredient.id
               }], { onConflict: 'client_id,phrase' });
             }
