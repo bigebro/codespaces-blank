@@ -109,11 +109,15 @@ const handleForgotPassword = async () => {
         }
       } else {
         // Sign In
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
 
+          if (data?.session) {
+        router.push('/dashboard');
+        router.refresh(); // 👈 Дараагийн хуудасны серверийн датаг сэргээж нэвтрүүлнэ
+      }
         if (error) throw error;
         router.push('/dashboard');
       }
