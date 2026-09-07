@@ -37,6 +37,16 @@ export default function RootLayout({
     >
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+         {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.onerror = function(message, source, lineno, colno, error) {
+                alert("🚨 IPAD ДЭЭРХ БОДИТ АЛДАА: " + message + "\\nФайл: " + source + "\\nМөр: " + lineno);
+              };
+            `,
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col bg-[#070b14] text-slate-100">{children}</body>
     </html>
