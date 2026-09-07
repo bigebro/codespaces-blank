@@ -115,8 +115,14 @@ const handleForgotPassword = async () => {
         });
 
           if (data?.session) {
-        router.push('/dashboard');
-        router.refresh(); // 👈 Дараагийн хуудасны серверийн датаг сэргээж нэвтрүүлнэ
+  if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.removeItem('kiosk_device_locked');
+          } catch (e) {}
+        }
+
+        // 💡 2. Safari болон хөтөч дээр найдвартай шилжих:
+        window.location.href = '/dashboard';
       }
         if (error) throw error;
         router.push('/dashboard');
