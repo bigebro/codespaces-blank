@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic'; // next/dynamic to bypass 100% of extension hydration conflicts
 import {supabase} from '../../lib/supabase';
+import Link from 'next/link';
 import { 
   TrendingUp, Trash2, Cpu, Layers, DollarSign, Percent, Activity, 
   AlertTriangle, Database, Coffee, PlusCircle, History, CheckCircle, 
@@ -1374,30 +1374,29 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             </button>
           </form>
 
-          {/* 🔄 АЖИЛТАН ӨӨРИЙН ХАЯГААР НЭВТРЭХ СОНГОЛТ */}
+        {/* 🔄 ӨӨР ХАЯГААР НЭВТРЭХ: Safari дээр найдвартай гарахын тулд window.location ашиглана */}
           <div className="mt-4 text-center">
             <button 
               type="button"
               onClick={async () => {
                 await supabase.auth.signOut();
-                sessionStorage.removeItem('kiosk_device_locked');
-                router.push('/login');
+                try { sessionStorage.removeItem('kiosk_device_locked'); } catch (e) {}
+                window.location.href = '/login'; // 👈 Safari дээр цэвэр нэвтрэх хуудас руу үсэрнэ
               }}
-              className="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold"
+              className="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold cursor-pointer"
             >
               🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
             </button>
           </div>
 
-          {/* 📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧ */}
+          {/* ✅ 📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧИЙГ Link БОЛГОХ: */}
           <div className="mt-4 pt-4 border-t border-slate-900">
-            <button 
-              type="button"
-              onClick={() => router.push('/kiosk')}
-              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2"
+            <Link 
+              href="/kiosk"
+              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
               📱 Гал тогооны Kiosk руу буцах
-            </button>
+            </Link>
           </div>
 
         </div>
@@ -3265,14 +3264,6 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
 }
 
 
-// FIXED: Exporting the component dynamically with SSR disabled AND suppressHydrationWarning on the loader container [3]
-const HomeExport = dynamic(() => Promise.resolve(Home), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center min-h-screen bg-slate-950" suppressHydrationWarning={true}>
-      <p className="text-emerald-400 font-semibold text-lg animate-pulse" suppressHydrationWarning={true}>Ачаалж байна...</p>
-    </div>
-  )
-});
-
-export default HomeExport;
+export default function Page() {
+  return <Home/>;
+}

@@ -1,5 +1,4 @@
 "use client";
-import dynamic from 'next/dynamic';
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -11,6 +10,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -1287,14 +1287,16 @@ function KioskPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => router.push('/dashboard')} 
+    <div className="flex items-center gap-2">
+          {/* ✅ ЭНИЙГ Link БОЛГОНО: */}
+          <Link 
+            href="/dashboard" 
             className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
           >
             🔒 Dashboard
-          </button>
+          </Link>
 
+          {/* 🟢 ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
           {selectedWorker && (
             <button 
               onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
@@ -1305,6 +1307,7 @@ function KioskPage() {
             </button>
           )}
         </div>
+
       </header>
 
       {/* 🚀 MAIN CONTENT */}

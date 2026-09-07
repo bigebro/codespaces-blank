@@ -88,13 +88,7 @@ function UpdatePasswordPage() {
   );
 }
 
-const UpdatePasswordPageExport = dynamic(() => Promise.resolve(UpdatePasswordPage), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center min-h-screen bg-slate-950" suppressHydrationWarning={true}>
-      <p className="text-emerald-400 font-semibold text-lg animate-pulse" suppressHydrationWarning={true}>Уншиж байна...</p>
-    </div>
-  )
-});
 
-export default UpdatePasswordPageExport;
+export default function Page() {
+  return <UpdatePasswordPage />;
+}

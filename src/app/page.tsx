@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic'; // 👈 1. dynamic-ийг оруулж ирнэ
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   TrendingUp, 
   Zap, 
@@ -70,13 +71,21 @@ function PremiumLandingPage() {
             SMART<span className="text-emerald-400">BoH</span>
           </span>
         </div>
-        <div className="flex items-center gap-6">
-          <button onClick={() => router.push('/login')} className="text-sm font-bold text-slate-400 hover:text-white transition">
+      
+        <div className="flex items-center gap-6 z-50">
+          <Link 
+            href="/login" 
+            className="text-sm font-bold text-slate-400 hover:text-white transition py-2 px-3 cursor-pointer"
+          >
             Нэвтрэх
-          </button>
-          <button onClick={() => router.push('/login')} className="hidden sm:flex bg-white text-slate-950 hover:bg-slate-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+          </Link>
+
+          <Link 
+            href="/login" 
+            className="hidden sm:flex bg-white text-slate-950 hover:bg-slate-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] cursor-pointer"
+          >
             Үнэгүй турших <ArrowRight className="h-4 w-4" />
-          </button>
+          </Link>
         </div>
       </nav>
 
