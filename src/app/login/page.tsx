@@ -16,13 +16,9 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [companyName, setCompanyName] = useState(''); 
- const [signupRole, setSignupRole] = useState<'owner' | 'staff'>('owner');
-  const [mounted, setMounted] = useState(false);
+  const [signupRole, setSignupRole] = useState<'owner' | 'staff'>('owner');
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
 const handleForgotPassword = async () => {
   if (!email) {
@@ -127,13 +123,7 @@ const handleForgotPassword = async () => {
       setLoading(false);
     }
   };
-if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <p className="text-emerald-400 font-semibold text-lg animate-pulse">Уншиж байна...</p>
-      </div>
-    );
-  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-slate-900/40 p-8 rounded-2xl border border-slate-900 shadow-2xl backdrop-blur-md">
