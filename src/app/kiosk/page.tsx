@@ -1874,8 +1874,6 @@ function KioskPage() {
   );
 }
 
-const KioskPageExport = dynamic(() => Promise.resolve(KioskPage), {
-  ssr: false,
-});
-
-export default KioskPageExport;
+export default function Page() {
+  return <KioskPage />;
+}

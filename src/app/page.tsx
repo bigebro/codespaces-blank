@@ -23,12 +23,7 @@ function PremiumLandingPage() {
   const router = useRouter();
   const [dailyRevenue, setDailyRevenue] = useState(1500000);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  // Браузер дээр бүрэн сууж дуустал хүлээх
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Hormozi-style ROI Math
   const monthlyRevenue = dailyRevenue * 30;
@@ -51,13 +46,7 @@ function PremiumLandingPage() {
     }
   ];
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-emerald-400 font-semibold animate-pulse">Ачаалж байна...</p>
-      </div>
-    );
-  }
+
 
   return (
     // 👈 2. suppressHydrationWarning={true} нэмснээр Extension-ий нөлөөгөөр гарах алдаа бүрэн арилна
@@ -316,14 +305,6 @@ function PremiumLandingPage() {
   );
 }
 
-// 👈 3. SSR-ийг хааж dynamic экспорт хийнэ
-const PremiumLandingPageExport = dynamic(() => Promise.resolve(PremiumLandingPage), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center min-h-screen bg-slate-950" suppressHydrationWarning={true}>
-      <p className="text-emerald-400 font-semibold text-lg animate-pulse" suppressHydrationWarning={true}>Ачаалж байна...</p>
-    </div>
-  )
-});
-
-export default PremiumLandingPageExport;
+export default function Page() {
+  return <PremiumLandingPage />;
+}
