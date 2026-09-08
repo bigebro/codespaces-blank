@@ -615,6 +615,7 @@ export async function POST(request: Request) {
     }
 
     const analyticsData = await getCachedAnalytics(tenantClientId, chatTargetStart, chatTargetEnd);
+      const fin = analyticsData.financial_ladder || {};
 
 
     const isOwner = userProfile?.role === 'owner';
