@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic'; // 👈 1. dynamic-ийг оруулж ирнэ
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -71,8 +70,7 @@ function PremiumLandingPage() {
             SMART<span className="text-emerald-400">BoH</span>
           </span>
         </div>
-      
-        <div className="flex items-center gap-6 z-50">
+       <div className="flex items-center gap-6 z-50">
           <Link 
             href="/login" 
             className="text-sm font-bold text-slate-400 hover:text-white transition py-2 px-3 cursor-pointer"
@@ -116,9 +114,12 @@ function PremiumLandingPage() {
           </div>
         </div>
 
-        <button onClick={() => router.push('/login')} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base px-10 py-5 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto">
+         <Link 
+          href="/login" 
+          className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base px-10 py-5 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto cursor-pointer"
+        >
           14 Хоног Үнэгүй Ашиглах <ArrowRight className="h-5 w-5" />
-        </button>
+        </Link>
       </section>
 
       {/* 3. HORMOZI LEAD MAGNET */}
