@@ -377,6 +377,7 @@ function KioskAiChatSection({
     
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // 1-Tap Quick Action Presets (Хамгийн түгээмэл 5 хаягдал)
   const QUICK_SPILLS = [
@@ -412,9 +413,9 @@ function KioskAiChatSection({
 
   // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android дээр Web Speech, Apple дээр Gemini Aud)
   const startVoiceRecording = async () => {
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
     // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
-  if (isAppleDevice()) {
+  if (isAppleDevice() || true) {
       if (isListening && mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
         return;
@@ -451,7 +452,7 @@ function KioskAiChatSection({
         mediaRecorder.onstop = () => {
           setIsListening(false);
           setIsAiLoading(true);
-
+          setChatHistory(prev => [...prev, { sender: 'worker', text: '🎙️ Дуут бүртгэл илгээж байна...' }]);
           setTimeout(() => {
             stream.getTracks().forEach(track => track.stop());
           }, 100);
