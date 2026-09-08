@@ -410,7 +410,7 @@ function KioskAiChatSection({
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   };
 
-  // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android дээр Web Speech, Apple дээр Gemini Audio)
+  // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android дээр Web Speech, Apple дээр Gemini Aud)
   const startVoiceRecording = async () => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
