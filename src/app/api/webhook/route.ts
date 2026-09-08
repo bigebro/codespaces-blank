@@ -621,7 +621,7 @@ export async function POST(request: Request) {
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
      const promptPayload = `
-=== BUSINESS: ${clientId} ===
+=== BUSINESS: ${tenantClientId} ===
 FINANCIALS (P&L & TAX):
 Revenue: ${fin.revenue}₮ | NetRevenue: ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
 OPEX: ${fin.opex}₮ | Depreciation: ${fin.depreciation}₮ | EBIT: ${fin.ebit}₮ | NetProfit: ${fin.net_profit}₮ (${fin.net_margin})
