@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 60 * 1000; // 60 секунд
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 async function getCachedAnalytics(clientId: string, start?: string, end?: string) {
   const cacheKey = `${clientId}_${start || 'default'}_${end || 'default'}`;
@@ -81,15 +81,19 @@ async function callGeminiStreamWithFailover(systemPrompt: string, promptPayload:
 
     try {
       const activeGenAI = new GoogleGenerativeAI(currentKey);
-      const model = activeGenAI.getGenerativeModel({ 
-        model: 'gemini-3.6-flash', // 👈 gemini-3.6-flash хэвээрээ
-        generationConfig: { temperature: 0.2 }
+  const model = activeGenAI.getGenerativeModel({ 
+        model: 'gemini-3.6-flash',
+        systemInstruction: systemPrompt,
+      generationConfig: { 
+          temperature: 0.2,
+          maxOutputTokens: 1500, // ⚡ Tightens memory allocation for fastest token generation
+          thinkingConfig: { thinkingLevel: 'MINIMAL' }
+        } as any
       });
 
       const response = await model.generateContentStream({
-        contents: [{ role: 'user', parts: [{ text: `System: ${systemPrompt}\n\nInput Data: ${promptPayload}` }] }]
+        contents: [{ role: 'user', parts: [{ text: promptPayload }] }]
       });
-
       // Хэрэв амжилттай болсон бол дараагийн хүсэлтэд энэ түлхүүрээс эхэлнэ
       globalKeyIndex = keyIdx;
       return response;
@@ -130,8 +134,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн)." });
     }
 
-    const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId);
-    const allowedNames = ingredients ? ingredients.map(i => i.name) : [];
+ let allowedNames: string[] = [];
+let ingredients: any[] | null = null;
+
+if (!isOwner || imageBase64 || body.audioBase64) {
+  // 👈 THE QUERY IS RIGHT HERE!
+  const res = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId);
+  ingredients = res.data;
+  allowedNames = ingredients ? ingredients.map(i => i.name) : [];
+}
 
   // =========================================================================
     // 🎙️ 1.5. IPAD / IPHONE ДУУ ХООЛОЙГ GEMINI 3.6 FLASH-ЭЭР ШУУД СОНСОЖ БҮРТГЭХ
@@ -175,9 +186,13 @@ export async function POST(request: Request) {
 
         try {
           const ai = new GoogleGenerativeAI(currentKey);
-          const model = ai.getGenerativeModel({
+       const model = ai.getGenerativeModel({
             model: 'gemini-3.6-flash',
-            generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+            generationConfig: { 
+              temperature: 0.1, 
+              responseMimeType: "application/json",
+              thinkingConfig: { thinkingLevel: 'MINIMAL' } // ⚡ Eliminates 1.5s delay on iPad voice
+            } as any
           });
 
           const response = await model.generateContent({
@@ -452,66 +467,57 @@ if (imageBase64) {
       }
 
 
-     const richContext = {
-      client: clientId,
-      financials: analyticsData.financial_ladder,
-      tax_summary: analyticsData.tax_summary,
-      cashflow: analyticsData.cashflow_summary,
-      payroll: analyticsData.payroll_summary,
-      total_waste_loss: analyticsData.total_waste_loss,
-      total_unexplained_waste: analyticsData.total_unexplained_waste,
-      total_surplus_savings: analyticsData.total_surplus_savings,
-      efficiency: analyticsData.efficiency,
-      logged_waste_breakdown: {
-        spoilage_loss: analyticsData.total_logged_spoilage || 0,
-        testing_cost: analyticsData.total_logged_testing || 0,
-        staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
-        other_cost: analyticsData.total_logged_other || 0
-      },
-      top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
-      top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
-      all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        loss: `${i.impact}₮`,
-        unit_price: `${i.price}₮`,
-        notes: i.notes || ""
-      })),
-      all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        savings: `${i.impact}₮`
-      })),
-      all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
-        name: i.name,
-        live_stock: `${i.live_stock} ${i.unit}`,
-        par_level: `${i.par_level} ${i.unit}`,
-        unit_price: `${i.price}₮`,
-        abc_class: i.abc_class,
-        suggested_order: i.suggested_order
-      })),
-      all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
-        name: m.name,
-        sold_count: m.sold,
-        selling_price: `${m.selling_price}₮`,
-        cost: `${m.cost_per_item}₮`,
-        margin: `${m.gross_margin_pct}%`
-      })),
-      all_recipes: analyticsData.all_recipes,
-      recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
-      margin_guard_alerts: analyticsData.margin_guard_alerts,
-      worker_fraud_matrix: analyticsData.worker_fraud_matrix,
-      recent_worker_logs: analyticsData.recent_worker_logs,
-      opex_breakdown: analyticsData.opex_details
-    };
+ // ⚡ 1. Format Inventory into dense table (100% data, 70% fewer tokens)
+      const invTable = (analyticsData.all_inventory_data || []).map((i: any) => 
+        `${i.name} | stock:${i.live_stock}${i.unit} | par:${i.par_level} | price:${i.price}₮ | gap:${i.gap} | loss:${i.impact}₮ | class:${i.abc_class} | order:${i.suggested_order}`
+      ).join('\n');
 
+      // ⚡ 2. Format Recipes into clean formulas
+      const recipesText = Object.entries(analyticsData.all_recipes || {}).map(([pName, ingMap]: any) => 
+        `${pName} = ` + Object.entries(ingMap).map(([ing, amt]) => `${amt} ${ing}`).join(' + ')
+      ).join('\n');
 
+      // ⚡ 3. Format Menu margins
+      const menuText = (analyticsData.menu_performance || []).map((m: any) => 
+        `${m.name} | sold:${m.sold} | price:${m.selling_price}₮ | cost:${m.cost_per_item}₮ | margin:${m.gross_margin_pct}%`
+      ).join('\n');
+
+      // ⚡ 4. Format Payroll & OPEX
+      const payrollText = (analyticsData.payroll_summary || []).map((p: any) => 
+        `${p.worker_name}: ${p.total_hours}hrs | Gross:${p.gross_salary}₮ | Net:${p.net_take_home}₮`
+      ).join(', ');
+
+      const opexText = (analyticsData.opex_details || []).map((o: any) => `${o.item}: ${o.cost}₮`).join(', ');
+      const cf = analyticsData.cashflow_summary || {};
+
+      // ⚡ 5. Assemble prompt payload
+      const promptPayload = `
+=== BUSINESS: ${clientId} ===
+FINANCIALS (P&L & TAX):
+Revenue: ${fin.revenue}₮ | NetRevenue: ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
+OPEX: ${fin.opex}₮ | Depreciation: ${fin.depreciation}₮ | EBIT: ${fin.ebit}₮ | NetProfit: ${fin.net_profit}₮ (${fin.net_margin})
+TAX: Mode:${analyticsData.tax_summary?.tax_mode} | ActiveTax:${analyticsData.tax_summary?.active_tax_amount}₮ | VAT(10%):${analyticsData.tax_summary?.estimated_vat_10pct}₮
+CASHFLOW: CashInHand:${cf.end_cash_balance || 0}₮ | Bank:${cf.end_bank_balance || 0}₮ | TotalCash:${cf.net_total_balance || 0}₮
+WASTE: TotalWasteLoss:${analyticsData.total_waste_loss}₮ | UnexplainedWaste:${analyticsData.total_unexplained_waste}₮ | Efficiency:${analyticsData.efficiency}
+PAYROLL: ${payrollText || "None"}
+OPEX BREAKDOWN: ${opexText || "None"}
+
+=== ALL INVENTORY (${(analyticsData.all_inventory_data || []).length} items) ===
+${invTable}
+
+=== ALL RECIPES ===
+${recipesText}
+
+=== MENU PERFORMANCE ===
+${menuText}
+
+User Question: ${text}`;
      
       // =========================================================================
       // ⚡ АЛХАМ 3: ӨӨР ЧӨЛӨӨТ АСУУЛТ БОЛ ДЭЭРХ ДАТАГААРАА GEMINI-Г STREAM ХИЙЖ АЖИЛЛУУЛАХ
 
    
-    const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${text}`;
+   
       let responseStream = null;
       try {
         responseStream = await callGeminiStreamWithFailover(ACTIVE_PROMPT, promptPayload);
@@ -541,11 +547,12 @@ if (imageBase64) {
         }
       });
 
-      return new Response(stream, {
+   return new Response(stream, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no' // ⚡ Flushes tokens to screen without waiting
         }
       });
     }

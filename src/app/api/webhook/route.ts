@@ -620,61 +620,29 @@ export async function POST(request: Request) {
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
-    const richContext = {
-      client: tenantClientId,
-      financials: analyticsData.financial_ladder,
-      tax_summary: analyticsData.tax_summary,
-      cashflow: analyticsData.cashflow_summary,
-      payroll: analyticsData.payroll_summary,
-      total_waste_loss: analyticsData.total_waste_loss,
-      total_unexplained_waste: analyticsData.total_unexplained_waste,
-      total_surplus_savings: analyticsData.total_surplus_savings,
-      efficiency: analyticsData.efficiency,
-      logged_waste_breakdown: {
-        spoilage_loss: analyticsData.total_logged_spoilage || 0,
-        testing_cost: analyticsData.total_logged_testing || 0,
-        staff_meal_cost: analyticsData.total_logged_staff_meal || 0,
-        other_cost: analyticsData.total_logged_other || 0
-      },
-      top_wasted_items: analyticsData.top_wasters?.map((w: any) => `${w.name} (-${w.impact}₮, зөрүү: ${w.gap} ${w.unit})`),
-      top_expensive_items: analyticsData.top_expensive?.map((e: any) => `${e.name} (${e.price}₮/${e.unit})`),
-      all_wasted_items: analyticsData.wasted_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        loss: `${i.impact}₮`,
-        unit_price: `${i.price}₮`,
-        notes: i.notes || ""
-      })),
-      all_underpoured_items: analyticsData.underpoured_only?.map((i: any) => ({
-        name: i.name,
-        gap: `${i.gap} ${i.unit}`,
-        savings: `${i.impact}₮`
-      })),
-      all_inventory_items: analyticsData.all_inventory_data?.map((i: any) => ({
-        name: i.name,
-        live_stock: `${i.live_stock} ${i.unit}`,
-        par_level: `${i.par_level} ${i.unit}`,
-        unit_price: `${i.price}₮`,
-        abc_class: i.abc_class,
-        suggested_order: i.suggested_order
-      })),
-      all_menu_performance: analyticsData.menu_performance?.map((m: any) => ({
-        name: m.name,
-        sold_count: m.sold,
-        selling_price: `${m.selling_price}₮`,
-        cost: `${m.cost_per_item}₮`,
-        margin: `${m.gross_margin_pct}%`
-      })),
-      all_recipes: analyticsData.all_recipes,
-      recent_shifts: analyticsData.recent_shifts?.slice(0, 10),
-      margin_guard_alerts: analyticsData.margin_guard_alerts,
-      worker_fraud_matrix: analyticsData.worker_fraud_matrix,
-      recent_worker_logs: analyticsData.recent_worker_logs,
-      opex_breakdown: analyticsData.opex_details
-    };
+     const promptPayload = `
+=== BUSINESS: ${clientId} ===
+FINANCIALS (P&L & TAX):
+Revenue: ${fin.revenue}₮ | NetRevenue: ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
+OPEX: ${fin.opex}₮ | Depreciation: ${fin.depreciation}₮ | EBIT: ${fin.ebit}₮ | NetProfit: ${fin.net_profit}₮ (${fin.net_margin})
+TAX: Mode:${analyticsData.tax_summary?.tax_mode} | ActiveTax:${analyticsData.tax_summary?.active_tax_amount}₮ | VAT(10%):${analyticsData.tax_summary?.estimated_vat_10pct}₮
+CASHFLOW: CashInHand:${cf.end_cash_balance || 0}₮ | Bank:${cf.end_bank_balance || 0}₮ | TotalCash:${cf.net_total_balance || 0}₮
+WASTE: TotalWasteLoss:${analyticsData.total_waste_loss}₮ | UnexplainedWaste:${analyticsData.total_unexplained_waste}₮ | Efficiency:${analyticsData.efficiency}
+PAYROLL: ${payrollText || "None"}
+OPEX BREAKDOWN: ${opexText || "None"}
 
+=== ALL INVENTORY (${(analyticsData.all_inventory_data || []).length} items) ===
+${invTable}
 
-const promptPayload = `CONTEXT_DATA: ${JSON.stringify(richContext)}\n\nUser Question: ${incomingText}`;
+=== ALL RECIPES ===
+${recipesText}
+
+=== MENU PERFORMANCE ===
+${menuText}
+
+User Question: ${text}`;
+     
+
 
     // 💡 Түлхүүрүүд дундуур эргэлдэх
 

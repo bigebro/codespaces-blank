@@ -412,34 +412,68 @@ function KioskAiChatSection({
 
   // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android дээр Web Speech, Apple дээр Gemini Audio)
   const startVoiceRecording = async () => {
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
-    if (isAppleDevice()) {
+  if (isAppleDevice()) {
+      if (isListening && mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+        return;
+      }
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        alert("iPad/iOS дээр дуу бичихийн тулд заавал HTTPS эсвэл localhost байх шаардлагатай.");
+        return;
+      }
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm';
-        const mediaRecorder = new MediaRecorder(stream);
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+        
+        let chosenMime = 'audio/mp4';
+        if (MediaRecorder.isTypeSupported('audio/mp4')) chosenMime = 'audio/mp4';
+        else if (MediaRecorder.isTypeSupported('audio/aac')) chosenMime = 'audio/aac';
+        else if (MediaRecorder.isTypeSupported('audio/webm')) chosenMime = 'audio/webm';
+
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: chosenMime });
+        mediaRecorderRef.current = mediaRecorder;
         const audioChunks: Blob[] = [];
 
         setIsListening(true);
-        if (navigator.vibrate) navigator.vibrate(20);
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) audioChunks.push(event.data);
+          if (event.data && event.data.size > 0) audioChunks.push(event.data);
         };
 
-        mediaRecorder.onstop = async () => {
+        mediaRecorder.onerror = () => {
+          setIsListening(false);
+          setIsAiLoading(false);
+        };
+
+        mediaRecorder.onstop = () => {
           setIsListening(false);
           setIsAiLoading(true);
-          stream.getTracks().forEach(track => track.stop()); // Микрофоныг унтраах
 
-          const audioBlob = new Blob(audioChunks, { type: mimeType });
+          setTimeout(() => {
+            stream.getTracks().forEach(track => track.stop());
+          }, 100);
+
+          if (audioChunks.length === 0) {
+            setIsAiLoading(false);
+            return;
+          }
+
+          const audioBlob = new Blob(audioChunks, { type: chosenMime });
           const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = async () => {
-            const base64Audio = (reader.result as string).split(',')[1];
 
-            // Gemini 3.6 Flash руу аудиог илгээх
+          reader.onerror = () => setIsAiLoading(false);
+          reader.onloadend = async () => {
             try {
+              const resString = reader.result as string;
+              if (!resString || !resString.includes(',')) {
+                setIsAiLoading(false);
+                return;
+              }
+
+              const base64Audio = resString.split(',')[1];
               const res = await fetch('/api/kiosk-ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -447,29 +481,30 @@ function KioskAiChatSection({
                   tenantClientId: selectedWorker.client_id,
                   workerName: activeShift?.character_role || selectedWorker.full_name || "Ажилтан",
                   audioBase64: base64Audio,
-                  audioMimeType: mimeType,
+                  audioMimeType: chosenMime,
                   userRole: 'staff'
                 })
               });
               const data = await res.json();
               setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
             } catch (err) {
-              setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Дуу танихад алдаа гарлаа.' }]);
+              setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Дууг танихад алдаа гарлаа.' }]);
             } finally {
-              setIsAiLoading(false);
+              setIsAiLoading(false); // ⚡ Always unfreezes UI
             }
           };
+          reader.readAsDataURL(audioBlob);
         };
 
-        mediaRecorder.start();
-        // Баристаг 3.5 секунд ярьсны дараа автоматаар бичлэгийг зогсоож илгээнэ
+        mediaRecorder.start(250);
         setTimeout(() => {
           if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-        }, 3500);
+        }, 2500);
 
-      } catch (err) {
-        alert("Микрофон ашиглах зөвшөөрөл олгоно уу.");
+      } catch (err: any) {
         setIsListening(false);
+        setIsAiLoading(false);
+        alert("Микрофоны зөвшөөрөл өгнө үү: " + err.message);
       }
       return;
     }
@@ -544,27 +579,46 @@ function KioskAiChatSection({
     let uploadedImageUrl: string | null = null;
     let base64Data: string | null = null;
 
-    if (file) {
-      uploadedImageUrl = await uploadEvidencePhoto(file, 'receipts');
-
+   if (file) {
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
-        reader.readAsDataURL(file);
+        reader.onerror = () => resolve(null); // ⚡ Never freeze
         reader.onload = (event) => {
           const img = new Image();
-          img.src = event.target?.result as string;
+          img.onerror = () => resolve(null); // ⚡ Never freeze on HEIC/Safari
           img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800;
-            const scaleSize = MAX_WIDTH / img.width;
-            canvas.width = MAX_WIDTH;
-            canvas.height = img.height * scaleSize;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+            try {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 1000;
+              let width = img.width;
+              let height = img.height;
+              if (width > height && width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+              } else if (height > MAX_WIDTH) {
+                width = Math.round((width * MAX_WIDTH) / height);
+                height = MAX_WIDTH;
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) return resolve(null);
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]);
+            } catch (err) {
+              resolve(null);
+            }
           };
+          img.src = event.target?.result as string;
         };
+        reader.readAsDataURL(file);
       });
+
+      if (!base64Data) {
+        setIsAiLoading(false);
+        alert("Зургийг боловсруулж чадсангүй. Дахин дарна уу.");
+        return;
+      }
     } else {
       // ⚡ 0.01ms LOCAL MONGOLIAN MATCH (Сервер, AI дуудахгүйгээр шууд баазад хадгалах)
       const localMatch = advancedMongolianVoiceParser(textToProcess, ingredients, learnedAliases);

@@ -285,12 +285,14 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [invSearch, setInvSearch] = useState('');
   const [invFilter, setInvFilter] = useState<'all' | 'low' | 'critical'>('all');
   // 🔒 Kiosk түгжээний State-үүд:
- const [isKioskLocked, setIsKioskLocked] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('kiosk_device_locked') === 'true';
+
+  const [isKioskLocked, setIsKioskLocked] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('kiosk_device_locked') === 'true') {
+      setIsKioskLocked(true);
     }
-    return false;
-  });
+  }, []);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);

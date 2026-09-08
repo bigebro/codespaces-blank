@@ -419,9 +419,13 @@ const keys = getApiKeys();
 
     try {
       const ai = new GoogleGenerativeAI(currentKey);
-      const model = ai.getGenerativeModel({ 
+    const model = ai.getGenerativeModel({ 
         model: 'gemini-3.6-flash',
-        generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+        generationConfig: { 
+          temperature: 0.1, 
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingLevel: 'MINIMAL' } // ⚡ Instant JSON extraction
+        } as any
       });
         const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: `System: ${systemPrompt}\n\nUser Message: "${text}"` }] }]
