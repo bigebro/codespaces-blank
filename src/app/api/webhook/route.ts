@@ -621,6 +621,29 @@ export async function POST(request: Request) {
     const isOwner = userProfile?.role === 'owner';
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
 
+// ⚡ 1. Format Inventory into dense table (100% data, 70% fewer tokens)
+      const invTable = (analyticsData.all_inventory_data || []).map((i: any) => 
+        `${i.name} | stock:${i.live_stock}${i.unit} | par:${i.par_level} | price:${i.price}₮ | gap:${i.gap} | loss:${i.impact}₮ | class:${i.abc_class} | order:${i.suggested_order}`
+      ).join('\n');
+
+      // ⚡ 2. Format Recipes into clean formulas
+      const recipesText = Object.entries(analyticsData.all_recipes || {}).map(([pName, ingMap]: any) => 
+        `${pName} = ` + Object.entries(ingMap).map(([ing, amt]) => `${amt} ${ing}`).join(' + ')
+      ).join('\n');
+
+      // ⚡ 3. Format Menu margins
+      const menuText = (analyticsData.menu_performance || []).map((m: any) => 
+        `${m.name} | sold:${m.sold} | price:${m.selling_price}₮ | cost:${m.cost_per_item}₮ | margin:${m.gross_margin_pct}%`
+      ).join('\n');
+
+      // ⚡ 4. Format Payroll & OPEX
+      const payrollText = (analyticsData.payroll_summary || []).map((p: any) => 
+        `${p.worker_name}: ${p.total_hours}hrs | Gross:${p.gross_salary}₮ | Net:${p.net_take_home}₮`
+      ).join(', ');
+
+      const opexText = (analyticsData.opex_details || []).map((o: any) => `${o.item}: ${o.cost}₮`).join(', ');
+      const cf = analyticsData.cashflow_summary || {};
+
      const promptPayload = `
 === BUSINESS: ${tenantClientId} ===
 FINANCIALS (P&L & TAX):
