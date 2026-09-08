@@ -1380,10 +1380,10 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               type="button"
               onClick={async () => {
                 await supabase.auth.signOut();
-                try { sessionStorage.removeItem('kiosk_device_locked'); } catch (e) {}
-                window.location.href = '/login'; // 👈 Safari дээр цэвэр нэвтрэх хуудас руу үсэрнэ
+                sessionStorage.removeItem('kiosk_device_locked');
+                router.push('/login');
               }}
-              className="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold cursor-pointer"
+              className="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold"
             >
               🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
             </button>
