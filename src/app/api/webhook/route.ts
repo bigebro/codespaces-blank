@@ -664,7 +664,7 @@ ${recipesText}
 === MENU PERFORMANCE ===
 ${menuText}
 
-User Question: ${text}`;
+User Question: ${incomingText}`;
      
 
 
