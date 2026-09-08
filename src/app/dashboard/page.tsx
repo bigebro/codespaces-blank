@@ -410,7 +410,7 @@ const checkUserSession = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-      window.location.href = '/login';
+         router.push('/login');
     } else {
       setUser(session.user);
       
