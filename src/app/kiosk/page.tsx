@@ -415,7 +415,7 @@ function KioskAiChatSection({
   const startVoiceRecording = async () => {
 
     // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
-  if (isAppleDevice()) {
+  if (isAppleDevice() || true) {
       if (isListening && mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
         return;

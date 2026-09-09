@@ -150,48 +150,28 @@ if (!isOwner || imageBase64 || body.audioBase64) {
     const audioBase64 = body.audioBase64 || null;
     const audioMimeType = body.audioMimeType || 'audio/webm';
 
-    if (audioBase64) {
-      const audioPrompt = `
-        You are an expert Mongolian F&B voice listener. 
-        Listen to this barista's spoken Mongolian voice audio carefully.
-        Extract the ingredient, quantity, and operation type.
-        
-        Allowed ingredients: [${allowedNames.join(', ')}]
-        
-        Rules:
-        - Spoilage (асгасан, муудсан, гашилсан, хаясан): quantity must be NEGATIVE, type: "spoilage"
-        - Purchase (авсан, ирсэн, татан авалт): quantity must be POSITIVE, type: "purchase"
-        - Staff meal (хоолонд орсон, идсэн): quantity must be NEGATIVE, type: "staff_meal"
-        - Standardize: 1 литр -> 1000 ml, 1 кг -> 1000 gram.
-        
-        Return STRICTLY JSON format:
-        {
-          "is_transaction": true,
-          "item_name": "Milk",
-          "quantity": -2000,
-          "type": "spoilage",
-          "extracted_phrase": "сүү",
-          "notes": "2 литр сүү асгарсан (Аудиогоор сонсов)"
-        }
-      `;
+ if (audioBase64) {
+      // ⚡ Clean MIME type: Strips ";codecs=opus" so Gemini doesn't reject it
+      const cleanMime = (audioMimeType || 'audio/webm').split(';')[0].trim();
 
-     let aiResult: any = null;
+      const audioPrompt = "You are a Mongolian speech transcriber. Listen carefully to this audio. Transcribe and output ONLY the spoken Mongolian Cyrillic words. If there is no speech, output nothing.";
+
+      let transcribedText = "";
+      let lastError = "";
       const keys = getApiKeys();
-      let lastAudioError = "";
 
-      // 💡 ТҮЛХҮҮРҮҮД ДЭЭР ДАРААЛАЛ АЛДАГДАХГҮЙ ҮСЭРДЭГ ШИНЭ ЛООП:
       for (let attempt = 0; attempt < keys.length; attempt++) {
         const keyIdx = (globalKeyIndex + attempt) % keys.length;
         const currentKey = keys[keyIdx];
 
         try {
           const ai = new GoogleGenerativeAI(currentKey);
-       const model = ai.getGenerativeModel({
-            model: 'gemini-3.6-flash',
+          const model = ai.getGenerativeModel({
+            model: 'gemini-3.6-flash', // ⚡ Using your proven working model
             generationConfig: { 
-              temperature: 0.1, 
-              responseMimeType: "application/json",
-              thinkingConfig: { thinkingLevel: 'MINIMAL' } // ⚡ Eliminates 1.5s delay on iPad voice
+              temperature: 0.1,
+              maxOutputTokens: 150,
+              thinkingConfig: { thinkingLevel: 'MINIMAL' }
             } as any
           });
 
@@ -200,69 +180,34 @@ if (!isOwner || imageBase64 || body.audioBase64) {
               role: 'user',
               parts: [
                 { text: audioPrompt },
-                { inlineData: { mimeType: audioMimeType, data: audioBase64 } }
+                { inlineData: { mimeType: cleanMime, data: audioBase64 } }
               ]
             }]
           });
 
-          const textRes = response.response.text();
-          aiResult = JSON.parse(textRes.replace(/```json|```/g, "").trim());
-          if (aiResult) {
-            globalKeyIndex = keyIdx; // 👈 Амжилттай түлхүүрийг санаж хадгална!
+          transcribedText = response.response.text().trim();
+          if (transcribedText) {
+            globalKeyIndex = keyIdx;
             break;
           }
         } catch (e: any) {
-          lastAudioError = e.message || String(e);
-          console.warn(`[AUDIO KEY #${keyIdx + 1} 429/Error]: Дараагийн түлхүүр рүү шилжиж байна...`, lastAudioError);
-          globalKeyIndex = (keyIdx + 1) % keys.length; // 👈 1-р түлхүүр гацвал шууд 2-р түлхүүр рүү үсэрнэ
+          lastError = e.message || String(e);
+          console.error(`Gemini Audio Key #${keyIdx + 1} Error:`, lastError);
+          globalKeyIndex = (keyIdx + 1) % keys.length;
           continue;
         }
       }
 
-      if (aiResult && aiResult.is_transaction && aiResult.item_name) {
-        const targetIng = ingredients?.find(i => i.name.toLowerCase().trim() === aiResult.item_name.toLowerCase().trim());
-        
-        if (targetIng) {
-          const { data: newLog } = await supabaseAdmin.from('inventory_logs').insert([{
-            client_id: clientId,
-            ingredient_id: targetIng.id,
-            quantity: aiResult.quantity,
-            type: aiResult.type || 'spoilage',
-            notes: aiResult.notes || 'Аудио дуут бүртгэл',
-            worker_name: workerName,
-            date: new Date().toISOString()
-          }]).select().single();
-
-           // 🧠 IPAD/IPHONE-ООР ХЭЛСЭН ДУУНААС Ч БАС ҮГЭЭ ЦЭЭЖИЛНЭ!
-          const cleanAudioPhrase = (aiResult.extracted_phrase || '')
-            .replace(/[\d\.]+/g, '')
-            .replace(/литр|мл|кг|гр|грамм|ш|ширхэг|хайрцаг|уут|асгасан|авсан|муудсан|аву/gi, '')
-            .trim()
-            .toLowerCase();
-
-          if (cleanAudioPhrase && cleanAudioPhrase.length >= 3) {
-            await supabaseAdmin.from('learned_aliases').upsert([{
-              client_id: clientId,
-              phrase: cleanAudioPhrase,
-              ingredient_id: targetIng.id
-            }], { onConflict: 'client_id,phrase' });
-          }
-
-          return NextResponse.json({
-            success: true,
-            is_log: true,
-            log_id: newLog?.id,
-            message: `🎙️ **AI сонсож бүртгэлээ:**\n• Бараа: **${targetIng.name}**\n• Төрөл: \`${aiResult.type}\`\n• Хэмжээ: **${Math.abs(aiResult.quantity)} ${targetIng.unit}**`
-          });
-        }
+      if (!transcribedText) {
+        return NextResponse.json({
+          success: false,
+          message: "🎙️ Дууг сонсож чадсангүй. Та микрофондоо ойртоод дахин тод ярина уу."
+        });
       }
 
-      // Хэрэв бүх түлхүүр 429 болсон бол жинхэнэ шалтгааныг нь хэлнэ
       return NextResponse.json({
-        success: false,
-        message: lastAudioError.includes("429") 
-          ? "⚠️ Бүх AI түлхүүрийн түр хязгаар хүрсэн байна. 1 минут хүлээгээд дахин ярина уу." 
-          : "🎙️ Дууг сайн сонсож чадсангүй. Та микрофондоо арай ойртоод дахин тод хэлнэ үү."
+        success: true,
+        text: transcribedText
       });
     }
 // 2. ЗУРАГ БҮРТГЭХ (E-Barimt эсвэл Барааны зураг)
