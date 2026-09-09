@@ -425,36 +425,32 @@ const cancelVoiceRecording = () => {
   setIsListening(false);
   setIsAiLoading(false);
 };
-  // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android дээр Web Speech, Apple дээр Gemini Aud)
+// 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android ба Apple хоёуланг нь бүрэн агуулсан)
   const startVoiceRecording = async () => {
-
-    // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
-  if (isAppleDevice() || true) {
-    if (isListening && mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
+    // ⚡ 1. If already listening, tap to stop immediately
+    if (isListening) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      setIsListening(false);
       return;
     }
-    
-    isCancelledRef.current = false; // ⚡ Reset cancel flag
-    abortControllerRef.current = new AbortController();
+
+    // 🍏 АЛХАМ 1: ХЭРЭВ IPAD / IPHONE БАЙВАЛ
+    if (isAppleDevice()) {
+      isCancelledRef.current = false;
+      abortControllerRef.current = new AbortController();
 
       if (!navigator.mediaDevices?.getUserMedia) {
         alert("iPad/iOS дээр дуу бичихийн тулд заавал HTTPS эсвэл localhost байх шаардлагатай.");
         return;
       }
 
-    try {
-        // ⚡ 1. Boost microphone volume & cancel static noise
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: { 
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true // ⚡ Auto-boosts mic so speech is loud and clear
-          } 
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true }
         });
-        
-        // ⚡ 2. Reliable Codec: WebM for Chrome/PC, MP4 for iOS Safari
+
         let chosenMime = 'audio/webm';
         if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
           chosenMime = 'audio/webm;codecs=opus';
@@ -477,38 +473,36 @@ const cancelVoiceRecording = () => {
           setIsAiLoading(false);
         };
 
-       mediaRecorder.onstop = async () => {
+        mediaRecorder.onstop = async () => {
           setIsListening(false);
           setIsAiLoading(true);
           setTimeout(() => {
             stream.getTracks().forEach(track => track.stop());
           }, 100);
 
-          if (audioChunks.length === 0) {
+          if (audioChunks.length === 0 || isCancelledRef.current) {
             setIsAiLoading(false);
             return;
           }
 
-         const audioBlob = new Blob(audioChunks, { type: chosenMime });
-           const ext = chosenMime.includes('webm') ? 'webm' : 'mp4';
-
-          // 🧠 Grab top 15 learned slang words from Supabase memory
+          const audioBlob = new Blob(audioChunks, { type: chosenMime });
+          const ext = chosenMime.includes('webm') ? 'webm' : 'mp4';
           const slangHints = (learnedAliases || []).map(a => a.phrase).slice(0, 15).join(', ');
 
           const formData = new FormData();
           formData.append('file', audioBlob, `audio.${ext}`);
-          formData.append('slangHints', slangHints); // ⚡ Injects learned words into Wh
+          formData.append('slangHints', slangHints);
 
-     try {
+          try {
             const res = await fetch('/api/transcribe', { 
               method: 'POST', 
               body: formData,
-              signal: abortControllerRef.current?.signal // ⚡ Connected to abort signal
+              signal: abortControllerRef.current?.signal 
             });
-            if (isCancelledRef.current) return; // ⚡ Exit if user clicked cancel!
+            if (isCancelledRef.current) return;
 
             const data = await res.json();
-            if (isCancelledRef.current) return; // ⚡ Exit if user clicked cancel!
+            if (isCancelledRef.current) return;
 
             if (data.text && data.text.trim()) {
               handleAiChatSubmit(undefined, undefined, data.text.trim());
@@ -520,7 +514,7 @@ const cancelVoiceRecording = () => {
               ]);
             }
           } catch (err: any) {
-            if (err.name === 'AbortError' || isCancelledRef.current) return; // ⚡ Silence aborted errors
+            if (err.name === 'AbortError' || isCancelledRef.current) return;
             setIsAiLoading(false);
             setChatHistory(prev => [
               ...prev,
@@ -529,12 +523,11 @@ const cancelVoiceRecording = () => {
           }
         };
 
-      mediaRecorder.start(250);
-        // ⚡ 3.5s so words don't get cut off in the middle (or tap mic to stop early)
+        mediaRecorder.start();
+
         setTimeout(() => {
           if (mediaRecorder.state === 'recording') mediaRecorder.stop();
         }, 3500);
-
 
       } catch (err: any) {
         setIsListening(false);
@@ -544,9 +537,42 @@ const cancelVoiceRecording = () => {
       return;
     }
 
+    // 🤖 АЛХАМ 2: ХЭРЭВ ANDROID / CHROME БАЙВАЛ (Одоо буцаж орсон!)
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Энэ хөтөч дээр дуу таних боломжгүй байна.");
+      return;
+    }
 
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'mn-MN';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) handleAiChatSubmit(undefined, undefined, transcript);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        setIsAiLoading(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      setIsListening(false);
+    }
   };
-
 
   const handleAiChatSubmit = async (e?: React.FormEvent, file?: File, directText?: string) => {
     if (e) e.preventDefault();
