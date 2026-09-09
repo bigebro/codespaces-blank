@@ -495,12 +495,15 @@ function KioskAiChatSection({
             return;
           }
 
-          const audioBlob = new Blob(audioChunks, { type: chosenMime });
-          const ext = chosenMime.includes('webm') ? 'webm' : 'mp4';
+         const cleanMime = chosenMime.split(';')[0];
+         const ext = cleanMime.includes('webm') ? 'webm' : 'mp4';
+         const audioBlob = new Blob(audioChunks, { type: cleanMime });
+
           const slangHints = (learnedAliases || []).map(a => a.phrase).slice(0, 15).join(', ');
 
           const formData = new FormData();
           formData.append('file', audioBlob, `audio.${ext}`);
+          formData.append('mimeType', cleanMime); // ⚡ Sends real MIME so Gemini never crashes
           formData.append('slangHints', slangHints);
 
           try {
