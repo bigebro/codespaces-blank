@@ -81,14 +81,12 @@ async function callGeminiStreamWithFailover(systemPrompt: string, promptPayload:
 
     try {
       const activeGenAI = new GoogleGenerativeAI(currentKey);
-  const model = activeGenAI.getGenerativeModel({ 
+ const model = activeGenAI.getGenerativeModel({ 
         model: 'gemini-3.6-flash',
         systemInstruction: systemPrompt,
-      generationConfig: { 
-          temperature: 0.2,
-          maxOutputTokens: 1500, // ⚡ Tightens memory allocation for fastest token generation
-          thinkingConfig: { thinkingLevel: 'MINIMAL' }
-        } as any
+        generationConfig: { 
+          temperature: 0.3 // Perfect balance for financial reasoning
+        } 
       });
 
       const response = await model.generateContentStream({
@@ -154,29 +152,39 @@ if (!isOwner || imageBase64 || body.audioBase64) {
       // ⚡ Clean MIME type: Strips ";codecs=opus" so Gemini doesn't reject it
       const cleanMime = (audioMimeType || 'audio/webm').split(';')[0].trim();
 
-      const audioPrompt = `
-        You are an expert Mongolian F&B voice listener. 
-        Listen to this barista's spoken Mongolian voice audio carefully.
-        Extract the ingredient, quantity, and operation type.
+   const audioPrompt = `
+        You are an ultra-intelligent, sentient Kitchen Manager at a Mongolian coffee shop.
+        You deeply understand how real baristas speak: they mix Mongolian grammar, English loanwords, fast slang, and typos.
         
-        Allowed ingredients: [${allowedNames.join(', ')}]
+        Your ONLY job is to map what the barista said into an exact ingredient from our database.
+        Allowed EXACT database ingredients: [${allowedNames.join(', ')}]
         
-        Rules:
-        - Spoilage (асгасан, муудсан, гашилсан, хаясан): quantity must be NEGATIVE, type: "spoilage"
-        - Purchase (авсан, ирсэн, татан авалт): quantity must be POSITIVE, type: "purchase"
-        - Staff meal (хоолонд орсон, идсэн): quantity must be NEGATIVE, type: "staff_meal"
-        - Standardize: 1 литр -> 1000 ml, 1 кг -> 1000 gram.
-        
-        Return STRICTLY JSON format:
+        THINKING PROCESS (Chain of Thought):
+        When you read the transcript, follow these logical steps in your mind:
+        1. PHONETIC TRANSLATION: Did they use shorthand? 
+           - "haze", "хэйз", "хэзл" -> Maps to "Hazelnut"
+           - "cara", "карамэл" -> Maps to "Caramel"
+           - "маслоо" -> Maps to "Butter"
+           - "банан", "гадил" -> Maps to "Banana"
+        2. INTENT & ACTION: 
+           - Words like "асгасан", "муудсан", "гашилсан", "хаясан", "эвдэрсэн", "хагарсан" mean SPOILAGE (Negative Quantity).
+           - Words like "авсан", "ирсэн", "аву", "татан авалт" mean PURCHASE (Positive Quantity).
+           - Words like "хоол", "идсэн", "уусан" mean STAFF MEAL (Negative Quantity).
+        3. UNIT CONVERSION: If they say "1 литр", convert to 1000. If "1 кг", convert to 1000. If "хагас", it means 0.5.
+        4. SELECTION: Pick the absolute closest matching ingredient from the Allowed list.
+
+        Return ONLY a raw JSON object exactly like this example (do not wrap in markdown or backticks):
         {
           "is_transaction": true,
-          "item_name": "Milk",
+          "item_name": "<MUST_EXACTLY_MATCH_AN_ALLOWED_NAME>",
           "quantity": -2000,
           "type": "spoilage",
-          "extracted_phrase": "сүү",
-          "notes": "2 литр сүү асгарсан (Аудиогоор сонсов)"
+          "extracted_phrase": "<the exact short slang they used, e.g., 'хэйз'>",
+          "notes": "<A short, clean Mongolian summary of what happened>"
         }
       `;
+
+
 
       let transcribedText = "";
       let lastError = "";
@@ -188,13 +196,13 @@ if (!isOwner || imageBase64 || body.audioBase64) {
 
         try {
           const ai = new GoogleGenerativeAI(currentKey);
-          const model = ai.getGenerativeModel({
-            model: 'gemini-3.6-flash', // ⚡ Using your proven working model
+      const model = ai.getGenerativeModel({
+            model: 'gemini-3.6-flash',
             generationConfig: { 
-              temperature: 0.1,
-              maxOutputTokens: 150,
-              thinkingConfig: { thinkingLevel: 'MINIMAL' }
-            } as any
+              temperature: 0.2, // Slightly higher so it can creatively match slang
+              responseMimeType: "application/json"
+              // Removed MINIMAL thinking so it can deeply analyze Mongolian context!
+            } 
           });
 
           const response = await model.generateContent({
