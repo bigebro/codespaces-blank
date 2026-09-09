@@ -412,19 +412,29 @@ function KioskAiChatSection({
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   };
 
-// ❌ INSTANT CANCEL: Aborts network fetch immediately so no ghost messages appear
-const cancelVoiceRecording = () => {
-  isCancelledRef.current = true;
-  abortControllerRef.current?.abort(); // ⚡ Kills the in-flight request instantly!
+// ❌ INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
+  const cancelVoiceRecording = () => {
+    isCancelledRef.current = true;
+    abortControllerRef.current?.abort(); // ⚡ Kills any in-flight request!
 
-  if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-    mediaRecorderRef.current.onstop = null;
-    mediaRecorderRef.current.stop();
-    mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
-  }
-  setIsListening(false);
-  setIsAiLoading(false);
-};
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.onstop = null; // Do not send to API!
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+    }
+    
+    setIsListening(false);
+    setIsAiLoading(false);
+
+    // ⚡ Erase the temporary "sending..." bubble so the screen looks clean
+    setChatHistory(prev => {
+      const updated = [...prev];
+      if (updated.length > 0 && updated[updated.length - 1].text.includes('Дуут бүртгэл илгээж байна')) {
+        updated.pop();
+      }
+      return updated;
+    });
+  };
 // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android ба Apple хоёуланг нь бүрэн агуулсан)
   const startVoiceRecording = async () => {
     // ⚡ 1. If already listening, tap to stop immediately
@@ -706,7 +716,13 @@ const cancelVoiceRecording = () => {
     }
 
     // Хэрэв шууд танигдаагүй бол Gemini API руу илгээх
-    try {
+      try {
+      // If triggered by typing text instead of voice, ensure we have an abort controller
+      if (!abortControllerRef.current) {
+        isCancelledRef.current = false;
+        abortControllerRef.current = new AbortController();
+      }
+
       const res = await fetch('/api/kiosk-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -717,15 +733,20 @@ const cancelVoiceRecording = () => {
           imageBase64: base64Data,
           imageUrl: uploadedImageUrl,
           userRole: 'staff'
-        })
+        }),
+        signal: abortControllerRef.current.signal // ⚡ CONNECTS THE KILL SWITCH!
       });
+      if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
 
       const data = await res.json();
+      if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
+
       setChatHistory(prev => [...prev, { sender: 'ai', text: data.message || "Гүйлгээ боловсруулагдлаа.", logId: data.log_id }]);
-    } catch (err) {
-      setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Алдаа: Сервертэй холбогдож чадсангүй.' }]);
+    } catch (err: any) {
+      if (err.name === 'AbortError' || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
+      setChatHistory(prev => [...prev, { sender: 'ai', text: `❌ Алдаа: ${err.message || 'Сервертэй холбогдож чадсангүй.'}` }]);
     } finally {
-      setIsAiLoading(false);
+      if (!isCancelledRef.current) setIsAiLoading(false);
     }
   };
 
