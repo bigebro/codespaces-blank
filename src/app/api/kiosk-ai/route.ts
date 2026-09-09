@@ -154,7 +154,29 @@ if (!isOwner || imageBase64 || body.audioBase64) {
       // ⚡ Clean MIME type: Strips ";codecs=opus" so Gemini doesn't reject it
       const cleanMime = (audioMimeType || 'audio/webm').split(';')[0].trim();
 
-      const audioPrompt = "You are a Mongolian speech transcriber. Listen carefully to this audio. Transcribe and output ONLY the spoken Mongolian Cyrillic words. If there is no speech, output nothing.";
+      const audioPrompt = `
+        You are an expert Mongolian F&B voice listener. 
+        Listen to this barista's spoken Mongolian voice audio carefully.
+        Extract the ingredient, quantity, and operation type.
+        
+        Allowed ingredients: [${allowedNames.join(', ')}]
+        
+        Rules:
+        - Spoilage (асгасан, муудсан, гашилсан, хаясан): quantity must be NEGATIVE, type: "spoilage"
+        - Purchase (авсан, ирсэн, татан авалт): quantity must be POSITIVE, type: "purchase"
+        - Staff meal (хоолонд орсон, идсэн): quantity must be NEGATIVE, type: "staff_meal"
+        - Standardize: 1 литр -> 1000 ml, 1 кг -> 1000 gram.
+        
+        Return STRICTLY JSON format:
+        {
+          "is_transaction": true,
+          "item_name": "Milk",
+          "quantity": -2000,
+          "type": "spoilage",
+          "extracted_phrase": "сүү",
+          "notes": "2 литр сүү асгарсан (Аудиогоор сонсов)"
+        }
+      `;
 
       let transcribedText = "";
       let lastError = "";
