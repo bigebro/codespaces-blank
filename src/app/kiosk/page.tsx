@@ -5,7 +5,7 @@ import {
   Coffee, CheckCircle, Users, LogOut, Camera, 
   MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert,
   ChevronRight, AlertTriangle, RotateCcw, ShieldCheck, 
-  Mic, MicOff, Wifi, WifiOff, Sparkles, Check
+  Mic, MicOff, Wifi, WifiOff, Sparkles, Check, X
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -368,13 +368,14 @@ function KioskAiChatSection({
   ingredients: any[];
   learnedAliases?: any[];
   onBack: () => void; 
-}) {
-  const [chatInput, setChatInput] = useState('');
+}) 
+{  const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-    
+  const isCancelledRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -411,15 +412,31 @@ function KioskAiChatSection({
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   };
 
+// ❌ INSTANT CANCEL: Aborts network fetch immediately so no ghost messages appear
+const cancelVoiceRecording = () => {
+  isCancelledRef.current = true;
+  abortControllerRef.current?.abort(); // ⚡ Kills the in-flight request instantly!
+
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+    mediaRecorderRef.current.onstop = null;
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+  }
+  setIsListening(false);
+  setIsAiLoading(false);
+};
   // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android дээр Web Speech, Apple дээр Gemini Aud)
   const startVoiceRecording = async () => {
 
     // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
   if (isAppleDevice() || true) {
-      if (isListening && mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-        return;
-      }
+    if (isListening && mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      return;
+    }
+    
+    isCancelledRef.current = false; // ⚡ Reset cancel flag
+    abortControllerRef.current = new AbortController();
 
       if (!navigator.mediaDevices?.getUserMedia) {
         alert("iPad/iOS дээр дуу бичихийн тулд заавал HTTPS эсвэл localhost байх шаардлагатай.");
@@ -460,10 +477,9 @@ function KioskAiChatSection({
           setIsAiLoading(false);
         };
 
-        mediaRecorder.onstop = async () => {
+       mediaRecorder.onstop = async () => {
           setIsListening(false);
           setIsAiLoading(true);
-          setChatHistory(prev => [...prev, { sender: 'worker', text: '🎙️ Дуут бүртгэл илгээж байна...' }]);
           setTimeout(() => {
             stream.getTracks().forEach(track => track.stop());
           }, 100);
@@ -474,23 +490,42 @@ function KioskAiChatSection({
           }
 
          const audioBlob = new Blob(audioChunks, { type: chosenMime });
+           const ext = chosenMime.includes('webm') ? 'webm' : 'mp4';
+
+          // 🧠 Grab top 15 learned slang words from Supabase memory
+          const slangHints = (learnedAliases || []).map(a => a.phrase).slice(0, 15).join(', ');
+
           const formData = new FormData();
-          formData.append('file', audioBlob, 'audio.mp4');
+          formData.append('file', audioBlob, `audio.${ext}`);
+          formData.append('slangHints', slangHints); // ⚡ Injects learned words into Wh
 
-          try {
-            // ⚡ Step 1: Ultra-fast 120ms Mongolian transcription
-            const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+     try {
+            const res = await fetch('/api/transcribe', { 
+              method: 'POST', 
+              body: formData,
+              signal: abortControllerRef.current?.signal // ⚡ Connected to abort signal
+            });
+            if (isCancelledRef.current) return; // ⚡ Exit if user clicked cancel!
+
             const data = await res.json();
+            if (isCancelledRef.current) return; // ⚡ Exit if user clicked cancel!
 
-            if (data.text) {
-              // ⚡ Step 2: Feeds directly into your 0.001ms local regex parser!
-              handleAiChatSubmit(undefined, undefined, data.text);
+            if (data.text && data.text.trim()) {
+              handleAiChatSubmit(undefined, undefined, data.text.trim());
             } else {
               setIsAiLoading(false);
+              setChatHistory(prev => [
+                ...prev,
+                { sender: 'ai', text: data.error ? `⚠️ ${data.error}` : "🎙️ Дуу сонсогдсонгүй. Дахин тод ярина уу." }
+              ]);
             }
-          } catch (err) {
+          } catch (err: any) {
+            if (err.name === 'AbortError' || isCancelledRef.current) return; // ⚡ Silence aborted errors
             setIsAiLoading(false);
-            alert("Дууг танихад алдаа гарлаа.");
+            setChatHistory(prev => [
+              ...prev,
+              { sender: 'ai', text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}` }
+            ]);
           }
         };
 
@@ -509,35 +544,7 @@ function KioskAiChatSection({
       return;
     }
 
-    // 🤖 ХЭРЭВ ANDROID ТАБЛЕТ ЭСВЭЛ CHROME БАЙВАЛ -> WEB SPEECH (0.2s) ХЭРЭГЛЭНЭ
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Энэ хөтөч дээр дуу таних боломжгүй байна.");
-      return;
-    }
 
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'mn-MN';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        if (navigator.vibrate) navigator.vibrate(20);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) handleAiChatSubmit(undefined, undefined, transcript);
-      };
-
-      recognition.onerror = () => setIsListening(false);
-      recognition.onend = () => setIsListening(false);
-      recognition.start();
-    } catch (err) {
-      setIsListening(false);
-    }
   };
 
 
@@ -650,10 +657,13 @@ function KioskAiChatSection({
             .replace(/\s+/g, ' ')
             .trim();
 
-          if (cleanPhrase && cleanPhrase.length >= 2) {
+      const words = cleanPhrase.split(' ').filter(w => w.length >= 2);
+        const finalAlias = words.slice(0, 2).join(' '); // Keeps only the item noun
+
+          if (finalAlias && finalAlias.length >= 2) {
             await supabase.from('learned_aliases').upsert([{
               client_id: selectedWorker.client_id,
-              phrase: cleanPhrase,
+              phrase: finalAlias, // 👈 Saves ONLY clean item word(s)
               ingredient_id: localMatch.item_id
             }], { onConflict: 'client_id,phrase' });
           }
@@ -839,7 +849,7 @@ function KioskAiChatSection({
                 <span>Зураг</span>
               </label>
 
-              {/* 🎙️ МОНГОЛ ДУУ ХООЛОЙГООР ЯРИХ (MIC BUTTON) */}
+      {/* 🎙️ МОНГОЛ ДУУ ХООЛОЙГООР ЯРИХ (MIC BUTTON) */}
               <button
                 type="button"
                 onClick={startVoiceRecording}
@@ -852,6 +862,19 @@ function KioskAiChatSection({
                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 <span>{isListening ? "Сонсож байна..." : "Ярих"}</span>
               </button>
+
+              {/* ❌ INSTANT CANCEL BUTTON: Visible while speaking or loading */}
+              {(isListening || isAiLoading) && (
+                <button
+                  type="button"
+                  onClick={cancelVoiceRecording}
+                  className="h-9 px-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-xl flex items-center gap-1 font-bold text-xs active:scale-95 transition"
+                  title="Цуцлах / Дахин ярих"
+                >
+                  <X className="h-4 w-4" />
+                  <span>Болих</span>
+                </button>
+              )}
             </div>
 
             <button 
