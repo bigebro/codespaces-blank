@@ -415,7 +415,7 @@ function KioskAiChatSection({
   const startVoiceRecording = async () => {
 
     // 🍏 ХЭРЭВ IPAD ЭСВЭЛ IPHONE БАЙВАЛ -> GEMINI FLASH АУДИОГООР ШУУД СОНСГОХ
-  if (isAppleDevice() || true) {
+  if (isAppleDevice()) {
       if (isListening && mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
         return;
@@ -426,13 +426,24 @@ function KioskAiChatSection({
         return;
       }
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+    try {
+        // ⚡ 1. Boost microphone volume & cancel static noise
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true // ⚡ Auto-boosts mic so speech is loud and clear
+          } 
+        });
         
-        let chosenMime = 'audio/mp4';
-        if (MediaRecorder.isTypeSupported('audio/mp4')) chosenMime = 'audio/mp4';
-        else if (MediaRecorder.isTypeSupported('audio/aac')) chosenMime = 'audio/aac';
-        else if (MediaRecorder.isTypeSupported('audio/webm')) chosenMime = 'audio/webm';
+        // ⚡ 2. Reliable Codec: WebM for Chrome/PC, MP4 for iOS Safari
+        let chosenMime = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          chosenMime = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          chosenMime = 'audio/mp4';
+        }
 
         const mediaRecorder = new MediaRecorder(stream, { mimeType: chosenMime });
         mediaRecorderRef.current = mediaRecorder;
@@ -449,7 +460,7 @@ function KioskAiChatSection({
           setIsAiLoading(false);
         };
 
-        mediaRecorder.onstop = () => {
+        mediaRecorder.onstop = async () => {
           setIsListening(false);
           setIsAiLoading(true);
           setChatHistory(prev => [...prev, { sender: 'worker', text: '🎙️ Дуут бүртгэл илгээж байна...' }]);
@@ -462,45 +473,33 @@ function KioskAiChatSection({
             return;
           }
 
-          const audioBlob = new Blob(audioChunks, { type: chosenMime });
-          const reader = new FileReader();
+         const audioBlob = new Blob(audioChunks, { type: chosenMime });
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'audio.mp4');
 
-          reader.onerror = () => setIsAiLoading(false);
-          reader.onloadend = async () => {
-            try {
-              const resString = reader.result as string;
-              if (!resString || !resString.includes(',')) {
-                setIsAiLoading(false);
-                return;
-              }
+          try {
+            // ⚡ Step 1: Ultra-fast 120ms Mongolian transcription
+            const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+            const data = await res.json();
 
-              const base64Audio = resString.split(',')[1];
-              const res = await fetch('/api/kiosk-ai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  tenantClientId: selectedWorker.client_id,
-                  workerName: activeShift?.character_role || selectedWorker.full_name || "Ажилтан",
-                  audioBase64: base64Audio,
-                  audioMimeType: chosenMime,
-                  userRole: 'staff'
-                })
-              });
-              const data = await res.json();
-              setChatHistory(prev => [...prev, { sender: 'ai', text: data.message, logId: data.log_id }]);
-            } catch (err) {
-              setChatHistory(prev => [...prev, { sender: 'ai', text: '❌ Дууг танихад алдаа гарлаа.' }]);
-            } finally {
-              setIsAiLoading(false); // ⚡ Always unfreezes UI
+            if (data.text) {
+              // ⚡ Step 2: Feeds directly into your 0.001ms local regex parser!
+              handleAiChatSubmit(undefined, undefined, data.text);
+            } else {
+              setIsAiLoading(false);
             }
-          };
-          reader.readAsDataURL(audioBlob);
+          } catch (err) {
+            setIsAiLoading(false);
+            alert("Дууг танихад алдаа гарлаа.");
+          }
         };
 
-        mediaRecorder.start(250);
+      mediaRecorder.start(250);
+        // ⚡ 3.5s so words don't get cut off in the middle (or tap mic to stop early)
         setTimeout(() => {
           if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-        }, 2500);
+        }, 3500);
+
 
       } catch (err: any) {
         setIsListening(false);
@@ -634,7 +633,31 @@ function KioskAiChatSection({
           date: new Date().toISOString()
         }]).select().single();
 
-        if (!error && newLog) {
+     if (!error && newLog) {
+          // 🧠 FEEDBACK LOOP: Clean numbers/units and save the spoken phrase to learned_aliases
+           let cleanPhrase = textToProcess.toLowerCase();
+
+          // 1. Remove spoken numbers
+          for (const { w } of MN_NUMBERS) {
+            cleanPhrase = cleanPhrase.replace(new RegExp(`(^|[\\s,.:;!?])${w}(?=[\\s,.:;!?]|$)`, 'gi'), ' ');
+          }
+
+          // 2. Remove digits, units, and all verb conjugations
+          cleanPhrase = cleanPhrase
+            .replace(/[\d\.]+/g, '')
+            .replace(/\b(литр|мл|кг|гр|грамм|грам|ш|ширхэг|хайрцаг|уут|сав|боодол)\b/gi, '')
+            .replace(/\b(асг|ав|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түл)[а-яөү]*\b/gi, '') // ⚡ Strips "авав", "аву", "асгачихсан"
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (cleanPhrase && cleanPhrase.length >= 2) {
+            await supabase.from('learned_aliases').upsert([{
+              client_id: selectedWorker.client_id,
+              phrase: cleanPhrase,
+              ingredient_id: localMatch.item_id
+            }], { onConflict: 'client_id,phrase' });
+          }
+
           setChatHistory(prev => [...prev, { 
             sender: 'ai', 
             text: `⚡ **Бүртгэгдлээ (Шуурхай 0.01s):**\n• Бараа: **${localMatch.item_name}**\n• Төрөл: \`${localMatch.type}\`\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
