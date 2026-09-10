@@ -1,0 +1,21 @@
+{
+  "name": "Smart BoH Kiosk",
+  "short_name": "SF Kiosk",
+  "description": "Smart BoH Kitchen Kiosk Operations",
+  "start_url": "/kiosk",
+  "display": "standalone",
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -38,6 +38,16 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
          {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
+           
+        {/* 🍏 APPLE (IPAD / IPHONE) ТОХИРГОО: */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="SF Kiosk" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        
+        {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#070b14" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
