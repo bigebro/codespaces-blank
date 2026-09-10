@@ -58,6 +58,17 @@ export default function RootLayout({
         {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#070b14" />
+         <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
