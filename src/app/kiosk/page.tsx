@@ -223,7 +223,7 @@ const EN_TO_MN_DICT: Record<string, string[]> = {
 // =========================================================================
 // 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
-export function advancedMongolianVoiceParser(
+function advancedMongolianVoiceParser(
   rawText: string, 
   ingredients: any[], 
   learnedAliases: { phrase: string; ingredient_id: string }[] = []
