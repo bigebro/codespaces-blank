@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: [
+    "lucide-react",
+    "@supabase/supabase-js",
+    "react-markdown",
+    "remark-gfm",
+    "xlsx",
+  ],
 };
 
 export default nextConfig;
