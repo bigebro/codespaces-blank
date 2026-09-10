@@ -1,7 +1,7 @@
 {
-  "name": "Smart BoH Kiosk",
-  "short_name": "SF Kiosk",
-  "description": "Smart BoH Kitchen Kiosk Operations",
+  "name": "Smart BoH",
+  "short_name": "Smart BoH",
+  "description": "Smart BoH - Cloud Kitchen & Back of House Operations",
   "start_url": "/kiosk",
   "display": "standalone",
   "background_color": "#070b14",

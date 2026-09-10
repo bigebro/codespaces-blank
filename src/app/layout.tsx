@@ -21,8 +21,18 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "SF Kitchen Kiosk",
-  description: "Kitchen Kiosk Operations",
+  title: "Smart BoH",
+  description: "Smart BoH - Cloud Kitchen & Back of House Operations",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/apple-touch-icon.png",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Smart BoH",
+  },
 };
 
 export default function RootLayout({
@@ -42,7 +52,7 @@ export default function RootLayout({
         {/* 🍏 APPLE (IPAD / IPHONE) ТОХИРГОО: */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="SF Kiosk" />
+        <meta name="apple-mobile-web-app-title" content="Smart BoH" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         
         {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
