@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     "xlsx",
     "@google/generative-ai",
   ],
+  compiler: {
+    // Хуучин Safari хөтчүүдийн танихгүй RegExp, Lookbehind-ийг хуучин хэлбэр рүү хөрвүүлнэ
+    removeConsole: false,
+  },
 };
 
 export default nextConfig;
