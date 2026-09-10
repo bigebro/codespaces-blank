@@ -7,7 +7,14 @@ const nextConfig: NextConfig = {
     "react-markdown",
     "remark-gfm",
     "xlsx",
+    "@google/generative-ai",
   ],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.target = ["web", "es2018"];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

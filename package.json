@@ -8,6 +8,13 @@
     "start": "next start",
     "lint": "eslint"
   },
+   "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "Safari >= 12",
+    "iOS >= 12",
+    "not dead"
+  ],
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.110.7",
