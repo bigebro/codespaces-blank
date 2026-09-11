@@ -5,6 +5,148 @@ import {supabase} from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Coffee, ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
+function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 512 512" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className={className}
+    >
+      <defs>
+        {/* Хүчний шугамын градиент (Force Vector) */}
+        <linearGradient id="vectorGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" stopOpacity="0" />
+          <stop offset="30%" stopColor="#00f59b" stopOpacity="0.5" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="1" />
+          <stop offset="70%" stopColor="#00c8ff" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#00c8ff" stopOpacity="0" />
+        </linearGradient>
+
+        {/* Эрчим хүчний тойрог замын градиент (Link Orbit) */}
+        <linearGradient id="energyGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" />
+          <stop offset="50%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#00c8ff" />
+        </linearGradient>
+
+        {/* Физик материйн хүрээний градиент (Matter Stators) */}
+        <linearGradient id="statorGrad" x1="120" y1="120" x2="392" y2="392" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" />
+          <stop offset="30%" stopColor="#005577" />
+          <stop offset="70%" stopColor="#005577" />
+          <stop offset="100%" stopColor="#00c8ff" />
+        </linearGradient>
+
+        {/* Төвийн квант цөмийн гэрэлтэлтийн градиент (Quantum Core Halo) */}
+        <radialGradient id="coreHalo" cx="256" cy="256" r="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="25%" stopColor="#00f59b" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#00f59b" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Неон гэрэлтэлтийн шүүлтүүрүүд (Glow Filters) */}
+        <filter id="neonCyan" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#00c8ff" floodOpacity="0.8" />
+        </filter>
+        <filter id="neonEmerald" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#00f59b" floodOpacity="0.6" />
+        </filter>
+      </defs>
+
+      {/* 1. OUTER HUD RING (SpaceX сансрын нарийвчлалтай хүрээ) */}
+      <circle 
+        cx="256" 
+        cy="256" 
+        r="220" 
+        stroke="#00c8ff" 
+        strokeOpacity="0.2" 
+        strokeWidth="2" 
+        strokeDasharray="4 12" 
+      />
+      {/* HUD-ийн 4 холбоос цэг */}
+      <circle cx="411.5" cy="411.5" r="4" fill="#00f59b" />
+      <circle cx="100.5" cy="411.5" r="4" fill="#00f59b" />
+      <circle cx="100.5" cy="100.5" r="4" fill="#00f59b" />
+      <circle cx="411.5" cy="100.5" r="4" fill="#00f59b" />
+
+      {/* 2. THE FORCE VECTOR (Шууд чиглэсэн хүчний вектор шугам) */}
+      <line 
+        x1="56" 
+        y1="456" 
+        x2="456" 
+        y2="56" 
+        stroke="url(#vectorGrad)" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+      />
+
+      {/* 3. BACK ORBIT (Орбитын арын хагас - Материйн цаагуур эргэх) */}
+      <g transform="rotate(-45 256 256)">
+        <path 
+          d="M 56 256 A 200 60 0 0 1 456 256" 
+          stroke="url(#energyGrad)" 
+          strokeWidth="10" 
+          strokeOpacity="0.4" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* 4. MATTER STATORS (Физик материйн хуваагдсан 'O' цагираг) */}
+      <g filter="url(#neonEmerald)">
+        {/* Доод талын масс (Bottom Arc: 0.4*PI -> 1.1*PI) */}
+        <path 
+          d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1" 
+          stroke="url(#statorGrad)" 
+          strokeWidth="28" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+        {/* Дээд талын масс (Top Arc: 1.4*PI -> 2.1*PI) */}
+        <path 
+          d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9" 
+          stroke="url(#statorGrad)" 
+          strokeWidth="28" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* Материйн дотоод ховил (Tech Detail Groove) */}
+      <path 
+        d="M 280.9 349.5 A 100 100 0 0 1 162.7 231.3" 
+        stroke="#050a12" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+      <path 
+        d="M 231.1 162.5 A 100 100 0 0 1 349.3 280.7" 
+        stroke="#050a12" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+
+      {/* 5. FRONT ORBIT (Орбитын урд хагас - Материйн урдуур гарч ирэх) */}
+      <g transform="rotate(-45 256 256)" filter="url(#neonCyan)">
+        <path 
+          d="M 456 256 A 200 60 0 0 1 56 256" 
+          stroke="url(#energyGrad)" 
+          strokeWidth="14" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* 6. QUANTUM CORE (Төв дэх цөм - Singularity) */}
+      <circle cx="256" cy="256" r="45" fill="url(#coreHalo)" />
+      <circle cx="256" cy="256" r="8" fill="#ffffff" filter="url(#neonCyan)" />
+    </svg>
+  );
+}
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -130,9 +272,9 @@ const handleForgotPassword = async () => {
         
         <div className="flex flex-col items-center mb-8">
           <div className="bg-emerald-500/10 p-3.5 rounded-2xl border border-emerald-500/20 mb-3">
-            <Coffee className="h-8 w-8 text-emerald-400" />
+            <OperlinkLogo className="h-8 w-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-black text-white">SF Coffee Portal</h2>
+          <h2 className="text-2xl font-black text-white">Operlink Нэгдсэн Систем</h2>
           <p className="text-slate-500 text-xs mt-1 uppercase tracking-wider font-bold">SaaS Tenant Authentication</p>
         </div>
 
