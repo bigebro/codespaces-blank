@@ -109,7 +109,7 @@ function AiCfoChatTab({
           <Bot className="h-6 w-6 text-blue-400" />
         </div>
         <div>
-          <h2 className="font-bold text-white">Smart BoH - AI Санхүүгийн Зөвлөх</h2>
+          <h2 className="font-bold text-white">Operlink - Санхүүгийн Зөвлөх</h2>
           <p className="text-xs text-slate-400">Орлого, хаягдал, үнийн бодлогын талаар юу ч асууж болно.</p>
         </div>
       </div>

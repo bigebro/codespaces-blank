@@ -21,17 +21,17 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Smart BoH",
-  description: "Smart BoH - Cloud Kitchen & Back of House Operations",
+  title: "Operlink",
+  description: "Operlink — The Universal AI Operating System",
   manifest: "/manifest.json",
   icons: {
-    icon: "/apple-touch-icon.png",
-    apple: "/apple-touch-icon.png",
+    icon: "/operlink.png",
+    apple: "/operlink.png",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Smart BoH",
+    title: "Operlink",
   },
 };
 

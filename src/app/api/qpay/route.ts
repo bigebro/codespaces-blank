@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         invoice_code: QPAY_INVOICE_CODE,
         sender_invoice_no: invoiceNo,
         invoice_receiver_code: clientId,
-        invoice_description: description || `Smart BoH Subscription - ${clientId}`,
+        invoice_description: description || `Operlink Subscription - ${clientId}`,
         amount: amount,
         callback_url: callbackUrl
       })

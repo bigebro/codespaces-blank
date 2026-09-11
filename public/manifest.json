@@ -1,23 +1,25 @@
 {
-  "name": "Smart BoH",
-  "short_name": "Smart BoH",
-  "description": "Smart BoH - Cloud Kitchen & Back of House Operations",
+  "name": "Operlink Operations",
+  "short_name": "Operlink",
+  "description": "Operlink — The Universal AI Operating System",
   "start_url": "/kiosk",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#070b14",
-  "theme_color": "#070b14",
+  "orientation": "any",
+  "background_color": "#050a12",
+  "theme_color": "#050a12",
   "icons": [
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/operlink.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/operlink.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

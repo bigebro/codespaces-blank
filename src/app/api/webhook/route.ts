@@ -388,7 +388,7 @@ export async function POST(request: Request) {
     // E. /start ТУШААЛ
     // =========================================================================
     if (incomingText === "/start") {
-      const welcomeText = "Сайн байна уу? 'Smart BoH' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
+      const welcomeText = "Сайн байна уу? 'Operlink' туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
       await sendTelegramMessageWithMenu(currentChatId, welcomeText);
       return NextResponse.json({ status: 'ok' });
     }
