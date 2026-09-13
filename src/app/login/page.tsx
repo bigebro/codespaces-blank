@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
@@ -153,6 +153,19 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // 1. URL-ээс ирсэн урилгын салбарыг автоматаар унших
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const branchFromUrl = params.get('branch');
+    const roleFromUrl = params.get('role');
+    if (branchFromUrl) {
+      setCompanyName(branchFromUrl);
+      setIsSignUp(true); // Шууд бүртгүүлэх горим асаана
+      if (roleFromUrl === 'staff') setSignupRole('staff');
+    }
+  }
+}, []);
   const handleForgotPassword = async () => {
     if (!email) {
       setErrorMsg("Нууц үг сэргээх имэйлээ оруулна уу.");
@@ -250,7 +263,7 @@ export default function LoginPage() {
               ? "Нууц үг сэргээх" 
               : isSignUp 
               ? "Шинэ Бүртгэл Үүсгэх" 
-              : "Operlink Workspace"}
+              : "Operlink"}
           </h2>
         </div>
 
@@ -326,6 +339,7 @@ export default function LoginPage() {
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   required={isSignUp}
+                  readOnly={Boolean(companyName && signupRole === 'staff')} 
                   placeholder={signupRole === 'owner' ? "Жишээ: SF Coffee" : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
                 />

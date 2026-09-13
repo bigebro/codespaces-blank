@@ -30,6 +30,8 @@ function AiCfoChatTab({
   const [cfoChatHistory, setCfoChatHistory] = useState<{ sender: 'owner' | 'ai'; text: string }[]>([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
 
+  // ⚡ ШУУД ХОЛБОЛТ: Хөтчөө refresh хийх шаардлагагүй, шинэ дата орж ирэхэд дэлгэц шууд өөрөө шинэчлэгдэнэ
+
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cfoChatInput.trim()) return;
@@ -298,22 +300,33 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [isUnlocking, setIsUnlocking] = useState(false);
 
   // Эзний нууц үгээр түгжээг тайлах функц:
-  const handleUnlockDashboard = async (e: React.FormEvent) => {
+const handleUnlockDashboard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!unlockPassword || !user?.email) return;
+    if (!unlockPassword) return;
     setIsUnlocking(true);
     setUnlockError('');
 
     try {
+      // 1. Одоогийн session-оос эзний жинхэнэ имэйлийг авах
+      const { data: { session } } = await supabase.auth.getSession();
+      const ownerEmail = session?.user?.email;
+
+      if (!ownerEmail) {
+        // Хэрэв ямар ч имэйл нэвтрээгүй бол шууд нэвтрэх хуудас руу шилжүүлнэ
+        sessionStorage.removeItem('kiosk_device_locked');
+        router.push('/login');
+        return;
+      }
+
+      // 2. Эзний нууц үгийг шалгах
       const { error } = await supabase.auth.signInWithPassword({
-        email: user.email,
+        email: ownerEmail,
         password: unlockPassword
       });
 
       if (error) {
-        setUnlockError("❌ Нууц үг буруу байна!");
+        setUnlockError("❌ Эзний нууц үг буруу байна!");
       } else {
-        // Түгжээ амжилттай тайлагдлаа:
         sessionStorage.removeItem('kiosk_device_locked');
         setIsKioskLocked(false);
         setUnlockPassword('');
@@ -554,6 +567,31 @@ useEffect(() => {
       setLoading(false);
     }
   };
+
+
+useEffect(() => {
+  if (!activeClient) return;
+
+  const channel = supabase
+    .channel('realtime-dashboard-sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [activeClient]);
 
   const lowStockItems = ingredients.filter((i: any) => parseFloat(i.current_stock) <= 50);
 
@@ -1427,7 +1465,6 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               }}
             >
                 <option value={userClient} className="bg-slate-950 text-white font-bold text-base">{userClient}</option>
-                <option value="Cafe B" className="bg-slate-950 text-white font-bold text-base">Cafe B (Ulaanbaatar)</option>
               </select>
             </div>
             {/* Displays logged-in user profile details to resolve TS warnings */}
@@ -2380,8 +2417,115 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
 
       {/* 7. TASK & ROLE MANAGEMENT TAB */}
         {activeTab === 'tasks' && userRole === 'owner' && (
-          <div className="space-y-8">
-            
+          <div className="space-y-8">          {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
+
+{/* 🚀 АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
+<div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8 space-y-6">
+  
+  {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
+    <div>
+      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+        🔗 Ажилтан урих холбоос
+      </h4>
+      <p className="text-xs text-slate-400 mt-1">
+        Энэ линкийг ажилтандаа явуулснаар тэд салбарын нэрийг алдаагүйгээр шууд нэгдэж бүртгүүлнэ.
+      </p>
+    </div>
+    <button
+      type="button"
+      onClick={() => {
+        const inviteUrl = `${window.location.origin}/login?branch=${encodeURIComponent(activeClient)}&role=staff`;
+        navigator.clipboard.writeText(inviteUrl);
+        alert(`✅ Урилгын холбоос хуулагдлаа:\n${inviteUrl}`);
+      }}
+      className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0"
+    >
+      📋 Урилгын линк хуулах
+    </button>
+  </div>
+
+{/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
+<div className="mb-6">
+  <h3 className="text-base font-bold mb-3 text-emerald-400">
+    ➕ Салбартаа шинэ ажилтан нэмэх (Kiosk дээр шууд гарна)
+  </h3>
+  <form onSubmit={async (e) => {
+    e.preventDefault();
+    const form = e.target as any;
+    const workerName = form.workerName.value.trim();
+    const workerPin = form.workerPin.value.trim();
+    const workerRole = form.workerRole.value;
+
+    if (!workerName || workerPin.length !== 4) {
+      alert("Ажилтны нэр болон 4 оронтой PIN кодыг заавал оруулна уу!");
+      return;
+    }
+    if (!workerRole) {
+      alert("Ажилтны үүргийг сонгоно уу!");
+      return;
+    }
+
+    setLoading(true);
+    // ДИНАМИК ҮҮРЭГТЭЙ АЖИЛТНЫГ ШУУД БААЗАД ХАДГАЛАХ
+    const { error } = await supabase.from('profiles').insert([{
+      id: crypto.randomUUID(),
+      client_id: activeClient,
+      full_name: workerName,
+      role: workerRole, // 👈 Эзний үүсгэсэн бодит үүрэг орно!
+      pin_code: workerPin,
+      email: `${workerName.toLowerCase().replace(/\s+/g, '')}@${activeClient.toLowerCase().replace(/\s+/g, '')}.internal`
+    }]);
+
+    if (error) {
+      alert(`Алдаа: ${error.message}`);
+    } else {
+      alert(`✅ [${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`);
+      form.reset();
+      fetchDatabaseData(activeClient);
+    }
+    setLoading(false);
+  }} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <input 
+      name="workerName" 
+      required 
+      placeholder="Ажилтны нэр (жнь: Болд)" 
+      className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-emerald-500"
+    />
+    <input 
+      name="workerPin" 
+      required 
+      maxLength={4}
+      placeholder="4 оронтой PIN (жнь: 1234)" 
+      className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-emerald-500 text-center"
+    />
+    
+    {/* 💡 ДИНАМИК ҮҮРГҮҮДИЙН СОНГОЛТ (Эзний үүсгэсэн бүх үүрэг энд гарч ирнэ): */}
+    <select 
+      name="workerRole" 
+      required
+      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-emerald-400 font-bold outline-none cursor-pointer"
+    >
+      <option value="">-- Үүрэг сонгох --</option>
+      <option value="Ажилтан">Ерөнхий ажилтан</option>
+      {/* 🚀 ТАНЫ COMPANY_ROLES ДАХЬ БҮХ ҮҮРЭГ АВТОМАТААР ГАРНА: */}
+      {companyRoles.map(r => (
+        <option key={r.id} value={r.role_name}>{r.role_name}</option>
+      ))}
+    </select>
+
+    <button 
+      type="submit" 
+      disabled={loading}
+      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition"
+    >
+      + Ажилтан Бүртгэх
+    </button>
+  </form>
+</div>
+
+
+</div>
             {/* SECTION 1: CREATE ROLES & ASSIGN ROLES TO WORKERS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               
@@ -2409,11 +2553,31 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                     + Үүрэг Нэмэх
                   </button>
                 </form>
+                {/* Бүртгэлтэй үүргүүдийн жагсаалт ба Устгах товч */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {companyRoles.map(r => (
+                  <div key={r.id} className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-200">
+                    <span>🏷️ {r.role_name}</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`"${r.role_name}" үүргийг устгах уу?`)) return;
+                        await supabase.from('company_roles').delete().eq('id', r.id);
+                        fetchDatabaseData(activeClient);
+                      }}
+                      className="text-rose-400 hover:text-rose-300 ml-1 font-black text-sm"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
+              </div>
+              
 
               {/* Assign Roles to Registered Workers */}
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
-                <h3 className="text-base font-bold mb-4 text-blue-400">2. Ажилтнуудад үүрэг оноох</h3>
+                <h3 className="text-base font-bold mb-4 text-blue-400"> Ажилтнуудад үүрэг оноох</h3>
                 <div className="overflow-x-auto max-h-[220px]">
               <table className="w-full text-left text-sm">
   <thead>
@@ -2422,24 +2586,20 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
       <th className="pb-2">Үүрэг</th>
       <th className="pb-2">Цалингийн Төрөл</th>
       <th className="pb-2">Үнэлгээ (₮)</th>
+      <th className="pb-2 text-right">Үйлдэл</th>
     </tr>
   </thead>
   <tbody className="divide-y divide-slate-800/50">
     {workersList.map(w => (
       <tr key={w.id}>
         <td className="py-2.5 font-bold text-slate-200">{w.full_name || w.email.split('@')[0]}</td>
-        
-        {/* 1. ҮҮРЭГ СОНГОХ */}
         <td className="py-2.5">
           <select 
             value={w.role || 'Ажилтан'} 
             onChange={async (e) => {
               const updatedRole = e.target.value;
-              // UI-ийг шууд өөрчлөх
-              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, role: updatedRole } : item));
-              const { error } = await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
-              if (error) alert(`Алдаа: ${error.message}`);
-              else fetchDatabaseData(activeClient);
+              await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
+              fetchDatabaseData(activeClient);
             }}
             className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-emerald-400 font-bold"
           >
@@ -2447,51 +2607,51 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             {companyRoles.map(r => <option key={r.id} value={r.role_name}>{r.role_name}</option>)}
           </select>
         </td>
-
-        {/* 2. ЦАЛИНГИЙН ТӨРӨЛ СОНГОХ (Hourly vs Fixed) */}
         <td className="py-2.5">
           <select 
             value={w.salary_type || 'hourly'}
             onChange={async (e) => {
               const newType = e.target.value;
               const defaultRate = newType === 'fixed' ? 1200000 : 6500;
-              // UI-ийг шууд өөрчлөх
-              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, salary_type: newType, base_rate: defaultRate } : item));
-              const { error } = await supabase.from('profiles').update({ salary_type: newType, base_rate: defaultRate }).eq('id', w.id);
-              if (error) alert(`Алдаа: ${error.message}`);
-              else fetchDatabaseData(activeClient);
+              await supabase.from('profiles').update({ salary_type: newType, base_rate: defaultRate }).eq('id', w.id);
+              fetchDatabaseData(activeClient);
             }}
             className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-blue-400 font-bold"
           >
-            <option value="hourly">⏱️ Цагийн хөлсөөр</option>
+            <option value="hourly">⏱️ Цагийн хөлс</option>
             <option value="fixed">📅 Сар бүр тогтмол</option>
           </select>
         </td>
-
-        {/* 3. ЦАЛИНГИЙН ДҮНГИЙН ҮНЭЛГЭЭ ОРУУЛАХ */}
         <td className="py-2.5">
           <input 
             type="number"
-            value={w.base_rate !== undefined ? w.base_rate : (w.salary_type === 'fixed' ? 1200000 : 6500)}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value) || 0;
-              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, base_rate: val } : item));
-            }}
+            defaultValue={w.base_rate || 6500}
             onBlur={async (e) => {
               const val = parseFloat(e.target.value) || 0;
-              const { error } = await supabase.from('profiles').update({ base_rate: val }).eq('id', w.id);
-              if (error) alert(`Алдаа: ${error.message}`);
+              await supabase.from('profiles').update({ base_rate: val }).eq('id', w.id);
+              fetchDatabaseData(activeClient);
+            }}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white font-bold w-24 text-right"
+          />
+        </td>
+        <td className="py-2.5 text-right">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm(`"${w.full_name}" ажилтныг устгах уу?`)) return;
+              const { error } = await supabase.from('profiles').delete().eq('id', w.id);
+              if (error) alert(error.message);
               else fetchDatabaseData(activeClient);
             }}
-            placeholder="Дүн..."
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white font-bold w-28 text-right focus:border-emerald-500"
-          />
-          <span className="text-[10px] text-slate-500 ml-1">{w.salary_type === 'fixed' ? '₮/сар' : '₮/цаг'}</span>
+            className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-2.5 py-1 rounded-lg text-xs font-bold transition"
+          >
+            Устгах
+          </button>
         </td>
       </tr>
     ))}
   </tbody>
-</table>
+            </table>
                 </div>
               </div>
             </div>

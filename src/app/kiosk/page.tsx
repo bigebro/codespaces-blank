@@ -1518,6 +1518,7 @@ function KioskPage() {
 
         {/* 2. PIN PAD */}
         {step === 'pin_code' && (
+      
           <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
             
             <div className="text-center w-full shrink-0 pt-1">
@@ -1529,6 +1530,7 @@ function KioskPage() {
                 </span>
               </div>
             </div>
+            
 
             <div className="bg-[#060b17] border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
@@ -1576,18 +1578,82 @@ function KioskPage() {
               >
                 OK
               </button>
+              
             </div>
+                                    {/* 🔐 PIN МАРТСАН ЭСВЭЛ СОЛИХ ТОВЧНУУД */}
+          <div className="flex gap-4 justify-center items-center pt-2">
+            
+            {/* 1. Хуучин PIN-ээ мэдэж байгаа үед өөрөө солих */}
+            <button
+              type="button"
+              onClick={async () => {
+                const oldPin = prompt("Одоогийн 4 оронтой PIN-ээ оруулна уу:");
+                if (!oldPin) return;
+                if (oldPin !== (selectedWorker.pin_code || '1234')) {
+                  alert("❌ Одоогийн PIN буруу байна!");
+                  return;
+                }
+                const newPin = prompt("Шинэ 4 оронтой PIN оруулна уу:");
+                if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
+                  alert("❌ Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
+                  return;
+                }
+                const { error } = await supabase.from('profiles').update({ pin_code: newPin }).eq('id', selectedWorker.id);
+                if (error) alert(error.message);
+                else {
+                  alert("✅ Таны PIN код амжилттай солигдлоо!");
+                  fetchKioskData(tenantClientId);
+                }
+              }}
+              className="text-xs text-slate-400 hover:text-white underline font-semibold"
+            >
+              PIN солих
+            </button>
 
+            <span className="text-slate-700">•</span>
+
+            {/* 2. Бүр мартчихсан үед Менежер/Эзнээр сэргээлгэх */}
+            <button
+              type="button"
+              onClick={async () => {
+                const masterCode = prompt("Менежер эсвэл Эзний зөвшөөрлийн Master код (9999) оруулна уу:");
+                if (masterCode !== '9999' && masterCode !== '0000') {
+                  alert("❌ Менежерийн код буруу байна!");
+                  return;
+                }
+                const newPin = prompt(`${selectedWorker.full_name}-д зориулсан шинэ 4 оронтой PIN оруулна уу:`);
+                if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
+                  alert("❌ PIN заавал 4 оронтой тоо байх ёстой!");
+                  return;
+                }
+                const { error } = await supabase.from('profiles').update({ pin_code: newPin }).eq('id', selectedWorker.id);
+                if (error) alert(error.message);
+                else {
+                  alert(`✅ ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`);
+                  fetchKioskData(tenantClientId);
+                }
+              }}
+              className="text-xs text-rose-400/80 hover:text-rose-400 underline font-semibold"
+            >
+              PIN мартсан
+            </button>
+
+          </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
+              
               <p className="text-[11px] text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
+              
               <button 
                 onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
                 className="text-xs text-slate-400 hover:text-white font-bold"
               >
                 ← Буцах
               </button>
+              
             </div>
+ 
           </div>
+ 
         )}
 
         {/* 3. SHIFT START HANDOVER */}
