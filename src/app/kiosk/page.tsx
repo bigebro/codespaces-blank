@@ -1380,17 +1380,6 @@ function KioskPage() {
     if (countLogsToInsert.length > 0) {
       await supabase.from('inventory_logs').insert(countLogsToInsert);
 
-        await Promise.all(
-        inventoryToCount.map(item =>
-          supabase
-            .from('ingredients')
-            .update({
-              current_stock: parseFloat(counts[item.id]) || 0,
-              last_counted_at: endTime
-            })
-            .eq('id', item.id)
-        )
-      );
     }
 
     // 2. ДААЛГАВАР БОЛОН ЭЭЛЖИЙГ ХААХ

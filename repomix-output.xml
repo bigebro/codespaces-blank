@@ -43,7 +43,10 @@ The content is organized as follows:
 public/
   file.svg
   globe.svg
+  manifest.json
   next.svg
+  operlink.png
+  sw.js
   vercel.svg
   window.svg
 src/
@@ -72,7 +75,6 @@ src/
       page.tsx
     update-password/
       page.tsx
-    favicon.ico
     globals.css
     layout.tsx
     page.tsx
@@ -82,7 +84,6 @@ src/
     gemini.ts
     supabase.ts
     supabaseAdmin.ts
-.browserslistrc
 .gitignore
 AGENTS.md
 CLAUDE.md
@@ -116,35 +117,6 @@ This section contains the contents of the repository's files.
 
 <file path="public/window.svg">
 <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
-</file>
-
-<file path="src/app/globals.css">
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
 </file>
 
 <file path=".gitignore">
@@ -201,37 +173,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 <file path="CLAUDE.md">
 @AGENTS.md
-</file>
-
-<file path="eslint.config.mjs">
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
-
-export default eslintConfig;
-</file>
-
-<file path="next.config.ts">
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
 </file>
 
 <file path="postcss.config.mjs">
@@ -318,6 +259,20 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
   ],
   "exclude": ["node_modules"]
 }
+</file>
+
+<file path="public/sw.js">
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
 </file>
 
 <file path="src/app/api/cron/daily-order/route.ts">
@@ -423,7 +378,7 @@ export async function POST(request: Request) {
         invoice_code: QPAY_INVOICE_CODE,
         sender_invoice_no: invoiceNo,
         invoice_receiver_code: clientId,
-        invoice_description: description || `Smart BoH Subscription - ${clientId}`,
+        invoice_description: description || `Operlink Subscription - ${clientId}`,
         amount: amount,
         callback_url: callbackUrl
       })
@@ -442,42 +397,6 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
-}
-</file>
-
-<file path="src/lib/supabaseAdmin.ts">
-// src/lib/supabaseAdmin.ts
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://fcpwvualdbuakrwmqgmg.supabase.co";
-// Серверийн админ түлхүүр (RLS-ийг алгасах эрхтэй)
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false
-  }
-});
-</file>
-
-<file path=".browserslistrc">
-> 0.5%
-last 2 versions
-not dead
-Safari >= 12
-iOS >= 12
-</file>
-
-<file path="vercel.json">
-{
- "regions": ["hnd1"],
-  "crons": [
-    {
-      "path": "/api/cron/daily-order",
-      "schedule": "0 1 * * *"
-    }
-  ]
 }
 </file>
 
@@ -507,6 +426,108 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, message: "Subscription activated" });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+</file>
+
+<file path="src/app/globals.css">
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* 🎨 МЭРГЭЖЛИЙН ТАНСАГ SCROLLBAR */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #070b14;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+/* Scrollbar нуух туслах класс */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+</file>
+
+<file path="src/lib/supabaseAdmin.ts">
+// src/lib/supabaseAdmin.ts
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://fcpwvualdbuakrwmqgmg.supabase.co";
+// Серверийн админ түлхүүр (RLS-ийг алгасах эрхтэй)
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  }
+});
+</file>
+
+<file path="vercel.json">
+{
+ "regions": ["hnd1"],
+  "crons": [
+    {
+      "path": "/api/cron/daily-order",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}
+</file>
+
+<file path="src/app/api/analytics/route.ts">
+import { NextResponse } from 'next/server';
+import { getAnalyticsData } from '../../../lib/analytics';
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const clientId = searchParams.get('clientId') || 'SF Coffee';
+    // 💡 Хатуу заасан 2026-05-30-г арилгаж, одоогийн бодит хугацааг авна
+    const startDate = searchParams.get('startDate') || undefined;
+    const endDate = searchParams.get('endDate') || undefined;
+
+    const data = await getAnalyticsData(clientId, startDate, endDate);
+    return NextResponse.json(data);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 </file>
@@ -608,39 +629,24 @@ export default function Page() {
 }
 </file>
 
-<file path="package.json">
-{
-  "name": "codespaces-blank",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "@supabase/supabase-js": "^2.110.7",
-    "lucide-react": "^1.24.0",
-    "next": "16.2.10",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
-    "xlsx": "^0.18.5"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+<file path="src/lib/supabase.ts">
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://fcpwvualdbuakrwmqgmg.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+// Create a single global instance of Supabase with fixed syntax 
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,      
+    autoRefreshToken: true,
+    detectSessionInUrl: true
   }
-}
+});
+</file>
+
+<file path="eslint.config.mjs">
+export default [];
 </file>
 
 <file path="src/app/api/transcribe/route.ts">
@@ -761,77 +767,503 @@ export async function POST(request: Request) {
 }
 </file>
 
-<file path="src/app/layout.tsx">
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+<file path="src/app/page.tsx">
+"use client";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  ArrowRight, 
+  Calculator, 
+  ShieldCheck, 
+  Play, 
+  ChevronDown, 
+  Clock, 
+  Sparkles, 
+  DollarSign, 
+  Zap, 
+  Compass, 
+  CheckCircle2
+} from 'lucide-react';
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// 📱 УТАСНЫ ДЭЛГЭЦИЙГ 100% БОДИТ ТОМ ХЭМЖЭЭГЭЭР НЬ ХАРУУЛАХ ҮНДСЭН ТОХИРГОО:
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1.0,
-  maximumScale: 1.0,
-  userScalable: false,
-};
-
-export const metadata: Metadata = {
-  title: "SF Kitchen Kiosk",
-  description: "Kitchen Kiosk Operations",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+// 🚀 THE QUANTUM FORCE & PHYSICAL MATTER OPERLINK LOGO COMPONENT
+function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    <svg 
+      viewBox="0 0 512 512" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className={className}
     >
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-         {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.onerror = function(message, source, lineno, colno, error) {
-                alert("🚨 IPAD ДЭЭРХ БОДИТ АЛДАА: " + message + "\\nФайл: " + source + "\\nМөр: " + lineno);
-              };
-            `,
-          }}
+      <defs>
+        {/* Хүчний шугамын градиент (Force Vector) */}
+        <linearGradient id="vectorGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" stopOpacity="0" />
+          <stop offset="30%" stopColor="#00f59b" stopOpacity="0.5" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="1" />
+          <stop offset="70%" stopColor="#00c8ff" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#00c8ff" stopOpacity="0" />
+        </linearGradient>
+
+        {/* Эрчим хүчний тойрог замын градиент (Link Orbit) */}
+        <linearGradient id="energyGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" />
+          <stop offset="50%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#00c8ff" />
+        </linearGradient>
+
+        {/* Физик материйн хүрээний градиент (Matter Stators) */}
+        <linearGradient id="statorGrad" x1="120" y1="120" x2="392" y2="392" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" />
+          <stop offset="30%" stopColor="#005577" />
+          <stop offset="70%" stopColor="#005577" />
+          <stop offset="100%" stopColor="#00c8ff" />
+        </linearGradient>
+
+        {/* Төвийн квант цөмийн гэрэлтэлтийн градиент (Quantum Core Halo) */}
+        <radialGradient id="coreHalo" cx="256" cy="256" r="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="25%" stopColor="#00f59b" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#00f59b" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Неон гэрэлтэлтийн шүүлтүүрүүд (Glow Filters) */}
+        <filter id="neonCyan" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#00c8ff" floodOpacity="0.8" />
+        </filter>
+        <filter id="neonEmerald" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#00f59b" floodOpacity="0.6" />
+        </filter>
+      </defs>
+
+      {/* 1. OUTER HUD RING (SpaceX сансрын нарийвчлалтай хүрээ) */}
+      <circle 
+        cx="256" 
+        cy="256" 
+        r="220" 
+        stroke="#00c8ff" 
+        strokeOpacity="0.2" 
+        strokeWidth="2" 
+        strokeDasharray="4 12" 
+      />
+      {/* HUD-ийн 4 холбоос цэг */}
+      <circle cx="411.5" cy="411.5" r="4" fill="#00f59b" />
+      <circle cx="100.5" cy="411.5" r="4" fill="#00f59b" />
+      <circle cx="100.5" cy="100.5" r="4" fill="#00f59b" />
+      <circle cx="411.5" cy="100.5" r="4" fill="#00f59b" />
+
+      {/* 2. THE FORCE VECTOR (Шууд чиглэсэн хүчний вектор шугам) */}
+      <line 
+        x1="56" 
+        y1="456" 
+        x2="456" 
+        y2="56" 
+        stroke="url(#vectorGrad)" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+      />
+
+      {/* 3. BACK ORBIT (Орбитын арын хагас - Материйн цаагуур эргэх) */}
+      <g transform="rotate(-45 256 256)">
+        <path 
+          d="M 56 256 A 200 60 0 0 1 456 256" 
+          stroke="url(#energyGrad)" 
+          strokeWidth="10" 
+          strokeOpacity="0.4" 
+          strokeLinecap="round" 
+          fill="none" 
         />
-      </head>
-      <body className="min-h-full flex flex-col bg-[#070b14] text-slate-100">{children}</body>
-    </html>
+      </g>
+
+      {/* 4. MATTER STATORS (Физик материйн хуваагдсан 'O' цагираг) */}
+      <g filter="url(#neonEmerald)">
+        {/* Доод талын масс (Bottom Arc: 0.4*PI -> 1.1*PI) */}
+        <path 
+          d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1" 
+          stroke="url(#statorGrad)" 
+          strokeWidth="28" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+        {/* Дээд талын масс (Top Arc: 1.4*PI -> 2.1*PI) */}
+        <path 
+          d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9" 
+          stroke="url(#statorGrad)" 
+          strokeWidth="28" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* Материйн дотоод ховил (Tech Detail Groove) */}
+      <path 
+        d="M 280.9 349.5 A 100 100 0 0 1 162.7 231.3" 
+        stroke="#050a12" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+      <path 
+        d="M 231.1 162.5 A 100 100 0 0 1 349.3 280.7" 
+        stroke="#050a12" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+
+      {/* 5. FRONT ORBIT (Орбитын урд хагас - Материйн урдуур гарч ирэх) */}
+      <g transform="rotate(-45 256 256)" filter="url(#neonCyan)">
+        <path 
+          d="M 456 256 A 200 60 0 0 1 56 256" 
+          stroke="url(#energyGrad)" 
+          strokeWidth="14" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* 6. QUANTUM CORE (Төв дэх цөм - Singularity) */}
+      <circle cx="256" cy="256" r="45" fill="url(#coreHalo)" />
+      <circle cx="256" cy="256" r="8" fill="#ffffff" filter="url(#neonCyan)" />
+    </svg>
   );
 }
-</file>
 
-<file path="src/lib/supabase.ts">
-import { createClient } from '@supabase/supabase-js';
+export default function PremiumLandingPage() {
+  const router = useRouter();
+  const [dailyRevenue, setDailyRevenue] = useState(2500000); 
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://fcpwvualdbuakrwmqgmg.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  // Бодит цэвэр ашгийн тооцоо
+  const monthlyRevenue = dailyRevenue * 30;
+  const pureProfitGainMonthly = Math.round(monthlyRevenue * 0.05); 
+  const yearlyProfitGain = pureProfitGainMonthly * 12;
+  const hoursSavedMonthly = 40; 
 
-// Create a single global instance of Supabase with fixed syntax 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: true,      
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
-});
+  const faqs = [
+    {
+      q: "Operlink миний бизнест ямар үр дүн өгөх вэ?",
+      a: "Танай өдөр тутмын үйл ажиллагаанаас үл анзаарагдам алдагдаж байдаг мөнгийг хамгаалж, цэвэр ашгийг тань бодитоор өсгөнө. Мөн та бизнесээсээ гадуур байсан ч бизнес тань цаг шиг нарийн өөрөө ажиллаж, сард 40 гаруй цагийн хувийн эрх чөлөөгөө буцаан авна."
+    },
+    {
+      q: "Би өөрөө ямар нэг тохиргоо хийх, цаг үрэх хэрэгтэй юу?",
+      a: "Үгүй, огт үгүй. Бүх үйл ажиллагаа, бүтцийг бид өөрсдөө 100% хийж бэлэн болгоно. Та ямар ч цаг үрэхгүй, юунд ч гар хүрэхгүй. Та зөвхөн ашгаа хүлээн авна."
+    },
+    {
+      q: "Манай байгууллага өөрийн гэсэн онцлогтой бол яах вэ?",
+      a: "Бид танай бизнесийн онцлогт тохируулан хүссэн тайлан, захиалгат шийдлүүдийг тусгайлан зориулж (Custom Development) тохируулж өгөх бүрэн боломжтой."
+    },
+    {
+      q: "14 хоногийн туршилт ямар эрсдэлтэй вэ?",
+      a: "Ямар ч эрсдэлгүй. Бид танай бизнесийг ашигтай болгож өгнө. Хэрэв үр дүн гарахгүй бол та 1 ч төгрөг төлөхгүй. Эрсдэл 100% бидний талд."
+    }
+  ];
+
+  return (
+    <div 
+      suppressHydrationWarning={true}
+      className="min-h-screen bg-[#050a12] text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative"
+    >
+      
+      {/* BACKGROUND GLOW EFFECTS */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-20 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500 via-transparent to-transparent blur-3xl rounded-full mix-blend-screen"></div>
+      </div>
+
+      {/* 1. NAVBAR WITH THE NEW POWERFUL LOGO */}
+      <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-white/5 bg-[#050a12]/50 backdrop-blur-xl">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push('/')}>
+          <div className="bg-[#07131d] p-1.5 rounded-2xl border border-emerald-500/30 shadow-[0_0_20px_rgba(0,245,155,0.25)]">
+            <OperlinkLogo className="h-7 w-7" />
+          </div>
+          <span className="text-2xl font-black tracking-tight text-white uppercase">
+            OPER<span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">LINK</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-6 z-50">
+          <Link 
+            href="/login" 
+            className="text-sm font-bold text-slate-400 hover:text-white transition py-2 px-3 cursor-pointer"
+          >
+            Нэвтрэх
+          </Link>
+
+          <Link 
+            href="/login" 
+            className="hidden sm:flex bg-white text-slate-950 hover:bg-slate-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] cursor-pointer"
+          >
+            14 хоног үнэгүй турших <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </nav>
+
+      {/* 2. THE HERO SECTION */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 pt-24 pb-20 text-center">
+        
+        {/* SCARCITY TRIGGER */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black uppercase tracking-wider mb-8 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+          <Clock className="h-3.5 w-3.5 animate-pulse text-emerald-400" />
+          Энэ сард биечлэн нэвтрүүлэх 5-хан байгууллагын суудал үлдлээ
+        </div>
+        
+        <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
+          Operlink танай бизнесийг авч явна. <br className="hidden sm:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
+            Таны бизнесийн ашгийн хөшүүрэг.
+          </span>
+        </h1>
+        
+        <p className="text-slate-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
+          Бизнесийнхээ боол биш, жинхэнэ эзэн нь болж амьдар. <strong>Бүх үйл ажиллагааг бид хариуцна.</strong> Та зөвхөн сар бүр өсөх цэвэр ашиг, 40 цагийн эрх чөлөөгөө буцаан ав.
+        </p>
+
+        {/* Video Placeholder */}
+        <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
+          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-cyan-500/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
+              <Play className="h-8 w-8 text-slate-950 fill-current ml-1" />
+            </div>
+            <p className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-400" /> Систем хэрхэн ажилладгийг 3 минутад үзэх
+            </p>
+          </div>
+        </div>
+
+        <Link 
+          href="/login" 
+          className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base px-10 py-5 rounded-2xl shadow-[0_0_35px_rgba(16,185,129,0.35)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto cursor-pointer max-w-sm"
+        >
+          14 Хоног Үнэгүй Турших <ArrowRight className="h-5 w-5" />
+        </Link>
+        <p className="text-xs text-slate-500 mt-3 font-bold uppercase tracking-widest">Кредит карт шаардлагагүй. Эрсдэл 100% бидний талд.</p>
+      </section>
+
+      {/* 3. HORMOZI GRAND SLAM OFFER */}
+      <section className="max-w-4xl mx-auto px-6 py-12">
+        <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-cyan-900/40 p-1 rounded-3xl">
+          <div className="bg-[#07131d] rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl"></div>
+            <ShieldCheck className="h-12 w-12 text-emerald-400 mx-auto mb-6 relative z-10" />
+            <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
+              Та юу ч хийх шаардлагагүй. Бид танай бизнесийг ашигтай болгоно.
+            </h2>
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
+              Бүх үйл ажиллагаа, бүтцийг бид өөрсдөө 100% бүрэн бэлдэж, бизнесийг тань цаг шиг жигдрүүлж өгнө. <strong>14 хоног үнэгүй ашигла.</strong> Хэрэв таны цэвэр ашиг бодитоор өсөхгүй бол 1 ч төгрөг төлөхгүй.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. THE 3 RESULTS */}
+      <section className="max-w-7xl mx-auto px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Танд Ирэх 3 Бодит Үр Дүн</h2>
+          <p className="text-slate-400">Эзний амьдрал маш энгийн болно: Зөвшөөрөх, Ажиглах, Цэвэр ашгаа авах.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          {/* Result 1 */}
+          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="h-14 w-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                <DollarSign className="h-7 w-7 text-emerald-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">1. Бодит Цэвэр Ашгийн Өсөлт</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Үл анзаарагдам алдагдлуудыг зогсоож, тэр мөнгийг сар бүр банкны дансанд тань цэвэр ашиг болгон хуримтлуулна. Орлого өсөх бүрд ашиг дагаад өснө.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              <span>Бодит цэвэр ашиг</span>
+            </div>
+          </div>
+
+          {/* Result 2 */}
+          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="h-14 w-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6 border border-cyan-500/20 group-hover:scale-105 transition-transform">
+                <Zap className="h-7 w-7 text-cyan-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">2. Таны Бизнесийн Ашгийн Хөшүүрэг</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Та өдөр бүр стресстэж ажиллах биш, ухаалаг системээр дамжуулан бага хүчээр бизнесийнхээ бодит үр ашиг, өгөөжийг дээд цэгт нь хүргэнэ.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+              <span>Өндөр бүтээмж • Ухаалаг өсөлт</span>
+            </div>
+          </div>
+
+          {/* Result 3 */}
+          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="h-14 w-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 group-hover:scale-105 transition-transform">
+                <Compass className="h-7 w-7 text-blue-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">3. Сард +40 цагийн Эрх Чөлөө</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Шөнө дөл хүртэл тооцоо шивэх, тайлан ухахаа боль. Бүх зүйл өөрөө автоматаар хийгдэх тул та бизнесээсээ гадуур эрх чөлөөтэй амьдарна.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-blue-400 flex items-center gap-1.5">
+              <span>Хувийн эрх чөлөө • 100% Done-For-You</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* 5. PROFIT SIMULATOR */}
+      <section className="max-w-4xl mx-auto px-6 py-16">
+        <div className="bg-[#07131d] p-8 sm:p-12 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
+
+          <div className="text-center mb-10 relative z-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center justify-center gap-3">
+              <Calculator className="text-emerald-400 h-8 w-8" /> Таны бодит цэвэр ашиг & эрх чөлөө
+            </h2>
+            <p className="text-sm text-slate-400">Өдөр тутмын орлогоо оруулаад, таны халаасанд үлдэх бодит үр дүнг хар.</p>
+          </div>
+
+          <div className="mb-12 max-w-2xl mx-auto relative z-10">
+            <div className="flex justify-between items-end mb-4">
+              <span className="text-sm font-bold text-slate-300 uppercase tracking-wide">Өдрийн дундаж орлого:</span>
+              <span className="text-3xl font-black text-white font-mono">{dailyRevenue.toLocaleString()} ₮</span>
+            </div>
+            <input 
+              type="range" 
+              min={300000} 
+              max={15000000} 
+              step={100000} 
+              value={dailyRevenue} 
+              onChange={(e) => setDailyRevenue(Number(e.target.value))}
+              className="w-full h-3 bg-slate-800 rounded-full appearance-none cursor-pointer accent-emerald-500 outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center relative z-10">
+            <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
+              <p className="text-xs text-slate-400 font-bold uppercase mb-2">Сар бүр нэмэгдэх цэвэр ашиг</p>
+              <p className="text-2xl font-black text-emerald-400 font-mono">+{pureProfitGainMonthly.toLocaleString()} ₮</p>
+              <p className="text-[10px] text-slate-500 mt-1">Дансанд тань цэвэр хуримтлагдана</p>
+            </div>
+            <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
+              <p className="text-xs text-slate-400 font-bold uppercase mb-2">Танд эргэж ирэх хувийн цаг</p>
+              <p className="text-2xl font-black text-blue-400 font-mono">+{hoursSavedMonthly} цаг / сард</p>
+              <p className="text-[10px] text-slate-500 mt-1">Гэр бүл, өөртөө зориулах эрх чөлөө</p>
+            </div>
+            <div className="bg-emerald-500/20 p-6 rounded-2xl border border-emerald-500/50 transform sm:scale-110 shadow-lg flex flex-col justify-center">
+              <p className="text-xs text-emerald-400 font-black uppercase mb-2 tracking-wide">Жилд халаасанд тань үлдэх дүн</p>
+              <p className="text-3xl font-black text-emerald-400 font-mono">+{yearlyProfitGain.toLocaleString()} ₮</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. PRICING TIERS */}
+      <section className="max-w-6xl mx-auto px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Шударга үнэ. Орлогоос хувь авахгүй.</h2>
+          <p className="text-slate-400 text-sm max-w-xl mx-auto">Танай борлуулалт хэдэн зуун сая хүрсэн ч бид хувь авахгүй. Зөвхөн сарын тогтмол төлбөр.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+          
+          {/* Starter */}
+          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Starter (Жижиг цэг)</p>
+            <div className="mb-4">
+              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 500,000₮ (Нэг удаа)</span>
+              <span className="text-3xl font-black text-white font-mono">149,000₮</span>
+              <span className="text-xs text-slate-400 block mt-2">Сар бүр</span>
+            </div>
+            <ul className="space-y-4 mb-8 text-sm text-slate-300">
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх төхөөрөмж дээр ажиллана</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> 100% бэлдэж тохируулж өгнө</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бодит ашгийн өдөр тутмын хяналт</li>
+            </ul>
+          </div>
+
+          {/* Professional (Highlighted) */}
+          <div className="bg-[#07131d] p-10 rounded-[2rem] border-2 border-emerald-500 relative shadow-[0_0_50px_rgba(16,185,129,0.15)] transform md:scale-105 z-10">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full whitespace-nowrap">
+              Хамгийн их сонгогддог
+            </div>
+            <p className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">Professional (Стандарт)</p>
+            <div className="mb-6">
+              <span className="text-xs text-emerald-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 1.5x (Өдрийн дундаж орлого)</span>
+              <span className="text-5xl font-black text-white font-mono">299,000₮</span>
+              <span className="text-xs text-slate-400 block mt-2">Сар бүр (Жилээр төлвөл 17% хөнгөлөлттэй)</span>
+            </div>
+            <ul className="space-y-4 mb-8 text-sm text-slate-200 font-medium">
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 3 хүртэлх төхөөрөмж холболт</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Үйл ажиллагааны бүрэн удирдлага</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Ашгийн хөшүүрэг & Ухаалаг шийдэл</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Бүрэн санхүүгийн бэлэн тайлан</li>
+            </ul>
+            <Link 
+              href="/login" 
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
+            >
+              14 хоног үнэгүй эхлэх <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {/* Enterprise */}
+          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Enterprise (Сүлжээ & Корпорац)</p>
+            <div className="mb-4">
+              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: Гэрээгээр тохиролцоно</span>
+              <span className="text-3xl font-black text-white font-mono">599,000₮</span>
+              <span className="text-xs text-slate-400 block mt-2">Сар бүр</span>
+            </div>
+            <ul className="space-y-4 mb-8 text-sm text-slate-300">
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх Pro боломжууд</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Олон салбарын нэгдсэн удирдлага</li>
+              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> <strong>Custom Development (Хүссэн тусгай функц хөгжүүлэлт)</strong></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. FAQ */}
+      <section className="max-w-3xl mx-auto px-6 py-16 border-t border-white/5">
+        <h2 className="text-2xl font-black text-white text-center mb-10">Түгээмэл Асуултууд</h2>
+        <div className="space-y-4">
+          {faqs.map((faq, idx) => (
+            <div key={idx} className="bg-slate-900/30 rounded-2xl border border-slate-800/50 overflow-hidden hover:border-slate-700 transition-colors">
+              <button 
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                className="w-full p-6 text-left font-bold text-sm text-slate-200 flex justify-between items-center"
+              >
+                {faq.q}
+                <ChevronDown className={`h-5 w-5 text-emerald-400 transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} />
+              </button>
+              <div className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === idx ? 'max-h-40 pb-6 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <p className="text-sm text-slate-400 leading-relaxed">{faq.a}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 8. FOOTER */}
+      <footer className="border-t border-white/5 py-10 mt-10">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <OperlinkLogo className="h-5 w-5" />
+            <span className="font-bold text-slate-500 tracking-tight uppercase">OPERA<span className="text-emerald-500/50">LINK</span></span>
+          </div>
+          <p className="text-xs text-slate-600 font-medium">© 2026 Operlink Technologies. Улаанбаатар хот, Монгол Улс.</p>
+        </div>
+      </footer>
+
+    </div>
+  );
+}
 </file>
 
 <file path="src/lib/exportAudit.ts">
@@ -1086,22 +1518,184 @@ export function exportAuditExcel(
 }
 </file>
 
-<file path="src/app/api/analytics/route.ts">
-import { NextResponse } from 'next/server';
-import { getAnalyticsData } from '../../../lib/analytics';
+<file path="next.config.ts">
+import type { NextConfig } from "next";
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get('clientId') || 'SF Coffee';
-    // 💡 Хатуу заасан 2026-05-30-г арилгаж, одоогийн бодит хугацааг авна
-    const startDate = searchParams.get('startDate') || undefined;
-    const endDate = searchParams.get('endDate') || undefined;
+const nextConfig: NextConfig = {
+  transpilePackages: [
+    "lucide-react",
+    "@supabase/supabase-js",
+    "react-markdown",
+    "remark-gfm",
+    "xlsx",
+    "@google/generative-ai",
+  ],
+  compiler: {
+    // Хуучин Safari хөтчүүдийн танихгүй RegExp, Lookbehind-ийг хуучин хэлбэр рүү хөрвүүлнэ
+    removeConsole: false,
+  },
+};
 
-    const data = await getAnalyticsData(clientId, startDate, endDate);
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+export default nextConfig;
+</file>
+
+<file path="public/manifest.json">
+{
+  "name": "Operlink Operations",
+  "short_name": "Operlink",
+  "description": "Operlink — The Universal AI Operating System",
+  "start_url": "/kiosk",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050a12",
+  "theme_color": "#050a12",
+  "icons": [
+    {
+      "src": "/operlink.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/operlink.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// 📱 УТАСНЫ ДЭЛГЭЦИЙГ 100% БОДИТ ТОМ ХЭМЖЭЭГЭЭР НЬ ХАРУУЛАХ ҮНДСЭН ТОХИРГОО:
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1.0,
+  maximumScale: 1.0,
+  userScalable: false,
+};
+
+export const metadata: Metadata = {
+  title: "Operlink",
+  description: "Operlink — The Universal AI Operating System",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/operlink.png",
+    apple: "/operlink.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Operlink",
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+         {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
+           
+        {/* 🍏 APPLE (IPAD / IPHONE) ТОХИРГОО: */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Smart BoH" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        
+        {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#070b14" />
+         <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.onerror = function(message, source, lineno, colno, error) {
+                alert("🚨 IPAD ДЭЭРХ БОДИТ АЛДАА: " + message + "\\nФайл: " + source + "\\nМөр: " + lineno);
+              };
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-[#070b14] text-slate-100">{children}</body>
+    </html>
+  );
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "codespaces-blank",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "Safari >= 12",
+    "iOS >= 12",
+    "not dead"
+  ],
+    "overrides": {
+    "mdast-util-gfm-autolink-literal": "2.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.110.7",
+    "lucide-react": "^1.24.0",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
 </file>
@@ -1184,7 +1778,7 @@ export async function getAnalyticsData(
   ] = await Promise.all([
     supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
     supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate).order('date', { ascending: false }),
+    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).lte('date', finalEndDate).order('date', { ascending: false }),
     supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
     supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
     supabaseAdmin.from('products').select('*').ilike('client_id', clientId),
@@ -1851,329 +2445,6 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
 }
 </file>
 
-<file path="src/app/page.tsx">
-"use client";
-
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  TrendingUp, 
-  Zap, 
-  CheckCircle2, 
-  Play, 
-  ArrowRight, 
-  Calculator, 
-  ShieldAlert, 
-  Coffee,
-  ScanLine,
-  Bot,
-  BarChart3,
-  ChevronDown,
-  ShieldCheck
-} from 'lucide-react';
-
-function PremiumLandingPage() {
-  const router = useRouter();
-  const [dailyRevenue, setDailyRevenue] = useState(1500000);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-
-  // Hormozi-style ROI Math
-  const monthlyRevenue = dailyRevenue * 30;
-  const estimatedWasteSaved = Math.round(monthlyRevenue * 0.05); // 5% minimum saved
-  const monthlySoftwareFee = Math.round(monthlyRevenue * 0.012); // 1.2% Pro fee
-  const pureProfit = estimatedWasteSaved - monthlySoftwareFee;
-
-  const faqs = [
-    {
-      q: "ПОС систем байхад яагаад Smart BoH хэрэгтэй гэж?",
-      a: "ПОС систем зөвхөн урд лангуун дээрх 'Орлого'-ыг хянадаг. Гал тогоонд хэдэн литр сүү асгарч, хэчнээн орц хулгайд алдагдаж, таны ашгийг идэж байгааг ПОС хэзээ ч хэлж чадахгүй. Бид таны 'Зардал' болон 'Алдагдал'-ыг хянана."
-    },
-    {
-      q: "Ажилтнууд заавал өөрийн гар утсаа ашиглах шаардлагатай юу?",
-      a: "Үгүй. Гал тогоонд нэг л дундын Таблет (Kiosk) байрлуулахад хангалттай. Ингэснээр ажилтнууд гар утсаа оролдох шаардлагагүй болж, эрүүл ахуйн шаардлага хангасан цэвэр орчинд ажилдаа бүрэн төвлөрөх боломжтой болно."
-    },
-    {
-      q: "Нягтлан бодогчийн ажлыг яаж хөнгөвчлөх вэ?",
-      a: "Бариста нарын дарсан E-Barimt болон барааны зургийг AI автоматаар уншиж, COGS болон OPEX-ээр ангилна. Сарын эцэст татварын албанд (MTA) өгөх Excel тайлан бэлэн гарч ирнэ."
-    }
-  ];
-
-
-
-  return (
-    // 👈 2. suppressHydrationWarning={true} нэмснээр Extension-ий нөлөөгөөр гарах алдаа бүрэн арилна
-    <div 
-      suppressHydrationWarning={true}
-      className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative"
-    >
-      
-      {/* BACKGROUND GLOW EFFECTS (Premium UI) */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500 via-transparent to-transparent blur-3xl rounded-full mix-blend-screen"></div>
-      </div>
-
-      {/* 1. TRANSPARENT NAVBAR */}
-      <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-white/5 bg-slate-950/50 backdrop-blur-xl">
-        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => router.push('/')}>
-          <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-            <Coffee className="h-6 w-6 text-emerald-400" />
-          </div>
-          <span className="text-2xl font-black tracking-tight text-white">
-            SMART<span className="text-emerald-400">BoH</span>
-          </span>
-        </div>
-       <div className="flex items-center gap-6 z-50">
-          <Link 
-            href="/login" 
-            className="text-sm font-bold text-slate-400 hover:text-white transition py-2 px-3 cursor-pointer"
-          >
-            Нэвтрэх
-          </Link>
-
-          <Link 
-            href="/login" 
-            className="hidden sm:flex bg-white text-slate-950 hover:bg-slate-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] cursor-pointer"
-          >
-            Үнэгүй турших <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </nav>
-
-      {/* 2. THE HERO SECTION */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pt-24 pb-20 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider mb-8 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-          <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
-          Ресторан, Кофе Шопын Эздэд Зориулав
-        </div>
-        
-        <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
-          ПОС систем орлогыг бүртгэдэг. <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">Харин бид гал тогоог удирдана.</span>
-        </h1>
-        
-        <p className="text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-          Цаасаар бүртгэдэг хуучин аргыг халж, таблет болон AI ашиглан орц, хаягдал, ажилчдын өдөр тутмын даалгаврыг эмх цэгцтэй, шилэн болгох ухаалаг BOH систем.
-        </p>
-
-        {/* Video Placeholder */}
-        <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
-          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-blue-500/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
-              <Play className="h-8 w-8 text-slate-950 fill-current ml-1" />
-            </div>
-            <p className="text-sm font-bold text-white tracking-wide">3 минутын системийн танилцуулга үзэх</p>
-          </div>
-        </div>
-
-         <Link 
-          href="/login" 
-          className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base px-10 py-5 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto cursor-pointer"
-        >
-          14 Хоног Үнэгүй Ашиглах <ArrowRight className="h-5 w-5" />
-        </Link>
-      </section>
-
-      {/* 3. HORMOZI LEAD MAGNET */}
-      <section className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-gradient-to-r from-blue-900/40 to-emerald-900/40 p-1 rounded-3xl">
-          <div className="bg-slate-950 rounded-[22px] p-8 sm:p-10 text-center border border-white/5">
-            <ShieldCheck className="h-12 w-12 text-emerald-400 mx-auto mb-6" />
-            <h2 className="text-2xl sm:text-3xl font-black text-white mb-4">Хоосон систем өгөөд орхихгүй. Бид тохируулна.</h2>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
-              Та шинэ систем сурах, жор шивэх гэж цаг үрэх шаардлагагүй. Бид танай технологийн карт, орцын мэдээллийг системд <strong>100% бүрэн оруулж, бэлэн болгож өгнө.</strong> Үүний дараа таны <strong>14 хоногийн ҮНЭГҮЙ туршилт</strong> эхлэх бөгөөд, гал тогооны эмх цэгц бодитоор сайжирсан үед л нэвтрүүлэлтийн хураамж болон сарын төлбөр идэвхжинэ. Эрсдэл 100% бидний талд.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. HOW IT WORKS */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Систем хэрхэн ажилладаг вэ?</h2>
-          <p className="text-slate-400">Хүний оролцоог багасгаж, AI технологиор удирдах 3 алхам.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/30 transition-colors">
-            <div className="h-14 w-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
-              <ScanLine className="h-7 w-7 text-blue-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">1. AI Баримт Уншигч</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Ажилтнууд гараар тоо шивэхгүй. Орж ирсэн бараа эсвэл E-Barimt-ийн зургийг таблетаар дарахад AI автоматаар уншиж агуулахад бүртгэнэ.
-            </p>
-          </div>
-          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/30 transition-colors">
-            <div className="h-14 w-14 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 border border-purple-500/20">
-              <Bot className="h-7 w-7 text-purple-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">2. Ухаалаг Kiosk Таблет</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Гал тогоонд ганц л таблет байна. Ажилтан PIN кодоор нэвтэрч, өдрийн даалгавраа (Task) чеклээд, 5-хан бараа тоолоод ээлжээ хаана.
-            </p>
-          </div>
-          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/30 transition-colors">
-            <div className="h-14 w-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
-              <BarChart3 className="h-7 w-7 text-emerald-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">3. Менежерийн Тайлан</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Ээлж хаагдах бүрд менежерийн утсанд ажлын тайлан очно. Ажилчдын хийсэн даалгавар, зарлага, татан авалтын баримтууд нэгтгэгдэж, гал тогооны үйл ажиллагаа 100% шилэн болно.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. ROI CALCULATOR */}
-      <section className="max-w-4xl mx-auto px-6 py-16">
-        <div className="bg-slate-900/80 p-8 sm:p-12 rounded-[2rem] border border-slate-700 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
-
-          <div className="text-center mb-10 relative z-10">
-            <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center justify-center gap-3">
-              <Calculator className="text-emerald-400 h-8 w-8" /> Таны бодит хэмнэлт
-            </h2>
-            <p className="text-sm text-slate-400">Тоо хэзээ ч худлаа хэлдэггүй. Орлогоо оруулаад ашгаа хар.</p>
-          </div>
-
-          <div className="mb-12 max-w-2xl mx-auto relative z-10">
-            <div className="flex justify-between items-end mb-4">
-              <span className="text-sm font-bold text-slate-300 uppercase tracking-wide">Өдрийн дундаж орлого:</span>
-              <span className="text-3xl font-black text-white font-mono">{dailyRevenue.toLocaleString()} ₮</span>
-            </div>
-            <input 
-              type="range" 
-              min={300000} 
-              max={15000000} 
-              step={100000} 
-              value={dailyRevenue} 
-              onChange={(e) => setDailyRevenue(Number(e.target.value))}
-              className="w-full h-3 bg-slate-800 rounded-full appearance-none cursor-pointer accent-emerald-500 outline-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center relative z-10">
-            <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-              <p className="text-xs text-slate-400 font-bold uppercase mb-2">Зогсоох алдагдал (5%)</p>
-              <p className="text-2xl font-black text-white font-mono">+{estimatedWasteSaved.toLocaleString()} ₮</p>
-            </div>
-            <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-              <p className="text-xs text-slate-400 font-bold uppercase mb-2">Системийн зардал (1.2%)</p>
-              <p className="text-2xl font-black text-rose-400 font-mono">-{monthlySoftwareFee.toLocaleString()} ₮</p>
-            </div>
-            <div className="bg-emerald-500/20 p-6 rounded-2xl border border-emerald-500/50 transform sm:scale-110 shadow-lg">
-              <p className="text-xs text-emerald-400 font-black uppercase mb-2 tracking-wide">Танд үлдэх цэвэр ашиг</p>
-              <p className="text-3xl font-black text-emerald-400 font-mono">+{pureProfit.toLocaleString()} ₮</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. PRICING TIERS */}
-      <section className="max-w-6xl mx-auto px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Шударга үнэ. Тогтмол шимтгэлгүй.</h2>
-          <p className="text-slate-400 text-sm max-w-xl mx-auto">Танай борлуулалт өсвөл бид хамт өснө. Орлого муутай сард таны зардал багасна.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Starter</p>
-            <div className="mb-4">
-              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 1.5x (Өдрийн дундаж орлого)</span>
-              <span className="text-3xl font-black text-white font-mono">0.8%</span>
-              <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 100,000₮)</span>
-            </div>
-            <ul className="space-y-4 mb-8 text-sm text-slate-300">
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Telegram Bot бүртгэл</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> E-Barimt AI уншигч</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> COGS & OPEX тайлан</li>
-            </ul>
-          </div>
-
-          <div className="bg-slate-900 p-10 rounded-[2rem] border-2 border-emerald-500 relative shadow-[0_0_50px_rgba(16,185,129,0.15)] transform md:scale-105 z-10">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full">
-              Хамгийн их сонгогддог
-            </div>
-            <p className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">Professional BOH</p>
-            <div className="mb-6">
-              <span className="text-xs text-emerald-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 2.0x (Өдрийн дундаж орлого)</span>
-              <span className="text-5xl font-black text-white font-mono">1.2%</span>
-              <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 250,000₮)</span>
-            </div>
-            <ul className="space-y-4 mb-8 text-sm text-slate-200 font-medium">
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Бүх Starter боломжууд</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Гал тогооны Таблет Kiosk</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Даалгаврын удирдлага (SOP)</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Ажилтан бүрийн Аудит Лог</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 09:00 Автомат захиалгын сануулга</li>
-            </ul>
-            <button onClick={() => router.push('/login')} className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-xl text-sm transition shadow-lg">
-              14 хоног үнэгүй эхлэх
-            </button>
-          </div>
-
-          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Enterprise CFO</p>
-            <div className="mb-4">
-              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 2.5x (Өдрийн дундаж орлого)</span>
-              <span className="text-3xl font-black text-white font-mono">1.5%</span>
-              <span className="text-xs text-slate-400 block mt-2">Сарын орлогоос (Мин: 500,000₮)</span>
-            </div>
-            <ul className="space-y-4 mb-8 text-sm text-slate-300">
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх Pro боломжууд</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> 24/7 AI Санхүүгийн Зөвлөх</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Банкны хуулга тулгагч AI</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Татварын E-Tax экспорт</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. FAQ */}
-      <section className="max-w-3xl mx-auto px-6 py-16 border-t border-white/5">
-        <h2 className="text-2xl font-black text-white text-center mb-10">Түгээмэл Асуултууд</h2>
-        <div className="space-y-4">
-          {faqs.map((faq, idx) => (
-            <div key={idx} className="bg-slate-900/30 rounded-2xl border border-slate-800/50 overflow-hidden hover:border-slate-700 transition-colors">
-              <button 
-                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                className="w-full p-6 text-left font-bold text-sm text-slate-200 flex justify-between items-center"
-              >
-                {faq.q}
-                <ChevronDown className={`h-5 w-5 text-emerald-400 transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} />
-              </button>
-              <div className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === idx ? 'max-h-40 pb-6 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <p className="text-sm text-slate-400 leading-relaxed">{faq.a}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 8. FOOTER */}
-      <footer className="border-t border-white/5 py-10 mt-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Coffee className="h-5 w-5 text-slate-500" />
-            <span className="font-bold text-slate-500 tracking-tight">SMART <span className="text-emerald-500/50">BoH</span></span>
-          </div>
-          <p className="text-xs text-slate-600 font-medium">© 2026 Smart BoH Cloud ERP. Улаанбаатар хот, Монгол Улс.</p>
-        </div>
-      </footer>
-
-    </div>
-  );
-}
-
-export default function Page() {
-  return <PremiumLandingPage />;
-}
-</file>
-
 <file path="src/lib/gemini.ts">
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -2635,11 +2906,18 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
  const systemPrompt = `
     You are an expert F&B data entry assistant. Read the provided receipt or image carefully.
 
-    1. IMAGE CLASSIFICATION:
+      1. IMAGE CLASSIFICATION:
        - If it contains a QR code, barcode, or printed thermal receipt text -> "image_type": "E-Barimt", "is_ebarimt": true.
+       - If it is a HANDWRITTEN NOTE on paper written with pen/pencil (e.g., "1л сүү асгасан", "өндөг 5ш", "талх 2ш авав 12000₮") -> "image_type": "Handwritten Note", "is_ebarimt": false. Parse each line into proper item, quantity, and cost!
        - If it is a physical photo of product packaging/goods without receipt -> "image_type": "Product Photo", "is_ebarimt": false.
 
-    2. FOOD VS NON-FOOD:
+      2. ACTION TYPE DETECTION:
+       - Spoilage/Damage ("асгасан", "муудсан", "хаясан", "хагарсан") -> "is_spoilage": true, quantity must be negative.
+       - Purchase/Supply ("авсан", "татан авалт", "ирлээ") -> quantity is positive.
+       - Map food items to: [${ingredientsList.join(', ')}].
+       - If non-food (napkins, soap, detergent) -> "is_food": false.
+
+      3.FOOD VS NON-FOOD:
        - FOOD INGREDIENTS (Milk, Coffee, Syrup, Puree, Fruits, Meat, Eggs, Flour, Sugar, Bread, Cheese):
          * Map to closest match in: [${ingredientsList.join(', ')}]. If not in list, keep the raw food name (it will be auto-created in inventory).
          * Set "is_food": true.
@@ -2647,29 +2925,29 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
          * Keep original name.
          * Set "is_food": false (This goes directly to OPEX).
 
-    3. PAYMENT METHOD:
+      4. PAYMENT METHOD:
        - If receipt states Cash ("Бэлнээр", "Бэлэн") -> "payment_method": "cash".
        - If Card / QPay / Bank ("Бэлэн бус", "Карт", "Хаан банк") -> "payment_method": "bank".
        - Default to "bank" if not specified.
 
-    Respond STRICTLY with a JSON object:
-    {
-      "success": true,
-      "error_message": null,
-      "purchases": [
+        Respond STRICTLY with a JSON object:
         {
-          "item_name": "Raspberry Puree",
-          "quantity": 2,
-          "total_cost": 45000,
-          "is_food": true,
-          "is_ebarimt": true,
-          "payment_method": "bank",
-          "image_type": "E-Barimt",
-          "notes": ""
+          "success": true,
+          "error_message": null,
+          "purchases": [
+            {
+              "item_name": "Raspberry Puree",
+              "quantity": 2,
+              "total_cost": 45000,
+              "is_food": true,
+              "is_ebarimt": true,
+              "payment_method": "bank",
+              "image_type": "E-Barimt",
+              "notes": ""
+            }
+          ]
         }
-      ]
-    }
-  `;
+      `;
 
   const keys = getApiKeys();
   let responseText = "";
@@ -2729,11 +3007,144 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
 <file path="src/app/login/page.tsx">
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import {supabase} from '../../lib/supabase';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Coffee, ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
+// 🚀 THE QUANTUM FORCE & MATTER OPERALINK LOGO
+function OperlinkLogo({ className = "h-12 w-12" }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 512 512" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className={className}
+    >
+      <defs>
+        <linearGradient id="vectorGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" stopOpacity="0" />
+          <stop offset="30%" stopColor="#00f59b" stopOpacity="0.5" />
+          <stop offset="50%" stopColor="#ffffff" />
+          <stop offset="70%" stopColor="#00c8ff" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#00c8ff" stopOpacity="0" />
+        </linearGradient>
+
+        <linearGradient id="energyGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" />
+          <stop offset="50%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#00c8ff" />
+        </linearGradient>
+
+        <linearGradient id="statorGrad" x1="120" y1="120" x2="392" y2="392" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00f59b" />
+          <stop offset="30%" stopColor="#005577" />
+          <stop offset="70%" stopColor="#005577" />
+          <stop offset="100%" stopColor="#00c8ff" />
+        </linearGradient>
+
+        <radialGradient id="coreHalo" cx="256" cy="256" r="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="25%" stopColor="#00f59b" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#00f59b" stopOpacity="0" />
+        </radialGradient>
+
+        <filter id="neonCyan" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#00c8ff" floodOpacity="0.8" />
+        </filter>
+        <filter id="neonEmerald" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#00f59b" floodOpacity="0.6" />
+        </filter>
+      </defs>
+
+      {/* 1. OUTER HUD RING */}
+      <circle 
+        cx="256" 
+        cy="256" 
+        r="220" 
+        stroke="#00c8ff" 
+        strokeOpacity="0.2" 
+        strokeWidth="2" 
+        strokeDasharray="4 12" 
+      />
+      <circle cx="411.5" cy="411.5" r="4" fill="#00f59b" />
+      <circle cx="100.5" cy="411.5" r="4" fill="#00f59b" />
+      <circle cx="100.5" cy="100.5" r="4" fill="#00f59b" />
+      <circle cx="411.5" cy="100.5" r="4" fill="#00f59b" />
+
+      {/* 2. THE FORCE VECTOR */}
+      <line 
+        x1="56" 
+        y1="456" 
+        x2="456" 
+        y2="56" 
+        stroke="url(#vectorGrad)" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+      />
+
+      {/* 3. BACK ORBIT */}
+      <g transform="rotate(-45 256 256)">
+        <path 
+          d="M 56 256 A 200 60 0 0 1 456 256" 
+          stroke="url(#energyGrad)" 
+          strokeWidth="10" 
+          strokeOpacity="0.4" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* 4. MATTER STATORS */}
+      <g filter="url(#neonEmerald)">
+        <path 
+          d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1" 
+          stroke="url(#statorGrad)" 
+          strokeWidth="28" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+        <path 
+          d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9" 
+          stroke="url(#statorGrad)" 
+          strokeWidth="28" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      <path 
+        d="M 280.9 349.5 A 100 100 0 0 1 162.7 231.3" 
+        stroke="#050a12" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+      <path 
+        d="M 231.1 162.5 A 100 100 0 0 1 349.3 280.7" 
+        stroke="#050a12" 
+        strokeWidth="4" 
+        strokeLinecap="round" 
+        fill="none" 
+      />
+
+      {/* 5. FRONT ORBIT */}
+      <g transform="rotate(-45 256 256)" filter="url(#neonCyan)">
+        <path 
+          d="M 456 256 A 200 60 0 0 1 56 256" 
+          stroke="url(#energyGrad)" 
+          strokeWidth="14" 
+          strokeLinecap="round" 
+          fill="none" 
+        />
+      </g>
+
+      {/* 6. QUANTUM CORE */}
+      <circle cx="256" cy="256" r="45" fill="url(#coreHalo)" />
+      <circle cx="256" cy="256" r="8" fill="#ffffff" filter="url(#neonCyan)" />
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -2749,43 +3160,55 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-const handleForgotPassword = async () => {
-  if (!email) {
-    setErrorMsg("Нууц үг сэргээх имэйлээ оруулна уу.");
-    return;
+  // URL-ээс ирсэн урилгын салбарыг автоматаар унших
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const branchFromUrl = params.get('branch');
+    const roleFromUrl = params.get('role');
+    if (branchFromUrl) {
+      setCompanyName(branchFromUrl);
+      setIsSignUp(true); // Шууд бүртгүүлэх горим асаана
+      if (roleFromUrl === 'staff') setSignupRole('staff');
+    }
   }
-  setLoading(true);
-  setErrorMsg(null);
-  setSuccessMsg(null);
-
-  try {
-    // Check if the email exists in our public profiles table [3]
-    const { data: profileExists, error: checkError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email.trim())
-      .maybeSingle();
-
-    if (checkError) throw checkError;
-
-    if (!profileExists) {
-      setErrorMsg("Уучлаарай, энэ имэйл хаяг бүртгэлгүй байна. Та зөв имэйл хаягаа оруулна уу.");
-      setLoading(false);
+}, []);
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMsg("Нууц үг сэргээх имэйлээ оруулна уу.");
       return;
     }
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
 
-    // If email exists, trigger Supabase password reset [2]
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
-    if (error) throw error;
-    setSuccessMsg("Нууц үг сэргээх линкийг имэйл рүү тань илгээлээ.");
-  } catch (err: any) {
-    setErrorMsg(err.message || "Имэйл илгээж чадсангүй.");
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const { data: profileExists, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim())
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (!profileExists) {
+        setErrorMsg("Уучлаарай, энэ имэйл хаяг бүртгэлгүй байна. Та зөв имэйл хаягаа оруулна уу.");
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+      if (error) throw error;
+      setSuccessMsg("Нууц үг сэргээх линкийг имэйл рүү тань илгээлээ.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Имэйл илгээж чадсангүй.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -2794,35 +3217,15 @@ const handleForgotPassword = async () => {
 
     try {
       if (isSignUp) {
-        // Registers user and passes branch metadata to the SQL trigger [2, 3]
+        const cleanBranch = companyName.trim();
 
- const cleanBranch = companyName.trim();
-        
-   // WORKER VALIDATION: Check if this branch exists before signing up [3]
- // ❌ ЭНЭ ХЭСГИЙГ АРИЛГАХ (RLS-ээс болж нэвтрээгүй үед 0 үр дүн буцааж гацаадаг):
-        if (signupRole === 'staff') {
-          const { data: branchExists } = await supabase
-            .from('profiles')
-            .select('client_id')
-            .ilike('client_id', cleanBranch)
-            .eq('role', 'owner')
-            .limit(1);
-
-          if (!branchExists || branchExists.length === 0) {
-            setErrorMsg(`❌ Уучлаарай, "${cleanBranch}" нэртэй салбар/бизнес бүртгэлгүй байна. Та эзнийхээ бүртгүүлсэн салбарын нэрийг зөв бичнэ үү.`);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Registers user with neutral 'Ажилтан' role (Owner assigns the specific job on dashboard) [3]
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: {
               client_id: cleanBranch, 
-              role: signupRole === 'owner' ? 'owner' : 'Ажилтан', // Sets neutral 'Ажилтан'! [3]
+              role: signupRole === 'owner' ? 'owner' : 'Ажилтан',
               full_name: fullName.trim() 
             }
           }
@@ -2837,9 +3240,8 @@ const handleForgotPassword = async () => {
           setPassword('');
         }
       } else {
-        // Sign In
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password
         });
 
@@ -2857,12 +3259,19 @@ const handleForgotPassword = async () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-slate-900/40 p-8 rounded-2xl border border-slate-900 shadow-2xl backdrop-blur-md">
         
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-emerald-500/10 p-3.5 rounded-2xl border border-emerald-500/20 mb-3">
-            <Coffee className="h-8 w-8 text-emerald-400" />
+        {/* ТОМОРСОН ЛОГО БА ЦЭВЭРХЭН ГАРЧИГ (Дэд тайлбаргүй) */}
+        <div className="flex flex-col items-center mb-8 text-center">
+          <div className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/20 mb-4 flex items-center justify-center shadow-[0_0_25px_rgba(0,245,155,0.2)]">
+            <OperlinkLogo className="h-12 w-12" />
           </div>
-          <h2 className="text-2xl font-black text-white">SF Coffee Portal</h2>
-          <p className="text-slate-500 text-xs mt-1 uppercase tracking-wider font-bold">SaaS Tenant Authentication</p>
+          
+          <h2 className="text-2xl font-black text-white tracking-tight">
+            {isForgotPassword 
+              ? "Нууц үг сэргээх" 
+              : isSignUp 
+              ? "Шинэ Бүртгэл Үүсгэх" 
+              : "Operlink"}
+          </h2>
         </div>
 
         {errorMsg && (
@@ -2879,178 +3288,152 @@ const handleForgotPassword = async () => {
           </div>
         )}
 
-       <form onSubmit={handleSubmit} className="space-y-5">
-  <div>
-    <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Имэйл хаяг</label>
-    <input 
-      type="email"
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      required
-      placeholder="name@example.com"
-      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
-    />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Имэйл хаяг</label>
+            <input 
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="name@example.com"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+            />
+          </div>
 
-    
-  </div>
-{/* Dynamic Business Name Input for Signup  */}
-{/* {isSignUp && (
-  <div>
-    <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Бизнесийн Нэр (Салбар)</label>
-    <input 
-      type="text"
-      value={companyName}
-      onChange={(e) => setCompanyName(e.target.value)}
-      required={isSignUp}
-      placeholder="Жишээ: Cafe B, SF Coffee"
-      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
-    />
-  </div>
-)} */}
+          {isSignUp && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Би хэн бэ?</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('owner')}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === 'owner' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
+                  >
+                    👑 Бизнес эрхлэгч
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('staff')}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === 'staff' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
+                  >
+                    👷 Ажилтан
+                  </button>
+                </div>
+              </div>
 
-{isSignUp && (
-  <div className="space-y-4">
-    {/* The Switch Buttons */}
-    <div>
-      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Би хэн бэ?</label>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setSignupRole('owner')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${signupRole === 'owner' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
-        >
-          👑 Бизнес эрхлэгч
-        </button>
-     <button
-          type="button"
-          onClick={() => setSignupRole('staff')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${signupRole === 'staff' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white'}`}
-        >
-          👷 Ажилтан
-        </button>
-      </div>
-    </div>
+              {signupRole === 'staff' && (
+                <div>
+                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Таны нэр</label>
+                  <input 
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required={isSignUp && signupRole === 'staff'}
+                    placeholder="Жишээ: Бат, Нараа, Билгүүн"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+                  />
+                </div>
+              )}
 
-    {/* Worker Name Input - Shows ONLY when registering as an employee */}
-   {signupRole === 'staff' && (
-      <div>
-        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Таны нэр (Full Name)</label>
-        <input 
-          type="text"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required={isSignUp && signupRole === 'staff'}
-          placeholder="Жишээ: Бат, Нараа, Билгүүн"
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
-        />
-      </div>
-    )}
-    {/* Dynamic Company Input */}
-    <div>
-      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-        {signupRole === 'owner' ? 'Бизнесийн Нэр (Шинээр үүсгэх)' : 'Кофе шопын нэр (Салбар)'}
-      </label>
-      <input 
-        type="text"
-        value={companyName}
-        onChange={(e) => setCompanyName(e.target.value)}
-        required={isSignUp}
-        placeholder={signupRole === 'owner' ? "Жишээ: SF Coffee" : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"}
-        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
-      />
-    </div>
-  </div>
-)}
+              <div>
+                <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  {signupRole === 'owner' ? 'Бизнесийн Нэр (Шинээр үүсгэх)' : 'Бизнесийн нэр (Салбар)'}
+                </label>
+                <input 
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  required={isSignUp}
+                  readOnly={Boolean(companyName && signupRole === 'staff')} 
+                  placeholder={signupRole === 'owner' ? "Жишээ: SF Coffee" : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+                />
+              </div>
+            </div>
+          )}
 
-  {/* Hides password input cleanly when Forgot Password state is active */}
- {!isForgotPassword && (
-    <div>
-      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Нууц үг</label>
-      <div className="relative">
-        <input 
-          type={showPassword ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required={!isForgotPassword}
-          placeholder="••••••••"
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
-        />
-        <button
-          type="button"
-          onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
-        >
-          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
-      </div>
-      <div className="text-right mt-2">
-        <button 
-          type="button"
-          onClick={() => {
-            setIsForgotPassword(true);
-            setErrorMsg(null);
-            setSuccessMsg(null);
-          }}
-          className="text-slate-500 hover:text-slate-400 text-xs font-medium transition"
-        >
-          Нууц үгээ мартсан уу?
-        </button>
-      </div>
-    </div>
-  )}
-  <button 
-    type="submit"
-    onClick={(e) => {
-      if (isForgotPassword) {
-        e.preventDefault();
-        handleForgotPassword();
-      }
-    }}
-    disabled={loading}
-    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3.5 rounded-xl transition duration-150 text-sm shadow-lg mt-4"
-  >
-    {loading ? "Түр хүлээнэ үү..." : isForgotPassword ? "Сэргээх холбоос илгээх" : isSignUp ? "Шинэ Бүртгэл Үүсгэх" : "Нэвтэрч Орох"}
-  </button>
-</form>
-<div className="mt-8 pt-6 border-t border-slate-900 text-center space-y-3 flex flex-col">
-  {isForgotPassword ? (
-    <button 
-      type="button"
-      onClick={() => {
-        setIsForgotPassword(false);
-        setErrorMsg(null);
-        setSuccessMsg(null);
-      }}
-      className="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition"
-    >
-      Буцах (Нэвтрэх хэсэг рүү)
-    </button>
-  ) : (
-    <button 
-      type="button"
-      onClick={() => {
-        setIsSignUp(!isSignUp);
-        setErrorMsg(null);
-        setSuccessMsg(null);
-      }}
-      className="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition"
-    >
-      {isSignUp ? "Бүртгэлтэй юу? Нэвтэрч орох" : "Шинэ хэрэглэгч үү? Бүртгүүлэх"}
-    </button>
-  )}
-</div>
-        <div className="mt-8 pt-6 border-t border-slate-900 text-center">
+          {!isForgotPassword && (
+            <div>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Нууц үг</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required={!isForgotPassword}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              
+              {!isSignUp && (
+                <div className="text-right mt-2">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                    }}
+                    className="text-slate-500 hover:text-slate-400 text-xs font-medium transition cursor-pointer"
+                  >
+                    Нууц үгээ мартсан уу?
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <button 
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setErrorMsg(null);
-              setSuccessMsg(null);
+            type="submit"
+            onClick={(e) => {
+              if (isForgotPassword) {
+                e.preventDefault();
+                handleForgotPassword();
+              }
             }}
-            className="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition"
+            disabled={loading}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3.5 rounded-xl transition duration-150 text-sm shadow-lg mt-4 cursor-pointer disabled:opacity-50"
           >
-            {isSignUp ? "Бүртгэлтэй юу? Нэвтэрч орох" : "Шинэ хэрэглэгч үү? Бүртгүүлэх"}
+            {loading ? "Түр хүлээнэ үү..." : isForgotPassword ? "Сэргээх холбоос илгээх" : isSignUp ? "Бүртгүүлэх" : "Нэвтрэх"}
           </button>
+        </form>
+
+        <div className="mt-8 pt-6 border-t border-slate-900 text-center">
+          {isForgotPassword ? (
+            <button 
+              type="button"
+              onClick={() => {
+                setIsForgotPassword(false);
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition cursor-pointer"
+            >
+              ← Буцах (Нэвтрэх хэсэг рүү)
+            </button>
+          ) : (
+            <button 
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition cursor-pointer"
+            >
+              {isSignUp ? "Бүртгэлтэй юу? Нэвтрэх" : "Шинэ хэрэглэгч үү? Бүртгүүлэх"}
+            </button>
+          )}
         </div>
 
       </div>
@@ -3994,7 +4377,7 @@ export async function POST(request: Request) {
     // E. /start ТУШААЛ
     // =========================================================================
     if (incomingText === "/start") {
-      const welcomeText = "Сайн байна уу? 'Smart BoH' ухаалаг туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
+      const welcomeText = "Сайн байна уу? 'Operlink' туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
       await sendTelegramMessageWithMenu(currentChatId, welcomeText);
       return NextResponse.json({ status: 'ok' });
     }
@@ -4629,6 +5012,8 @@ function AiCfoChatTab({
   const [cfoChatHistory, setCfoChatHistory] = useState<{ sender: 'owner' | 'ai'; text: string }[]>([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
 
+  // ⚡ ШУУД ХОЛБОЛТ: Хөтчөө refresh хийх шаардлагагүй, шинэ дата орж ирэхэд дэлгэц шууд өөрөө шинэчлэгдэнэ
+
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cfoChatInput.trim()) return;
@@ -4702,13 +5087,13 @@ function AiCfoChatTab({
   };
 
   return (
-<div className="max-w-6xl w-full mx-auto bg-slate-900/40 rounded-3xl border border-slate-800 flex flex-col h-[82vh] shadow-2xl">
+     <div className="max-w-6xl w-full mx-auto bg-slate-900/40 rounded-3xl border border-slate-800 flex flex-col h-[82vh] shadow-2xl">
       <div className="p-5 border-b border-slate-800 flex items-center gap-3 bg-slate-900 rounded-t-3xl">
         <div className="bg-blue-500/20 p-2 rounded-xl border border-blue-500/30">
           <Bot className="h-6 w-6 text-blue-400" />
         </div>
         <div>
-          <h2 className="font-bold text-white">Smart BoH - AI Санхүүгийн Зөвлөх</h2>
+          <h2 className="font-bold text-white">Operlink - Санхүүгийн Зөвлөх</h2>
           <p className="text-xs text-slate-400">Орлого, хаягдал, үнийн бодлогын талаар юу ч асууж болно.</p>
         </div>
       </div>
@@ -4883,6 +5268,7 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [myPin, setMyPin] = useState('');
   const [invSearch, setInvSearch] = useState('');
   const [invFilter, setInvFilter] = useState<'all' | 'low' | 'critical'>('all');
+    const [activeSampleModal, setActiveSampleModal] = useState<string | null>(null);
   // 🔒 Kiosk түгжээний State-үүд:
 
   const [isKioskLocked, setIsKioskLocked] = useState(false);
@@ -4897,22 +5283,33 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [isUnlocking, setIsUnlocking] = useState(false);
 
   // Эзний нууц үгээр түгжээг тайлах функц:
-  const handleUnlockDashboard = async (e: React.FormEvent) => {
+const handleUnlockDashboard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!unlockPassword || !user?.email) return;
+    if (!unlockPassword) return;
     setIsUnlocking(true);
     setUnlockError('');
 
     try {
+      // 1. Одоогийн session-оос эзний жинхэнэ имэйлийг авах
+      const { data: { session } } = await supabase.auth.getSession();
+      const ownerEmail = session?.user?.email;
+
+      if (!ownerEmail) {
+        // Хэрэв ямар ч имэйл нэвтрээгүй бол шууд нэвтрэх хуудас руу шилжүүлнэ
+        sessionStorage.removeItem('kiosk_device_locked');
+        router.push('/login');
+        return;
+      }
+
+      // 2. Эзний нууц үгийг шалгах
       const { error } = await supabase.auth.signInWithPassword({
-        email: user.email,
+        email: ownerEmail,
         password: unlockPassword
       });
 
       if (error) {
-        setUnlockError("❌ Нууц үг буруу байна!");
+        setUnlockError("❌ Эзний нууц үг буруу байна!");
       } else {
-        // Түгжээ амжилттай тайлагдлаа:
         sessionStorage.removeItem('kiosk_device_locked');
         setIsKioskLocked(false);
         setUnlockPassword('');
@@ -5154,25 +5551,37 @@ useEffect(() => {
     }
   };
 
+
+useEffect(() => {
+  if (!activeClient) return;
+
+  const channel = supabase
+    .channel('realtime-dashboard-sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+      fetchDatabaseData(activeClient);
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [activeClient]);
+
   const lowStockItems = ingredients.filter((i: any) => parseFloat(i.current_stock) <= 50);
 
   const cleanNameForMatch = (str: string) => {
    return str.replace(/[\r\n\u00a0"'\.]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
   };
 
-  // NEW: Огнооны алдааг шалгаж, аюулгүй болгогч функц
-  const parseSafeDate = (rawDate: string | undefined): string => {
-    if (!rawDate) return new Date().toISOString();
-    const cleaned = rawDate.replace(/[\r\n\u00a0"']/g, "").trim();
-    if (!cleaned || cleaned.toLowerCase() === 'date' || cleaned.toLowerCase() === 'огноо') {
-      return new Date().toISOString();
-    }
-    const parsed = new Date(cleaned);
-    if (isNaN(parsed.getTime())) {
-      return new Date().toISOString(); // Хэрэв хүчингүй огноо байвал өнөөдрийн огноог авна
-    }
-    return parsed.toISOString();
-  };
 
 // 1. БАРИСТА ГАРААР ЗАРЛАГА БҮРТГЭХ (Зассан)
   const handleLogSubmit = async (e: React.FormEvent) => {
@@ -5328,10 +5737,33 @@ useEffect(() => {
     }
   };
 
-// =========================================================================
-  // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Sales Paste) - Зассан
+
+
+ // 💡 ОГНООГ 100% АЛДААГҮЙ УНШИГЧ (Цэг, зураас, ташуу зураас бүгдийг танина)
+  const parseSafeDate = (rawDate: string | undefined, fallbackIso?: string): string => {
+    const defaultFallback = fallbackIso || (endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString());
+    if (!rawDate) return defaultFallback;
+
+    let cleaned = rawDate.replace(/[\r\n\u00a0"']/g, "").trim();
+    if (!cleaned || cleaned.toLowerCase().includes('date') || cleaned.toLowerCase().includes('огноо')) {
+      return defaultFallback;
+    }
+
+    // 2026.05.30 эсвэл 2026/05/30-ийг 2026-05-30 стандарт болгох
+    cleaned = cleaned.replace(/[./]/g, '-');
+    const parsed = new Date(cleaned);
+
+    if (isNaN(parsed.getTime())) {
+      return defaultFallback;
+    }
+    return parsed.toISOString();
+  };
+
+  const cleanHeader = (str: string) => (str || "").toLowerCase().replace(/[\r\n\s\-_.]/g, "").trim();
+
   // =========================================================================
- // 🚀 БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огноотой болон Огноогүй аль алиныг нь төгс уншина)
+  // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огноотой & Огноогүй аль алийг нь танина)
+  // =========================================================================
   const handleBulkSalesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!salesPasteText.trim()) return;
@@ -5339,53 +5771,60 @@ useEffect(() => {
     setLoading(true);
     try {
       const rows = salesPasteText.replace(/\r/g, '').trim().split('\n');
-      const salesToInsert: any[] = [];
-      // 💡 Хэрэв огноогүй хуулбал Dashboard дээр сонгосон сарын огноог авна
-      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+      if (rows.length === 0) return;
 
-      rows.forEach(row => {
-        if (!row.trim()) return;
-        const cols = row.split('\t');
-        let pName = "";
-        let qty = 0;
-        let revenue = 0;
-        let dateVal = fallbackDate;
+      const firstRowCols = rows[0].split('\t').map(cleanHeader);
+      const hasHeader = firstRowCols.some(c => c.includes('нэр') || c.includes('product') || c.includes('item') || c.includes('бараа') || c.includes('тоо'));
 
-        // 4 Баганатай үед: Огноо | Бүтээгдэхүүн | Тоо | Орлого
-        if (cols.length >= 4) {
-          dateVal = parseSafeDate(cols[0]);
-          pName = cols[1]?.trim() || "";
-          qty = parseInt(cols[2]?.replace(/,/g, "")) || 0;
-          revenue = parseFloat(cols[3]?.replace(/[^0-9.\-]/g, "")) || 0;
-        } 
-        // 3 Баганатай үед: Бүтээгдэхүүн | Тоо | Орлого
-        else if (cols.length >= 2) {
-          pName = cols[0]?.trim() || "";
-          qty = parseInt(cols[1]?.replace(/,/g, "")) || 0;
-          revenue = cols[2] ? parseFloat(cols[2]?.replace(/[^0-9.\-]/g, "")) || 0 : 0;
+      let nameIdx = 0, qtyIdx = 1, revIdx = 2, dateIdx = -1;
+
+      if (hasHeader) {
+        nameIdx = firstRowCols.findIndex(c => c.includes('нэр') || c.includes('product') || c.includes('item') || c.includes('бараа') || c.includes('бүтээгдэхүүн'));
+        qtyIdx = firstRowCols.findIndex(c => c.includes('тоо') || c.includes('хэмжээ') || c.includes('qty') || c.includes('count'));
+        revIdx = firstRowCols.findIndex(c => c.includes('орлого') || c.includes('дүн') || c.includes('үнэ') || c.includes('total') || c.includes('revenue') || c.includes('нийт'));
+        dateIdx = firstRowCols.findIndex(c => c.includes('огноо') || c.includes('date') || c.includes('өдөр'));
+      } else {
+        // Огноо эхний баганад байгаа эсэхийг шалгах (Жнь: 2026.06.01)
+        if (rows[0].split('\t').length >= 4) {
+          dateIdx = 0; nameIdx = 1; qtyIdx = 2; revIdx = 3;
         }
+      }
 
-        // Хэрэв толгой мөр (Product, Quantity гэсэн үг) биш бол хадгална
-        if (qty > 0 && pName && !pName.toLowerCase().includes('product')) {
-          salesToInsert.push({ 
+      const salesToInsert: any[] = [];
+      // 💡 Хэрэв огноогүй бол таны Dashboard дээр сонгосон сарын огноог авна!
+      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+      const startIndex = hasHeader ? 1 : 0;
+
+      for (let i = startIndex; i < rows.length; i++) {
+        const row = rows[i].trim();
+        if (!row) continue;
+        const cols = row.split('\t');
+
+        const pName = (cols[nameIdx >= 0 ? nameIdx : 0] || "").trim();
+        const qty = parseInt((cols[qtyIdx >= 0 ? qtyIdx : 1] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const revenue = parseFloat((cols[revIdx >= 0 ? revIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const dateVal = dateIdx >= 0 && cols[dateIdx] ? parseSafeDate(cols[dateIdx], fallbackDate) : fallbackDate;
+
+        if (pName && qty > 0 && !pName.toLowerCase().includes('product') && !pName.toLowerCase().includes('нэр')) {
+          salesToInsert.push({
             client_id: activeClient,
-            product_name: pName, 
-            quantity_sold: qty, 
+            product_name: pName,
+            quantity_sold: qty,
             total_revenue: revenue,
-            date: dateVal 
+            date: dateVal // ✅ Сонгосон сард яг таарна
           });
         }
-      });
+      }
 
       if (salesToInsert.length > 0) {
-        const { error: salesErr } = await supabase.from('sales_logs').insert(salesToInsert);
-        if (salesErr) throw salesErr;
+        const { error } = await supabase.from('sales_logs').insert(salesToInsert);
+        if (error) throw error;
       }
 
       setSalesImportSuccess(true);
       setSalesPasteText('');
       await fetchDatabaseData(activeClient);
-      alert(`Амжилттай! Нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`);
+      alert(`✅ Амжилттай! Нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`);
       setTimeout(() => setSalesImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Борлуулалт оруулахад алдаа гарлаа: ${err.message}`);
@@ -5395,7 +5834,7 @@ useEffect(() => {
   };
 
   // =========================================================================
-  // 2. ТАТАН АВАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Purchases Paste) - Зассан
+  // 2. ТАТАН АВАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огнооны алдааг бүрэн зассан)
   // =========================================================================
   const handleBulkPurchasePaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -5404,85 +5843,70 @@ useEffect(() => {
     setLoading(true);
     try {
       const rows = purchasePasteText.replace(/\r/g, '').trim().split('\n');
-      const purchasesToInsert: any[] = [];
-      const currentDate = new Date().toISOString();
-      
-      // Зөвхөн идэвхтэй салбарын түүхий эдүүдийг Map-д авах (Хурдан O(1) хайлт)
-      const ingMap = new Map();
-      ingredients.filter(i => i.client_id === activeClient).forEach(i => {
-        ingMap.set(cleanNameForMatch(i.name), i);
-      });
+      const firstRowCols = rows[0].split('\t').map(cleanHeader);
+      const hasHeader = firstRowCols.some(c => c.includes('нэр') || c.includes('бараа') || c.includes('тоо') || c.includes('item'));
 
-    // ✍️ ШИНЭЧЛЭХ УХААЛАГ ХЭСЭГ:
-      const nonFoodKeywords = ['сальфетка', 'аяга', 'уут', 'угаагч', 'цэвэрлэгээ', 'соруул', 'таг', 'саван', 'soap', 'napkin', 'bag', 'paper', 'detergent', 'cleaning'];
+      let nameIdx = 0, qtyIdx = 1, costIdx = 2, dateIdx = -1;
 
-      for (const row of rows) {
-        if (!row.trim()) continue;
-        const cols = row.split('\t');
-        let ingName = "";
-        let qty = 0;
-        let totalCost = 0;
-        let dateVal = currentDate;
-
-        if (cols.length >= 4) {
-          dateVal = parseSafeDate(cols[0]);
-          ingName = cols[1]?.trim() || "";
-          qty = parseFloat(cols[2]?.replace(/,/g, "")) || 0;
-          totalCost = parseFloat(cols[3]?.replace(/[^0-9.\-]/g, "")) || 0;
-        } else if (cols.length >= 2) {
-          ingName = cols[0]?.trim() || "";
-          qty = parseFloat(cols[1]?.replace(/,/g, "")) || 0;
-          totalCost = cols[2] ? parseFloat(cols[2]?.replace(/[^0-9.\-]/g, "")) || 0 : 0;
+      if (hasHeader) {
+        nameIdx = firstRowCols.findIndex(c => c.includes('нэр') || c.includes('бараа') || c.includes('түүхий') || c.includes('item'));
+        qtyIdx = firstRowCols.findIndex(c => c.includes('тоо') || c.includes('хэмжээ') || c.includes('qty'));
+        costIdx = firstRowCols.findIndex(c => c.includes('өртөг') || c.includes('дүн') || c.includes('үнэ') || c.includes('cost') || c.includes('нийт'));
+        dateIdx = firstRowCols.findIndex(c => c.includes('огноо') || c.includes('date'));
+      } else {
+        if (rows[0].split('\t').length >= 4) {
+          dateIdx = 0; nameIdx = 1; qtyIdx = 2; costIdx = 3;
         }
+      }
 
-        if (!ingName || qty <= 0) continue;
+      const ingMap = new Map();
+      ingredients.filter(i => i.client_id === activeClient).forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
+      const nonFoodKeywords = ['сальфетка', 'аяга', 'уут', 'угаагч', 'цэвэрлэгээ', 'соруул', 'таг', 'саван', 'soap', 'napkin', 'bag', 'paper'];
+      const purchasesToInsert: any[] = [];
+      const startIndex = hasHeader ? 1 : 0;
+      
+      // 💡 ЗАСВАР: Огноо байхгүй бол өнөөдрийг БИШ, сонгосон сарын огноог авна!
+      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+
+      for (let i = startIndex; i < rows.length; i++) {
+        const row = rows[i].trim();
+        if (!row) continue;
+        const cols = row.split('\t');
+
+        const ingName = (cols[nameIdx >= 0 ? nameIdx : 0] || "").trim();
+        const qty = parseFloat((cols[qtyIdx >= 0 ? qtyIdx : 1] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const totalCost = parseFloat((cols[costIdx >= 0 ? costIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const dateVal = dateIdx >= 0 && cols[dateIdx] ? parseSafeDate(cols[dateIdx], fallbackDate) : fallbackDate;
+
+        if (!ingName || qty <= 0 || ingName.toLowerCase().includes('item') || ingName.toLowerCase().includes('нэр')) continue;
 
         const isKnownNonFood = nonFoodKeywords.some(k => ingName.toLowerCase().includes(k));
         let matchedIng = ingMap.get(cleanNameForMatch(ingName));
 
         if (!matchedIng && !isKnownNonFood) {
-          // Хэрэв сальфетка, угаалгын шингэн биш бол ЭНЭ БОЛ ХҮНС! ingredients-д автоматаар үүсгэнэ
           const unitPrice = qty > 0 ? Math.round(totalCost / qty) : 0;
           const { data: newIng } = await supabase
             .from('ingredients')
             .insert([{ client_id: activeClient, name: ingName, unit: 'ш', unit_price: unitPrice, current_stock: 0 }])
-            .select()
-            .single();
-
+            .select().single();
           if (newIng) {
             matchedIng = newIng;
             ingMap.set(cleanNameForMatch(ingName), newIng);
           }
         }
 
-        if (matchedIng) {
-          // 🥐 ХҮНСНИЙ ТҮҮХИЙ ЭД -> Агуулахын Хөрөнгө (COGS)
-          purchasesToInsert.push({
-            client_id: activeClient,
-            ingredient_id: matchedIng.id,
-            quantity: qty,
-            type: 'purchase',
-            total_cost: totalCost,
-            date: dateVal,
-            payment_method: 'bank',
-            is_ebarimt: true,
-            notes: `Бөөнөөр Татан Авалт (Cost: ${totalCost}₮)`
-          });
-        } else {
-          // 🧼 ЖИНХЭНЭ ХҮНСНИЙ БУС ЗҮЙЛС (Сальфетка г.м) -> OPEX
-          purchasesToInsert.push({
-            client_id: activeClient,
-            ingredient_id: null,
-            non_food_item: ingName,
-            quantity: qty,
-            type: 'purchase',
-            total_cost: totalCost,
-            date: dateVal,
-            payment_method: 'bank',
-            is_ebarimt: true,
-            notes: `Хүнсний бус татан авалт (OPEX)`
-          });
-        }
+        purchasesToInsert.push({
+          client_id: activeClient,
+          ingredient_id: matchedIng ? matchedIng.id : null,
+          non_food_item: matchedIng ? null : ingName,
+          quantity: qty,
+          type: 'purchase',
+          total_cost: totalCost,
+          date: dateVal, // ✅ 5.30-6.30-д найдвартай орно
+          payment_method: 'bank',
+          is_ebarimt: true,
+          notes: matchedIng ? `Бөөнөөр татан авалт (${totalCost}₮)` : 'Хүнсний бус OPEX'
+        });
       }
 
       if (purchasesToInsert.length > 0) {
@@ -5493,6 +5917,7 @@ useEffect(() => {
       setPurchaseImportSuccess(true);
       setPurchasePasteText('');
       await fetchDatabaseData(activeClient);
+      alert(`✅ Амжилттай! Нийт ${purchasesToInsert.length} татан авалт бүртгэгдлээ.`);
       setTimeout(() => setPurchaseImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Татан авалт оруулахад алдаа гарлаа: ${err.message}`);
@@ -5502,9 +5927,8 @@ useEffect(() => {
   };
 
   // =========================================================================
-  // 3. ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (Ingredients & Prices) - Зассан
+  // 3. ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (Огноо хэрэггүй - Каталог)
   // =========================================================================
-// 🚀 ТҮҮХИЙ ЭД & ҮНЭ ИМПОРТЛОГЧ (Бүх төрлийн дараалал ба үгсийг ухаалгаар танина)
   const handleBulkIngredientsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ingredientsPasteText.trim()) return;
@@ -5525,24 +5949,20 @@ useEffect(() => {
           let price = 0;
           let par = 0;
 
-          // 💡 Ухаалаг шалгалт: 2 дахь багана тоо юу, эсвэл 3 дахь багана тоо юу?
           const col1IsNum = !isNaN(parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')));
           const col2IsNum = cols[2] ? !isNaN(parseFloat(cols[2]?.replace(/[^0-9.-]/g, ''))) : false;
 
           if (col1IsNum && !col2IsNum) {
-            // Формат: Нэр | Үнэ (53.3) | Нэгж (per gram)
             price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')) || 0;
             unit = cols[2]?.replace(/per\s*|1\s*/gi, '').trim() || 'ш';
             par = cols[3] ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, '')) || 0 : 0;
           } else {
-            // Формат: Нэр | Нэгж (gram) | Үнэ (53.3) | Par (500)
             unit = cols[1]?.replace(/per\s*|1\s*/gi, '').trim() || 'ш';
             price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
             par = cols[3] ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, '')) || 0 : 0;
           }
 
-          const uniqueKey = rawName.toLowerCase().trim();
-          itemsMap.set(uniqueKey, {
+          itemsMap.set(rawName.toLowerCase().trim(), {
             client_id: activeClient,
             name: rawName,
             unit: unit,
@@ -5553,28 +5973,25 @@ useEffect(() => {
       });
 
       const itemsToUpsert = Array.from(itemsMap.values());
-
       if (itemsToUpsert.length > 0) {
-        const { error } = await supabase
-          .from('ingredients')
-          .upsert(itemsToUpsert, { onConflict: 'client_id,name' });
+        const { error } = await supabase.from('ingredients').upsert(itemsToUpsert, { onConflict: 'client_id,name' });
         if (error) throw error;
       }
 
       setIngredientsImportSuccess(true);
       setIngredientsPasteText('');
       await fetchDatabaseData(activeClient);
-      alert(`Амжилттай! Нийт ${itemsToUpsert.length} түүхий эдийн үнэ хадгалагдлаа.`);
+      alert(`✅ Амжилттай! Нийт ${itemsToUpsert.length} түүхий эд хадгалагдлаа.`);
       setTimeout(() => setIngredientsImportSuccess(false), 4000);
     } catch (err: any) {
-      alert(`Түүхий эд оруулахад алдаа гарлаа: ${err.message}`);
+      alert(`Алдаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   // =========================================================================
-  // 4. ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ (Recipes Paste) - Зассан
+  // 4. ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ (Огноо хэрэггүй)
   // =========================================================================
   const handleBulkRecipesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -5583,13 +6000,7 @@ useEffect(() => {
     setLoading(true);
     try {
       const rows = recipesPasteText.replace(/\r/g, '').trim().split('\n');
-      
-      // Зөвхөн тухайн салбарын түүхий эдүүдийн Map
-      const { data: currentIngs } = await supabase
-        .from('ingredients')
-        .select('id, name')
-        .eq('client_id', activeClient);
-
+      const { data: currentIngs } = await supabase.from('ingredients').select('id, name').eq('client_id', activeClient);
       const ingMap = new Map();
       currentIngs?.forEach(i => ingMap.set(cleanNameForMatch(i.name), i.id));
 
@@ -5602,12 +6013,11 @@ useEffect(() => {
           const productName = cols[0]?.trim() || "";
           const ingredientName = cleanNameForMatch(cols[1] || "");
           const amount = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
-
           const ingredientId = ingMap.get(ingredientName);
 
-          if (productName && ingredientId && amount > 0) {
+          if (productName && ingredientId && amount > 0 && !productName.toLowerCase().includes('product')) {
             recipesToUpsert.push({
-              client_id: activeClient, // ✅ Салбар тодорхой
+              client_id: activeClient,
               product_name: productName,
               ingredient_id: ingredientId,
               amount: amount
@@ -5617,15 +6027,14 @@ useEffect(() => {
       });
 
       if (recipesToUpsert.length > 0) {
-        const { error } = await supabase
-          .from('recipes')
-          .upsert(recipesToUpsert, { onConflict: 'client_id,product_name,ingredient_id' });
+        const { error } = await supabase.from('recipes').upsert(recipesToUpsert, { onConflict: 'client_id,product_name,ingredient_id' });
         if (error) throw error;
       }
 
       setRecipesImportSuccess(true);
       setRecipesPasteText('');
       await fetchDatabaseData(activeClient);
+      alert(`✅ Амжилттай! ${recipesToUpsert.length} бүтээгдэхүүний жор хадгалагдлаа.`);
       setTimeout(() => setRecipesImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Жор оруулахад алдаа гарлаа: ${err.message}`);
@@ -5635,7 +6044,7 @@ useEffect(() => {
   };
 
   // =========================================================================
-  // 5. МЕНЮ / ЦЭС БӨӨНӨӨР ОРУУЛАХ (Products & Selling Prices) - Зассан
+  // 5. МЕНЮНИЙ ЗАРАХ ҮНЭ ИМПОРТЛОХ (Огноо хэрэггүй)
   // =========================================================================
   const handleBulkProductsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -5649,29 +6058,24 @@ useEffect(() => {
       rows.forEach(row => {
         if (!row.trim()) return;
         const cols = row.split('\t');
-        if (cols.length >= 3) {
-          // Формат 1: Category | Item | Selling Price
-          const category = cols[0]?.trim() || 'General';
-          const name = cols[1]?.trim() || "";
-          const price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
+        if (cols.length >= 2) {
+          let category = 'General';
+          let name = "";
+          let price = 0;
 
-          if (name && price > 0) {
-            productsToUpsert.push({
-              client_id: activeClient, // ✅ Салбар тодорхой
-              category: category,
-              name: name,
-              selling_price: price
-            });
+          if (cols.length >= 3) {
+            category = cols[0]?.trim() || 'General';
+            name = cols[1]?.trim() || "";
+            price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, '')) || 0;
+          } else {
+            name = cols[0]?.trim() || "";
+            price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')) || 0;
           }
-        } else if (cols.length === 2) {
-          // Формат 2: Item | Selling Price
-          const name = cols[0]?.trim() || "";
-          const price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, '')) || 0;
 
-          if (name && price > 0) {
+          if (name && price > 0 && !name.toLowerCase().includes('item') && !name.toLowerCase().includes('нэр')) {
             productsToUpsert.push({
               client_id: activeClient,
-              category: 'General',
+              category: category,
               name: name,
               selling_price: price
             });
@@ -5680,15 +6084,14 @@ useEffect(() => {
       });
 
       if (productsToUpsert.length > 0) {
-        const { error } = await supabase
-          .from('products')
-          .upsert(productsToUpsert, { onConflict: 'client_id,name' });
+        const { error } = await supabase.from('products').upsert(productsToUpsert, { onConflict: 'client_id,name' });
         if (error) throw error;
       }
 
       setProductsImportSuccess(true);
       setProductsPasteText('');
       await fetchDatabaseData(activeClient);
+      alert(`✅ Амжилттай! ${productsToUpsert.length} цэсний зарах үнэ хадгалагдлаа.`);
       setTimeout(() => setProductsImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Меню оруулахад алдаа гарлаа: ${err.message}`);
@@ -5697,81 +6100,139 @@ useEffect(() => {
     }
   };
 
+  // =========================================================================
+  // 6. ГАЛ ТОГООНЫ ХАЯГДАЛ (Огноотой байх ёстой)
+  // =========================================================================
+  const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kitchenPasteText.trim()) return;
 
+    setLoading(true);
+    try {
+      const rows = kitchenPasteText.replace(/\r/g, '').trim().split('\n');
+      const logsToInsert: any[] = [];
+      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
 
-// 🚀 ХЭВТЭЭ ТООЛЛОГО ИМПОРТЛОГЧ (0.2 СЕКУНДЭД АЖИЛЛАНА)
-const handleBulkInventoryPaste = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!inventoryPasteText.trim()) return;
+      const ingMap = new Map();
+      ingredients.filter(i => i.client_id === activeClient).forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
 
-  setLoading(true);
-  try {
-    const rows = inventoryPasteText.trim().split('\n');
-    if (rows.length < 2) {
-      alert("Алдаа: Толгой мөр (Headers) болон Тооллогын дата мөрийг хамт хуулна уу.");
-      setLoading(false);
-      return;
-    }
+      rows.forEach(row => {
+        if (!row.trim()) return;
+        const cols = row.split('\t');
+        if (cols.length >= 3) {
+          const dateVal = parseSafeDate(cols[0], fallbackDate);
+          const rawType = cols[1]?.trim().toLowerCase() || 'spoilage';
+          const ingName = cols[2]?.trim() || "";
+          const qty = parseFloat((cols[3] || "0").replace(/[^0-9.-]/g, "")) || 0;
+          const note = cols[4]?.trim() || "";
 
-    // 1. In-memory Map ашиглаж хайлтын хурдыг 1 миллисекунд болгох
-    const ingMap = new Map();
-    ingredients.forEach(i => {
-      ingMap.set(cleanNameForMatch(i.name), i);
-    });
+          let dbType = 'spoilage';
+          if (rawType.includes('staff') || rawType.includes('хоол')) dbType = 'staff_meal';
+          else if (rawType.includes('test') || rawType.includes('турш')) dbType = 'testing';
+          else if (rawType.includes('other') || rawType.includes('бусад')) dbType = 'other';
 
-    const headers = rows[0].split('\t').map(h => cleanNameForMatch(h));
-    const countsToInsert: any[] = [];
+          const matchedIng = ingMap.get(cleanNameForMatch(ingName));
 
-    // 2. Бүх мөр, баганыг компьютер санах ойд (RAM) шууд боловсруулна
-    for (let r = 1; r < rows.length; r++) {
-      const values = rows[r].split('\t');
-      if (values.length < 2) continue;
-
-      const dateVal = parseSafeDate(values[0]);
-      const typeVal = values[1]?.trim().toLowerCase() || 'count';
-
-      for (let i = 2; i < headers.length; i++) {
-        const ingName = headers[i];
-        if (!ingName) continue;
-
-        const ing = ingMap.get(ingName);
-        if (ing) {
-          const rawQty = values[i]?.replace(/[, ]/g, "");
-          // Хэрэв тоо бичигдсэн байвал логт нэмнэ
-          if (rawQty !== undefined && rawQty !== "" && rawQty !== "-") {
-            const qty = parseFloat(rawQty) || 0;
-            countsToInsert.push({
+          if (matchedIng && qty > 0) {
+            logsToInsert.push({
               client_id: activeClient,
-              ingredient_id: ing.id,
-              quantity: qty,
-              type: 'count',
-              notes: `Бөөнөөр Тоолсон Үлдэгдэл (${typeVal})`,
-              date: new Date(dateVal).toISOString()
+              ingredient_id: matchedIng.id,
+              quantity: -Math.abs(qty),
+              type: dbType,
+              notes: note || `${dbType} logged in bulk`,
+              date: dateVal, // ✅ Сонгосон хугацаанд орно
+              worker_name: 'Менежер (Бөөнөөр)'
             });
           }
         }
+      });
+
+      if (logsToInsert.length > 0) {
+        const { error } = await supabase.from('inventory_logs').insert(logsToInsert);
+        if (error) throw error;
       }
+
+      setKitchenImportSuccess(true);
+      setKitchenPasteText('');
+      await fetchDatabaseData(activeClient);
+      alert(`✅ Амжилттай! ${logsToInsert.length} хаягдал хадгалагдлаа.`);
+      setTimeout(() => setKitchenImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Гал тогооны хаягдал оруулахад алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // 3. БҮХ 100+ БАРААГ ГАНЦХАН ХҮСЭЛТЭЭР (BATCH INSERT) 0.2 СЕКУНДЭД ХАДГАЛНА!
-    // Supabase trigger өөрөө current_stock болон last_counted_at-ийг шууд шинэчилнэ.
-    if (countsToInsert.length > 0) {
-      const { error } = await supabase.from('inventory_logs').insert(countsToInsert);
-      if (error) throw error;
+  // =========================================================================
+  // 7. ХЭВТЭЭ ТООЛЛОГО ИМПОРТЛОХ (Огноо толгой мөрөнд заавал байна)
+  // =========================================================================
+  const handleBulkInventoryPaste = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inventoryPasteText.trim()) return;
+
+    setLoading(true);
+    try {
+      const rows = inventoryPasteText.trim().split('\n');
+      if (rows.length < 2) {
+        alert("Алдаа: Толгой мөр болон тооллогын дата мөрийг хамт хуулна уу.");
+        setLoading(false);
+        return;
+      }
+
+      const ingMap = new Map();
+      ingredients.forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
+
+      const headers = rows[0].split('\t').map(h => cleanNameForMatch(h));
+      const countsToInsert: any[] = [];
+      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+
+      for (let r = 1; r < rows.length; r++) {
+        const values = rows[r].split('\t');
+        if (values.length < 2) continue;
+
+        // 2026.05.30-ийг алдаагүй 2026-05-30 болгож уншина
+        const dateVal = parseSafeDate(values[0], fallbackDate);
+        const typeVal = values[1]?.trim().toLowerCase() || 'count';
+
+        for (let i = 2; i < headers.length; i++) {
+          const ingName = headers[i];
+          if (!ingName) continue;
+
+          const ing = ingMap.get(ingName);
+          if (ing) {
+            const rawQty = values[i]?.replace(/[, ]/g, "");
+            if (rawQty !== undefined && rawQty !== "" && rawQty !== "-") {
+              const qty = parseFloat(rawQty) || 0;
+              countsToInsert.push({
+                client_id: activeClient,
+                ingredient_id: ing.id,
+                quantity: qty,
+                type: 'count',
+                notes: `Бөөнөөр Тоолсон Үлдэгдэл (${typeVal})`,
+                date: dateVal // ✅ 5.30 болон 6.30-ны тооллого зөв ялгагдана
+              });
+            }
+          }
+        }
+      }
+
+      if (countsToInsert.length > 0) {
+        const { error } = await supabase.from('inventory_logs').insert(countsToInsert);
+        if (error) throw error;
+      }
+
+      setInventoryImportSuccess(true);
+      setInventoryPasteText('');
+      await fetchDatabaseData(activeClient);
+      alert(`✅ Амжилттай! ${countsToInsert.length} барааны тооллого хадгалагдлаа.`);
+      setTimeout(() => setInventoryImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Алдаа: ${err.message || 'Тооллого оруулахад алдаа гарлаа.'}`);
+    } finally {
+      setLoading(false);
     }
-
-    setInventoryImportSuccess(true);
-    setInventoryPasteText('');
-    await fetchDatabaseData(activeClient);
-    setTimeout(() => setInventoryImportSuccess(false), 4000);
-
-  } catch (err: any) {
-    alert(`Алдаа: ${err.message || 'Тооллого оруулахад алдаа гарлаа.'}`);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
   const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
@@ -5807,73 +6268,6 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
   };
 
 
-  // NEW: Гал тогооны зардлыг (spoilage, testing, staff_meal) уншиж импортлогч функц
- // 🚀 ГАЛ ТОГООНЫ ХАЯГДАЛ БӨӨНӨӨР ИМПОРТЛОХ (Зассан)
-  const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!kitchenPasteText.trim()) return;
-
-    setLoading(true);
-    try {
-      const rows = kitchenPasteText.replace(/\r/g, '').trim().split('\n');
-      const logsToInsert: any[] = [];
-      const currentDate = new Date().toISOString();
-
-      // Салбарын түүхий эдүүдийг Map-д авах (Хурдан O(1) хайлт)
-      const ingMap = new Map();
-      ingredients.filter(i => i.client_id === activeClient).forEach(i => {
-        ingMap.set(cleanNameForMatch(i.name), i);
-      });
-
-      rows.forEach(row => {
-        if (!row.trim()) return;
-        const cols = row.split('\t');
-        if (cols.length >= 3) {
-          const rawDate = cols[0];
-          const dateVal = parseSafeDate(rawDate);
-          
-          const rawType = cols[1]?.trim().toLowerCase() || 'spoilage';
-          const ingName = cols[2]?.trim() || "";
-          const qty = parseFloat(cols[3]?.replace(/,/g, "")) || 0;
-          const note = cols[4]?.trim() || "";
-
-          // Төрлүүдийг автоматаар ялгах
-          let dbType = 'spoilage';
-          if (rawType.includes('staff') || rawType.includes('хоол')) dbType = 'staff_meal';
-          else if (rawType.includes('test') || rawType.includes('турш')) dbType = 'testing';
-          else if (rawType.includes('other') || rawType.includes('бусад')) dbType = 'other';
-
-          const matchedIng = ingMap.get(cleanNameForMatch(ingName));
-
-          if (matchedIng && qty > 0) {
-            logsToInsert.push({
-              client_id: activeClient, // ✅ Салбарын ID тодорхой
-              ingredient_id: matchedIng.id,
-              quantity: -Math.abs(qty), // Хаягдал тул үргэлж сөрөг (-) хасагдана
-              type: dbType,
-              notes: note || `${dbType} logged in bulk`,
-              date: dateVal || currentDate,
-              worker_name: 'Менежер (Бөөнөөр)'
-            });
-          }
-        }
-      });
-
-      if (logsToInsert.length > 0) {
-        const { error } = await supabase.from('inventory_logs').insert(logsToInsert);
-        if (error) throw error;
-      }
-
-      setKitchenImportSuccess(true);
-      setKitchenPasteText('');
-      await fetchDatabaseData(activeClient);
-      setTimeout(() => setKitchenImportSuccess(false), 4000);
-    } catch (err: any) {
-      alert(`Гал тогооны хаягдал оруулахад алдаа гарлаа: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 💡 Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
 
@@ -6026,7 +6420,6 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               }}
             >
                 <option value={userClient} className="bg-slate-950 text-white font-bold text-base">{userClient}</option>
-                <option value="Cafe B" className="bg-slate-950 text-white font-bold text-base">Cafe B (Ulaanbaatar)</option>
               </select>
             </div>
             {/* Displays logged-in user profile details to resolve TS warnings */}
@@ -6135,43 +6528,77 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
         {activeTab === 'dashboard' && userRole === 'owner' && (
           <div>
             {/* 💡 САЛБАР БҮРИЙН ДАТАТАЙ САРУУДЫГ ХАРУУЛАХ ДИНАМИК СОНГОГЧ */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-8">
-              <div className="flex items-center gap-3">
-                <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-                  <Activity className="h-5 w-5 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-white">Тайлант Хугацааны Сонголт</h3>
-                  <p className="text-xs text-slate-400">Сонгосон сарын бодит ашиг, алдагдал, хаягдлыг тооцоолж байна</p>
-                </div>
-              </div>
+           {/* 💡 ДИНАМИК ОГНОО СОНГОГЧ (Өнөөдөр / 7 хоног / Сар / Дурын хугацаа) */}
+<div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-8">
+  <div className="flex items-center gap-3">
+    <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+      <Activity className="h-5 w-5 text-emerald-400" />
+    </div>
+    <div>
+      <h3 className="text-sm font-black text-white">Тайлант Хугацаа</h3>
+      <p className="text-xs text-slate-400">Сонгосон хугацааны цэвэр ашиг, өртөг тооцоологдож байна</p>
+    </div>
+  </div>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                {/* ДАТАТАЙ САРУУДЫН DROPDOWN */}
-                <select
-                  value={startDate.substring(0, 7)}
-                  onChange={(e) => handleMonthChange(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-emerald-400 font-black text-sm rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 cursor-pointer shadow-inner"
-                >
-                  {availableMonths.map(ym => {
-                    const [year, month] = ym.split('-');
-                    return (
-                      <option key={ym} value={ym} className="bg-slate-950 text-white font-bold">
-                        📅 {year} оны {month}-р сар
-                      </option>
-                    );
-                  })}
-                </select>
-                     {/* 🚀 АУДИТ/E-TAX ЭКСПОРТ ТОВЧ (ШИНЭЭР НЭМСЭН ХЭСЭГ) */}
-                <button
-                  onClick={() => exportAuditExcel(liveAnalytics, activeClient, startDate, endDate)}
-                  className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                >
-                  <Download className="h-4 w-4" />
-                  E-Tax & Аудит татах (.xlsx)
-                </button>
-              </div>
-            </div>
+  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+    
+    {/* 1. ӨНӨӨДӨР (1 Хоног) */}
+    <button
+      type="button"
+      onClick={() => {
+        const today = new Date().toISOString().split('T')[0];
+        setStartDate(today);
+        setEndDate(today);
+        fetchDatabaseData(activeClient, today, today);
+      }}
+      className="bg-slate-950 hover:bg-slate-800 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition"
+    >
+      ☀️ Өнөөдөр
+    </button>
+
+    {/* 2. СҮҮЛИЙН 7 ХОНОГ */}
+    <button
+      type="button"
+      onClick={() => {
+        const now = new Date();
+        const past7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const today = now.toISOString().split('T')[0];
+        setStartDate(past7);
+        setEndDate(today);
+        fetchDatabaseData(activeClient, past7, today);
+      }}
+      className="bg-slate-950 hover:bg-slate-800 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition"
+    >
+      📅 7 хоног
+    </button>
+
+    {/* 3. ДУРЫН САР СОНГОХ (БҮХ ДАТАТАЙ САРУУД) */}
+    <select
+      value={startDate.substring(0, 7)}
+      onChange={(e) => handleMonthChange(e.target.value)}
+      className="bg-slate-950 border border-slate-800 text-emerald-400 font-black text-xs rounded-xl px-3 py-2 outline-none cursor-pointer"
+    >
+      {availableMonths.map(ym => {
+        const [year, month] = ym.split('-');
+        return (
+          <option key={ym} value={ym} className="bg-slate-950 text-white font-bold">
+            📅 {year} оны {month}-р сар
+          </option>
+        );
+      })}
+    </select>
+
+    {/* 4. ТАТВАРЫН АЛБАН ЁСНЫ EXCEL ТАТАХ ТОВЧ */}
+    <button
+      onClick={() => exportAuditExcel(liveAnalytics, activeClient, startDate, endDate)}
+      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+    >
+      <Download className="h-3.5 w-3.5" />
+      E-Tax & Аудит (.xlsx)
+    </button>
+  </div>
+</div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
                 <p className="text-slate-400 text-sm font-medium">Нийт Орлого (Revenue)</p>
@@ -6692,8 +7119,8 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                       invFilter === 'all' || 
                       (invFilter === 'low' && parseFloat(ing.current_stock) <= (ing.par_level || 50)) || 
                       (invFilter === 'critical' && isAClass);
-
-                    return matchSearch && matchFilter;
+  
+                      return matchSearch && matchFilter;
                       })
                     .map((ing) => (
                       <tr key={ing.id} className="hover:bg-slate-900/20 transition-all duration-150">
@@ -6798,6 +7225,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
                 <h3 className="text-lg font-bold">Борлуулалт Бөөнөөр Импортлох (Sales Paste)</h3>
               </div>
+
+          <button
+              type="button"
+              onClick={() => setActiveSampleModal('sales')}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+            >
+              👁️ Загвар харах
+            </button>
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                 Google Sheets-ээс <strong>Бүтээгдэхүүн, Тоо ширхэг, Орлого</strong> гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
               </p>
@@ -6833,6 +7268,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 <FileSpreadsheet className="h-6 w-6 text-blue-400" />
                 <h3 className="text-lg font-bold">Татан авалт Бөөнөөр Импортлох (Purchases Paste)</h3>
               </div>
+                {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+            <button
+              type="button"
+              onClick={() => setActiveSampleModal('purchases')}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+            >
+              👁️ Загвар харах
+            </button>
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                 Google Sheets-ээс <strong>Барааны нэр, Авсан тоо, Нийт өртөг</strong> гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
               </p>
@@ -6870,6 +7313,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
               <h3 className="text-lg font-bold">1. Түүхий эд, Үнэ бөөнөөр оруулах</h3>
             </div>
+              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+              <button
+                type="button"
+                onClick={() => setActiveSampleModal('ingredients')}
+                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+              >
+                👁️ Загвар харах
+              </button>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
               Excel-ээс <strong>Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц (Par)</strong> гэсэн 4 баганыг хуулаад доор хуулж тавина уу.
             </p>
@@ -6905,6 +7356,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 <FileSpreadsheet className="h-6 w-6 text-purple-400" />
                 <h3 className="text-lg font-bold">2. Технологийн карт (Жор) бөөнөөр оруулах</h3>
               </div>
+                    {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+                <button
+                  type="button"
+                  onClick={() => setActiveSampleModal('recipes')}
+                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                >
+                  👁️ Загвар харах
+                </button>
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                 Excel-ээс <strong>Бүтээгдэхүүн, Орцын нэр, Орцын хэмжээ (гр/мл)</strong> гэсэн 3 баганыг хуулаад доор хуулж тавина уу.
               </p>
@@ -6934,43 +7393,50 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               </form>
             </div>
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
-  <div className="flex items-center gap-2 mb-2">
-    <Coffee className="h-6 w-6 text-emerald-400" />
-    <h3 className="text-lg font-bold">Меню / Цэс бөөнөөр оруулах (Products & Selling Prices)</h3>
-  </div>
-  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-    Google Sheets-ээс <strong>Category (Ангилал), Item (Нэр), Selling Price (Зарах үнэ)</strong> гэсэн 3 баганыг хуулаад доор paste хийнэ үү.
-  </p>
+        <div className="flex items-center gap-2 mb-2">
+          <Coffee className="h-6 w-6 text-emerald-400" />
+          <h3 className="text-lg font-bold">Меню / Цэс бөөнөөр оруулах (Products & Selling Prices)</h3>
+        </div>
 
-  {productsImportSuccess && (
-    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl mb-4 text-xs font-bold">
-      ✅ Бүх цэсний зарах үнэ амжилттай хадгалагдлаа!
-    </div>
-  )}
+          {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+        <button
+          type="button"
+          onClick={() => setActiveSampleModal('products')}
+          className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+        >
+          👁️ Загвар харах
+        </button>
+        <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+          Google Sheets-ээс <strong>Category (Ангилал), Item (Нэр), Selling Price (Зарах үнэ)</strong> гэсэн 3 баганыг хуулаад доор paste хийнэ үү.
+        </p>
 
-  <form onSubmit={handleBulkProductsPaste} className="space-y-4">
-    <textarea
-      rows={5}
-      value={productsPasteText}
-      onChange={(e) => setProductsPasteText(e.target.value)}
-      placeholder="Жишээ:&#10;SANDWICH&#9;Chicken Sandwich&#9;8900&#10;COLD COFFEE&#9;Americano /мөстэй/&#9;8500&#10;COLD COFFEE&#9;Caffe latte /мөстэй/&#9;9500"
-      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500"
-    />
-    <button
-      type="submit"
-      disabled={loading}
-      className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
-    >
-      <UploadCloud className="h-4 w-4" />
-      Цэсний үнийг хадгалах (Import Menu)
-    </button>
-  </form>
+        {productsImportSuccess && (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl mb-4 text-xs font-bold">
+            ✅ Бүх цэсний зарах үнэ амжилттай хадгалагдлаа!
           </div>
+        )}
+
+        <form onSubmit={handleBulkProductsPaste} className="space-y-4">
+          <textarea
+            rows={5}
+            value={productsPasteText}
+            onChange={(e) => setProductsPasteText(e.target.value)}
+            placeholder="Жишээ:&#10;SANDWICH&#9;Chicken Sandwich&#9;8900&#10;COLD COFFEE&#9;Americano /мөстэй/&#9;8500&#10;COLD COFFEE&#9;Caffe latte /мөстэй/&#9;9500"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+          >
+            <UploadCloud className="h-4 w-4" />
+            Цэсний үнийг хадгалах (Import Menu)
+          </button>
+        </form>
+                </div>
                 </>
 
-              )}
-
-           
+              )}           
 
           </div>
           
@@ -6979,8 +7445,115 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
 
       {/* 7. TASK & ROLE MANAGEMENT TAB */}
         {activeTab === 'tasks' && userRole === 'owner' && (
-          <div className="space-y-8">
-            
+          <div className="space-y-8">          {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
+
+{/* 🚀 АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
+<div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8 space-y-6">
+  
+  {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
+    <div>
+      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+        🔗 Ажилтан урих холбоос
+      </h4>
+      <p className="text-xs text-slate-400 mt-1">
+        Энэ линкийг ажилтандаа явуулснаар тэд салбарын нэрийг алдаагүйгээр шууд нэгдэж бүртгүүлнэ.
+      </p>
+    </div>
+    <button
+      type="button"
+      onClick={() => {
+        const inviteUrl = `${window.location.origin}/login?branch=${encodeURIComponent(activeClient)}&role=staff`;
+        navigator.clipboard.writeText(inviteUrl);
+        alert(`✅ Урилгын холбоос хуулагдлаа:\n${inviteUrl}`);
+      }}
+      className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0"
+    >
+      📋 Урилгын линк хуулах
+    </button>
+  </div>
+
+{/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
+<div className="mb-6">
+  <h3 className="text-base font-bold mb-3 text-emerald-400">
+    ➕ Салбартаа шинэ ажилтан нэмэх (Kiosk дээр шууд гарна)
+  </h3>
+  <form onSubmit={async (e) => {
+    e.preventDefault();
+    const form = e.target as any;
+    const workerName = form.workerName.value.trim();
+    const workerPin = form.workerPin.value.trim();
+    const workerRole = form.workerRole.value;
+
+    if (!workerName || workerPin.length !== 4) {
+      alert("Ажилтны нэр болон 4 оронтой PIN кодыг заавал оруулна уу!");
+      return;
+    }
+    if (!workerRole) {
+      alert("Ажилтны үүргийг сонгоно уу!");
+      return;
+    }
+
+    setLoading(true);
+    // ДИНАМИК ҮҮРЭГТЭЙ АЖИЛТНЫГ ШУУД БААЗАД ХАДГАЛАХ
+    const { error } = await supabase.from('profiles').insert([{
+      id: crypto.randomUUID(),
+      client_id: activeClient,
+      full_name: workerName,
+      role: workerRole, // 👈 Эзний үүсгэсэн бодит үүрэг орно!
+      pin_code: workerPin,
+      email: `${workerName.toLowerCase().replace(/\s+/g, '')}@${activeClient.toLowerCase().replace(/\s+/g, '')}.internal`
+    }]);
+
+    if (error) {
+      alert(`Алдаа: ${error.message}`);
+    } else {
+      alert(`✅ [${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`);
+      form.reset();
+      fetchDatabaseData(activeClient);
+    }
+    setLoading(false);
+  }} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <input 
+      name="workerName" 
+      required 
+      placeholder="Ажилтны нэр (жнь: Болд)" 
+      className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-emerald-500"
+    />
+    <input 
+      name="workerPin" 
+      required 
+      maxLength={4}
+      placeholder="4 оронтой PIN (жнь: 1234)" 
+      className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-emerald-500 text-center"
+    />
+    
+    {/* 💡 ДИНАМИК ҮҮРГҮҮДИЙН СОНГОЛТ (Эзний үүсгэсэн бүх үүрэг энд гарч ирнэ): */}
+    <select 
+      name="workerRole" 
+      required
+      className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-emerald-400 font-bold outline-none cursor-pointer"
+    >
+      <option value="">-- Үүрэг сонгох --</option>
+      <option value="Ажилтан">Ерөнхий ажилтан</option>
+      {/* 🚀 ТАНЫ COMPANY_ROLES ДАХЬ БҮХ ҮҮРЭГ АВТОМАТААР ГАРНА: */}
+      {companyRoles.map(r => (
+        <option key={r.id} value={r.role_name}>{r.role_name}</option>
+      ))}
+    </select>
+
+    <button 
+      type="submit" 
+      disabled={loading}
+      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition"
+    >
+      + Ажилтан Бүртгэх
+    </button>
+  </form>
+</div>
+
+
+</div>
             {/* SECTION 1: CREATE ROLES & ASSIGN ROLES TO WORKERS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               
@@ -7008,11 +7581,31 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                     + Үүрэг Нэмэх
                   </button>
                 </form>
+                {/* Бүртгэлтэй үүргүүдийн жагсаалт ба Устгах товч */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {companyRoles.map(r => (
+                  <div key={r.id} className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-200">
+                    <span>🏷️ {r.role_name}</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`"${r.role_name}" үүргийг устгах уу?`)) return;
+                        await supabase.from('company_roles').delete().eq('id', r.id);
+                        fetchDatabaseData(activeClient);
+                      }}
+                      className="text-rose-400 hover:text-rose-300 ml-1 font-black text-sm"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
+              </div>
+              
 
               {/* Assign Roles to Registered Workers */}
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 md:col-span-2">
-                <h3 className="text-base font-bold mb-4 text-blue-400">2. Ажилтнуудад үүрэг оноох</h3>
+                <h3 className="text-base font-bold mb-4 text-blue-400"> Ажилтнуудад үүрэг оноох</h3>
                 <div className="overflow-x-auto max-h-[220px]">
               <table className="w-full text-left text-sm">
   <thead>
@@ -7021,24 +7614,20 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
       <th className="pb-2">Үүрэг</th>
       <th className="pb-2">Цалингийн Төрөл</th>
       <th className="pb-2">Үнэлгээ (₮)</th>
+      <th className="pb-2 text-right">Үйлдэл</th>
     </tr>
   </thead>
   <tbody className="divide-y divide-slate-800/50">
     {workersList.map(w => (
       <tr key={w.id}>
         <td className="py-2.5 font-bold text-slate-200">{w.full_name || w.email.split('@')[0]}</td>
-        
-        {/* 1. ҮҮРЭГ СОНГОХ */}
         <td className="py-2.5">
           <select 
             value={w.role || 'Ажилтан'} 
             onChange={async (e) => {
               const updatedRole = e.target.value;
-              // UI-ийг шууд өөрчлөх
-              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, role: updatedRole } : item));
-              const { error } = await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
-              if (error) alert(`Алдаа: ${error.message}`);
-              else fetchDatabaseData(activeClient);
+              await supabase.from('profiles').update({ role: updatedRole }).eq('id', w.id);
+              fetchDatabaseData(activeClient);
             }}
             className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-emerald-400 font-bold"
           >
@@ -7046,51 +7635,51 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
             {companyRoles.map(r => <option key={r.id} value={r.role_name}>{r.role_name}</option>)}
           </select>
         </td>
-
-        {/* 2. ЦАЛИНГИЙН ТӨРӨЛ СОНГОХ (Hourly vs Fixed) */}
         <td className="py-2.5">
           <select 
             value={w.salary_type || 'hourly'}
             onChange={async (e) => {
               const newType = e.target.value;
               const defaultRate = newType === 'fixed' ? 1200000 : 6500;
-              // UI-ийг шууд өөрчлөх
-              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, salary_type: newType, base_rate: defaultRate } : item));
-              const { error } = await supabase.from('profiles').update({ salary_type: newType, base_rate: defaultRate }).eq('id', w.id);
-              if (error) alert(`Алдаа: ${error.message}`);
-              else fetchDatabaseData(activeClient);
+              await supabase.from('profiles').update({ salary_type: newType, base_rate: defaultRate }).eq('id', w.id);
+              fetchDatabaseData(activeClient);
             }}
             className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-blue-400 font-bold"
           >
-            <option value="hourly">⏱️ Цагийн хөлсөөр</option>
+            <option value="hourly">⏱️ Цагийн хөлс</option>
             <option value="fixed">📅 Сар бүр тогтмол</option>
           </select>
         </td>
-
-        {/* 3. ЦАЛИНГИЙН ДҮНГИЙН ҮНЭЛГЭЭ ОРУУЛАХ */}
         <td className="py-2.5">
           <input 
             type="number"
-            value={w.base_rate !== undefined ? w.base_rate : (w.salary_type === 'fixed' ? 1200000 : 6500)}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value) || 0;
-              setWorkersList(prev => prev.map(item => item.id === w.id ? { ...item, base_rate: val } : item));
-            }}
+            defaultValue={w.base_rate || 6500}
             onBlur={async (e) => {
               const val = parseFloat(e.target.value) || 0;
-              const { error } = await supabase.from('profiles').update({ base_rate: val }).eq('id', w.id);
-              if (error) alert(`Алдаа: ${error.message}`);
+              await supabase.from('profiles').update({ base_rate: val }).eq('id', w.id);
+              fetchDatabaseData(activeClient);
+            }}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white font-bold w-24 text-right"
+          />
+        </td>
+        <td className="py-2.5 text-right">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm(`"${w.full_name}" ажилтныг устгах уу?`)) return;
+              const { error } = await supabase.from('profiles').delete().eq('id', w.id);
+              if (error) alert(error.message);
               else fetchDatabaseData(activeClient);
             }}
-            placeholder="Дүн..."
-            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-white font-bold w-28 text-right focus:border-emerald-500"
-          />
-          <span className="text-[10px] text-slate-500 ml-1">{w.salary_type === 'fixed' ? '₮/сар' : '₮/цаг'}</span>
+            className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-2.5 py-1 rounded-lg text-xs font-bold transition"
+          >
+            Устгах
+          </button>
         </td>
       </tr>
     ))}
   </tbody>
-</table>
+            </table>
                 </div>
               </div>
             </div>
@@ -7310,6 +7899,14 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               <FileSpreadsheet className="h-6 w-6 text-teal-400" />
               <h3 className="text-lg font-bold">Агуулахын Тооллого Хэвтээ Импортлох (Horizontal Inventory Audit Paste)</h3>
             </div>
+              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+            <button
+              type="button"
+              onClick={() => setActiveSampleModal('audit')}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+            >
+              👁️ Загвар харах
+            </button>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
               Google Sheets-ээс <strong>Толгой мөр (Ингредиентүүдийн нэрс) болон доорх Тооллогын мөрийг (Date, Type, болон утгууд)</strong> хамт чирж хуулаад доор шууд хуулж тавина уу.
             </p>
@@ -7489,6 +8086,15 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
               <Trash2 className="h-6 w-6 text-rose-400" />
               <h3 className="text-lg font-bold">Гал тогооны хаягдал бөөнөөр импортлох (Kitchen Logs Paste)</h3>
             </div>
+
+              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+            <button
+              type="button"
+              onClick={() => setActiveSampleModal('kitchen')}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+            >
+              👁️ Загвар харах
+            </button>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
               Google Sheets-ээс <strong>Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар</strong> гэсэн 5 баганыг чирж хуулаад доор шууд хуулж тавина уу.
             </p>
@@ -7517,6 +8123,289 @@ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
                 Хаягдал Бөөнөөр Шивэх (Import Kitchen Logs)
               </button>
             </form>
+
+{/* 🔍 БҮХ 7 ТӨРЛИЙН EXCEL ЖИШЭЭ ХАРУУЛАХ ПОПАП ЦОНХ (MODAL) */}
+{activeSampleModal && (
+  <div 
+    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+    onClick={() => setActiveSampleModal(null)}
+  >
+    <div 
+      className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 className="font-bold text-white text-sm flex items-center gap-2">
+          📊 Excel-ээс хуулах жишээ дараалал
+        </h3>
+        <button 
+          onClick={() => setActiveSampleModal(null)}
+          className="text-slate-400 hover:text-white text-xs font-bold bg-slate-800 px-3 py-1.5 rounded-lg"
+        >
+          ✕ Хаах
+        </button>
+      </div>
+
+      <p className="text-xs text-slate-400">
+        Та Excel эсвэл Google Sheets дээр дараах багануудыг бэлдээд чирж сонгон <code className="bg-slate-950 px-1.5 py-0.5 rounded text-emerald-400">Ctrl+C</code> хийж талбартаа хуулна:
+      </p>
+
+      {/* 1. БОРЛУУЛАЛТ (SALES) */}
+      {activeSampleModal === 'sales' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-emerald-400 border-b border-slate-800">
+              <span>1. Бүтээгдэхүүн</span>
+              <span>2. Тоо ширхэг</span>
+              <span>3. Нийт орлого (₮)</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Caffe Latte</span>
+              <span>34</span>
+              <span>323000</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>Tiramisu</span>
+              <span>62</span>
+              <span>737800</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Caffe Latte\t34\t323000\nTiramisu\t62\t737800");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Sales)
+          </button>
+        </div>
+      )}
+
+      {/* 2. ТАТАН АВАЛТ (PURCHASES) */}
+      {activeSampleModal === 'purchases' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-blue-400 border-b border-slate-800">
+              <span>1. Барааны нэр</span>
+              <span>2. Авсан тоо хэмжээ</span>
+              <span>3. Нийт өртөг (₮)</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Milk</span>
+              <span>10000</span>
+              <span>58000</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>Beans</span>
+              <span>1000</span>
+              <span>85000</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Milk\t10000\t58000\nBeans\t1000\t85000");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Purchases)
+          </button>
+        </div>
+      )}
+
+      {/* 3. ТҮҮХИЙ ЭД & ҮНЭ (INGREDIENTS CATALOG) */}
+      {activeSampleModal === 'ingredients' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-4 bg-slate-950 p-2 font-black text-emerald-400 border-b border-slate-800">
+              <span>1. Нэр</span>
+              <span>2. Нэгж (мл/гр/ш)</span>
+              <span>3. Нэгжийн үнэ (₮)</span>
+              <span>4. Хэвийн нөөц (Par)</span>
+            </div>
+            <div className="grid grid-cols-4 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Milk</span>
+              <span>ml</span>
+              <span>5.8</span>
+              <span>20000</span>
+            </div>
+            <div className="grid grid-cols-4 p-2 bg-slate-900/50 text-slate-300">
+              <span>Beans</span>
+              <span>gram</span>
+              <span>85</span>
+              <span>5000</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Milk\tml\t5.8\t20000\nBeans\tgram\t85\t5000");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Catalog)
+          </button>
+        </div>
+      )}
+
+      {/* 4. ТЕХНОЛОГИЙН КАРТ БУЮУ ЖОР (RECIPES) */}
+      {activeSampleModal === 'recipes' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-purple-400 border-b border-slate-800">
+              <span>1. Бүтээгдэхүүн</span>
+              <span>2. Орцын нэр</span>
+              <span>3. Орцын хэмжээ</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Caffe Latte</span>
+              <span>Milk</span>
+              <span>200</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>Caffe Latte</span>
+              <span>Beans</span>
+              <span>16</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Caffe Latte\tMilk\t200\nCaffe Latte\tBeans\t16\nChicken Sandwich\tCheese\t1");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Recipes)
+          </button>
+        </div>
+      )}
+
+      {/* 5. МЕНЮ БА ЗАРАХ ҮНЭ (PRODUCTS MENU) */}
+      {activeSampleModal === 'products' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
+              <span>1. Ангилал (Category)</span>
+              <span>2. Бүтээгдэхүүний нэр</span>
+              <span>3. Зарах үнэ (₮)</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>COFFEE</span>
+              <span>Caffe Latte</span>
+              <span>9500</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>SANDWICH</span>
+              <span>Chicken Sandwich</span>
+              <span>12500</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("COFFEE\tCaffe Latte\t9500\nCOFFEE\tAmericano\t8000\nSANDWICH\tChicken Sandwich\t12500");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Menu)
+          </button>
+        </div>
+      )}
+
+      {/* 6. ГАЛ ТОГООНЫ ХАЯГДАЛ (KITCHEN LOGS) */}
+      {activeSampleModal === 'kitchen' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
+            <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-rose-400 border-b border-slate-800">
+              <span>1. Огноо</span>
+              <span>2. Төрөл</span>
+              <span>3. Барааны нэр</span>
+              <span>4. Хэмжээ</span>
+              <span>5. Тайлбар</span>
+            </div>
+            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>2026-06-04</span>
+              <span>spoilage</span>
+              <span>Milk</span>
+              <span>1000</span>
+              <span>Асгарсан</span>
+            </div>
+            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
+              <span>2026-06-04</span>
+              <span>staff_meal</span>
+              <span>Eggs</span>
+              <span>2</span>
+              <span>Хоолонд</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("2026-06-04\tspoilage\tMilk\t1000\tАсгарсан\n2026-06-04\tstaff_meal\tEggs\t2\tХоолонд");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Kitchen Logs)
+          </button>
+        </div>
+      )}
+
+      {/* 7. ХЭВТЭЭ ТООЛЛОГО (HORIZONTAL AUDIT MATRIX) */}
+      {activeSampleModal === 'audit' && (
+        <div className="space-y-3">
+          <p className="text-[11px] text-slate-400">
+            Эхний мөр нь бараануудын нэрс, хоёр дахь мөр нь бодит тоолсон тоо байдаг:
+          </p>
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
+            <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
+              <span>Date</span>
+              <span>Type</span>
+              <span>Milk</span>
+              <span>Beans</span>
+              <span>Sugar</span>
+            </div>
+
+
+            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
+              <span>2026-05-30</span>
+              <span>start </span>
+              <span>12500</span>
+              <span>3200</span>
+              <span>4500</span>
+            </div>
+          
+           <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
+              <span>2026-05-30</span>
+              <span>end </span>
+              <span>11500</span>
+              <span>1200</span>
+              <span>1500</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Date\tType\tMilk\tBeans\tSugar\n2026-06-01\tcount\t12500\t3200\t4500");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Audit Matrix)
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+
           </div>
         )}
 
@@ -7882,8 +8771,8 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation'; 
+import Link from 'next/link'; 
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -8096,7 +8985,7 @@ const EN_TO_MN_DICT: Record<string, string[]> = {
 // =========================================================================
 // 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
-export function advancedMongolianVoiceParser(
+function advancedMongolianVoiceParser(
   rawText: string, 
   ingredients: any[], 
   learnedAliases: { phrase: string; ingredient_id: string }[] = []
@@ -9391,6 +10280,7 @@ function KioskPage() {
 
         {/* 2. PIN PAD */}
         {step === 'pin_code' && (
+      
           <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
             
             <div className="text-center w-full shrink-0 pt-1">
@@ -9402,6 +10292,7 @@ function KioskPage() {
                 </span>
               </div>
             </div>
+            
 
             <div className="bg-[#060b17] border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
@@ -9449,18 +10340,82 @@ function KioskPage() {
               >
                 OK
               </button>
+              
             </div>
+                                    {/* 🔐 PIN МАРТСАН ЭСВЭЛ СОЛИХ ТОВЧНУУД */}
+          <div className="flex gap-4 justify-center items-center pt-2">
+            
+            {/* 1. Хуучин PIN-ээ мэдэж байгаа үед өөрөө солих */}
+            <button
+              type="button"
+              onClick={async () => {
+                const oldPin = prompt("Одоогийн 4 оронтой PIN-ээ оруулна уу:");
+                if (!oldPin) return;
+                if (oldPin !== (selectedWorker.pin_code || '1234')) {
+                  alert("❌ Одоогийн PIN буруу байна!");
+                  return;
+                }
+                const newPin = prompt("Шинэ 4 оронтой PIN оруулна уу:");
+                if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
+                  alert("❌ Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
+                  return;
+                }
+                const { error } = await supabase.from('profiles').update({ pin_code: newPin }).eq('id', selectedWorker.id);
+                if (error) alert(error.message);
+                else {
+                  alert("✅ Таны PIN код амжилттай солигдлоо!");
+                  fetchKioskData(tenantClientId);
+                }
+              }}
+              className="text-xs text-slate-400 hover:text-white underline font-semibold"
+            >
+              PIN солих
+            </button>
 
+            <span className="text-slate-700">•</span>
+
+            {/* 2. Бүр мартчихсан үед Менежер/Эзнээр сэргээлгэх */}
+            <button
+              type="button"
+              onClick={async () => {
+                const masterCode = prompt("Менежер эсвэл Эзний зөвшөөрлийн Master код (9999) оруулна уу:");
+                if (masterCode !== '9999' && masterCode !== '0000') {
+                  alert("❌ Менежерийн код буруу байна!");
+                  return;
+                }
+                const newPin = prompt(`${selectedWorker.full_name}-д зориулсан шинэ 4 оронтой PIN оруулна уу:`);
+                if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
+                  alert("❌ PIN заавал 4 оронтой тоо байх ёстой!");
+                  return;
+                }
+                const { error } = await supabase.from('profiles').update({ pin_code: newPin }).eq('id', selectedWorker.id);
+                if (error) alert(error.message);
+                else {
+                  alert(`✅ ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`);
+                  fetchKioskData(tenantClientId);
+                }
+              }}
+              className="text-xs text-rose-400/80 hover:text-rose-400 underline font-semibold"
+            >
+              PIN мартсан
+            </button>
+
+          </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
+              
               <p className="text-[11px] text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
+              
               <button 
                 onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
                 className="text-xs text-slate-400 hover:text-white font-bold"
               >
                 ← Буцах
               </button>
+              
             </div>
+ 
           </div>
+ 
         )}
 
         {/* 3. SHIFT START HANDOVER */}

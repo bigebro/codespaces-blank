@@ -287,6 +287,12 @@ const [activeTab, setActiveTab] = useState<'dashboard' | 'operations' | 'sales' 
   const [invSearch, setInvSearch] = useState('');
   const [invFilter, setInvFilter] = useState<'all' | 'low' | 'critical'>('all');
     const [activeSampleModal, setActiveSampleModal] = useState<string | null>(null);
+
+    // 1. Давхардлыг арилгаж, хуучныг цэвэрлэх 4 төлөв
+const [overwriteSales, setOverwriteSales] = useState(false);
+const [overwritePurchases, setOverwritePurchases] = useState(false);
+const [overwriteAudit, setOverwriteAudit] = useState(false);
+const [overwriteKitchen, setOverwriteKitchen] = useState(false);
   // 🔒 Kiosk түгжээний State-үүд:
 
   const [isKioskLocked, setIsKioskLocked] = useState(false);
@@ -338,7 +344,32 @@ const handleUnlockDashboard = async (e: React.FormEvent) => {
       setIsUnlocking(false);
     }
   };
+// 2. Сонгосон огноон дахь бодит төлөвүүдийг тоолох (Status Badges)
+const existingSales = salesLogs.filter(s => {
+  if (!s.date || s.client_id !== activeClient) return false;
+  const d = s.date.split('T')[0];
+  return d >= startDate && d <= endDate;
+});
+const existingSalesRevenue = existingSales.reduce((sum, s) => sum + (parseFloat(s.total_revenue) || 0), 0);
 
+const existingPurchases = inventoryLogs.filter(l => {
+  if (!l.date || l.client_id !== activeClient || l.type !== 'purchase') return false;
+  const d = l.date.split('T')[0];
+  return d >= startDate && d <= endDate;
+});
+const existingPurchasesCost = existingPurchases.reduce((sum, l) => sum + (parseFloat(l.total_cost) || 0), 0);
+
+const existingAuditCount = inventoryLogs.filter(l => {
+  if (!l.date || l.client_id !== activeClient || l.type !== 'count') return false;
+  const d = l.date.split('T')[0];
+  return d >= startDate && d <= endDate;
+}).length;
+
+const existingKitchenCount = inventoryLogs.filter(l => {
+  if (!l.date || l.client_id !== activeClient || !['spoilage', 'staff_meal', 'testing', 'other'].includes(l.type)) return false;
+  const d = l.date.split('T')[0];
+  return d >= startDate && d <= endDate;
+}).length;
 
   // June 2026 Demo Data
   const demoStats: Record<string, any> = {
@@ -782,168 +813,173 @@ useEffect(() => {
   // =========================================================================
   // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огноотой & Огноогүй аль алийг нь танина)
   // =========================================================================
-  const handleBulkSalesPaste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!salesPasteText.trim()) return;
+ const handleBulkSalesPaste = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!salesPasteText.trim()) return;
+  setLoading(true);
 
-    setLoading(true);
-    try {
-      const rows = salesPasteText.replace(/\r/g, '').trim().split('\n');
-      if (rows.length === 0) return;
+  try {
+    const rows = salesPasteText.replace(/\r/g, '').trim().split('\n');
+    if (rows.length === 0) return;
 
-      const firstRowCols = rows[0].split('\t').map(cleanHeader);
-      const hasHeader = firstRowCols.some(c => c.includes('нэр') || c.includes('product') || c.includes('item') || c.includes('бараа') || c.includes('тоо'));
+    const firstRowCols = rows[0].split('\t').map(cleanHeader);
+    const hasHeader = firstRowCols.some(c => c.includes('нэр') || c.includes('product') || c.includes('item') || c.includes('бараа'));
 
-      let nameIdx = 0, qtyIdx = 1, revIdx = 2, dateIdx = -1;
-
-      if (hasHeader) {
-        nameIdx = firstRowCols.findIndex(c => c.includes('нэр') || c.includes('product') || c.includes('item') || c.includes('бараа') || c.includes('бүтээгдэхүүн'));
-        qtyIdx = firstRowCols.findIndex(c => c.includes('тоо') || c.includes('хэмжээ') || c.includes('qty') || c.includes('count'));
-        revIdx = firstRowCols.findIndex(c => c.includes('орлого') || c.includes('дүн') || c.includes('үнэ') || c.includes('total') || c.includes('revenue') || c.includes('нийт'));
-        dateIdx = firstRowCols.findIndex(c => c.includes('огноо') || c.includes('date') || c.includes('өдөр'));
-      } else {
-        // Огноо эхний баганад байгаа эсэхийг шалгах (Жнь: 2026.06.01)
-        if (rows[0].split('\t').length >= 4) {
-          dateIdx = 0; nameIdx = 1; qtyIdx = 2; revIdx = 3;
-        }
-      }
-
-      const salesToInsert: any[] = [];
-      // 💡 Хэрэв огноогүй бол таны Dashboard дээр сонгосон сарын огноог авна!
-      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
-      const startIndex = hasHeader ? 1 : 0;
-
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i].trim();
-        if (!row) continue;
-        const cols = row.split('\t');
-
-        const pName = (cols[nameIdx >= 0 ? nameIdx : 0] || "").trim();
-        const qty = parseInt((cols[qtyIdx >= 0 ? qtyIdx : 1] || "0").replace(/[^0-9.-]/g, "")) || 0;
-        const revenue = parseFloat((cols[revIdx >= 0 ? revIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
-        const dateVal = dateIdx >= 0 && cols[dateIdx] ? parseSafeDate(cols[dateIdx], fallbackDate) : fallbackDate;
-
-        if (pName && qty > 0 && !pName.toLowerCase().includes('product') && !pName.toLowerCase().includes('нэр')) {
-          salesToInsert.push({
-            client_id: activeClient,
-            product_name: pName,
-            quantity_sold: qty,
-            total_revenue: revenue,
-            date: dateVal // ✅ Сонгосон сард яг таарна
-          });
-        }
-      }
-
-      if (salesToInsert.length > 0) {
-        const { error } = await supabase.from('sales_logs').insert(salesToInsert);
-        if (error) throw error;
-      }
-
-      setSalesImportSuccess(true);
-      setSalesPasteText('');
-      await fetchDatabaseData(activeClient);
-      alert(`✅ Амжилттай! Нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`);
-      setTimeout(() => setSalesImportSuccess(false), 4000);
-    } catch (err: any) {
-      alert(`Борлуулалт оруулахад алдаа гарлаа: ${err.message}`);
-    } finally {
-      setLoading(false);
+    let nameIdx = 0, qtyIdx = 1, revIdx = 2, dateIdx = -1;
+    if (hasHeader) {
+      nameIdx = firstRowCols.findIndex(c => c.includes('нэр') || c.includes('product') || c.includes('item') || c.includes('бараа'));
+      qtyIdx = firstRowCols.findIndex(c => c.includes('тоо') || c.includes('хэмжээ') || c.includes('qty'));
+      revIdx = firstRowCols.findIndex(c => c.includes('орлого') || c.includes('дүн') || c.includes('үнэ') || c.includes('revenue') || c.includes('нийт'));
+      dateIdx = firstRowCols.findIndex(c => c.includes('огноо') || c.includes('date'));
+    } else if (rows[0].split('\t').length >= 4) {
+      dateIdx = 0; nameIdx = 1; qtyIdx = 2; revIdx = 3;
     }
-  };
 
+    const salesToInsert: any[] = [];
+    const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+    const startIndex = hasHeader ? 1 : 0;
+
+    for (let i = startIndex; i < rows.length; i++) {
+      const cols = rows[i].trim().split('\t');
+      const pName = (cols[nameIdx >= 0 ? nameIdx : 0] || "").trim();
+      const qty = parseInt((cols[qtyIdx >= 0 ? qtyIdx : 1] || "0").replace(/[^0-9.-]/g, "")) || 0;
+      const revenue = parseFloat((cols[revIdx >= 0 ? revIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
+      const dateVal = dateIdx >= 0 && cols[dateIdx] ? parseSafeDate(cols[dateIdx], fallbackDate) : fallbackDate;
+
+      if (pName && qty > 0 && !pName.toLowerCase().includes('product') && !pName.toLowerCase().includes('нэр')) {
+        salesToInsert.push({
+          client_id: activeClient,
+          product_name: pName,
+          quantity_sold: qty,
+          total_revenue: revenue,
+          date: dateVal
+        });
+      }
+    }
+
+    // 💡 ХУУЧНЫГ ЦЭВЭРЛЭХ ГОРИМ ИДЭВХЖСЭН БОЛ:
+    if (overwriteSales) {
+      await supabase
+        .from('sales_logs')
+        .delete()
+        .eq('client_id', activeClient)
+        .gte('date', `${startDate}T00:00:00.000Z`)
+        .lte('date', `${endDate}T23:59:59.999Z`);
+    }
+
+    if (salesToInsert.length > 0) {
+      const { error } = await supabase.from('sales_logs').insert(salesToInsert);
+      if (error) throw error;
+    }
+
+    setSalesImportSuccess(true);
+    setSalesPasteText('');
+    setOverwriteSales(false);
+    await fetchDatabaseData(activeClient);
+    alert(`✅ Амжилттай! ${overwriteSales ? 'Хуучныг цэвэрлэн шинэчилж ' : ''}нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`);
+    setTimeout(() => setSalesImportSuccess(false), 4000);
+  } catch (err: any) {
+    alert(`Алдаа: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
   // =========================================================================
   // 2. ТАТАН АВАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огнооны алдааг бүрэн зассан)
   // =========================================================================
-  const handleBulkPurchasePaste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!purchasePasteText.trim()) return;
+ const handleBulkPurchasePaste = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!purchasePasteText.trim()) return;
+  setLoading(true);
 
-    setLoading(true);
-    try {
-      const rows = purchasePasteText.replace(/\r/g, '').trim().split('\n');
-      const firstRowCols = rows[0].split('\t').map(cleanHeader);
-      const hasHeader = firstRowCols.some(c => c.includes('нэр') || c.includes('бараа') || c.includes('тоо') || c.includes('item'));
+  try {
+    const rows = purchasePasteText.replace(/\r/g, '').trim().split('\n');
+    const firstRowCols = rows[0].split('\t').map(cleanHeader);
+    const hasHeader = firstRowCols.some(c => c.includes('нэр') || c.includes('бараа') || c.includes('тоо'));
 
-      let nameIdx = 0, qtyIdx = 1, costIdx = 2, dateIdx = -1;
-
-      if (hasHeader) {
-        nameIdx = firstRowCols.findIndex(c => c.includes('нэр') || c.includes('бараа') || c.includes('түүхий') || c.includes('item'));
-        qtyIdx = firstRowCols.findIndex(c => c.includes('тоо') || c.includes('хэмжээ') || c.includes('qty'));
-        costIdx = firstRowCols.findIndex(c => c.includes('өртөг') || c.includes('дүн') || c.includes('үнэ') || c.includes('cost') || c.includes('нийт'));
-        dateIdx = firstRowCols.findIndex(c => c.includes('огноо') || c.includes('date'));
-      } else {
-        if (rows[0].split('\t').length >= 4) {
-          dateIdx = 0; nameIdx = 1; qtyIdx = 2; costIdx = 3;
-        }
-      }
-
-      const ingMap = new Map();
-      ingredients.filter(i => i.client_id === activeClient).forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
-      const nonFoodKeywords = ['сальфетка', 'аяга', 'уут', 'угаагч', 'цэвэрлэгээ', 'соруул', 'таг', 'саван', 'soap', 'napkin', 'bag', 'paper'];
-      const purchasesToInsert: any[] = [];
-      const startIndex = hasHeader ? 1 : 0;
-      
-      // 💡 ЗАСВАР: Огноо байхгүй бол өнөөдрийг БИШ, сонгосон сарын огноог авна!
-      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
-
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i].trim();
-        if (!row) continue;
-        const cols = row.split('\t');
-
-        const ingName = (cols[nameIdx >= 0 ? nameIdx : 0] || "").trim();
-        const qty = parseFloat((cols[qtyIdx >= 0 ? qtyIdx : 1] || "0").replace(/[^0-9.-]/g, "")) || 0;
-        const totalCost = parseFloat((cols[costIdx >= 0 ? costIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
-        const dateVal = dateIdx >= 0 && cols[dateIdx] ? parseSafeDate(cols[dateIdx], fallbackDate) : fallbackDate;
-
-        if (!ingName || qty <= 0 || ingName.toLowerCase().includes('item') || ingName.toLowerCase().includes('нэр')) continue;
-
-        const isKnownNonFood = nonFoodKeywords.some(k => ingName.toLowerCase().includes(k));
-        let matchedIng = ingMap.get(cleanNameForMatch(ingName));
-
-        if (!matchedIng && !isKnownNonFood) {
-          const unitPrice = qty > 0 ? Math.round(totalCost / qty) : 0;
-          const { data: newIng } = await supabase
-            .from('ingredients')
-            .insert([{ client_id: activeClient, name: ingName, unit: 'ш', unit_price: unitPrice, current_stock: 0 }])
-            .select().single();
-          if (newIng) {
-            matchedIng = newIng;
-            ingMap.set(cleanNameForMatch(ingName), newIng);
-          }
-        }
-
-        purchasesToInsert.push({
-          client_id: activeClient,
-          ingredient_id: matchedIng ? matchedIng.id : null,
-          non_food_item: matchedIng ? null : ingName,
-          quantity: qty,
-          type: 'purchase',
-          total_cost: totalCost,
-          date: dateVal, // ✅ 5.30-6.30-д найдвартай орно
-          payment_method: 'bank',
-          is_ebarimt: true,
-          notes: matchedIng ? `Бөөнөөр татан авалт (${totalCost}₮)` : 'Хүнсний бус OPEX'
-        });
-      }
-
-      if (purchasesToInsert.length > 0) {
-        const { error } = await supabase.from('inventory_logs').insert(purchasesToInsert);
-        if (error) throw error;
-      }
-
-      setPurchaseImportSuccess(true);
-      setPurchasePasteText('');
-      await fetchDatabaseData(activeClient);
-      alert(`✅ Амжилттай! Нийт ${purchasesToInsert.length} татан авалт бүртгэгдлээ.`);
-      setTimeout(() => setPurchaseImportSuccess(false), 4000);
-    } catch (err: any) {
-      alert(`Татан авалт оруулахад алдаа гарлаа: ${err.message}`);
-    } finally {
-      setLoading(false);
+    let nameIdx = 0, qtyIdx = 1, costIdx = 2, dateIdx = -1;
+    if (hasHeader) {
+      nameIdx = firstRowCols.findIndex(c => c.includes('нэр') || c.includes('бараа') || c.includes('item'));
+      qtyIdx = firstRowCols.findIndex(c => c.includes('тоо') || c.includes('хэмжээ') || c.includes('qty'));
+      costIdx = firstRowCols.findIndex(c => c.includes('өртөг') || c.includes('дүн') || c.includes('үнэ') || c.includes('нийт'));
+      dateIdx = firstRowCols.findIndex(c => c.includes('огноо') || c.includes('date'));
+    } else if (rows[0].split('\t').length >= 4) {
+      dateIdx = 0; nameIdx = 1; qtyIdx = 2; costIdx = 3;
     }
-  };
 
+    const ingMap = new Map();
+    ingredients.filter(i => i.client_id === activeClient).forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
+    const nonFoodKeywords = ['сальфетка', 'аяга', 'уут', 'угаагч', 'соруул', 'таг', 'саван'];
+    const purchasesToInsert: any[] = [];
+    const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+    const startIndex = hasHeader ? 1 : 0;
+
+    for (let i = startIndex; i < rows.length; i++) {
+      const cols = rows[i].trim().split('\t');
+      const ingName = (cols[nameIdx >= 0 ? nameIdx : 0] || "").trim();
+      const qty = parseFloat((cols[qtyIdx >= 0 ? qtyIdx : 1] || "0").replace(/[^0-9.-]/g, "")) || 0;
+      const totalCost = parseFloat((cols[costIdx >= 0 ? costIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
+      const dateVal = dateIdx >= 0 && cols[dateIdx] ? parseSafeDate(cols[dateIdx], fallbackDate) : fallbackDate;
+
+      if (!ingName || qty <= 0 || ingName.toLowerCase().includes('item')) continue;
+
+      const isKnownNonFood = nonFoodKeywords.some(k => ingName.toLowerCase().includes(k));
+      let matchedIng = ingMap.get(cleanNameForMatch(ingName));
+
+      if (!matchedIng && !isKnownNonFood) {
+        const unitPrice = qty > 0 ? Math.round(totalCost / qty) : 0;
+        const { data: newIng } = await supabase
+          .from('ingredients')
+          .insert([{ client_id: activeClient, name: ingName, unit: 'ш', unit_price: unitPrice, current_stock: 0 }])
+          .select().single();
+        if (newIng) {
+          matchedIng = newIng;
+          ingMap.set(cleanNameForMatch(ingName), newIng);
+        }
+      }
+
+      purchasesToInsert.push({
+        client_id: activeClient,
+        ingredient_id: matchedIng ? matchedIng.id : null,
+        non_food_item: matchedIng ? null : ingName,
+        quantity: qty,
+        type: 'purchase',
+        total_cost: totalCost,
+        date: dateVal,
+        payment_method: 'bank',
+        is_ebarimt: true,
+        notes: matchedIng ? `Бөөнөөр татан авалт (${totalCost}₮)` : 'Хүнсний бус OPEX'
+      });
+    }
+
+    // 💡 ХУУЧНЫГ ЦЭВЭРЛЭХ ГОРИМ ИДЭВХЖСЭН БОЛ:
+    if (overwritePurchases) {
+      await supabase
+        .from('inventory_logs')
+        .delete()
+        .eq('client_id', activeClient)
+        .eq('type', 'purchase')
+        .gte('date', `${startDate}T00:00:00.000Z`)
+        .lte('date', `${endDate}T23:59:59.999Z`);
+    }
+
+    if (purchasesToInsert.length > 0) {
+      const { error } = await supabase.from('inventory_logs').insert(purchasesToInsert);
+      if (error) throw error;
+    }
+
+    setPurchaseImportSuccess(true);
+    setPurchasePasteText('');
+    setOverwritePurchases(false);
+    await fetchDatabaseData(activeClient);
+    alert(`✅ Амжилттай! ${overwritePurchases ? 'Хуучныг цэвэрлэн шинэчилж ' : ''}нийт ${purchasesToInsert.length} татан авалт бүртгэгдлээ.`);
+    setTimeout(() => setPurchaseImportSuccess(false), 4000);
+  } catch (err: any) {
+    alert(`Алдаа: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
   // =========================================================================
   // 3. ТҮҮХИЙ ЭД & ҮНЭ БӨӨНӨӨР ОРУУЛАХ (Огноо хэрэггүй - Каталог)
   // =========================================================================
@@ -1121,136 +1157,157 @@ useEffect(() => {
   // =========================================================================
   // 6. ГАЛ ТОГООНЫ ХАЯГДАЛ (Огноотой байх ёстой)
   // =========================================================================
-  const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!kitchenPasteText.trim()) return;
+const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!kitchenPasteText.trim()) return;
+  setLoading(true);
 
-    setLoading(true);
-    try {
-      const rows = kitchenPasteText.replace(/\r/g, '').trim().split('\n');
-      const logsToInsert: any[] = [];
-      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+  try {
+    const rows = kitchenPasteText.replace(/\r/g, '').trim().split('\n');
+    const logsToInsert: any[] = [];
+    const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
 
-      const ingMap = new Map();
-      ingredients.filter(i => i.client_id === activeClient).forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
+    const ingMap = new Map();
+    ingredients.filter(i => i.client_id === activeClient).forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
 
-      rows.forEach(row => {
-        if (!row.trim()) return;
-        const cols = row.split('\t');
-        if (cols.length >= 3) {
-          const dateVal = parseSafeDate(cols[0], fallbackDate);
-          const rawType = cols[1]?.trim().toLowerCase() || 'spoilage';
-          const ingName = cols[2]?.trim() || "";
-          const qty = parseFloat((cols[3] || "0").replace(/[^0-9.-]/g, "")) || 0;
-          const note = cols[4]?.trim() || "";
+    rows.forEach(row => {
+      if (!row.trim()) return;
+      const cols = row.split('\t');
+      if (cols.length >= 3) {
+        const dateVal = parseSafeDate(cols[0], fallbackDate);
+        const rawType = cols[1]?.trim().toLowerCase() || 'spoilage';
+        const ingName = cols[2]?.trim() || "";
+        const qty = parseFloat((cols[3] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const note = cols[4]?.trim() || "";
 
-          let dbType = 'spoilage';
-          if (rawType.includes('staff') || rawType.includes('хоол')) dbType = 'staff_meal';
-          else if (rawType.includes('test') || rawType.includes('турш')) dbType = 'testing';
-          else if (rawType.includes('other') || rawType.includes('бусад')) dbType = 'other';
+        let dbType = 'spoilage';
+        if (rawType.includes('staff') || rawType.includes('хоол')) dbType = 'staff_meal';
+        else if (rawType.includes('test') || rawType.includes('турш')) dbType = 'testing';
+        else if (rawType.includes('other') || rawType.includes('бусад')) dbType = 'other';
 
-          const matchedIng = ingMap.get(cleanNameForMatch(ingName));
+        const matchedIng = ingMap.get(cleanNameForMatch(ingName));
 
-          if (matchedIng && qty > 0) {
-            logsToInsert.push({
-              client_id: activeClient,
-              ingredient_id: matchedIng.id,
-              quantity: -Math.abs(qty),
-              type: dbType,
-              notes: note || `${dbType} logged in bulk`,
-              date: dateVal, // ✅ Сонгосон хугацаанд орно
-              worker_name: 'Менежер (Бөөнөөр)'
-            });
-          }
+        if (matchedIng && qty > 0) {
+          logsToInsert.push({
+            client_id: activeClient,
+            ingredient_id: matchedIng.id,
+            quantity: -Math.abs(qty),
+            type: dbType,
+            notes: note || `${dbType} logged in bulk`,
+            date: dateVal,
+            worker_name: 'Менежер (Бөөнөөр)'
+          });
         }
-      });
-
-      if (logsToInsert.length > 0) {
-        const { error } = await supabase.from('inventory_logs').insert(logsToInsert);
-        if (error) throw error;
       }
+    });
 
-      setKitchenImportSuccess(true);
-      setKitchenPasteText('');
-      await fetchDatabaseData(activeClient);
-      alert(`✅ Амжилттай! ${logsToInsert.length} хаягдал хадгалагдлаа.`);
-      setTimeout(() => setKitchenImportSuccess(false), 4000);
-    } catch (err: any) {
-      alert(`Гал тогооны хаягдал оруулахад алдаа гарлаа: ${err.message}`);
-    } finally {
-      setLoading(false);
+    // 💡 ХУУЧНЫГ ЦЭВЭРЛЭХ ГОРИМ ИДЭВХЖСЭН БОЛ:
+    if (overwriteKitchen) {
+      await supabase
+        .from('inventory_logs')
+        .delete()
+        .eq('client_id', activeClient)
+        .in('type', ['spoilage', 'staff_meal', 'testing', 'other'])
+        .gte('date', `${startDate}T00:00:00.000Z`)
+        .lte('date', `${endDate}T23:59:59.999Z`);
     }
-  };
+
+    if (logsToInsert.length > 0) {
+      const { error } = await supabase.from('inventory_logs').insert(logsToInsert);
+      if (error) throw error;
+    }
+
+    setKitchenImportSuccess(true);
+    setKitchenPasteText('');
+    setOverwriteKitchen(false);
+    await fetchDatabaseData(activeClient);
+    alert(`✅ Амжилттай! ${overwriteKitchen ? 'Хуучныг цэвэрлэн шинэчилж ' : ''}нийт ${logsToInsert.length} хаягдал хадгалагдлаа.`);
+    setTimeout(() => setKitchenImportSuccess(false), 4000);
+  } catch (err: any) {
+    alert(`Алдаа: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // =========================================================================
   // 7. ХЭВТЭЭ ТООЛЛОГО ИМПОРТЛОХ (Огноо толгой мөрөнд заавал байна)
   // =========================================================================
-  const handleBulkInventoryPaste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inventoryPasteText.trim()) return;
+ const handleBulkInventoryPaste = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!inventoryPasteText.trim()) return;
+  setLoading(true);
 
-    setLoading(true);
-    try {
-      const rows = inventoryPasteText.trim().split('\n');
-      if (rows.length < 2) {
-        alert("Алдаа: Толгой мөр болон тооллогын дата мөрийг хамт хуулна уу.");
-        setLoading(false);
-        return;
-      }
+  try {
+    const rows = inventoryPasteText.trim().split('\n');
+    if (rows.length < 2) {
+      alert("Алдаа: Толгой мөр болон тооллогын дата мөрийг хамт хуулна уу.");
+      setLoading(false);
+      return;
+    }
 
-      const ingMap = new Map();
-      ingredients.forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
+    const ingMap = new Map();
+    ingredients.forEach(i => ingMap.set(cleanNameForMatch(i.name), i));
+    const headers = rows[0].split('\t').map(h => cleanNameForMatch(h));
+    const countsToInsert: any[] = [];
+    const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
 
-      const headers = rows[0].split('\t').map(h => cleanNameForMatch(h));
-      const countsToInsert: any[] = [];
-      const fallbackDate = endDate ? `${endDate}T12:00:00.000Z` : new Date().toISOString();
+    for (let r = 1; r < rows.length; r++) {
+      const values = rows[r].split('\t');
+      if (values.length < 2) continue;
 
-      for (let r = 1; r < rows.length; r++) {
-        const values = rows[r].split('\t');
-        if (values.length < 2) continue;
+      const dateVal = parseSafeDate(values[0], fallbackDate);
+      const typeVal = values[1]?.trim().toLowerCase() || 'count';
 
-        // 2026.05.30-ийг алдаагүй 2026-05-30 болгож уншина
-        const dateVal = parseSafeDate(values[0], fallbackDate);
-        const typeVal = values[1]?.trim().toLowerCase() || 'count';
-
-        for (let i = 2; i < headers.length; i++) {
-          const ingName = headers[i];
-          if (!ingName) continue;
-
-          const ing = ingMap.get(ingName);
-          if (ing) {
-            const rawQty = values[i]?.replace(/[, ]/g, "");
-            if (rawQty !== undefined && rawQty !== "" && rawQty !== "-") {
-              const qty = parseFloat(rawQty) || 0;
-              countsToInsert.push({
-                client_id: activeClient,
-                ingredient_id: ing.id,
-                quantity: qty,
-                type: 'count',
-                notes: `Бөөнөөр Тоолсон Үлдэгдэл (${typeVal})`,
-                date: dateVal // ✅ 5.30 болон 6.30-ны тооллого зөв ялгагдана
-              });
-            }
+      for (let i = 2; i < headers.length; i++) {
+        const ingName = headers[i];
+        if (!ingName) continue;
+        const ing = ingMap.get(ingName);
+        if (ing) {
+          const rawQty = values[i]?.replace(/[, ]/g, "");
+          if (rawQty !== undefined && rawQty !== "" && rawQty !== "-") {
+            const qty = parseFloat(rawQty) || 0;
+            countsToInsert.push({
+              client_id: activeClient,
+              ingredient_id: ing.id,
+              quantity: qty,
+              type: 'count',
+              notes: `Бөөнөөр Тоолсон Үлдэгдэл (${typeVal})`,
+              date: dateVal
+            });
           }
         }
       }
-
-      if (countsToInsert.length > 0) {
-        const { error } = await supabase.from('inventory_logs').insert(countsToInsert);
-        if (error) throw error;
-      }
-
-      setInventoryImportSuccess(true);
-      setInventoryPasteText('');
-      await fetchDatabaseData(activeClient);
-      alert(`✅ Амжилттай! ${countsToInsert.length} барааны тооллого хадгалагдлаа.`);
-      setTimeout(() => setInventoryImportSuccess(false), 4000);
-    } catch (err: any) {
-      alert(`Алдаа: ${err.message || 'Тооллого оруулахад алдаа гарлаа.'}`);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // 💡 ХУУЧНЫГ ЦЭВЭРЛЭХ ГОРИМ ИДЭВХЖСЭН БОЛ:
+    if (overwriteAudit) {
+      await supabase
+        .from('inventory_logs')
+        .delete()
+        .eq('client_id', activeClient)
+        .eq('type', 'count')
+        .gte('date', `${startDate}T00:00:00.000Z`)
+        .lte('date', `${endDate}T23:59:59.999Z`);
+    }
+
+    if (countsToInsert.length > 0) {
+      const { error } = await supabase.from('inventory_logs').insert(countsToInsert);
+      if (error) throw error;
+    }
+
+    setInventoryImportSuccess(true);
+    setInventoryPasteText('');
+    setOverwriteAudit(false);
+    await fetchDatabaseData(activeClient);
+    alert(`✅ Амжилттай! ${overwriteAudit ? 'Хуучныг цэвэрлэн шинэчилж ' : ''}нийт ${countsToInsert.length} барааны тооллого хадгалагдлаа.`);
+    setTimeout(() => setInventoryImportSuccess(false), 4000);
+  } catch (err: any) {
+    alert(`Алдаа: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleIngredientUpdate = async (id: string, column: string, value: string| boolean) => {
   const finalVal = typeof value === 'boolean' ? value : (parseFloat(value) || 0);
@@ -1323,30 +1380,30 @@ useEffect(() => {
 
 
   
-  console.log(liveAnalytics?.menu_performance,"menu_performance")
-  console.log(liveAnalytics?.financial_ladder,"financial_ladder")
-  console.log(liveAnalytics?.tax_summary,"tax_summary")
-  console.log(liveAnalytics?.cashflow_summary,"cashflow_summary")
-  console.log(liveAnalytics?.payroll_summary,"payroll_summary")
-  console.log(liveAnalytics?.top_wasters,"top_wasters")
-  console.log(liveAnalytics?.top_expensive,"top_expensive")
-  console.log(liveAnalytics?.all_inventory_data,"all_inventory_data")
-  console.log(liveAnalytics?.wasted_only,"wasted_only")
-  console.log(liveAnalytics?.underpoured_only,"underpoured_only")
-  console.log(liveAnalytics?.menu_performance,"menu_performance")
-  console.log(liveAnalytics?.all_recipes,"all_recipes")
-  console.log(liveAnalytics?.opex_details,"opex_details")
-  console.log(liveAnalytics?.all_timeline_logs,"all_timeline_logs")
-  console.log(liveAnalytics?.recent_shifts,"recent_shifts")
-  console.log(liveAnalytics?.recent_worker_log,"recent_worker_log")
-  console.log(liveAnalytics?.total_waste_loss,"total_waste_loss")
-  console.log(liveAnalytics?.total_unexplained_waste,"total_unexplained_waste")
-  console.log(liveAnalytics?.total_logged_spoilage,"total_logged_spoilage")
-  console.log(liveAnalytics?.total_logged_testing,"total_logged_testing")
-  console.log(liveAnalytics?.total_logged_staff_meal,"total_logged_staff_meal")
-  console.log(liveAnalytics?.total_logged_other,"total_logged_other")
-  console.log(liveAnalytics?.total_surplus_savings,"total_surplus_savings")
-  console.log(liveAnalytics?.efficiency,"efficiency")
+  // console.log(liveAnalytics?.menu_performance,"menu_performance")
+  // console.log(liveAnalytics?.financial_ladder,"financial_ladder")
+  // console.log(liveAnalytics?.tax_summary,"tax_summary")
+  // console.log(liveAnalytics?.cashflow_summary,"cashflow_summary")
+  // console.log(liveAnalytics?.payroll_summary,"payroll_summary")
+  // console.log(liveAnalytics?.top_wasters,"top_wasters")
+  // console.log(liveAnalytics?.top_expensive,"top_expensive")
+  // console.log(liveAnalytics?.all_inventory_data,"all_inventory_data")
+  // console.log(liveAnalytics?.wasted_only,"wasted_only")
+  // console.log(liveAnalytics?.underpoured_only,"underpoured_only")
+  // console.log(liveAnalytics?.menu_performance,"menu_performance")
+  // console.log(liveAnalytics?.all_recipes,"all_recipes")
+  // console.log(liveAnalytics?.opex_details,"opex_details")
+  // console.log(liveAnalytics?.all_timeline_logs,"all_timeline_logs")
+  // console.log(liveAnalytics?.recent_shifts,"recent_shifts")
+  // console.log(liveAnalytics?.recent_worker_log,"recent_worker_log")
+  // console.log(liveAnalytics?.total_waste_loss,"total_waste_loss")
+  // console.log(liveAnalytics?.total_unexplained_waste,"total_unexplained_waste")
+  // console.log(liveAnalytics?.total_logged_spoilage,"total_logged_spoilage")
+  // console.log(liveAnalytics?.total_logged_testing,"total_logged_testing")
+  // console.log(liveAnalytics?.total_logged_staff_meal,"total_logged_staff_meal")
+  // console.log(liveAnalytics?.total_logged_other,"total_logged_other")
+  // console.log(liveAnalytics?.total_surplus_savings,"total_surplus_savings")
+  // console.log(liveAnalytics?.efficiency,"efficiency")
 // 🔒 ХЭРЭВ KIOSK ГАЛ ТОГООНЫ ТӨХӨӨРӨМЖӨӨС ОРОХ ГЭЖ БАЙГАА БОЛ ЭНЭ ДЭЛГЭЦ ГАРНА:
   if (isKioskLocked) {
     return (
@@ -2236,65 +2293,117 @@ useEffect(() => {
         )}
 
         {/* 6. BULK CLIPBOARD PASTE TAB */}
+        
         {activeTab === 'import' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+       
+       
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
-              <div className="flex items-center gap-2 mb-4">
-                <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
-                <h3 className="text-lg font-bold">Борлуулалт Бөөнөөр Импортлох (Sales Paste)</h3>
+             <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
+                  <h3 className="text-lg font-bold">Борлуулалт Импортлох (Sales Paste)</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveSampleModal('sales')}
+                  className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg"
+                >
+                  👁️ Загвар харах
+                </button>
               </div>
-
-          <button
-              type="button"
-              onClick={() => setActiveSampleModal('sales')}
-              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
-            >
-              👁️ Загвар харах
-            </button>
+          
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                 Google Sheets-ээс <strong>Бүтээгдэхүүн, Тоо ширхэг, Орлого</strong> гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
               </p>
-
+              
               {salesImportSuccess && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-4 flex items-center gap-2.5">
                   <Check className="h-5 w-5" />
                   <p className="text-sm font-semibold">Амжилттай импортлогдлоо!</p>
                 </div>
               )}
+              
 
-              <form onSubmit={handleBulkSalesPaste} className="space-y-4">
-                <textarea 
-                  rows={8}
-                  value={salesPasteText}
-                  onChange={(e) => setSalesPasteText(e.target.value)}
-                  placeholder="Жишээ:&#10;Caffe Latte&#9;34&#10;Tiramisu&#9;62"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500 leading-normal"
-                />
-                <button 
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  Орлого Бөөнөөр Хасах (Import)
-                </button>
-              </form>
-            </div>
+     {/* 🟢 БОРЛУУЛАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
+        <div className="mb-4 p-3 rounded-xl border text-xs bg-slate-950/80 border-slate-800/80 flex items-center gap-2.5">
+          {existingSales.length > 0 ? (
+            <>
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <p className="text-slate-300 leading-normal">
+                <span className="font-bold text-emerald-400 font-mono">{startDate} ~ {endDate}</span>
+                <span> хооронд нийт </span>
+                <span className="font-black text-white">{existingSales.length.toLocaleString()} ширхэг</span>
+                <span> борлуулалт </span>
+                <span className="font-bold text-emerald-400 font-mono">({Math.round(existingSalesRevenue).toLocaleString()}₮)</span>
+                <span> бүртгэлтэй байна.</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="h-2 w-2 rounded-full bg-slate-600 shrink-0" />
+              <p className="text-slate-400">
+                <span className="font-mono">{startDate} ~ {endDate}</span> хооронд борлуулалт одоогоор бүртгэгдээгүй байна.
+              </p>
+            </>
+          )}
+        </div>
+
+        <form onSubmit={handleBulkSalesPaste} className="space-y-4">
+          <textarea 
+            rows={8}
+            value={salesPasteText}
+            onChange={(e) => setSalesPasteText(e.target.value)}
+            placeholder="Жишээ:&#10;Caffe Latte&#9;34&#10;Tiramisu&#9;62"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:border-emerald-500"
+          />
+
+          {/* ☑️ ДАВХАРДЛААС ХАМГААЛАХ OVERWRITE CHECKBOX */}
+          {existingSales.length > 0 && (
+            <label className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+              <input 
+                type="checkbox"
+                checked={overwriteSales}
+                onChange={(e) => setOverwriteSales(e.target.checked)}
+                className="rounded border-slate-700 accent-amber-500"
+              />
+              <span>Энэ хугацааны ({startDate} - {endDate}) <strong>хуучин борлуулалтыг цэвэрлээд, шинээр дарж оруулах</strong> (Давхардахаас сэргийлнэ)</span>
+            </label>
+          )}
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className={`w-full font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 ${
+              overwriteSales ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+            }`}
+          >
+            <UploadCloud className="h-4 w-4" />
+            {overwriteSales ? 'Хуучныг Дарж Шинэчлэх (Overwrite)' : 'Орлого Бөөнөөр Оруулах (Import)'}
+          </button>
+        </form>
+      </div>
 
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
-              <div className="flex items-center gap-2 mb-4">
-                <FileSpreadsheet className="h-6 w-6 text-blue-400" />
-                <h3 className="text-lg font-bold">Татан авалт Бөөнөөр Импортлох (Purchases Paste)</h3>
-              </div>
-                {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
-            <button
-              type="button"
-              onClick={() => setActiveSampleModal('purchases')}
-              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
-            >
-              👁️ Загвар харах
-            </button>
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+           <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-6 w-6 text-blue-400" />
+            <h3 className="text-lg font-bold">Татан авалт Импортлох (Purchases Paste)</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveSampleModal('purchases')}
+            className="text-[11px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-lg"
+          >
+            👁️ Загвар харах
+          </button>
+        
+        </div>
+                <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                 Google Sheets-ээс <strong>Барааны нэр, Авсан тоо, Нийт өртөг</strong> гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
               </p>
 
@@ -2304,29 +2413,222 @@ useEffect(() => {
                   <p className="text-sm font-semibold">Амжилттай импортлогдлоо!</p>
                 </div>
               )}
+        {/* 🔵 ТАТАН АВАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
+        <div className="mb-4 p-3 rounded-xl border text-xs bg-slate-950/80 border-slate-800/80 flex items-center gap-2.5">
+          {existingPurchases.length > 0 ? (
+            <>
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              <p className="text-slate-300 leading-normal">
+                <span className="font-bold text-blue-400 font-mono">{startDate} ~ {endDate}</span>
+                <span> хооронд нийт </span>
+                <span className="font-black text-white">{existingPurchases.length.toLocaleString()} ширхэг</span>
+                <span> татан авалт </span>
+                <span className="font-bold text-blue-400 font-mono">({Math.round(existingPurchasesCost).toLocaleString()}₮)</span>
+                <span> бүртгэлтэй байна.</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="h-2 w-2 rounded-full bg-slate-600 shrink-0" />
+              <p className="text-slate-400">
+                <span className="font-mono">{startDate} ~ {endDate}</span> хооронд татан авалт одоогоор бүртгэгдээгүй байна.
+              </p>
+            </>
+          )}
+        </div>
 
-              <form onSubmit={handleBulkPurchasePaste} className="space-y-4">
-                <textarea 
-                  rows={8}
-                  value={purchasePasteText}
-                  onChange={(e) => setPurchasePasteText(e.target.value)}
-                  placeholder="Жишээ:&#10;Milk&#9;10000&#9;58000&#10;Beans&#9;1000&#9;85000"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-blue-500 leading-normal"
-                />
-                <button 
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  Татан авалт Бөөнөөр Нэмэх (Import)
-                </button>
-              </form>
+  <form onSubmit={handleBulkPurchasePaste} className="space-y-4">
+    <textarea 
+      rows={8}
+      value={purchasePasteText}
+      onChange={(e) => setPurchasePasteText(e.target.value)}
+      placeholder="Жишээ:&#10;Milk&#9;10000&#9;58000"
+      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:border-blue-500"
+    />
 
+    {/* OVERWRITE CHECKBOX */}
+    {existingPurchases.length > 0 && (
+      <label className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+        <input 
+          type="checkbox"
+          checked={overwritePurchases}
+          onChange={(e) => setOverwritePurchases(e.target.checked)}
+          className="rounded border-slate-700 accent-amber-500"
+        />
+        <span>Энэ хугацааны хуучин татан авалтыг <strong>цэвэрлээд, шинээр дарж оруулах</strong></span>
+      </label>
+    )}
+
+    <button 
+      type="submit"
+      disabled={loading}
+      className={`w-full font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 ${
+        overwritePurchases ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-blue-500 hover:bg-blue-400 text-slate-950'
+      }`}
+    >
+      <UploadCloud className="h-4 w-4" />
+      {overwritePurchases ? 'Хуучныг Дарж Шинэчлэх (Overwrite)' : 'Татан авалт Бөөнөөр Нэмэх (Import)'}
+    </button>
+  </form>
+</div>
+
+<div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-4">
+              <FileSpreadsheet className="h-6 w-6 text-teal-400" />
+              <h3 className="text-lg font-bold">Агуулахын Тооллого Хэвтээ Импортлох (Horizontal Inventory Audit Paste)</h3>
             </div>
+              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+            <button
+              type="button"
+              onClick={() => setActiveSampleModal('audit')}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+            >
+              👁️ Загвар харах
+            </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Google Sheets-ээс <strong>Толгой мөр (Ингредиентүүдийн нэрс) болон доорх Тооллогын мөрийг (Date, Type, болон утгууд)</strong> хамт чирж хуулаад доор шууд хуулж тавина уу.
+            </p>
+
+            {inventoryImportSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-4 flex items-center gap-2.5">
+                <Check className="h-5 w-5" />
+                <p className="text-sm font-semibold">Тооллого амжилттай импортлогдож, бодит үлдэгдлүүд сэргэлээ!</p>
+              </div>
+            )}
+             {/* STATUS BADGE */}
+              <div className="mb-3 p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 bg-slate-950 border-slate-800">
+            {existingAuditCount > 0 ? (
+              <span className="text-teal-400 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-teal-400 animate-pulse" />
+                🟢 <strong>{startDate} - {endDate}</strong> хооронд нийт <strong>{existingAuditCount} барааны тооллого</strong> хийгдсэн байна.
+              </span>
+            ) : (
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-slate-600" />
+                ⚪ {startDate} - {endDate} хооронд тооллогын дата бүртгэгдээгүй байна.
+              </span>
+            )}
+          </div>
+            <form onSubmit={handleBulkInventoryPaste} className="space-y-4">
+              <textarea 
+                rows={5}
+                value={inventoryPasteText}
+                onChange={(e) => setInventoryPasteText(e.target.value)}
+                placeholder="Жишээ:&#10;Date&#9;Type&#9;Apple syrup&#9;Bun&#9;Butter&#10;2026-05-30&#9;start&#9;751&#9;3&#9;0"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-teal-500 leading-normal"
+              />
+ 
+
+      {/* OVERWRITE CHECKBOX */}
+          {existingAuditCount > 0 && (
+            <label className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+              <input 
+                type="checkbox"
+                checked={overwriteAudit}
+                onChange={(e) => setOverwriteAudit(e.target.checked)}
+                className="rounded border-slate-700 accent-amber-500"
+              />
+              <span>Энэ хугацааны хуучин тооллогуудыг <strong>цэвэрлээд, шинээр дарж оруулах</strong></span>
+            </label>
+          )}
+
+              <button 
+                type="submit"
+                disabled={loading}
+                className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+              >
+                <UploadCloud className="h-4 w-4" />
+                Тооллого Бөөнөөр Шивэх (Import Audit)
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
+            <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-4">
+              <Trash2 className="h-6 w-6 text-rose-400" />
+              <h3 className="text-lg font-bold">Гал тогооны хаягдал бөөнөөр импортлох (Kitchen Logs Paste)</h3>
+            </div>
+
+              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+            <button
+              type="button"
+              onClick={() => setActiveSampleModal('kitchen')}
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+            >
+              👁️ Загвар харах
+            </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Google Sheets-ээс <strong>Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар</strong> гэсэн 5 баганыг чирж хуулаад доор шууд хуулж тавина уу.
+            </p>
+
+            {kitchenImportSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-4 flex items-center gap-2.5">
+                <Check className="h-5 w-5" />
+                <p className="text-sm font-semibold">Гал тогооны хаягдлууд амжилттай импортлогдож, үлдэгдлүүд хасагдлаа!</p>
+              </div>
+            )}
+
+                {/* STATUS BADGE */}
+          <div className="mb-3 p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 bg-slate-950 border-slate-800">
+            {existingKitchenCount > 0 ? (
+              <span className="text-rose-400 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
+                🔴 <strong>{startDate} - {endDate}</strong> хооронд нийт <strong>{existingKitchenCount} удаагийн зардал</strong> бүртгэгдсэн байна.
+              </span>
+            ) : (
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-slate-600" />
+                ⚪ {startDate} - {endDate} хооронд хаягдал бүртгэгдээгүй байна.
+              </span>
+            )}
+          </div>
+
+            <form onSubmit={handleBulkKitchenLogsPaste} className="space-y-4">
+              <textarea 
+                rows={6}
+                value={kitchenPasteText}
+                onChange={(e) => setKitchenPasteText(e.target.value)}
+                placeholder="Жишээ:&#10;2026-06-04&#9;Spoilage&#9;Whipped cream&#9;500&#9;Асгарч муудсан"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
+              />
+        
+
+          {/* OVERWRITE CHECKBOX */}
+          {existingKitchenCount > 0 && (
+            <label className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+              <input 
+                type="checkbox"
+                checked={overwriteKitchen}
+                onChange={(e) => setOverwriteKitchen(e.target.checked)}
+                className="rounded border-slate-700 accent-amber-500"
+              />
+              <span>Энэ хугацааны хуучин хаягдлыг <strong>цэвэрлээд, шинээр дарж оруулах</strong></span>
+            </label>
+          )}
+
+
+              <button 
+                type="submit"
+                disabled={loading}
+                className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/20 py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+              >
+                <UploadCloud className="h-4 w-4" />
+                Хаягдал Бөөнөөр Шивэх (Import Kitchen Logs)
+              </button>
+            </form>
+          </div>
+
               {userRole ==='owner' && (
                 <>
-                   <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+            <div className="flex items-center justify-between gap-2 mb-3">       
             <div className="flex items-center gap-2 mb-2">
               <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
               <h3 className="text-lg font-bold">1. Түүхий эд, Үнэ бөөнөөр оруулах</h3>
@@ -2339,6 +2641,7 @@ useEffect(() => {
               >
                 👁️ Загвар харах
               </button>
+            </div>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
               Excel-ээс <strong>Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц (Par)</strong> гэсэн 4 баганыг хуулаад доор хуулж тавина уу.
             </p>
@@ -2370,6 +2673,7 @@ useEffect(() => {
 
             {/* 2. RECIPE / ТЕХНОЛОГИЙН КАРТ SETUP BOX */}
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2 mb-2">
                 <FileSpreadsheet className="h-6 w-6 text-purple-400" />
                 <h3 className="text-lg font-bold">2. Технологийн карт (Жор) бөөнөөр оруулах</h3>
@@ -2382,6 +2686,7 @@ useEffect(() => {
                 >
                   👁️ Загвар харах
                 </button>
+                </div>
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                 Excel-ээс <strong>Бүтээгдэхүүн, Орцын нэр, Орцын хэмжээ (гр/мл)</strong> гэсэн 3 баганыг хуулаад доор хуулж тавина уу.
               </p>
@@ -2410,8 +2715,10 @@ useEffect(() => {
                 </button>
               </form>
             </div>
+
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
-        <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2">
           <Coffee className="h-6 w-6 text-emerald-400" />
           <h3 className="text-lg font-bold">Меню / Цэс бөөнөөр оруулах (Products & Selling Prices)</h3>
         </div>
@@ -2424,6 +2731,7 @@ useEffect(() => {
         >
           👁️ Загвар харах
         </button>
+        </div>
         <p className="text-xs text-slate-400 mb-4 leading-relaxed">
           Google Sheets-ээс <strong>Category (Ангилал), Item (Нэр), Selling Price (Зарах үнэ)</strong> гэсэн 3 баганыг хуулаад доор paste хийнэ үү.
         </p>
@@ -2454,7 +2762,288 @@ useEffect(() => {
                 </div>
                 </>
 
-              )}           
+              )}
+              
+    {/* 🔍 БҮХ 7 ТӨРЛИЙН EXCEL ЖИШЭЭ ХАРУУЛАХ ПОПАП ЦОНХ (MODAL) */}
+    {activeSampleModal && (
+      <div 
+        className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+        onClick={() => setActiveSampleModal(null)}
+      >
+        <div 
+          className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+             >
+      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 className="font-bold text-white text-sm flex items-center gap-2">
+          📊 Excel-ээс хуулах жишээ дараалал
+        </h3>
+        <button 
+          onClick={() => setActiveSampleModal(null)}
+          className="text-slate-400 hover:text-white text-xs font-bold bg-slate-800 px-3 py-1.5 rounded-lg"
+        >
+          ✕ Хаах
+        </button>
+      </div>
+
+      <p className="text-xs text-slate-400">
+        Та Excel эсвэл Google Sheets дээр дараах багануудыг бэлдээд чирж сонгон <code className="bg-slate-950 px-1.5 py-0.5 rounded text-emerald-400">Ctrl+C</code> хийж талбартаа хуулна:
+      </p>
+
+      {/* 1. БОРЛУУЛАЛТ (SALES) */}
+      {activeSampleModal === 'sales' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-emerald-400 border-b border-slate-800">
+              <span>1. Бүтээгдэхүүн</span>
+              <span>2. Тоо ширхэг</span>
+              <span>3. Нийт орлого (₮)</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Caffe Latte</span>
+              <span>34</span>
+              <span>323000</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>Tiramisu</span>
+              <span>62</span>
+              <span>737800</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Caffe Latte\t34\t323000\nTiramisu\t62\t737800");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Sales)
+          </button>
+        </div>
+      )}
+
+      {/* 2. ТАТАН АВАЛТ (PURCHASES) */}
+      {activeSampleModal === 'purchases' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-blue-400 border-b border-slate-800">
+              <span>1. Барааны нэр</span>
+              <span>2. Авсан тоо хэмжээ</span>
+              <span>3. Нийт өртөг (₮)</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Milk</span>
+              <span>10000</span>
+              <span>58000</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>Beans</span>
+              <span>1000</span>
+              <span>85000</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Milk\t10000\t58000\nBeans\t1000\t85000");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Purchases)
+          </button>
+        </div>
+      )}
+
+      {/* 3. ТҮҮХИЙ ЭД & ҮНЭ (INGREDIENTS CATALOG) */}
+      {activeSampleModal === 'ingredients' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-4 bg-slate-950 p-2 font-black text-emerald-400 border-b border-slate-800">
+              <span>1. Нэр</span>
+              <span>2. Нэгж (мл/гр/ш)</span>
+              <span>3. Нэгжийн үнэ (₮)</span>
+              <span>4. Хэвийн нөөц (Par)</span>
+            </div>
+            <div className="grid grid-cols-4 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Milk</span>
+              <span>ml</span>
+              <span>5.8</span>
+              <span>20000</span>
+            </div>
+            <div className="grid grid-cols-4 p-2 bg-slate-900/50 text-slate-300">
+              <span>Beans</span>
+              <span>gram</span>
+              <span>85</span>
+              <span>5000</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Milk\tml\t5.8\t20000\nBeans\tgram\t85\t5000");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Catalog)
+          </button>
+        </div>
+      )}
+
+      {/* 4. ТЕХНОЛОГИЙН КАРТ БУЮУ ЖОР (RECIPES) */}
+      {activeSampleModal === 'recipes' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-purple-400 border-b border-slate-800">
+              <span>1. Бүтээгдэхүүн</span>
+              <span>2. Орцын нэр</span>
+              <span>3. Орцын хэмжээ</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>Caffe Latte</span>
+              <span>Milk</span>
+              <span>200</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>Caffe Latte</span>
+              <span>Beans</span>
+              <span>16</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Caffe Latte\tMilk\t200\nCaffe Latte\tBeans\t16\nChicken Sandwich\tCheese\t1");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Recipes)
+          </button>
+        </div>
+      )}
+
+      {/* 5. МЕНЮ БА ЗАРАХ ҮНЭ (PRODUCTS MENU) */}
+      {activeSampleModal === 'products' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
+              <span>1. Ангилал (Category)</span>
+              <span>2. Бүтээгдэхүүний нэр</span>
+              <span>3. Зарах үнэ (₮)</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>COFFEE</span>
+              <span>Caffe Latte</span>
+              <span>9500</span>
+            </div>
+            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
+              <span>SANDWICH</span>
+              <span>Chicken Sandwich</span>
+              <span>12500</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("COFFEE\tCaffe Latte\t9500\nCOFFEE\tAmericano\t8000\nSANDWICH\tChicken Sandwich\t12500");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Menu)
+          </button>
+        </div>
+      )}
+
+      {/* 6. ГАЛ ТОГООНЫ ХАЯГДАЛ (KITCHEN LOGS) */}
+      {activeSampleModal === 'kitchen' && (
+        <div className="space-y-3">
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
+            <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-rose-400 border-b border-slate-800">
+              <span>1. Огноо</span>
+              <span>2. Төрөл</span>
+              <span>3. Барааны нэр</span>
+              <span>4. Хэмжээ</span>
+              <span>5. Тайлбар</span>
+            </div>
+            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+              <span>2026-06-04</span>
+              <span>spoilage</span>
+              <span>Milk</span>
+              <span>1000</span>
+              <span>Асгарсан</span>
+            </div>
+            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
+              <span>2026-06-04</span>
+              <span>staff_meal</span>
+              <span>Eggs</span>
+              <span>2</span>
+              <span>Хоолонд</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("2026-06-04\tspoilage\tMilk\t1000\tАсгарсан\n2026-06-04\tstaff_meal\tEggs\t2\tХоолонд");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Kitchen Logs)
+          </button>
+        </div>
+      )}
+
+      {/* 7. ХЭВТЭЭ ТООЛЛОГО (HORIZONTAL AUDIT MATRIX) */}
+      {activeSampleModal === 'audit' && (
+        <div className="space-y-3">
+          <p className="text-[11px] text-slate-400">
+            Эхний мөр нь бараануудын нэрс, хоёр дахь мөр нь бодит тоолсон тоо байдаг:
+          </p>
+          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
+            <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
+              <span>Date</span>
+              <span>Type</span>
+              <span>Milk</span>
+              <span>Beans</span>
+              <span>Sugar</span>
+            </div>
+
+
+            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
+              <span>2026-05-30</span>
+              <span>start </span>
+              <span>12500</span>
+              <span>3200</span>
+              <span>4500</span>
+            </div>
+          
+           <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
+              <span>2026-06-30</span>
+              <span>end </span>
+              <span>11500</span>
+              <span>1200</span>
+              <span>1500</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText("Date\tType\tMilk\tBeans\tSugar\n2026-06-01\tcount\t12500\t3200\t4500");
+              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
+            }}
+            className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-xs font-bold transition"
+          >
+            📋 Жишээ хуулах (Copy Test Audit Matrix)
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}           
 
           </div>
           
@@ -2910,51 +3499,7 @@ useEffect(() => {
             </div>
           </div>
         )}
-        {/* NEW: HORIZONTAL SPREADSHEET AUDIT PASTE CONTAINER */}
-        {activeTab === 'import' && (
-          <div className="mt-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <FileSpreadsheet className="h-6 w-6 text-teal-400" />
-              <h3 className="text-lg font-bold">Агуулахын Тооллого Хэвтээ Импортлох (Horizontal Inventory Audit Paste)</h3>
-            </div>
-              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
-            <button
-              type="button"
-              onClick={() => setActiveSampleModal('audit')}
-              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
-            >
-              👁️ Загвар харах
-            </button>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Google Sheets-ээс <strong>Толгой мөр (Ингредиентүүдийн нэрс) болон доорх Тооллогын мөрийг (Date, Type, болон утгууд)</strong> хамт чирж хуулаад доор шууд хуулж тавина уу.
-            </p>
-
-            {inventoryImportSuccess && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-4 flex items-center gap-2.5">
-                <Check className="h-5 w-5" />
-                <p className="text-sm font-semibold">Тооллого амжилттай импортлогдож, бодит үлдэгдлүүд сэргэлээ!</p>
-              </div>
-            )}
-
-            <form onSubmit={handleBulkInventoryPaste} className="space-y-4">
-              <textarea 
-                rows={5}
-                value={inventoryPasteText}
-                onChange={(e) => setInventoryPasteText(e.target.value)}
-                placeholder="Жишээ:&#10;Date&#9;Type&#9;Apple syrup&#9;Bun&#9;Butter&#10;2026-05-30&#9;start&#9;751&#9;3&#9;0"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-teal-500 leading-normal"
-              />
-              <button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
-              >
-                <UploadCloud className="h-4 w-4" />
-                Тооллого Бөөнөөр Шивэх (Import Audit)
-              </button>
-            </form>
-          </div>
-        )}
+   
 
         {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
         {userRole === 'owner' && activeTab !== 'inventory' && activeTab !== 'import' && activeTab !== 'ai_cfo' && activeTab !== 'operations' && activeTab !=='sales' && activeTab !=='dashboard' && activeTab !=='settings' &&(
@@ -3095,335 +3640,6 @@ useEffect(() => {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
-        {/* NEW: Гал тогооны хаягдал (Kitchen Logs) бөөнөөр хуулах хайрцаг */}
-        {activeTab === 'import' && (
-          <div className="mt-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <Trash2 className="h-6 w-6 text-rose-400" />
-              <h3 className="text-lg font-bold">Гал тогооны хаягдал бөөнөөр импортлох (Kitchen Logs Paste)</h3>
-            </div>
-
-              {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
-            <button
-              type="button"
-              onClick={() => setActiveSampleModal('kitchen')}
-              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
-            >
-              👁️ Загвар харах
-            </button>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Google Sheets-ээс <strong>Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар</strong> гэсэн 5 баганыг чирж хуулаад доор шууд хуулж тавина уу.
-            </p>
-
-            {kitchenImportSuccess && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-4 flex items-center gap-2.5">
-                <Check className="h-5 w-5" />
-                <p className="text-sm font-semibold">Гал тогооны хаягдлууд амжилттай импортлогдож, үлдэгдлүүд хасагдлаа!</p>
-              </div>
-            )}
-
-            <form onSubmit={handleBulkKitchenLogsPaste} className="space-y-4">
-              <textarea 
-                rows={6}
-                value={kitchenPasteText}
-                onChange={(e) => setKitchenPasteText(e.target.value)}
-                placeholder="Жишээ:&#10;2026-06-04&#9;Spoilage&#9;Whipped cream&#9;500&#9;Асгарч муудсан"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
-              />
-              <button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/20 py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
-              >
-                <UploadCloud className="h-4 w-4" />
-                Хаягдал Бөөнөөр Шивэх (Import Kitchen Logs)
-              </button>
-            </form>
-
-{/* 🔍 БҮХ 7 ТӨРЛИЙН EXCEL ЖИШЭЭ ХАРУУЛАХ ПОПАП ЦОНХ (MODAL) */}
-{activeSampleModal && (
-  <div 
-    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
-    onClick={() => setActiveSampleModal(null)}
-  >
-    <div 
-      className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
-      onClick={e => e.stopPropagation()}
-    >
-      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 className="font-bold text-white text-sm flex items-center gap-2">
-          📊 Excel-ээс хуулах жишээ дараалал
-        </h3>
-        <button 
-          onClick={() => setActiveSampleModal(null)}
-          className="text-slate-400 hover:text-white text-xs font-bold bg-slate-800 px-3 py-1.5 rounded-lg"
-        >
-          ✕ Хаах
-        </button>
-      </div>
-
-      <p className="text-xs text-slate-400">
-        Та Excel эсвэл Google Sheets дээр дараах багануудыг бэлдээд чирж сонгон <code className="bg-slate-950 px-1.5 py-0.5 rounded text-emerald-400">Ctrl+C</code> хийж талбартаа хуулна:
-      </p>
-
-      {/* 1. БОРЛУУЛАЛТ (SALES) */}
-      {activeSampleModal === 'sales' && (
-        <div className="space-y-3">
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
-            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-emerald-400 border-b border-slate-800">
-              <span>1. Бүтээгдэхүүн</span>
-              <span>2. Тоо ширхэг</span>
-              <span>3. Нийт орлого (₮)</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-              <span>Caffe Latte</span>
-              <span>34</span>
-              <span>323000</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
-              <span>Tiramisu</span>
-              <span>62</span>
-              <span>737800</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("Caffe Latte\t34\t323000\nTiramisu\t62\t737800");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Sales)
-          </button>
-        </div>
-      )}
-
-      {/* 2. ТАТАН АВАЛТ (PURCHASES) */}
-      {activeSampleModal === 'purchases' && (
-        <div className="space-y-3">
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
-            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-blue-400 border-b border-slate-800">
-              <span>1. Барааны нэр</span>
-              <span>2. Авсан тоо хэмжээ</span>
-              <span>3. Нийт өртөг (₮)</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-              <span>Milk</span>
-              <span>10000</span>
-              <span>58000</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
-              <span>Beans</span>
-              <span>1000</span>
-              <span>85000</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("Milk\t10000\t58000\nBeans\t1000\t85000");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Purchases)
-          </button>
-        </div>
-      )}
-
-      {/* 3. ТҮҮХИЙ ЭД & ҮНЭ (INGREDIENTS CATALOG) */}
-      {activeSampleModal === 'ingredients' && (
-        <div className="space-y-3">
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
-            <div className="grid grid-cols-4 bg-slate-950 p-2 font-black text-emerald-400 border-b border-slate-800">
-              <span>1. Нэр</span>
-              <span>2. Нэгж (мл/гр/ш)</span>
-              <span>3. Нэгжийн үнэ (₮)</span>
-              <span>4. Хэвийн нөөц (Par)</span>
-            </div>
-            <div className="grid grid-cols-4 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-              <span>Milk</span>
-              <span>ml</span>
-              <span>5.8</span>
-              <span>20000</span>
-            </div>
-            <div className="grid grid-cols-4 p-2 bg-slate-900/50 text-slate-300">
-              <span>Beans</span>
-              <span>gram</span>
-              <span>85</span>
-              <span>5000</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("Milk\tml\t5.8\t20000\nBeans\tgram\t85\t5000");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Catalog)
-          </button>
-        </div>
-      )}
-
-      {/* 4. ТЕХНОЛОГИЙН КАРТ БУЮУ ЖОР (RECIPES) */}
-      {activeSampleModal === 'recipes' && (
-        <div className="space-y-3">
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
-            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-purple-400 border-b border-slate-800">
-              <span>1. Бүтээгдэхүүн</span>
-              <span>2. Орцын нэр</span>
-              <span>3. Орцын хэмжээ</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-              <span>Caffe Latte</span>
-              <span>Milk</span>
-              <span>200</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
-              <span>Caffe Latte</span>
-              <span>Beans</span>
-              <span>16</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("Caffe Latte\tMilk\t200\nCaffe Latte\tBeans\t16\nChicken Sandwich\tCheese\t1");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Recipes)
-          </button>
-        </div>
-      )}
-
-      {/* 5. МЕНЮ БА ЗАРАХ ҮНЭ (PRODUCTS MENU) */}
-      {activeSampleModal === 'products' && (
-        <div className="space-y-3">
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
-            <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
-              <span>1. Ангилал (Category)</span>
-              <span>2. Бүтээгдэхүүний нэр</span>
-              <span>3. Зарах үнэ (₮)</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-              <span>COFFEE</span>
-              <span>Caffe Latte</span>
-              <span>9500</span>
-            </div>
-            <div className="grid grid-cols-3 p-2 bg-slate-900/50 text-slate-300">
-              <span>SANDWICH</span>
-              <span>Chicken Sandwich</span>
-              <span>12500</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("COFFEE\tCaffe Latte\t9500\nCOFFEE\tAmericano\t8000\nSANDWICH\tChicken Sandwich\t12500");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Menu)
-          </button>
-        </div>
-      )}
-
-      {/* 6. ГАЛ ТОГООНЫ ХАЯГДАЛ (KITCHEN LOGS) */}
-      {activeSampleModal === 'kitchen' && (
-        <div className="space-y-3">
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
-            <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-rose-400 border-b border-slate-800">
-              <span>1. Огноо</span>
-              <span>2. Төрөл</span>
-              <span>3. Барааны нэр</span>
-              <span>4. Хэмжээ</span>
-              <span>5. Тайлбар</span>
-            </div>
-            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-              <span>2026-06-04</span>
-              <span>spoilage</span>
-              <span>Milk</span>
-              <span>1000</span>
-              <span>Асгарсан</span>
-            </div>
-            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
-              <span>2026-06-04</span>
-              <span>staff_meal</span>
-              <span>Eggs</span>
-              <span>2</span>
-              <span>Хоолонд</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("2026-06-04\tspoilage\tMilk\t1000\tАсгарсан\n2026-06-04\tstaff_meal\tEggs\t2\tХоолонд");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Kitchen Logs)
-          </button>
-        </div>
-      )}
-
-      {/* 7. ХЭВТЭЭ ТООЛЛОГО (HORIZONTAL AUDIT MATRIX) */}
-      {activeSampleModal === 'audit' && (
-        <div className="space-y-3">
-          <p className="text-[11px] text-slate-400">
-            Эхний мөр нь бараануудын нэрс, хоёр дахь мөр нь бодит тоолсон тоо байдаг:
-          </p>
-          <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
-            <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
-              <span>Date</span>
-              <span>Type</span>
-              <span>Milk</span>
-              <span>Beans</span>
-              <span>Sugar</span>
-            </div>
-
-
-            <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
-              <span>2026-05-30</span>
-              <span>start </span>
-              <span>12500</span>
-              <span>3200</span>
-              <span>4500</span>
-            </div>
-          
-           <div className="grid grid-cols-5 p-2 bg-slate-900/50 text-slate-300">
-              <span>2026-05-30</span>
-              <span>end </span>
-              <span>11500</span>
-              <span>1200</span>
-              <span>1500</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText("Date\tType\tMilk\tBeans\tSugar\n2026-06-01\tcount\t12500\t3200\t4500");
-              alert("Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.");
-            }}
-            className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-xs font-bold transition"
-          >
-            📋 Жишээ хуулах (Copy Test Audit Matrix)
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-
           </div>
         )}
 

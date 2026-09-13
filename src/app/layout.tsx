@@ -69,7 +69,7 @@ export default function RootLayout({
             `,
           }}
         />
-        <script
+        {/* <script
           dangerouslySetInnerHTML={{
             __html: `
               window.onerror = function(message, source, lineno, colno, error) {
@@ -77,7 +77,7 @@ export default function RootLayout({
               };
             `,
           }}
-        />
+        /> */}
       </head>
       <body className="min-h-full flex flex-col bg-[#070b14] text-slate-100">{children}</body>
     </html>

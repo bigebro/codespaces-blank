@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { getAnalyticsData } from '../../../../lib/analytics';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    // 1. Telegram-тай холбогдсон бүх эздийн профайлыг татах
+    // 🔒 1. Гадны халдлагаас хамгаалах
+    if (CRON_SECRET) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader !== `Bearer ${CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
       .select('client_id, telegram_chat_id')
@@ -17,35 +26,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "No active telegram clients found." });
     }
 
-    // Vercel дээрх өөрийн API-г дуудах URL-ийг тодорхойлох
-    const reqUrl = new URL(request.url);
-    const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
-
-    // 2. Харилцагч (Кофе шоп) тус бүрээр давтаж шалгах
     for (const profile of profiles) {
       const chatId = profile.telegram_chat_id;
       const clientId = profile.client_id;
 
-      // Тухайн харилцагчийн амьд датаг татаж авах
-      const response = await fetch(`${baseUrl}/api/analytics?clientId=${encodeURIComponent(clientId)}`, { cache: 'no-store' });
-      
-      if (!response.ok) continue;
-      const analyticsData = await response.json();
-
-      // Нөөц нь доод хэмжээнээс (Par level) буурсан, захиалах шаардлагатай бараануудыг шүүх
+      // ⚡ HTTP fetch хийхгүйгээр шууд функцээ дуудна (10 дахин хурдан, найдвартай)
+      const analyticsData = await getAnalyticsData(clientId);
       const lowItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_low && i.suggested_order > 0);
 
-      // Хэрэв захиалах бараа байвал Telegram руу нь автоматаар мессеж илгээх
       if (lowItems && lowItems.length > 0) {
         let alertMessage = `🚨 **ӨГЛӨӨНИЙ САНУУЛГА: АГУУЛАХЫН НӨӨЦ БАГАССАН БАЙНА**\n\nТаны өнөөдрийн үйл ажиллагааг тасалдуулахгүйн тулд дараах бараануудыг яаралтай захиалахыг санал болгож байна:\n\n`;
         
-       lowItems.forEach((item: any) => {
-  alertMessage += `🛒 **${item.name}**\n - Үлдэгдэл: ${Math.round(item.live_stock * 10) / 10} ${item.unit}\n - Захиалах хэмжээ: ${item.suggested_order} ${item.unit}\n\n`;
-});
+        lowItems.forEach((item: any) => {
+          alertMessage += `🛒 **${item.name}**\n - Үлдэгдэл: ${Math.round(item.live_stock * 10) / 10} ${item.unit}\n - Захиалах хэмжээ: ${item.suggested_order} ${item.unit}\n\n`;
+        });
 
         alertMessage += `*(Дээрх хэмжээг таны сүүлийн 30 хоногийн борлуулалтын хурдад тулгуурлан систем автоматаар бодож гаргав)*`;
 
-        // Telegram API руу илгээх
         await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -60,7 +57,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
-
-
-

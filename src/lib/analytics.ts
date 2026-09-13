@@ -159,6 +159,12 @@ export async function getAnalyticsData(
   const startDay = finalStartDate.split('T')[0];
   const endDay = finalEndDate.split('T')[0];
 
+// =========================================================================
+  // 🎯 ХУГАЦААНЫ ХАМГИЙН НАЙДВАРТАЙ ТООЛЛОГО ТОДОРХОЙЛОХ ЛОГИК
+  // =========================================================================
+  const countedEndMap = new Map<string, { date: string; qty: number }>();
+  const countedStartMap = new Map<string, { date: string; qty: number }>();
+
   rawInventoryLogs.forEach((log: any) => {
     const cost = parseFloat(log.total_cost) || 0;
     const qty = parseFloat(log.quantity) || 0; 
@@ -196,12 +202,17 @@ export async function getAnalyticsData(
     const key = cleanString(ing.name);
 
     if (log.type === 'count') {
-      const nText = (log.notes || "").toLowerCase();
-      if (nText.includes("start") || nText.includes("эхний") || logDate <= startDay) {
-        master[key].start = qty; 
-      } 
-      if (logDate >= startDay && logDate <= endDay && (nText.includes("end") || nText.includes("эцсийн") || !nText.includes("start"))) {
-        master[key].end = qty; 
+      // 1. END: Сонгосон хугацаан дахь ХАМГИЙН СҮҮЛИЙН тооллогыг л авна (Хуучин нь шинийгээ дарахгүй)
+      if (logDate >= startDay && logDate <= endDay) {
+        if (!countedEndMap.has(key) || log.date > countedEndMap.get(key)!.date) {
+          countedEndMap.set(key, { date: log.date, qty });
+        }
+      }
+      // 2. START: Эхлэх өдрөөс өмнөх ХАМГИЙН СҮҮЛИЙН тооллогыг л авна (5.30-ны тооллого зөв сонгогдоно)
+      if (logDate <= startDay) {
+        if (!countedStartMap.has(key) || log.date > countedStartMap.get(key)!.date) {
+          countedStartMap.set(key, { date: log.date, qty });
+        }
       }
     } else if (log.type === 'purchase') {
       if (logDate >= startDay && logDate <= endDay) {
@@ -210,6 +221,17 @@ export async function getAnalyticsData(
     }
   });
 
+  // 3. Тоолсон үр дүнг master объектдоо зөв оноох
+  for (const key in master) {
+    if (countedStartMap.has(key)) {
+      master[key].start = countedStartMap.get(key)!.qty;
+    }
+    if (countedEndMap.has(key)) {
+      master[key].end = countedEndMap.get(key)!.qty;
+    } else {
+      master[key].end = master[key].live_stock;
+    }
+  }
   rawRecipes.forEach((r: any) => {
     const pName = cleanString(r.product_name);
     const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
