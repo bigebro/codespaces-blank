@@ -153,7 +153,7 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // 1. URL-ээс ирсэн урилгын салбарыг автоматаар унших
+  // URL-ээс ирсэн урилгын салбарыг автоматаар унших
 useEffect(() => {
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);

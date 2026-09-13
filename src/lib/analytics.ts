@@ -75,7 +75,7 @@ export async function getAnalyticsData(
   ] = await Promise.all([
     supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
     supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate).order('date', { ascending: false }),
+    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).lte('date', finalEndDate).order('date', { ascending: false }),
     supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
     supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
     supabaseAdmin.from('products').select('*').ilike('client_id', clientId),

@@ -458,11 +458,18 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
  const systemPrompt = `
     You are an expert F&B data entry assistant. Read the provided receipt or image carefully.
 
-    1. IMAGE CLASSIFICATION:
+      1. IMAGE CLASSIFICATION:
        - If it contains a QR code, barcode, or printed thermal receipt text -> "image_type": "E-Barimt", "is_ebarimt": true.
+       - If it is a HANDWRITTEN NOTE on paper written with pen/pencil (e.g., "1л сүү асгасан", "өндөг 5ш", "талх 2ш авав 12000₮") -> "image_type": "Handwritten Note", "is_ebarimt": false. Parse each line into proper item, quantity, and cost!
        - If it is a physical photo of product packaging/goods without receipt -> "image_type": "Product Photo", "is_ebarimt": false.
 
-    2. FOOD VS NON-FOOD:
+      2. ACTION TYPE DETECTION:
+       - Spoilage/Damage ("асгасан", "муудсан", "хаясан", "хагарсан") -> "is_spoilage": true, quantity must be negative.
+       - Purchase/Supply ("авсан", "татан авалт", "ирлээ") -> quantity is positive.
+       - Map food items to: [${ingredientsList.join(', ')}].
+       - If non-food (napkins, soap, detergent) -> "is_food": false.
+
+      3.FOOD VS NON-FOOD:
        - FOOD INGREDIENTS (Milk, Coffee, Syrup, Puree, Fruits, Meat, Eggs, Flour, Sugar, Bread, Cheese):
          * Map to closest match in: [${ingredientsList.join(', ')}]. If not in list, keep the raw food name (it will be auto-created in inventory).
          * Set "is_food": true.
@@ -470,29 +477,29 @@ export async function parseReceiptImage(base64Image: string, ingredientsList: st
          * Keep original name.
          * Set "is_food": false (This goes directly to OPEX).
 
-    3. PAYMENT METHOD:
+      4. PAYMENT METHOD:
        - If receipt states Cash ("Бэлнээр", "Бэлэн") -> "payment_method": "cash".
        - If Card / QPay / Bank ("Бэлэн бус", "Карт", "Хаан банк") -> "payment_method": "bank".
        - Default to "bank" if not specified.
 
-    Respond STRICTLY with a JSON object:
-    {
-      "success": true,
-      "error_message": null,
-      "purchases": [
+        Respond STRICTLY with a JSON object:
         {
-          "item_name": "Raspberry Puree",
-          "quantity": 2,
-          "total_cost": 45000,
-          "is_food": true,
-          "is_ebarimt": true,
-          "payment_method": "bank",
-          "image_type": "E-Barimt",
-          "notes": ""
+          "success": true,
+          "error_message": null,
+          "purchases": [
+            {
+              "item_name": "Raspberry Puree",
+              "quantity": 2,
+              "total_cost": 45000,
+              "is_food": true,
+              "is_ebarimt": true,
+              "payment_method": "bank",
+              "image_type": "E-Barimt",
+              "notes": ""
+            }
+          ]
         }
-      ]
-    }
-  `;
+      `;
 
   const keys = getApiKeys();
   let responseText = "";
