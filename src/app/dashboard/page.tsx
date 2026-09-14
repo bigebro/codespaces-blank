@@ -15,7 +15,13 @@ import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation';
 import { exportAuditExcel } from '../../lib/exportAudit';
 
-
+// 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
+function getLocalDateStr(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function AiCfoChatTab({ 
   activeClient, 
@@ -1616,12 +1622,11 @@ const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
   </div>
 
   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-    
-    {/* 1. ӨНӨӨДӨР (1 Хоног) */}
+  {/* 1. ӨНӨӨДӨР (Шөнийн 03 цагт ч 9.15-аар зөв гарна!) */}
     <button
       type="button"
       onClick={() => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateStr(new Date()); // 👈 2026-09-15 болно!
         setStartDate(today);
         setEndDate(today);
         fetchDatabaseData(activeClient, today, today);
@@ -1636,8 +1641,9 @@ const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
       type="button"
       onClick={() => {
         const now = new Date();
-        const past7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const today = now.toISOString().split('T')[0];
+        const past7Date = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const past7 = getLocalDateStr(past7Date);
+        const today = getLocalDateStr(now);
         setStartDate(past7);
         setEndDate(today);
         fetchDatabaseData(activeClient, past7, today);

@@ -1252,7 +1252,7 @@ function KioskPage() {
 
   // 🎯 ЗӨВХӨН "ТООЛОГДСОН / ТООЛОГДООГҮЙ"-Д ТУЛГУУРЛАСАН ХАМГИЙН ЭНГИЙН МОТОР
   // =========================================================================
-  
+
   const loadInventoryToCount = async () => {
     setMsg('');
     setIsAiLoading(true);
@@ -1279,7 +1279,9 @@ function KioskPage() {
       // =========================================================================
       let analItemMap = new Map<string, any>();
       try {
-        const todayStr = new Date().toISOString().split('T')[0];
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const res = await fetch(
           `/api/analytics?clientId=${encodeURIComponent(tenantClientId)}&startDate=${todayStr}T00:00:00.000Z&endDate=${todayStr}T23:59:59.999Z`,
           { cache: 'no-store' }

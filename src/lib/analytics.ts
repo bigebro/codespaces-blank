@@ -202,19 +202,24 @@ export async function getAnalyticsData(
     const key = cleanString(ing.name);
 
     if (log.type === 'count') {
-      // 1. END: Сонгосон хугацаан дахь ХАМГИЙН СҮҮЛИЙН тооллогыг л авна (Хуучин нь шинийгээ дарахгүй)
-      if (logDate >= startDay && logDate <= endDay) {
-        if (!countedEndMap.has(key) || log.date > countedEndMap.get(key)!.date) {
-          countedEndMap.set(key, { date: log.date, qty });
-        }
-      }
-      // 2. START: Эхлэх өдрөөс өмнөх ХАМГИЙН СҮҮЛИЙН тооллогыг л авна (5.30-ны тооллого зөв сонгогдоно)
-      if (logDate <= startDay) {
-        if (!countedStartMap.has(key) || log.date > countedStartMap.get(key)!.date) {
+      const isStartNote = noteText.includes('start') || noteText.includes('эхний');
+      const isEndNote = noteText.includes('end') || noteText.includes('эцсийн');
+
+      // 1. START ТООЛЛОГО: Хэрэв тайлбарт 'start' гэж байвал ЭСВЭЛ эхлэх өдрөөс өмнө тоологдсон бол
+      if (isStartNote || logDate <= startDay) {
+        if (!countedStartMap.has(key) || log.date >= countedStartMap.get(key)!.date) {
           countedStartMap.set(key, { date: log.date, qty });
         }
       }
-    } else if (log.type === 'purchase') {
+
+      // 2. END ТООЛЛОГО: Хэрэв тайлбарт 'end' гэж байвал ЭСВЭЛ сонгосон хугацаанд тоологдсон бол
+      if (isEndNote || (logDate >= startDay && logDate <= endDay && !isStartNote)) {
+        if (!countedEndMap.has(key) || log.date >= countedEndMap.get(key)!.date) {
+          countedEndMap.set(key, { date: log.date, qty });
+        }
+      }
+    }
+      else if (log.type === 'purchase') {
       if (logDate >= startDay && logDate <= endDay) {
         master[key].purchased += qty;
       }
