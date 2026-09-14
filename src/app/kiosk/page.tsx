@@ -1428,14 +1428,12 @@ function KioskPage() {
         </div>
 
     <div className="flex items-center gap-2">
-          {/* ✅ ЭНИЙГ Link БОЛГОНО: */}
-          <Link 
-            href="/dashboard" 
-            className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
-          >
-            🔒 Dashboard
-          </Link>
-
+       <Link 
+        href="/login?from=kiosk"
+        className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
+      >
+        🔒 Dashboard
+      </Link>
           {/* 🟢 ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
           {selectedWorker && (
             <button 

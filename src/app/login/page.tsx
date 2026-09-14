@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
-
+import Link from 'next/link'; 
 // 🚀 THE QUANTUM FORCE & MATTER OPERALINK LOGO
 function OperlinkLogo({ className = "h-12 w-12" }: { className?: string }) {
   return (
@@ -152,20 +152,37 @@ export default function LoginPage() {
   const [signupRole, setSignupRole] = useState<'owner' | 'staff'>('owner');
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [fromKiosk, setFromKiosk] = useState(false);
 
-  // URL-ээс ирсэн урилгын салбарыг автоматаар унших
 useEffect(() => {
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
-    const branchFromUrl = params.get('branch');
-    const roleFromUrl = params.get('role');
-    if (branchFromUrl) {
-      setCompanyName(branchFromUrl);
-      setIsSignUp(true); // Шууд бүртгүүлэх горим асаана
-      if (roleFromUrl === 'staff') setSignupRole('staff');
+    if (params.get('from') === 'kiosk') {
+      setFromKiosk(true); // 👈 Зөвхөн Kiosk-оос дарж ирсэн үед л идэвхжинэ
     }
   }
 }, []);
+
+  // URL-ээс ирсэн урилгын салбарыг автоматаар унших
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      
+      // Kiosk-оос ирсэн эсэхийг унших:
+      if (params.get('from') === 'kiosk') {
+        setFromKiosk(true);
+      }
+
+      const branchFromUrl = params.get('branch');
+      const roleFromUrl = params.get('role');
+      if (branchFromUrl) {
+        setCompanyName(branchFromUrl);
+        setIsSignUp(true);
+        if (roleFromUrl === 'staff') setSignupRole('staff');
+      }
+    }
+  }, []);
+  
   const handleForgotPassword = async () => {
     if (!email) {
       setErrorMsg("Нууц үг сэргээх имэйлээ оруулна уу.");
@@ -428,7 +445,16 @@ useEffect(() => {
             </button>
           )}
         </div>
-
+              {fromKiosk && (
+          <div className="mt-4 pt-4 border-t border-slate-900 text-center">
+            <Link 
+              href="/kiosk"
+              className="text-xs text-slate-500 hover:text-emerald-400 font-bold transition inline-flex items-center gap-1"
+            >
+              ← Kiosk руу буцах
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
