@@ -1249,14 +1249,16 @@ function KioskPage() {
   };
 
   
-// 🧮 ШИНЖЛЭХ УХААНЫ ТОГТВОРТОЙ ЦИКЛ БА ДЭЭД ТАЛ НЬ 5-6 БАРАА ТОЛОХ ЛОГИК
- // 🧮 БҮХ НИЙТИЙН ШИНЖЛЭХ УХААНЫ ЦИКЛ ТОМЬЁО (k_shift = N_A/2 + N_B/20 + N_C/60)
+
+  // 🎯 ЗӨВХӨН "ТООЛОГДСОН / ТООЛОГДООГҮЙ"-Д ТУЛГУУРЛАСАН ХАМГИЙН ЭНГИЙН МОТОР
+  // =========================================================================
+  
   const loadInventoryToCount = async () => {
     setMsg('');
     setIsAiLoading(true);
 
     try {
-      // 1. Баазаас хамгийн сүүлийн үлдэгдэл ба сүүлд тоолсон огноог авах
+      // 1. Салбарын нийт түүхий эдүүдийг баазаас татах (126 бараа)
       const { data: freshIngs } = await supabase
         .from('ingredients')
         .select('*')
@@ -1264,86 +1266,102 @@ function KioskPage() {
         .order('name', { ascending: true });
 
       const baseList = freshIngs && freshIngs.length > 0 ? freshIngs : ingredients;
+      const N = baseList.length; // Баазад байгаа бодит тоо (126)
 
-      // 2. Analytics-аас АВС зэрэглэлийг авах
-      let analMap = new Map<string, string>();
+      // 🎯 ӨДРИЙН ДЭЭД ХЯЗГААР (126 бараатай үед дээд тал нь 6 бараа):
+      const DAILY_MAX_CAP = Math.min(6, Math.max(4, Math.ceil(N / 20)));
+
+      // Сүүлийн 12 цагт өнөөдөр тоологдсон бол түр алгасах
+      const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
+
+      // =========================================================================
+      // ⚡ 1-Р БҮЛЭГ: ӨНӨӨДӨР ХӨДӨЛСӨН А БАРААНУУД (Сүү, Кофе үр - ӨДӨР БҮР ГАРНА!)
+      // =========================================================================
+      let analItemMap = new Map<string, any>();
       try {
-        const res = await fetch(`/api/analytics?clientId=${encodeURIComponent(tenantClientId)}`, { cache: 'no-store' });
+        const todayStr = new Date().toISOString().split('T')[0];
+        const res = await fetch(
+          `/api/analytics?clientId=${encodeURIComponent(tenantClientId)}&startDate=${todayStr}T00:00:00.000Z&endDate=${todayStr}T23:59:59.999Z`,
+          { cache: 'no-store' }
+        );
         if (res.ok) {
-          const analData = await res.json();
-          (analData.all_inventory_data || []).forEach((i: any) => {
-            analMap.set(i.id, i.abc_class);
-            analMap.set(i.name.toLowerCase().trim(), i.abc_class);
+          const analResult = await res.json();
+          (analResult.all_inventory_data || []).forEach((i: any) => {
+            analItemMap.set(i.id, i);
+            analItemMap.set(i.name.toLowerCase().trim(), i);
           });
         }
       } catch (e) {
-        console.warn("Analytics fetch failed, using fallback");
+        console.warn("Analytics fetch error");
       }
 
-      const now = new Date();
-      const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
-
-      // 3. Бараа бүрт ABC ангилал оноох
-      const enrichedList = baseList.map((item: any) => {
-        const classFromMap = analMap.get(item.id) || analMap.get(item.name.toLowerCase().trim());
-        const finalClass = item.is_critical ? 'A' : (classFromMap || 'C');
-        return { ...item, abc_class: finalClass };
-      });
-
-      // =========================================================================
-      // 🚨 ТҮВШИН 0: ЯАРАЛТАЙ ДУУСАХ ЭРСДЭЛТЭЙ БАРАА (STOCKOUT PREVENT)
-      // С-Class байсан ч Par Level-ээсээ буурсан бол шууд эхэнд орно!
-      // =========================================================================
-      const urgentLowStockItems = enrichedList.filter((item: any) => {
-        const stock = parseFloat(item.current_stock ?? item.live_stock ?? 0);
-        const par = parseFloat(item.par_level ?? 0);
-        const notCountedRecently = !item.last_counted_at || item.last_counted_at < twelveHoursAgo;
-        return par > 0 && stock <= par && notCountedRecently;
-      });
-
-      const urgentIds = new Set(urgentLowStockItems.map(i => i.id));
-
-      // Ангилал тус бүрээр нь ялгах:
-      const classAAll = enrichedList.filter((i: any) => !urgentIds.has(i.id) && (i.abc_class === 'A' || i.is_critical));
-      const classBAll = enrichedList.filter((i: any) => !urgentIds.has(i.id) && i.abc_class === 'B' && !i.is_critical);
-      const classCAll = enrichedList.filter((i: any) => !urgentIds.has(i.id) && i.abc_class === 'C' && !i.is_critical);
-
-      // =========================================================================
-      // 📐 ШИНЖЛЭХ УХААНЫ ТОМЬЁОГООР ТООЛОХ ТООГ ОЛОХ:
-      // S_day = 2 ээлж, T_A = 1 хоног, T_B = 10 хоног, T_C = 30 хоног
-      // =========================================================================
-      const shiftsPerDay = 2;
-      const kA = Math.max(1, Math.ceil(classAAll.length / (shiftsPerDay * 1)));   // Жишээ нь: 4 байвал 2, 20 байвал 10
-      const kB = Math.max(1, Math.ceil(classBAll.length / (shiftsPerDay * 10)));  // 10 хоногт 1 бүтэн цикл
-      const kC = Math.max(1, Math.ceil(classCAll.length / (shiftsPerDay * 30)));  // 30 хоногт 1 бүтэн цикл
-
-      // 1. А-Class-аас хамгийн удаан тоологдоогүйг сонгох:
-      const selectedA = classAAll
+      // Өнөөдөр борлуулалтад орсон түүхий эдүүдийг мөнгөн дүнгээр нь шүүх:
+      const movingCandidates = baseList
         .filter((item: any) => !item.last_counted_at || item.last_counted_at < twelveHoursAgo)
-        .sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
-        .slice(0, kA);
+        .map((item: any) => {
+          const anal = analItemMap.get(item.id) || analItemMap.get(item.name.toLowerCase().trim());
+          const todayUsage = anal?.theoretical || 0;
+          const unitPrice = parseFloat(item.unit_price) || 0;
+          const moneyMoved = todayUsage * unitPrice; // ₮ өртөг
 
-      // 2. B-Class-аас хамгийн удаан тоологдоогүйг сонгох:
-      const selectedB = classBAll
+          return {
+            ...item,
+            todayUsage,
+            moneyMoved,
+            is_critical: item.is_critical || false
+          };
+        })
+        .filter((item: any) => item.moneyMoved > 0 || item.is_critical)
+        .sort((a: any, b: any) => {
+          if (a.is_critical !== b.is_critical) return a.is_critical ? -1 : 1;
+          return b.moneyMoved - a.moneyMoved; // Их мөнгө урссан нь эхэндээ гарна
+        });
+
+      const totalShiftMoney = movingCandidates.reduce((sum, i) => sum + i.moneyMoved, 0);
+
+      // Өнөөдрийн 70%-ийн мөнгөний босгыг давах хүртэл гол бараануудыг авах:
+      // (B/C цикл бараанд хамгийн багадаа 2 суудал заавал үлдээнэ!)
+      const maxVelocitySlots = Math.max(1, DAILY_MAX_CAP - 2);
+      const velocityItems: any[] = [];
+      let accumulatedMoney = 0;
+
+      for (const item of movingCandidates) {
+        if (velocityItems.length >= maxVelocitySlots) break; // Суудлын хязгаар
+        velocityItems.push(item);
+        accumulatedMoney += item.moneyMoved;
+        if (totalShiftMoney > 0 && (accumulatedMoney / totalShiftMoney) >= 0.70) {
+          break;
+        }
+      }
+
+      const pickedIds = new Set(velocityItems.map(i => i.id));
+
+      // =========================================================================
+      // 🔄 2-Р БҮЛЭГ: ҮЛДСЭН СУУДЛЫГ 126 БАРААНЫ ЦИКЛЭЭР НӨХӨХ (SLOT-FILLING)
+      // =========================================================================
+      // Нийт тоо хэзээ ч DAILY_MAX_CAP-аас (6 бараанаас) хэтрэхгүй:
+      const remainingSlots = Math.max(0, DAILY_MAX_CAP - velocityItems.length);
+
+      // 126 бараанаас хамгийн удаан тоологдоогүй үлдсэн бараанууд:
+      const uncountedCycleItems = baseList
+        .filter((item: any) => !pickedIds.has(item.id))
         .filter((item: any) => !item.last_counted_at || item.last_counted_at < twelveHoursAgo)
-        .sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
-        .slice(0, kB);
+        .sort((a: any, b: any) => {
+          const timeA = new Date(a.last_counted_at || '2000-01-01').getTime();
+          const timeB = new Date(b.last_counted_at || '2000-01-01').getTime();
+          return timeA - timeB; // Хамгийн эрт тоологдсон хуучин нь түрүүлж гарна (FIFO)
+        })
+        .slice(0, remainingSlots); // 👈 Үлдсэн суудлыг яг таг нөхнө!
 
-      // 3. C-Class-аас хамгийн удаан тоологдоогүйг сонгох:
-      const selectedC = classCAll
-        .filter((item: any) => !item.last_counted_at || item.last_counted_at < twelveHoursAgo)
-        .sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
-        .slice(0, kC);
-
-      // Бүх сонгогдсон барааг нэгтгэх (Яаралтай дуусаж буй нь хамгийн дээрээ байна!)
-      const finalToCount = [...urgentLowStockItems, ...selectedA, ...selectedB, ...selectedC];
+      // 🎯 Эцсийн нэгдсэн жагсаалт (Нийт 6 бараанаас хэзээ ч хэтрэхгүй):
+      const finalToCount = [...velocityItems, ...uncountedCycleItems];
 
       setInventoryToCount(finalToCount);
       setCounts({});
       setStep('close_shift');
     } catch (err) {
-      console.error("Cycle count calculation error:", err);
-      setInventoryToCount(ingredients.slice(0, 5));
+      console.error("Smart Inventory Engine Error:", err);
+      setInventoryToCount(ingredients.slice(0, 4));
       setStep('close_shift');
     } finally {
       setIsAiLoading(false);
@@ -2026,16 +2044,18 @@ function KioskPage() {
                           <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-black animate-pulse">
                             🚨 Яаралтай (Нөөц бага)
                           </span>
-                        ) : item.abc_class === 'A' || item.is_critical ? (
-                          <span className="text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.5 rounded font-black">
-                            ⭐ A-Class (Гол бараа)
-                          </span>
-                        ) : (
-                          <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
-                            🔄 Цикл тооллого
-                          </span>
-                        )}
-                      </div>
+                        ) : item.todayUsage > 0 ? (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black">
+                        ⚡ Өдрийн эргэлт ({Math.round(item.moneyMoved || 0).toLocaleString()}₮)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
+                        🔄 Сар бүрийн цикл
+                      </span>
+                    )}
+                    {/* 👆👆👆 ЭНД ХҮРТЭЛ 👆👆👆 */}
+
+                  </div>
 
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         Системд: <strong className="text-slate-200">{Math.round(stock * 10) / 10}</strong> {item.unit}

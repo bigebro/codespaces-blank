@@ -483,10 +483,19 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     }
   });
 
-  const bcCount = fullInventory.filter(i => i.abc_class !== 'A').length;
-  const shiftsPerDay = 2;
-  const cycleDays = 14;
-  const optimalCycleCountPerShift = Math.max(2, Math.ceil(bcCount / (shiftsPerDay * cycleDays)));
+
+ // 🎯 САРЫН ЦИКЛИЙН СТАТИСТИК БА ӨДӨРТ НОГДОХ КВОТ (ЭЭЛЖ ОГТ ХАМААРАХГҮЙ)
+  // =========================================================================
+  const N = fullInventory.length; // Нийт түүхий эдийн бодит тоо
+  const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
+
+  // 30 хоногтоо тоологдсон (DONE) болон тоологдоогүй (NOT DONE) бараануудын тоо:
+  const countedInCycleCount = fullInventory.filter((i: any) => i.last_counted_at && i.last_counted_at >= thirtyDaysAgo).length;
+  const uncountedInCycleCount = N - countedInCycleCount;
+
+  // Ээлж 1 байна уу, 2 байна уу хамаагүй: Сард 100% DONE болоход өдөрт ногдох тоо (N / 30):
+  // (120 бараатай бол 4, 60 бараатай бол 2, 30 бараатай бол 1 гарна)
+  const dailyCycleQuota = Math.max(1, Math.ceil(N / 30));
 
   // =========================================================================
   // 💡 ШИНЭЭР НЭМСЭН: 3. WAC MARGIN GUARD (Үнийн өсөлт & Маржин хамгаалагч)
@@ -708,11 +717,14 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
       active_tax_amount: activeTaxAmount,
       estimated_vat_10pct: estimatedVat10Pct
     },
-    abc_summary: {
+  abc_summary: {
       a_count: fullInventory.filter((i: any) => i.abc_class === 'A').length,
       b_count: fullInventory.filter((i: any) => i.abc_class === 'B').length,
       c_count: fullInventory.filter((i: any) => i.abc_class === 'C').length,
-      suggested_cycle_per_shift: optimalCycleCountPerShift
+      total_items: N,
+      counted_in_cycle: countedInCycleCount,   // 👈 30 хоногт тоологдсон (DONE) барааны тоо
+      uncounted_in_cycle: uncountedInCycleCount, // 👈 Тоологдоогүй (NOT DONE) үлдсэн барааны тоо
+      suggested_cycle_per_shift: dailyCycleQuota  // 👈 Kiosk-той 100% нийцнэ
     },
     margin_guard_alerts: marginAlerts,
     worker_fraud_matrix: workerFraudMatrix,
