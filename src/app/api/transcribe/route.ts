@@ -3,10 +3,7 @@ import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { advancedMongolianVoiceParser } from '../../../lib/gemini';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-function getApiKeys(): string[] {
-  const raw = process.env.GEMINI_API_KEY || "";
-  return raw.replace(/["']/g, "").split(",").map(k => k.trim()).filter(Boolean);
-}
+
 
 export async function POST(request: Request) {
   try {
@@ -66,14 +63,16 @@ export async function POST(request: Request) {
     // =========================================================================
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64Audio = buffer.toString('base64');
-    const keys = getApiKeys();
+
     let geminiText = '';
 
-    for (let i = 0; i < keys.length; i++) {
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+
+    if (key) {
       try {
-        const ai = new GoogleGenerativeAI(keys[i]);
+        const ai = new GoogleGenerativeAI(key);
         const model = ai.getGenerativeModel({
-          model: 'gemini-3.6-flash',
+          model: 'gemini-3.5-flash-lite',
           generationConfig: {
             temperature: 0.1,
             maxOutputTokens: 100,
@@ -86,16 +85,14 @@ export async function POST(request: Request) {
             role: 'user',
             parts: [
               { text: 'Listen to this spoken Mongolian voice audio. Output ONLY the transcribed Mongolian Cyrillic words. Do not reply or converse.' },
-              { inlineData: { mimeType: mimeType, data: base64Audio } } // ⚡ Fixed real MIME
+              { inlineData: { mimeType: mimeType, data: base64Audio } }
             ]
           }]
         });
 
         geminiText = response.response.text().trim();
-        if (geminiText) break;
       } catch (e: any) {
         console.error("Gemini Stage 2 Error:", e.message || e);
-        continue;
       }
     }
 

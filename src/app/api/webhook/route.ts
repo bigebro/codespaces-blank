@@ -1,15 +1,19 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { parseOperationalText, parseReceiptImage } from '../../../lib/gemini';
-import { getAnalyticsData } from '../../../lib/analytics';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
+import { getAnalyticsData } from "../../../lib/analytics";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ⚡ 1. Telegram Bot-д зориулсан 60 секундийн кэш
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000;
 
-async function getCachedAnalytics(clientId: string, start?: string, end?: string) {
-  const cacheKey = `${clientId}_${start || 'default'}_${end || 'default'}`;
+async function getCachedAnalytics(
+  clientId: string,
+  start?: string,
+  end?: string,
+) {
+  const cacheKey = `${clientId}_${start || "default"}_${end || "default"}`;
   const cached = analyticsCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -21,31 +25,47 @@ async function getCachedAnalytics(clientId: string, start?: string, end?: string
   return freshData;
 }
 
-
 export const maxDuration = 30;
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
 
 // 💡 Алдааг эелдэг болгох функц
 function getFriendlyErrorMessage(errorMsg: string): string {
   const errStr = (errorMsg || "").toLowerCase();
-  if (errStr.includes("503") || errStr.includes("high demand") || errStr.includes("unavailable") || errStr.includes("overloaded")) {
+  if (
+    errStr.includes("503") ||
+    errStr.includes("high demand") ||
+    errStr.includes("unavailable") ||
+    errStr.includes("overloaded")
+  ) {
     return "⚠️ AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
   }
-  if (errStr.includes("429") || errStr.includes("quota") || errStr.includes("rate limit") || errStr.includes("too many requests")) {
+  if (
+    errStr.includes("429") ||
+    errStr.includes("quota") ||
+    errStr.includes("rate limit") ||
+    errStr.includes("too many requests")
+  ) {
     return "⚠️ Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
   }
   return "⚠️ Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
 }
 
+// 🕵️‍♂️ ТЕЛЕГРАМ ДЭЭРХ ЭЗЭНД ЗОРИУЛСАН АУДИТОРЫН ПРОМПТ
 const OWNER_CFO_PROMPT = `
-  Та ШУТИС-ийн (MUST) дэргэдэх "SF Coffee" кофе шопын санхүүгийн ахлах зөвлөх болон стратегийн хамтрагч юм. 
+  Та бол кофе шоп, рестораны Ахлах Санхүүгийн Зөвлөх (CFO) бөгөөд Алдагдал Хяналтын Мөрдөгч Аудитор (Forensic Auditor) юм. 
   
-  [АЖИЛЛАХ ГОРЫМ - ХАТУУ МӨРДӨХ]
-  - Хэрэглэгчийн асуултад шууд товч, цэгцтэй, санхүүгийн бодит тоо баримтад тулгуурлан хариулна.
+  [АЖИЛЛАХ ГОРЫМ - ХАТУУ МӨРДӨХ]:
+  - Ирсэн бодит тоон дээр үндэслэн шууд товч, цэгцтэй, үнэн зөв хариулна.
   - Ундааны эрүүл бохир ашиг (Gross margin) нь 75%-85%, хоолных 60%-70% байна.
-  - Асуултад маш тодорхой, эелдэг, Монгол хэлээр хариулна.
+  
+  [🕵️‍♂️ АЛДАГДАЛ ШИНЖЛЭХ МӨРДЛӨГИЙН ЛОГИК]:
+  Хэрэглэгч алдагдал, зөрүү, хулгайн талаар асуувал дараах 4 магадлалаар шинжилж дүгнэлт өгнө:
+  1. БЭЛЭН МӨНГӨНИЙ ХУЛГАЙ: Кофе үр, Сүү, Аяга зэрэг жороор холбогддог бараанууд зэрэг дутсан атлаа ПОС-д борлуулалт ороогүй бол "Бэлэн мөнгөний хулгай байх 90%-ийн магадлалтай. Камераа шалгана уу".
+  2. ОРЦ ХЭТРҮҮЛЭЛТ: Нэг аяганд ногдох хэмжээгээр тогтмол дутсан бол "Орц хэтрүүлэлт эсвэл бутлагчийн тохиргоо алдагдсан".
+  3. БҮРТГЭЭГҮЙ ХАЯГДАЛ: 1-2 ширхэг дутсан бол "Ажилтан хоолондоо хэрэглэсэн эсвэл асгаснаа бүртгэхээ мартсан".
+  4. ФИЗИК ХУЛГАЙ: Их хэмжээгээр гэнэт дутсан бол "Том хэмжээний асгаралт эсвэл бодит физик хулгай".
 `;
 
 const WORKER_BOT_PROMPT = `
@@ -56,12 +76,36 @@ const WORKER_BOT_PROMPT = `
      "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
 `;
 
-function getApiKeys(): string[] {
-  const raw = process.env.GEMINI_API_KEY || "";
-  return raw.replace(/["']/g, "").split(",").map(k => k.trim()).filter(Boolean);
-}
+// ⚡ Google гацсан үед ажиллах Groq Fallback
+async function callGroqFallbackTelegram(
+  systemPrompt: string,
+  userText: string,
+) {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) return "";
 
-    let currentKeyIndex = 0;
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${groqKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userText },
+        ],
+        temperature: 0.3,
+      }),
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (err) {
+    return "";
+  }
+}
 
 export async function POST(request: Request) {
   let currentChatId: number | null = null;
@@ -76,120 +120,219 @@ export async function POST(request: Request) {
     // A. TELEGRAM ТОЛОХ, ДҮР СОНГОХ, ЦУЦЛАХ (CALLBACK QUERIES)
     // =========================================================================
     if (callback_query) {
-      const chatId = callback_query.message?.chat?.id || callback_query.from?.id;
+      const chatId =
+        callback_query.message?.chat?.id || callback_query.from?.id;
       currentChatId = chatId;
       const callbackData = callback_query.data;
       const messageId = callback_query.message?.message_id;
       const callbackQueryId = callback_query.id;
-      
+
       if (callbackData.startsWith("cnt_")) {
         const itemName = callbackData.replace("cnt_", "");
-        const { data: activeShift } = await supabaseAdmin.from('shifts').select('closing_checklist').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        const { data: activeShift } = await supabaseAdmin
+          .from("shifts")
+          .select("closing_checklist")
+          .eq("telegram_chat_id", currentChatId)
+          .eq("is_active", true)
+          .maybeSingle();
         let systemStock = 0;
         let unitStr = "ш";
-        
+
         if (activeShift && activeShift.closing_checklist) {
-          const checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
-          const item = checklist.find((i: any) => i.name.trim().toLowerCase() === itemName.trim().toLowerCase());
+          const checklist =
+            typeof activeShift.closing_checklist === "string"
+              ? JSON.parse(activeShift.closing_checklist)
+              : activeShift.closing_checklist;
+          const item = checklist.find(
+            (i: any) =>
+              i.name.trim().toLowerCase() === itemName.trim().toLowerCase(),
+          );
           if (item) {
             systemStock = parseFloat(item.live_stock) || 0;
             unitStr = item.unit || "ш";
           }
         }
 
-        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Систем дээрх үлдэгдэл: ${Math.round(systemStock * 10)/10} ${unitStr})\n\nЗөвхөн тоогоор бичнэ үү:`;
+        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Систем дээрх үлдэгдэл: ${Math.round(systemStock * 10) / 10} ${unitStr})\n\nЗөвхөн тоогоор бичнэ үү:`;
         await sendTelegramMessageWithForceReply(currentChatId, promptText);
-        return NextResponse.json({ status: 'ok' });
+        return NextResponse.json({ status: "ok" });
       }
 
       if (callbackData.startsWith("role_")) {
-        const selectedRole = callbackData === "role_barista" ? "Бариста ☕" : "Тогооч 🍳";
+        const selectedRole =
+          callbackData === "role_barista" ? "Бариста ☕" : "Тогооч 🍳";
         const firstName = callback_query.from?.first_name || "Ажилтан";
         const fullNameRole = `${selectedRole} (${firstName})`;
 
-        const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
-        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+        const { data: userProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("client_id")
+          .eq("telegram_chat_id", currentChatId)
+          .single();
+        const tenantClientId = userProfile?.client_id || "SF Coffee";
 
-        await supabaseAdmin.from('profiles').update({ role: selectedRole }).eq('telegram_chat_id', currentChatId);
+        await supabaseAdmin
+          .from("profiles")
+          .update({ role: selectedRole })
+          .eq("telegram_chat_id", currentChatId);
 
-        const { data: roleTasks } = await supabaseAdmin.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', selectedRole).eq('is_active', true);
-        const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
+        const { data: roleTasks } = await supabaseAdmin
+          .from("tasks")
+          .select("*")
+          .eq("client_id", tenantClientId)
+          .eq("role", selectedRole)
+          .eq("is_active", true);
+        const taskChecklist =
+          roleTasks?.map((t) => ({
+            id: t.id,
+            name: t.task_name,
+            weight: t.weight,
+            done: false,
+          })) || [];
 
-        await supabaseAdmin.from('shifts').update({
-          character_role: fullNameRole,
-          daily_tasks_checklist: taskChecklist
-        }).eq('telegram_chat_id', currentChatId).eq('is_active', true);
+        await supabaseAdmin
+          .from("shifts")
+          .update({
+            character_role: fullNameRole,
+            daily_tasks_checklist: taskChecklist,
+          })
+          .eq("telegram_chat_id", currentChatId)
+          .eq("is_active", true);
 
-        await answerTelegramCallback(callbackQueryId, `${selectedRole} сонгогдлоо!`);
-        
-        let taskText = taskChecklist.length > 0 
-          ? `\n\n📌 **Өнөөдрийн даалгаврууд:**\n` + taskChecklist.map((t, i) => `${i+1}. ${t.name}`).join('\n')
-          : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
+        await answerTelegramCallback(
+          callbackQueryId,
+          `${selectedRole} сонгогдлоо!`,
+        );
 
-        await editTelegramMessage(currentChatId, messageId, `✅ **Үүрэг сонгогдлоо!**\n\nТаны дүр: **${fullNameRole}**${taskText}\n\nАжилдаа амжилт хүсье!`);
-        return NextResponse.json({ status: 'ok' });
+        let taskText =
+          taskChecklist.length > 0
+            ? `\n\n📌 **Өнөөдрийн даалгаврууд:**\n` +
+              taskChecklist.map((t, i) => `${i + 1}. ${t.name}`).join("\n")
+            : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
+
+        await editTelegramMessage(
+          currentChatId,
+          messageId,
+          `✅ **Үүрэг сонгогдлоо!**\n\nТаны дүр: **${fullNameRole}**${taskText}\n\nАжилдаа амжилт хүсье!`,
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
       if (callbackData.startsWith("tsk_")) {
         const index = parseInt(callbackData.replace("tsk_", ""));
-        const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).single();
-        if (!activeShift) return NextResponse.json({ status: 'ok' });
+        const { data: activeShift } = await supabaseAdmin
+          .from("shifts")
+          .select("*")
+          .eq("telegram_chat_id", currentChatId)
+          .eq("is_active", true)
+          .single();
+        if (!activeShift) return NextResponse.json({ status: "ok" });
 
-        let tasks = typeof activeShift.daily_tasks_checklist === 'string' ? JSON.parse(activeShift.daily_tasks_checklist) : activeShift.daily_tasks_checklist;
+        let tasks =
+          typeof activeShift.daily_tasks_checklist === "string"
+            ? JSON.parse(activeShift.daily_tasks_checklist)
+            : activeShift.daily_tasks_checklist;
         tasks[index].done = !tasks[index].done;
-        
-        await supabaseAdmin.from('shifts').update({ daily_tasks_checklist: tasks }).eq('id', activeShift.id);
 
-        let buttons = tasks.map((t: any, i: number) => [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }]);
-        buttons.push([{ text: "➔ Дараагийн алхам: Тооллого хийх", callback_data: "go_to_inventory" }]);
+        await supabaseAdmin
+          .from("shifts")
+          .update({ daily_tasks_checklist: tasks })
+          .eq("id", activeShift.id);
 
-        await editTelegramMessage(currentChatId, messageId, "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:", buttons);
-        return NextResponse.json({ status: 'ok' });
+        let buttons = tasks.map((t: any, i: number) => [
+          {
+            text: `${t.done ? "✅" : "◻️"} ${t.name}`,
+            callback_data: `tsk_${i}`,
+          },
+        ]);
+        buttons.push([
+          {
+            text: "➔ Дараагийн алхам: Тооллого хийх",
+            callback_data: "go_to_inventory",
+          },
+        ]);
+
+        await editTelegramMessage(
+          currentChatId,
+          messageId,
+          "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:",
+          buttons,
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
       if (callbackData === "go_to_inventory") {
-        await answerTelegramCallback(callbackQueryId, "Тооллого руу шилжиж байна...");
+        await answerTelegramCallback(
+          callbackQueryId,
+          "Тооллого руу шилжиж байна...",
+        );
         await generateInventoryChecklist(currentChatId, messageId, hostUrl);
-        return NextResponse.json({ status: 'ok' });
+        return NextResponse.json({ status: "ok" });
       }
 
       if (callbackData === "ignore") {
-        await answerTelegramCallback(callbackQueryId, "✅ Энэ бараа тоологдсон байна.");
-        return NextResponse.json({ status: 'ok' });
+        await answerTelegramCallback(
+          callbackQueryId,
+          "✅ Энэ бараа тоологдсон байна.",
+        );
+        return NextResponse.json({ status: "ok" });
       }
-      
+
       if (callbackData === "close_shift_locked") {
-        await answerTelegramCallback(callbackQueryId, "⚠️ Үлдсэн бараануудыг тоолж дуусгана уу!");
-        return NextResponse.json({ status: 'ok' });
+        await answerTelegramCallback(
+          callbackQueryId,
+          "⚠️ Үлдсэн бараануудыг тоолж дуусгана уу!",
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
       if (callbackData === "close_shift_final") {
-        const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+        const { data: activeShift } = await supabaseAdmin
+          .from("shifts")
+          .select("*")
+          .eq("telegram_chat_id", currentChatId)
+          .eq("is_active", true)
+          .maybeSingle();
         await answerTelegramCallback(callbackQueryId, "Ээлж хаагдлаа");
-        await editTelegramMessage(currentChatId, messageId, "✅ Чек-лист тооллого амжилттай хийгдэж дууслаа.");
-        
+        await editTelegramMessage(
+          currentChatId,
+          messageId,
+          "✅ Чек-лист тооллого амжилттай хийгдэж дууслаа.",
+        );
+
         if (activeShift) {
           await generateShiftScorecard(activeShift, currentChatId);
         } else {
-          await sendTelegramMessageWithMenu(currentChatId, "🌙 Таны ээлж хаагдсан. Сайхан амраарай!");
+          await sendTelegramMessageWithMenu(
+            currentChatId,
+            "🌙 Таны ээлж хаагдсан. Сайхан амраарай!",
+          );
         }
-        return NextResponse.json({ status: 'ok' });
+        return NextResponse.json({ status: "ok" });
       }
 
       if (callbackData.startsWith("undo_")) {
         const logId = callbackData.replace("undo_", "");
         if (logId && logId !== "undefined") {
-          await supabaseAdmin.from('inventory_logs').delete().eq('id', logId);
+          await supabaseAdmin.from("inventory_logs").delete().eq("id", logId);
           await answerTelegramCallback(callbackQueryId, "Бүртгэлийг цуцаллаа.");
-          await editTelegramMessage(currentChatId!, messageId, "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).");
-          await sendTelegramMessageWithForceReply(currentChatId!, "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:");
+          await editTelegramMessage(
+            currentChatId!,
+            messageId,
+            "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
+          );
+          await sendTelegramMessageWithForceReply(
+            currentChatId!,
+            "Та гүйлгээгээ доор зөвөөр дахин бичнэ үү:",
+          );
         }
-        return NextResponse.json({ status: 'ok' });
+        return NextResponse.json({ status: "ok" });
       }
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
-    if (!message || (!message.text && !message.photo)) return NextResponse.json({ status: 'ok' });
+    if (!message || (!message.text && !message.photo))
+      return NextResponse.json({ status: "ok" });
 
     currentChatId = message.chat.id;
 
@@ -197,29 +340,48 @@ export async function POST(request: Request) {
     // B. ЗУРАГ БҮРТГЭХ (E-BARIMT)
     // =========================================================================
     if (message.photo && message.photo.length > 0) {
-      await sendTelegramMessage(currentChatId, "📸 Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...");
-      
+      await sendTelegramMessage(
+        currentChatId,
+        "📸 Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...",
+      );
+
       try {
         const photo = message.photo[message.photo.length - 1];
-        const fileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getFile?file_id=${photo.file_id}`);
+        const fileRes = await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_TOKEN}/getFile?file_id=${photo.file_id}`,
+        );
         const fileData = await fileRes.json();
         const filePath = fileData.result.file_path;
-        
-        const imageRes = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${filePath}`);
+
+        const imageRes = await fetch(
+          `https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${filePath}`,
+        );
         const arrayBuffer = await imageRes.arrayBuffer();
-        const base64Image = Buffer.from(arrayBuffer).toString('base64');
+        const base64Image = Buffer.from(arrayBuffer).toString("base64");
 
-        const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
-        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+        const { data: userProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("client_id")
+          .eq("telegram_chat_id", currentChatId)
+          .single();
+        const tenantClientId = userProfile?.client_id || "SF Coffee";
 
-        const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
-        const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
+        const { data: ingredients } = await supabaseAdmin
+          .from("ingredients")
+          .select("id, name, unit")
+          .eq("client_id", tenantClientId);
+        const allowedNames = ingredients
+          ? ingredients.map((i: any) => i.name)
+          : [];
 
         const aiAnalysis = await parseReceiptImage(base64Image, allowedNames);
 
         if (!aiAnalysis || aiAnalysis.success === false) {
-          await sendTelegramMessage(currentChatId, aiAnalysis?.error_message || "❌ Зургийг таньж чадсангүй.");
-          return NextResponse.json({ status: 'ok' });
+          await sendTelegramMessage(
+            currentChatId,
+            aiAnalysis?.error_message || "❌ Зургийг таньж чадсангүй.",
+          );
+          return NextResponse.json({ status: "ok" });
         }
 
         let successMessage = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
@@ -229,19 +391,21 @@ export async function POST(request: Request) {
 
         for (const item of aiAnalysis.purchases) {
           const ing = ingredients?.find((i: any) => i.name === item.item_name);
-          const isProductPhoto = item.image_type === 'Product Photo';
-          const noteText = isProductPhoto ? '📸 Барааны зураг (Баримтгүй)' : '🧾 E-Barimt Scan';
+          const isProductPhoto = item.image_type === "Product Photo";
+          const noteText = isProductPhoto
+            ? "📸 Барааны зураг (Баримтгүй)"
+            : "🧾 E-Barimt Scan";
 
           if (ing) {
             logsToInsert.push({
               client_id: tenantClientId,
               ingredient_id: ing.id,
               quantity: Math.abs(item.quantity),
-              type: 'purchase',
+              type: "purchase",
               total_cost: item.total_cost || 0,
               notes: noteText,
               date: currentDate,
-              worker_name: workerName
+              worker_name: workerName,
             });
             successMessage += `• ${ing.name}: ${item.quantity} ${ing.unit} (${(item.total_cost || 0).toLocaleString()}₮)\n`;
           } else {
@@ -250,166 +414,268 @@ export async function POST(request: Request) {
               ingredient_id: null,
               non_food_item: item.item_name,
               quantity: Math.abs(item.quantity),
-              type: 'purchase',
+              type: "purchase",
               total_cost: item.total_cost || 0,
               notes: `${noteText} (OPEX)`,
               date: currentDate,
-              worker_name: workerName
+              worker_name: workerName,
             });
             successMessage += `• ${item.item_name} (Бусад): ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮)\n`;
           }
         }
 
         if (logsToInsert.length > 0) {
-          await supabaseAdmin.from('inventory_logs').insert(logsToInsert);
+          await supabaseAdmin.from("inventory_logs").insert(logsToInsert);
         }
 
         await sendTelegramMessage(currentChatId, successMessage);
-        return NextResponse.json({ status: 'ok' });
-
+        return NextResponse.json({ status: "ok" });
       } catch (err) {
         console.error("Photo Error:", err);
-        await sendTelegramMessage(currentChatId, "❌ Зураг унших үед системийн алдаа гарлаа.");
-        return NextResponse.json({ status: 'ok' });
+        await sendTelegramMessage(
+          currentChatId,
+          "❌ Зураг унших үед системийн алдаа гарлаа.",
+        );
+        return NextResponse.json({ status: "ok" });
       }
     }
 
-    const incomingText = message.text ? message.text.trim() : (message.caption ? message.caption.trim() : "");
+    const incomingText = message.text
+      ? message.text.trim()
+      : message.caption
+        ? message.caption.trim()
+        : "";
 
     // =========================================================================
     // C. ТОЛОХ БАРААНЫ ТОО БИЧИХ ҮЕД
     // =========================================================================
-    if (message.reply_to_message && message.reply_to_message.text && message.reply_to_message.text.includes("үлдэгдэл")) {
+    if (
+      message.reply_to_message &&
+      message.reply_to_message.text &&
+      message.reply_to_message.text.includes("үлдэгдэл")
+    ) {
       const match = message.reply_to_message.text.match(/\[(.*?)\]/);
       if (match && match[1]) {
-        const itemName = match[1].trim(); 
+        const itemName = match[1].trim();
         const qty = parseFloat(incomingText);
 
         if (isNaN(qty)) {
-          await sendTelegramMessage(currentChatId, "❌ Алдаа: Зөвхөн тоо бичнэ үү!");
-          return NextResponse.json({ status: 'ok' });
+          await sendTelegramMessage(
+            currentChatId,
+            "❌ Алдаа: Зөвхөн тоо бичнэ үү!",
+          );
+          return NextResponse.json({ status: "ok" });
         }
 
-        const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('telegram_chat_id', currentChatId).single();
-        const tenantClientId = userProfile?.client_id || 'SF Coffee';
+        const { data: userProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("client_id")
+          .eq("telegram_chat_id", currentChatId)
+          .single();
+        const tenantClientId = userProfile?.client_id || "SF Coffee";
 
-        const { data: allIngs } = await supabaseAdmin.from('ingredients').select('id, unit, name').eq('client_id', tenantClientId);
-        const ingredient = allIngs?.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
-        
+        const { data: allIngs } = await supabaseAdmin
+          .from("ingredients")
+          .select("id, unit, name")
+          .eq("client_id", tenantClientId);
+        const ingredient = allIngs?.find(
+          (i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase(),
+        );
+
         if (!ingredient) {
-          await sendTelegramMessage(currentChatId, `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй.`);
-          return NextResponse.json({ status: 'ok' });
+          await sendTelegramMessage(
+            currentChatId,
+            `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй.`,
+          );
+          return NextResponse.json({ status: "ok" });
         }
         const workerName = message.from?.first_name || "Ажилтан";
 
-        await supabaseAdmin.from('inventory_logs').insert([{
-          client_id: tenantClientId,
-          ingredient_id: ingredient.id,
-          quantity: qty,
-          type: 'count',
-          notes: 'Ээлж хаалтын тооллого',
-          date: new Date().toISOString(),
-          worker_name: workerName
-        }]);
+        await supabaseAdmin.from("inventory_logs").insert([
+          {
+            client_id: tenantClientId,
+            ingredient_id: ingredient.id,
+            quantity: qty,
+            type: "count",
+            notes: "Ээлж хаалтын тооллого",
+            date: new Date().toISOString(),
+            worker_name: workerName,
+          },
+        ]);
 
-        await supabaseAdmin.from('ingredients').update({ last_counted_at: new Date().toISOString() }).eq('id', ingredient.id);
+        await supabaseAdmin
+          .from("ingredients")
+          .update({ last_counted_at: new Date().toISOString() })
+          .eq("id", ingredient.id);
 
-        const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
-        
+        const { data: activeShift } = await supabaseAdmin
+          .from("shifts")
+          .select("*")
+          .eq("telegram_chat_id", currentChatId)
+          .eq("is_active", true)
+          .maybeSingle();
+
         if (activeShift && activeShift.closing_checklist) {
-          let checklist = typeof activeShift.closing_checklist === 'string' ? JSON.parse(activeShift.closing_checklist) : activeShift.closing_checklist;
-          let itemInList = checklist.find((i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase());
+          let checklist =
+            typeof activeShift.closing_checklist === "string"
+              ? JSON.parse(activeShift.closing_checklist)
+              : activeShift.closing_checklist;
+          let itemInList = checklist.find(
+            (i: any) => i.name.trim().toLowerCase() === itemName.toLowerCase(),
+          );
           if (itemInList) itemInList.done = true;
 
-          await supabaseAdmin.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+          await supabaseAdmin
+            .from("shifts")
+            .update({ closing_checklist: checklist })
+            .eq("id", activeShift.id);
           const allDone = checklist.every((i: any) => i.done === true);
-          
+
           if (allDone) {
-            await sendTelegramMessage(currentChatId, `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\nЧек-лист 100% биеллээ! 🎉`);
+            await sendTelegramMessage(
+              currentChatId,
+              `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\nЧек-лист 100% биеллээ! 🎉`,
+            );
             await generateShiftScorecard(activeShift, currentChatId);
           } else {
             let buttons = checklist.map((item: any) => {
-              if (item.done) return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
-              return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
+              if (item.done)
+                return [
+                  { text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` },
+                ];
+              return [
+                {
+                  text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,
+                  callback_data: `cnt_${item.name}`,
+                },
+              ];
             });
-            buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
-            await sendTelegramMessageWithInlineKeyboard(currentChatId, `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`, buttons);
+            buttons.push([
+              {
+                text: "🔒 Ээлж хаах (Дуусаагүй байна)",
+                callback_data: "close_shift_locked",
+              },
+            ]);
+            await sendTelegramMessageWithInlineKeyboard(
+              currentChatId,
+              `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\n\nҮлдсэн даалгавруудаа гүйцэтгэнэ үү:`,
+              buttons,
+            );
           }
         }
       }
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
     // =========================================================================
     // D. ТӨХӨӨРӨМЖ ХОЛБОХ БА ЭРХ ШАЛГАХ
     // =========================================================================
-    const { data: userProfile } = await supabaseAdmin.from('profiles').select('client_id, role').eq('telegram_chat_id', currentChatId).maybeSingle();
+    const { data: userProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("client_id, role")
+      .eq("telegram_chat_id", currentChatId)
+      .maybeSingle();
 
-    if (!userProfile && incomingText !== "/start" && !incomingText.startsWith("/link")) {
+    if (
+      !userProfile &&
+      incomingText !== "/start" &&
+      !incomingText.startsWith("/link")
+    ) {
       const linkPrompt = `❌ Төхөөрөмж холбогдоогүй байна.\n\nТа системд холбогдохын тулд дараах тушаалаар бүртгүүлнэ үү:\n\n/link [Таны бүртгэлтэй имэйл] [нууц үг]\n\nЖишээ: /link name@example.com 123456`;
       await sendTelegramMessage(currentChatId, linkPrompt);
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
-    const tenantClientId = userProfile?.client_id || 'SF Coffee';
+    const tenantClientId = userProfile?.client_id || "SF Coffee";
 
     if (incomingText.startsWith("/link")) {
       const parts = incomingText.split(" ");
       if (parts.length < 3) {
-        await sendTelegramMessage(currentChatId, "❌ Формат буруу байна. Жишээ: /link email@example.com password123");
-        return NextResponse.json({ status: 'ok' });
+        await sendTelegramMessage(
+          currentChatId,
+          "❌ Формат буруу байна. Жишээ: /link email@example.com password123",
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
       const emailInput = parts[1].trim();
       const passwordInput = parts[2].trim();
-      await sendTelegramMessage(currentChatId, "⏳ Бүртгэлийг баталгаажуулж байна...");
+      await sendTelegramMessage(
+        currentChatId,
+        "⏳ Бүртгэлийг баталгаажуулж байна...",
+      );
 
-      const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
-        email: emailInput,
-        password: passwordInput
-      });
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.signInWithPassword({
+          email: emailInput,
+          password: passwordInput,
+        });
 
       if (authError || !authData.user) {
-        await sendTelegramMessage(currentChatId, "❌ Алдаа: Имэйл эсвэл нууц үг буруу байна.");
-        return NextResponse.json({ status: 'ok' });
+        await sendTelegramMessage(
+          currentChatId,
+          "❌ Алдаа: Имэйл эсвэл нууц үг буруу байна.",
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
-      await supabaseAdmin.from('profiles').update({ telegram_chat_id: null }).eq('telegram_chat_id', currentChatId);
-      await supabaseAdmin.from('profiles').update({ telegram_chat_id: currentChatId }).eq('id', authData.user.id);
-      
-      const { data: dbProfile } = await supabaseAdmin.from('profiles').select('client_id').eq('id', authData.user.id).single();
-      const actualBranch = dbProfile?.client_id || 'SF Coffee';
-      
-      await sendTelegramMessage(currentChatId, `✅ Амжилттай холбогдлоо!\n\nБүртгэл: ${emailInput}\nСалбар: ${actualBranch}`);
-      return NextResponse.json({ status: 'ok' });
+      await supabaseAdmin
+        .from("profiles")
+        .update({ telegram_chat_id: null })
+        .eq("telegram_chat_id", currentChatId);
+      await supabaseAdmin
+        .from("profiles")
+        .update({ telegram_chat_id: currentChatId })
+        .eq("id", authData.user.id);
+
+      const { data: dbProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("client_id")
+        .eq("id", authData.user.id)
+        .single();
+      const actualBranch = dbProfile?.client_id || "SF Coffee";
+
+      await sendTelegramMessage(
+        currentChatId,
+        `✅ Амжилттай холбогдлоо!\n\nБүртгэл: ${emailInput}\nСалбар: ${actualBranch}`,
+      );
+      return NextResponse.json({ status: "ok" });
     }
 
     // =========================================================================
     // E. /start ТУШААЛ
     // =========================================================================
     if (incomingText === "/start") {
-      const welcomeText = "Сайн байна уу? 'Operlink' туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
+      const welcomeText =
+        "Сайн байна уу? 'Operlink' туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
       await sendTelegramMessageWithMenu(currentChatId, welcomeText);
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
     // =========================================================================
-    // F. /report ТАЙЛАН ХАРАХ (N8N ШИГ 0.05 СЕКУНДЭД ШУУД ИЛГЭЭХ)
+    // F. /report ТАЙЛАН ХАРАХ
     // =========================================================================
     const lowercaseMsg = incomingText.toLowerCase();
 
-    if (incomingText === "/report" || lowercaseMsg === "тайлан харах" || lowercaseMsg === "📊 тайлан харах" || lowercaseMsg === "report") {
-      if (userProfile?.role !== 'owner') {
-        await sendTelegramMessage(currentChatId, "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой.");
-        return NextResponse.json({ status: 'ok' });
+    if (
+      incomingText === "/report" ||
+      lowercaseMsg === "тайлан харах" ||
+      lowercaseMsg === "📊 тайлан харах" ||
+      lowercaseMsg === "report"
+    ) {
+      if (userProfile?.role !== "owner" && userProfile?.role !== "admin") {
+        await sendTelegramMessage(
+          currentChatId,
+          "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзэн болон Админы эрхээр харах боломжтой.",
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
-      // 💡 Хамгийн сүүлийн борлуулалттай сарыг автоматаар олох (0₮ гарахаас сэргийлнэ)
       const { data: latestSale } = await supabaseAdmin
-        .from('sales_logs')
-        .select('date')
-        .eq('client_id', tenantClientId)
-        .order('date', { ascending: false })
+        .from("sales_logs")
+        .select("date")
+        .eq("client_id", tenantClientId)
+        .order("date", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -418,16 +684,21 @@ export async function POST(request: Request) {
 
       if (latestSale && latestSale.date) {
         const ym = latestSale.date.substring(0, 7);
-        const [year, month] = ym.split('-').map(Number);
+        const [year, month] = ym.split("-").map(Number);
         const lastDayNum = new Date(year, month, 0).getDate();
         targetStart = `${ym}-01T00:00:00.000Z`;
-        targetEnd = `${ym}-${String(lastDayNum).padStart(2, '0')}T23:59:59.999Z`;
+        targetEnd = `${ym}-${String(lastDayNum).padStart(2, "0")}T23:59:59.999Z`;
       }
 
-      const data = await getCachedAnalytics(tenantClientId, targetStart, targetEnd);
+      const data = await getCachedAnalytics(
+        tenantClientId,
+        targetStart,
+        targetEnd,
+      );
       const fin = data.financial_ladder || {};
 
-      const reportMarkdown = `📊 **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n` +
+      const reportMarkdown =
+        `📊 **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n` +
         `📅 *Тайлант хугацаа: ${targetStart ? targetStart.substring(0, 7) : "Одоогийн"}*\n\n` +
         `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
         `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
@@ -438,23 +709,40 @@ export async function POST(request: Request) {
         `🗑 **Бодит алдагдал (Waste):** ${Math.round(data.total_waste_loss || 0).toLocaleString()} ₮\n` +
         `⚡ **Ажлын бүтээмж:** ${data.efficiency || "0%"}\n\n` +
         `💎 **ТОП ХАЯГДАЛТАЙ БАРАА:**\n` +
-        (data.top_wasters?.length > 0 
-          ? data.top_wasters.map((w: any) => `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`).join('\n')
+        (data.top_wasters?.length > 0
+          ? data.top_wasters
+              .map(
+                (w: any) =>
+                  `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`,
+              )
+              .join("\n")
           : "• Бүртгэгдсэн хаягдал байхгүй байна.") +
         `\n\n💡 *Та санхүү, хаягдлын талаар ямар ч асуултаа шууд бичиж асууж болно.*`;
 
       await sendTelegramMessage(currentChatId, reportMarkdown);
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
     // =========================================================================
     // G. ЭЭЛЖ ЭХЛЭХ (/shift_start)
     // =========================================================================
-    if (incomingText === "/shift_start" || lowercaseMsg === "ээлж эхлэх" || lowercaseMsg === "☀️ ээлж эхлэх") {
-      const { data: activeShift } = await supabaseAdmin.from('shifts').select('id').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+    if (
+      incomingText === "/shift_start" ||
+      lowercaseMsg === "ээлж эхлэх" ||
+      lowercaseMsg === "☀️ ээлж эхлэх"
+    ) {
+      const { data: activeShift } = await supabaseAdmin
+        .from("shifts")
+        .select("id")
+        .eq("telegram_chat_id", currentChatId)
+        .eq("is_active", true)
+        .maybeSingle();
       if (activeShift) {
-        await sendTelegramMessageWithMenu(currentChatId, "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой '🌙 Ээлж хаах' товчоор хаана уу.");
-        return NextResponse.json({ status: 'ok' });
+        await sendTelegramMessageWithMenu(
+          currentChatId,
+          "Сануулга: Таны ээлж хэдийнэ эхэлсэн байна. Орой '🌙 Ээлж хаах' товчоор хаана уу.",
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
       const profileRole = userProfile?.role;
@@ -462,145 +750,237 @@ export async function POST(request: Request) {
       const fullNameRole = `${profileRole} (${firstName})`;
 
       if (profileRole === "Бариста ☕" || profileRole === "Тогооч 🍳") {
-        const { data: roleTasks } = await supabaseAdmin.from('tasks').select('*').eq('client_id', tenantClientId).eq('role', profileRole).eq('is_active', true);
-        const taskChecklist = roleTasks?.map(t => ({ id: t.id, name: t.task_name, weight: t.weight, done: false })) || [];
+        const { data: roleTasks } = await supabaseAdmin
+          .from("tasks")
+          .select("*")
+          .eq("client_id", tenantClientId)
+          .eq("role", profileRole)
+          .eq("is_active", true);
+        const taskChecklist =
+          roleTasks?.map((t) => ({
+            id: t.id,
+            name: t.task_name,
+            weight: t.weight,
+            done: false,
+          })) || [];
 
-        await supabaseAdmin.from('shifts').insert([{
-          client_id: tenantClientId,
-          telegram_chat_id: currentChatId,
-          is_active: true,
-          character_role: fullNameRole,
-          daily_tasks_checklist: taskChecklist
-        }]);
+        await supabaseAdmin.from("shifts").insert([
+          {
+            client_id: tenantClientId,
+            telegram_chat_id: currentChatId,
+            is_active: true,
+            character_role: fullNameRole,
+            daily_tasks_checklist: taskChecklist,
+          },
+        ]);
 
-        let taskText = taskChecklist.length > 0 
-          ? `\n\n📌 **Өнөөдрийн даалгаврууд:**\n` + taskChecklist.map((t, i) => `${i+1}. ${t.name}`).join('\n')
-          : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
+        let taskText =
+          taskChecklist.length > 0
+            ? `\n\n📌 **Өнөөдрийн даалгаврууд:**\n` +
+              taskChecklist.map((t, i) => `${i + 1}. ${t.name}`).join("\n")
+            : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
 
-        const oppositeRoleName = profileRole === "Бариста ☕" ? "Тогооч 🍳" : "Бариста ☕";
-        const oppositeCallbackData = profileRole === "Бариста ☕" ? "role_chef" : "role_barista";
+        const oppositeRoleName =
+          profileRole === "Бариста ☕" ? "Тогооч 🍳" : "Бариста ☕";
+        const oppositeCallbackData =
+          profileRole === "Бариста ☕" ? "role_chef" : "role_barista";
 
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: currentChatId,
-            text: `✅ **Ээлж амжилттай эхэллээ!**\n\nҮүрэг: **${fullNameRole}**${taskText}\n\n*Хэрэв өнөөдөр өөр үүрэгтэй ажиллах бол доорх товчийг дарж солино уу:*`,
-            reply_markup: {
-              inline_keyboard: [[{ text: `🔄 ${oppositeRoleName} болж солих`, callback_data: oppositeCallbackData }]]
-            }
-          })
-        });
-        return NextResponse.json({ status: 'ok' });
+        await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: currentChatId,
+              text: `✅ **Ээлж амжилттай эхэллээ!**\n\nҮүрэг: **${fullNameRole}**${taskText}\n\n*Хэрэв өнөөдөр өөр үүрэгтэй ажиллах бол доорх товчийг дарж солино уу:*`,
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: `🔄 ${oppositeRoleName} болж солих`,
+                      callback_data: oppositeCallbackData,
+                    },
+                  ],
+                ],
+              },
+            }),
+          },
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
-      await supabaseAdmin.from('shifts').insert([{ client_id: tenantClientId, telegram_chat_id: currentChatId, is_active: true }]);
+      await supabaseAdmin
+        .from("shifts")
+        .insert([
+          {
+            client_id: tenantClientId,
+            telegram_chat_id: currentChatId,
+            is_active: true,
+          },
+        ]);
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: currentChatId,
           text: "🎮 **Шинэ ээлж эхэллээ!**\n\nТа өнөөдөр ямар үүрэгтэй ажиллах вэ?",
           reply_markup: {
-            inline_keyboard: [[{ text: "☕ Бариста", callback_data: `role_barista` }, { text: "🍳 Тогооч", callback_data: `role_chef` }]]
-          }
-        })
+            inline_keyboard: [
+              [
+                { text: "☕ Бариста", callback_data: `role_barista` },
+                { text: "🍳 Тогооч", callback_data: `role_chef` },
+              ],
+            ],
+          },
+        }),
       });
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
     // =========================================================================
     // H. ЭЭЛЖ ХААХ (/shift_end)
     // =========================================================================
-    if (incomingText === "/shift_end" || lowercaseMsg === "ээлж хаах" || lowercaseMsg === "ээлж буулаа" || lowercaseMsg === "🌙 ээлж хаах") {
-      const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', currentChatId).eq('is_active', true).maybeSingle();
+    if (
+      incomingText === "/shift_end" ||
+      lowercaseMsg === "ээлж хаах" ||
+      lowercaseMsg === "ээлж буулаа" ||
+      lowercaseMsg === "🌙 ээлж хаах"
+    ) {
+      const { data: activeShift } = await supabaseAdmin
+        .from("shifts")
+        .select("*")
+        .eq("telegram_chat_id", currentChatId)
+        .eq("is_active", true)
+        .maybeSingle();
       if (!activeShift) {
-        await sendTelegramMessageWithMenu(currentChatId, "Алдаа: Идэвхтэй ээлж олдсонгүй. '☀️ Ээлж эхлэх' товчоор эхлүүлнэ үү.");
-        return NextResponse.json({ status: 'ok' });
+        await sendTelegramMessageWithMenu(
+          currentChatId,
+          "Алдаа: Идэвхтэй ээлж олдсонгүй. '☀️ Ээлж эхлэх' товчоор эхлүүлнэ үү.",
+        );
+        return NextResponse.json({ status: "ok" });
       }
 
       let tasks = activeShift.daily_tasks_checklist || [];
-      if (typeof tasks === 'string') tasks = JSON.parse(tasks);
+      if (typeof tasks === "string") tasks = JSON.parse(tasks);
 
       if (tasks.length > 0) {
-        let buttons = tasks.map((t: any, i: number) => [{ text: `${t.done ? '✅' : '◻️'} ${t.name}`, callback_data: `tsk_${i}` }]);
-        buttons.push([{ text: "➔ Дараагийн алхам: Тооллого хийх", callback_data: "go_to_inventory" }]);
-        await sendTelegramMessageWithInlineKeyboard(currentChatId, "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:", buttons);
+        let buttons = tasks.map((t: any, i: number) => [
+          {
+            text: `${t.done ? "✅" : "◻️"} ${t.name}`,
+            callback_data: `tsk_${i}`,
+          },
+        ]);
+        buttons.push([
+          {
+            text: "➔ Дараагийн алхам: Тооллого хийх",
+            callback_data: "go_to_inventory",
+          },
+        ]);
+        await sendTelegramMessageWithInlineKeyboard(
+          currentChatId,
+          "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:",
+          buttons,
+        );
       } else {
         await generateInventoryChecklist(currentChatId, null, hostUrl);
       }
-      return NextResponse.json({ status: 'ok' });
+      return NextResponse.json({ status: "ok" });
     }
 
     // =========================================================================
-    // I. БАРИСТАГИЙН ХАЯГДАЛ, ЗАРЛАГА БҮРТГЭХ (УХААЛАГ ШАЛГАЛТ)
+    // I. БАРИСТАГИЙН ХАЯГДАЛ, ЗАРЛАГА БҮРТГЭХ
     // =========================================================================
     const hasNumbers = /\d/.test(incomingText);
-    const isLikelyOperation = hasNumbers && (
-      lowercaseMsg.includes("асга") || lowercaseMsg.includes("мууд") || lowercaseMsg.includes("орлоо") || 
-      lowercaseMsg.includes("авав") || lowercaseMsg.includes("авсан") || lowercaseMsg.includes("тоолов") || 
-      lowercaseMsg.includes("үлдэгдэл") || lowercaseMsg.includes("турш") || lowercaseMsg.includes("хоол")
-    );
+    const isLikelyOperation =
+      hasNumbers &&
+      (lowercaseMsg.includes("асга") ||
+        lowercaseMsg.includes("мууд") ||
+        lowercaseMsg.includes("орлоо") ||
+        lowercaseMsg.includes("авав") ||
+        lowercaseMsg.includes("авсан") ||
+        lowercaseMsg.includes("тоолов") ||
+        lowercaseMsg.includes("үлдэгдэл") ||
+        lowercaseMsg.includes("турш") ||
+        lowercaseMsg.includes("хоол"));
 
     if (isLikelyOperation) {
-      const { data: ingredients } = await supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', tenantClientId);
-      const allowedNames = ingredients ? ingredients.map((i: any) => i.name) : [];
+      const { data: ingredients } = await supabaseAdmin
+        .from("ingredients")
+        .select("id, name, unit")
+        .eq("client_id", tenantClientId);
+      const allowedNames = ingredients
+        ? ingredients.map((i: any) => i.name)
+        : [];
 
       const aiAnalysis = await parseOperationalText(incomingText, allowedNames);
 
-      if (aiAnalysis && aiAnalysis.is_transaction === true && aiAnalysis.success) {
-        const ingredient = ingredients?.find(i => i.name === aiAnalysis.item_name);
+      if (
+        aiAnalysis &&
+        aiAnalysis.is_transaction === true &&
+        aiAnalysis.success
+      ) {
+        const ingredient = ingredients?.find(
+          (i) => i.name === aiAnalysis.item_name,
+        );
 
         if (ingredient) {
           const workerName = message.from?.first_name || "Ажилтан";
-          const { data: log, error: logError } = await supabaseAdmin.from('inventory_logs').insert([{
-            client_id: tenantClientId,
-            ingredient_id: ingredient.id,
-            quantity: aiAnalysis.quantity,
-            type: aiAnalysis.type,
-            notes: aiAnalysis.notes || 'Telegram Log',
-            date: new Date().toISOString(),
-            worker_name: workerName
-          }]).select().single();
+          const { data: log, error: logError } = await supabaseAdmin
+            .from("inventory_logs")
+            .insert([
+              {
+                client_id: tenantClientId,
+                ingredient_id: ingredient.id,
+                quantity: aiAnalysis.quantity,
+                type: aiAnalysis.type,
+                notes: aiAnalysis.notes || "Telegram Log",
+                date: new Date().toISOString(),
+                worker_name: workerName,
+              },
+            ])
+            .select()
+            .single();
 
           if (logError) {
-            await sendTelegramMessage(currentChatId, `❌ Хадгалах алдаа: ${logError.message}`);
-            return NextResponse.json({ status: 'ok' });
+            await sendTelegramMessage(
+              currentChatId,
+              `❌ Хадгалах алдаа: ${logError.message}`,
+            );
+            return NextResponse.json({ status: "ok" });
           }
 
-          const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || 'Тэмдэглэл байхгүй'}`;
+          const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || "Тэмдэглэл байхгүй"}`;
           await sendTelegramMessageWithUndo(currentChatId, confirmText, log.id);
-          return NextResponse.json({ status: 'ok' });
+          return NextResponse.json({ status: "ok" });
         }
       }
     }
 
     // =========================================================================
-    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (БҮХ 22 ДАТАГ 100% ХАРАХ БҮРЭН ЧАДАЛ)
+    // J. ЧАТЛАХ БА ЗӨВЛӨГӨӨ АВАХ (FAILOVER MULTI-KEY + GROQ FALLBACK)
     // =========================================================================
-    
-    // 💡 1. 0.01 секундэд Telegram дээр "Бичиж байна..." төлөвийг асаана
-    await sendChatAction(currentChatId, 'typing');
+    await sendChatAction(currentChatId, "typing");
 
-    // 💡 2. Утсан дээр түр мессежийг 0.1 секундэд шууд илгээх (Хүлээлт мэдрэхгүй)
-    const initialMsgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: currentChatId,
-        text: "🧠 *Бодож байна...*",
-        parse_mode: "Markdown"
-      })
-    });
+    const initialMsgRes = await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: currentChatId,
+          text: "🧠 *Бодож байна...*",
+          parse_mode: "Markdown",
+        }),
+      },
+    );
     const initialMsgData = await initialMsgRes.json();
     const tempMessageId = initialMsgData.result?.message_id;
 
-    // 💡 3. Огноог автоматаар тохируулж датабэйсээс БҮХ датаг татах
     const { data: latestChatSale } = await supabaseAdmin
-      .from('sales_logs')
-      .select('date')
-      .eq('client_id', tenantClientId)
-      .order('date', { ascending: false })
+      .from("sales_logs")
+      .select("date")
+      .eq("client_id", tenantClientId)
+      .order("date", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -609,51 +989,203 @@ export async function POST(request: Request) {
 
     if (latestChatSale && latestChatSale.date) {
       const ym = latestChatSale.date.substring(0, 7);
-      const [year, month] = ym.split('-').map(Number);
+      const [year, month] = ym.split("-").map(Number);
       chatTargetStart = `${ym}-01T00:00:00.000Z`;
-      chatTargetEnd = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}T23:59:59.999Z`;
+      chatTargetEnd = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}T23:59:59.999Z`;
     }
 
-    const analyticsData = await getCachedAnalytics(tenantClientId, chatTargetStart, chatTargetEnd);
-      const fin = analyticsData.financial_ladder || {};
+    const analyticsData = await getCachedAnalytics(
+      tenantClientId,
+      chatTargetStart,
+      chatTargetEnd,
+    );
 
+    const fin = analyticsData.financial_ladder || {};
 
-    const isOwner = userProfile?.role === 'owner';
-    const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
+    const isOwnerOrAdmin =
+      userProfile?.role === "owner" || userProfile?.role === "admin";
+    const ACTIVE_PROMPT = isOwnerOrAdmin ? OWNER_CFO_PROMPT : WORKER_BOT_PROMPT;
+    // =========================================================================
+    // ⚡ FORMAT ALL ANALYTICS DETAILS FOR 100% AI VISIBILITY
+    // =========================================================================
 
-// ⚡ 1. Format Inventory into dense table (100% data, 70% fewer tokens)
-      const invTable = (analyticsData.all_inventory_data || []).map((i: any) => 
-        `${i.name} | stock:${i.live_stock}${i.unit} | par:${i.par_level} | price:${i.price}₮ | gap:${i.gap} | loss:${i.impact}₮ | class:${i.abc_class} | order:${i.suggested_order}`
-      ).join('\n');
+    // 1. Inventory Table
+    const invTable = (analyticsData.all_inventory_data || [])
+      .map(
+        (i: any) =>
+          `${i.name} | stock:${i.live_stock}${i.unit} | par:${i.par_level} | price:${i.price}₮ | gap:${i.gap} | loss:${i.impact}₮ | class:${i.abc_class} | order:${i.suggested_order}`,
+      )
+      .join("\n");
 
-      // ⚡ 2. Format Recipes into clean formulas
-      const recipesText = Object.entries(analyticsData.all_recipes || {}).map(([pName, ingMap]: any) => 
-        `${pName} = ` + Object.entries(ingMap).map(([ing, amt]) => `${amt} ${ing}`).join(' + ')
-      ).join('\n');
+    // 2. Recipes
+    const recipesText = Object.entries(analyticsData.all_recipes || {})
+      .map(
+        ([pName, ingMap]: any) =>
+          `${pName} = ` +
+          Object.entries(ingMap)
+            .map(([ing, amt]) => `${amt} ${ing}`)
+            .join(" + "),
+      )
+      .join("\n");
 
-      // ⚡ 3. Format Menu margins
-      const menuText = (analyticsData.menu_performance || []).map((m: any) => 
-        `${m.name} | sold:${m.sold} | price:${m.selling_price}₮ | cost:${m.cost_per_item}₮ | margin:${m.gross_margin_pct}%`
-      ).join('\n');
+    // 3. Menu Performance
+    const menuText = (analyticsData.menu_performance || [])
+      .map(
+        (m: any) =>
+          `${m.name} | sold:${m.sold} | price:${m.selling_price}₮ | cost:${m.cost_per_item}₮ | margin:${m.gross_margin_pct}%`,
+      )
+      .join("\n");
 
-      // ⚡ 4. Format Payroll & OPEX
-      const payrollText = (analyticsData.payroll_summary || []).map((p: any) => 
-        `${p.worker_name}: ${p.total_hours}hrs | Gross:${p.gross_salary}₮ | Net:${p.net_take_home}₮`
-      ).join(', ');
+    // 4. Payroll & OPEX
+    const payrollText = (analyticsData.payroll_summary || [])
+      .map(
+        (p: any) =>
+          `${p.worker_name} (${p.role || "Ажилтан"}): ${p.total_hours}hrs | Gross:${p.gross_salary}₮ | NetTakeHome:${p.net_take_home}₮ | NDSH(11.5%):${p.ndsh_deduction}₮`,
+      )
+      .join(", ");
 
-      const opexText = (analyticsData.opex_details || []).map((o: any) => `${o.item}: ${o.cost}₮`).join(', ');
-      const cf = analyticsData.cashflow_summary || {};
+    const opexText = (analyticsData.opex_details || [])
+      .map((o: any) => `${o.item}: ${o.cost}₮`)
+      .join(", ");
 
-     const promptPayload = `
+    // 5. Margin Guard (Price Hike Suggestions)
+    const marginGuardText =
+      (analyticsData.margin_guard_alerts || []).length > 0
+        ? (analyticsData.margin_guard_alerts || [])
+            .map(
+              (a: any) =>
+                `• ${a.product_name}: CurrentPrice ${a.selling_price}₮ -> SUGGESTED: ${a.suggested_price}₮ (+${a.price_gap}₮) | Cost: ${a.cost_price}₮, Margin: ${a.current_margin_pct} (Target: ${a.target_margin_pct})`,
+            )
+            .join("\n")
+        : "None (All products have healthy margins >= 75%)";
+
+    // 6. Cross-Shift Fraud & Worker Incidents Matrix
+    const fraudMatrixText =
+      Object.keys(analyticsData.worker_fraud_matrix || {}).length > 0
+        ? Object.entries(analyticsData.worker_fraud_matrix || {})
+            .map(([worker, data]: any) => {
+              const incidents = (data.incidents || [])
+                .map(
+                  (inc: any) =>
+                    `[${inc.date}] reported by ${inc.reporter}: "${inc.notes}" (-${inc.loss_amount}₮)`,
+                )
+                .join("; ");
+              return `• Worker: ${worker} | Incidents: ${data.totalIncidents} | TotalLoss: ${data.totalLossAmount}₮ | Details: ${incidents}`;
+            })
+            .join("\n")
+        : "No cross-shift damage or incident reports recorded.";
+
+    // 7. Cashflow In & Out Breakdown
+    const cf = analyticsData.cashflow_summary || {};
+    const cashflowDetail = `
+InitialBalances: Cash:${cf.initial_cash || 0}₮, Bank:${cf.initial_bank || 0}₮
+Cash Inflow: CashSales:${cf.cash_in_cash || 0}₮, BankSales:${cf.cash_in_bank || 0}₮ (TotalIn: ${cf.cash_in_total || 0}₮)
+Cash Outflow Purchases: CashPaid:${cf.cash_out_purchases_cash || 0}₮, BankPaid:${cf.cash_out_purchases_bank || 0}₮
+Cash Outflow OPEX: CashPaid:${cf.cash_out_opex_cash || 0}₮, BankPaid:${cf.cash_out_opex_bank || 0}₮
+Fixed Assets Paid (Equipment): ${cf.fixed_assets_paid || 0}₮
+Owner Withdrawals (Draws): ${cf.owner_draws || 0}₮
+Final Balances: CashInHand:${cf.end_cash_balance || 0}₮, BankAccount:${cf.end_bank_balance || 0}₮, NetTotal:${cf.net_total_balance || 0}₮`;
+
+    // 8. Purchases & E-Barimt Ratio
+    const pur = analyticsData.purchases_summary || {};
+    const purchasesText = `TotalPurchases: ${pur.total_purchases || 0}₮ | WithEBarimt: ${pur.with_ebarimt || 0}₮ | WithoutEBarimt: ${pur.without_ebarimt || 0}₮ | NewEquipmentBought: ${pur.fixed_assets_invested || 0}₮`;
+
+    // 9. Fixed Assets & Depreciation (Equipment)
+    const faText =
+      (analyticsData.fixed_assets || []).length > 0
+        ? (analyticsData.fixed_assets || [])
+            .map(
+              (f: any) =>
+                `• ${f.name} (${f.code}): InitialCost ${f.initialCost}₮ | UsefulMonths: ${f.usefulMonths} | MonthlyDep: ${f.monthlyDep}₮ | CurrentBookValue: ${f.bookValue}₮`,
+            )
+            .join("\n")
+        : "No fixed assets recorded.";
+
+    // 10. Official Waste Act (Tax Law 14 Write-offs)
+    const wasteActText =
+      (analyticsData.waste_act_items || []).length > 0
+        ? (analyticsData.waste_act_items || [])
+            .slice(0, 10)
+            .map(
+              (w: any) =>
+                `• ${w.name}: TheoUsage ${w.theo_usage}${w.unit}, ActualUsage ${w.actual_usage}${w.unit}, Gap ${w.gap_qty}${w.unit} | Loss: ${w.loss_amount}₮ | Legal Cause: ${w.cause}`,
+            )
+            .join("\n")
+        : "None";
+
+    // 11. ABC Pareto Cycle Count Status
+    const abc = analyticsData.abc_summary || {};
+    const abcText = `TotalItems: ${abc.total_items || 0} | A-Class:${abc.a_count || 0}, B-Class:${abc.b_count || 0}, C-Class:${abc.c_count || 0} | CountedIn30Days:${abc.counted_in_cycle || 0}, Uncounted:${abc.uncounted_in_cycle || 0}, RecommendedCountPerShift:${abc.suggested_cycle_per_shift || 0}`;
+
+    // 12. Recent Shifts & SOP Compliance
+    const shiftsText = (analyticsData.recent_shifts || [])
+      .slice(0, 5)
+      .map((s: any) => {
+        const tasks = s.tasks_done || [];
+        const doneCount = tasks.filter((t: any) => t.done).length;
+        return `• ${s.worker} | Started: ${s.start_time} | Ended: ${s.end_time} | SOP Tasks: ${doneCount}/${tasks.length} done | Z-Report: ${s.pos_z_image_url ? "Uploaded" : "Missing"}`;
+      })
+      .join("\n");
+
+    // 13. Recent Activity Logs (Last 10 actions)
+    const recentLogsText = (analyticsData.recent_worker_logs || [])
+      .slice(0, 10)
+      .map(
+        (l: any) =>
+          `[${l.date} ${l.time}] ${l.worker} logged ${l.type} on ${l.item}: ${l.qty}${l.unit} (Notes: ${l.notes || "None"})`,
+      )
+      .join("\n");
+
+    // =========================================================================
+    // 🚀 100% ASSEMBLED PROMPT PAYLOAD (ALL ANALYTICS COVERED)
+    // =========================================================================
+    const promptPayload = `
 === BUSINESS: ${tenantClientId} ===
 FINANCIALS (P&L & TAX):
-Revenue: ${fin.revenue}₮ | NetRevenue: ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
+Revenue: ${fin.revenue}₮ | NetRevenue(No VAT): ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
 OPEX: ${fin.opex}₮ | Depreciation: ${fin.depreciation}₮ | EBIT: ${fin.ebit}₮ | NetProfit: ${fin.net_profit}₮ (${fin.net_margin})
-TAX: Mode:${analyticsData.tax_summary?.tax_mode} | ActiveTax:${analyticsData.tax_summary?.active_tax_amount}₮ | VAT(10%):${analyticsData.tax_summary?.estimated_vat_10pct}₮
-CASHFLOW: CashInHand:${cf.end_cash_balance || 0}₮ | Bank:${cf.end_bank_balance || 0}₮ | TotalCash:${cf.net_total_balance || 0}₮
-WASTE: TotalWasteLoss:${analyticsData.total_waste_loss}₮ | UnexplainedWaste:${analyticsData.total_unexplained_waste}₮ | Efficiency:${analyticsData.efficiency}
-PAYROLL: ${payrollText || "None"}
-OPEX BREAKDOWN: ${opexText || "None"}
+TAX SUMMARY: Mode:${analyticsData.tax_summary?.tax_mode} | ActiveTaxAmount:${analyticsData.tax_summary?.active_tax_amount}₮ | VAT(10%):${analyticsData.tax_summary?.estimated_vat_10pct}₮ | Above300M:${analyticsData.tax_summary?.is_above_300m}
+
+CASHFLOW BREAKDOWN:
+${cashflowDetail}
+
+PURCHASES & E-BARIMT STATUS:
+${purchasesText}
+
+DETAILED LOSSES & WASTE CATEGORIES:
+TotalWasteLoss: ${analyticsData.total_waste_loss}₮ | UnexplainedWaste: ${analyticsData.total_unexplained_waste}₮ | Efficiency: ${analyticsData.efficiency}
+• Logged Spoilage (Муудсан/Асгарсан): ${analyticsData.total_logged_spoilage}₮
+• Staff Meals (Ажилчдын хоол): ${analyticsData.total_logged_staff_meal}₮
+• Testing/R&D (Амталгаа/Туршилт): ${analyticsData.total_logged_testing}₮
+• Other Logged: ${analyticsData.total_logged_other}₮
+• Surplus Savings (Хэмнэсэн илүүдэл): ${analyticsData.total_surplus_savings}₮
+
+TAX DEDUCTIBLE WASTE ACT ITEMS (Law Art 14):
+${wasteActText}
+
+MARGIN GUARD (Price Hike Alerts):
+${marginGuardText}
+
+CROSS-SHIFT FRAUD & INCIDENTS:
+${fraudMatrixText}
+
+ABC PARETO & AUDIT STATUS:
+${abcText}
+
+FIXED ASSETS (Equipment & Wear):
+${faText}
+
+PAYROLL BREAKDOWN:
+${payrollText || "None"}
+
+OPEX BREAKDOWN:
+${opexText || "None"}
+
+RECENT SHIFTS & SOP TASKS:
+${shiftsText || "None"}
+
+RECENT ACTIVITY LOGS:
+${recentLogsText || "None"}
 
 === ALL INVENTORY (${(analyticsData.all_inventory_data || []).length} items) ===
 ${invTable}
@@ -665,86 +1197,105 @@ ${recipesText}
 ${menuText}
 
 User Question: ${incomingText}`;
-     
-
-
-    // 💡 Түлхүүрүүд дундуур эргэлдэх
 
     let replyText = "";
     let lastErrorDetails = "";
+    const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
 
-      const keys = getApiKeys();
-
-    for (let attempt = 0; attempt < keys.length; attempt++) {
-   const keyIdx = (currentKeyIndex + attempt) % keys.length;
-      const currentKey = keys[keyIdx];
-
+    if (key) {
       try {
-        const activeGenAI = new GoogleGenerativeAI(currentKey);
-        const model = activeGenAI.getGenerativeModel({ 
-          model: 'gemini-3.6-flash', 
-          generationConfig: { temperature: 0.3 } 
+        const activeGenAI = new GoogleGenerativeAI(key);
+        const model = activeGenAI.getGenerativeModel({
+          model: "gemini-3.5-flash-lite",
+          generationConfig: { temperature: 0.3 },
         });
 
         const aiResponse = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}` }] }]
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `System: ${ACTIVE_PROMPT}\n\nInput Data: ${promptPayload}`,
+                },
+              ],
+            },
+          ],
         });
 
-        replyText = aiResponse.response.text().replace(/\*|\*\*/g, "").trim();
-        if (replyText) {
-          currentKeyIndex = keyIdx;
-          break;
-        }
+        replyText = aiResponse.response
+          .text()
+          .replace(/\*|\*\*/g, "")
+          .trim();
       } catch (err: any) {
         lastErrorDetails = err.message || String(err);
-        console.warn(`Telegram API Key #${keyIdx + 1} error:`, lastErrorDetails);
-        currentKeyIndex = (keyIdx + 1) % keys.length;
-        continue;
+        console.warn("Telegram Gemini Error:", lastErrorDetails);
       }
     }
 
+    // ⚡ Хэрэв Google Gemini-ийн бүх түлхүүр ажиллахгүй бол GROQ (Llama 3.3)-аар орлуулах:
+    if (!replyText) {
+      console.warn(
+        "Telegram: Gemini бүх түлхүүр гацлаа, Groq нөөц рүү шилжиж байна...",
+      );
+      replyText = await callGroqFallbackTelegram(ACTIVE_PROMPT, promptPayload);
+    }
+
+    // Хэрэв бүгд гацсан бол эелдэг тайлбар харуулах:
     if (!replyText) {
       replyText = getFriendlyErrorMessage(lastErrorDetails);
     }
 
-    // 💡 4. Түр мессежийг бодит хариултаар засах
+    // Түр мессежийг бодит хариултаар засах
     if (tempMessageId) {
       await editTelegramMessage(currentChatId, tempMessageId, replyText);
     } else {
       await sendTelegramMessage(currentChatId, replyText);
     }
 
-    return NextResponse.json({ status: 'ok' });
-
+    return NextResponse.json({ status: "ok" });
   } catch (error: any) {
     console.error("Webhook processing failed:", error);
     if (currentChatId) {
-      await sendTelegramMessage(currentChatId, `⚠️ Системд алдаа гарлаа: ${error.message}`);
+      await sendTelegramMessage(
+        currentChatId,
+        `⚠️ Системд алдаа гарлаа: ${error.message}`,
+      );
     }
-    return NextResponse.json({ status: 'ok' });
+    return NextResponse.json({ status: "ok" });
   }
 }
 
 // -----------------------------------------------------------------------------
-// HELPER FUNCTIONS (Send, Edit, Callback, Checklists, Scorecards)
+// HELPER FUNCTIONS
 // -----------------------------------------------------------------------------
 
 async function sendTelegramMessage(chatId: number | null, text: string) {
   if (!chatId) return;
-  const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
+  const safeText =
+    text.length > 4000
+      ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)"
+      : text;
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: safeText, parse_mode: "Markdown" })
-    });
+    const res = await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: safeText,
+          parse_mode: "Markdown",
+        }),
+      },
+    );
 
     if (!res.ok) {
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: safeText })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: safeText }),
       });
     }
   } catch (err) {
@@ -752,154 +1303,263 @@ async function sendTelegramMessage(chatId: number | null, text: string) {
   }
 }
 
-async function editTelegramMessage(chatId: number | null, messageId: number, text: string, inline_keyboard: any[] = []) {
+async function editTelegramMessage(
+  chatId: number | null,
+  messageId: number,
+  text: string,
+  inline_keyboard: any[] = [],
+) {
   if (!chatId) return;
-  const safeText = text.length > 4000 ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)" : text;
+  const safeText =
+    text.length > 4000
+      ? text.substring(0, 3950) + "\n\n...(үргэлжлэл бий)"
+      : text;
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        chat_id: chatId, 
-        message_id: messageId, 
-        text: safeText,
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard }
-      })
-    });
+    const res = await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          text: safeText,
+          parse_mode: "Markdown",
+          reply_markup: { inline_keyboard },
+        }),
+      },
+    );
 
     if (!res.ok) {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          chat_id: chatId, 
-          message_id: messageId, 
-          text: safeText,
-          reply_markup: { inline_keyboard }
-        })
-      });
+      await fetch(
+        `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text: safeText,
+            reply_markup: { inline_keyboard },
+          }),
+        },
+      );
     }
   } catch (err) {
     console.error("editTelegramMessage Error:", err);
   }
 }
 
-async function sendChatAction(chatId: number | null, action: string = 'typing') {
+async function sendChatAction(
+  chatId: number | null,
+  action: string = "typing",
+) {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, action: action })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, action: action }),
   });
 }
 
-async function sendTelegramMessageWithMenu(chatId: number | null, text: string) {
+async function sendTelegramMessageWithMenu(
+  chatId: number | null,
+  text: string,
+) {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
       text: text,
       reply_markup: {
         keyboard: [
           [{ text: "☀️ Ээлж эхлэх" }, { text: "🌙 Ээлж хаах" }],
-          [{ text: "📊 Тайлан харах" }]
+          [{ text: "📊 Тайлан харах" }],
         ],
         resize_keyboard: true,
-        one_time_keyboard: false
-      }
-    })
+        one_time_keyboard: false,
+      },
+    }),
   });
 }
 
-async function sendTelegramMessageWithUndo(chatId: number | null, text: string, logId: string) {
+async function sendTelegramMessageWithUndo(
+  chatId: number | null,
+  text: string,
+  logId: string,
+) {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
       text: text,
       reply_markup: {
-        inline_keyboard: [[{ text: "Буцаах ↩️ (Undo)", callback_data: `undo_${logId}` }]]
-      }
-    })
+        inline_keyboard: [
+          [{ text: "Буцаах ↩️ (Undo)", callback_data: `undo_${logId}` }],
+        ],
+      },
+    }),
   });
 }
 
-async function sendTelegramMessageWithForceReply(chatId: number | null, text: string) {
+async function sendTelegramMessageWithForceReply(
+  chatId: number | null,
+  text: string,
+) {
   if (!chatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: text, reply_markup: { force_reply: true, selective: true } })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text,
+      reply_markup: { force_reply: true, selective: true },
+    }),
   });
 }
 
 async function answerTelegramCallback(callbackQueryId: string, text: string) {
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ callback_query_id: callbackQueryId, text: text })
-  });
+  await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQueryId, text: text }),
+    },
+  );
 }
 
-async function sendTelegramMessageWithInlineKeyboard(chatId: number | null, text: string, inline_keyboard: any[]) {
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: text, reply_markup: { inline_keyboard } })
-  });
-}
-
-async function generateInventoryChecklist(chatId: number | null, messageIdToEdit: number | null, hostUrl: string) {
+async function sendTelegramMessageWithInlineKeyboard(
+  chatId: number | null,
+  text: string,
+  inline_keyboard: any[] = [],
+) {
   if (!chatId) return;
-  const { data: activeShift } = await supabaseAdmin.from('shifts').select('*').eq('telegram_chat_id', chatId).eq('is_active', true).maybeSingle();
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text,
+      reply_markup: { inline_keyboard },
+    }),
+  });
+}
+
+async function generateInventoryChecklist(
+  chatId: number | null,
+  messageIdToEdit: number | null,
+  hostUrl: string,
+) {
+  if (!chatId) return;
+  const { data: activeShift } = await supabaseAdmin
+    .from("shifts")
+    .select("*")
+    .eq("telegram_chat_id", chatId)
+    .eq("is_active", true)
+    .maybeSingle();
   if (!activeShift) return;
 
   const tenantClientId = activeShift.client_id;
   let checklist = activeShift.closing_checklist || [];
-  if (typeof checklist === 'string') checklist = JSON.parse(checklist);
+  if (typeof checklist === "string") checklist = JSON.parse(checklist);
 
   if (checklist.length === 0) {
     const analyticsData = await getAnalyticsData(tenantClientId);
-    const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
+    const twelveHoursAgo = new Date(
+      Date.now() - 12 * 60 * 60 * 1000,
+    ).toISOString();
 
-    const criticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical === true && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)) || [];
-    const nonCriticalItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_critical !== true) || [];
-    const sortedCycleItems = nonCriticalItems.sort((a: any, b: any) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime());
-    
-    checklist = [...criticalItems, ...sortedCycleItems].slice(0, 5).map((i: any) => ({ name: i.name, unit: i.unit, live_stock: i.live_stock, done: false }));
-    await supabaseAdmin.from('shifts').update({ closing_checklist: checklist }).eq('id', activeShift.id);
+    const criticalItems =
+      analyticsData.all_inventory_data?.filter(
+        (i: any) =>
+          i.is_critical === true &&
+          (!i.last_counted_at || i.last_counted_at < twelveHoursAgo),
+      ) || [];
+    const nonCriticalItems =
+      analyticsData.all_inventory_data?.filter(
+        (i: any) => i.is_critical !== true,
+      ) || [];
+    const sortedCycleItems = nonCriticalItems.sort(
+      (a: any, b: any) =>
+        new Date(a.last_counted_at || "2000-01-01").getTime() -
+        new Date(b.last_counted_at || "2000-01-01").getTime(),
+    );
+
+    checklist = [...criticalItems, ...sortedCycleItems]
+      .slice(0, 5)
+      .map((i: any) => ({
+        name: i.name,
+        unit: i.unit,
+        live_stock: i.live_stock,
+        done: false,
+      }));
+    await supabaseAdmin
+      .from("shifts")
+      .update({ closing_checklist: checklist })
+      .eq("id", activeShift.id);
   }
 
   if (checklist.length > 0) {
     const allDone = checklist.every((i: any) => i.done === true);
-    
+
     if (allDone) {
-      if (messageIdToEdit) await editTelegramMessage(chatId, messageIdToEdit, "✅ Бүх тооллого дууссан байна. Ээлжийг хаалаа.");
+      if (messageIdToEdit)
+        await editTelegramMessage(
+          chatId,
+          messageIdToEdit,
+          "✅ Бүх тооллого дууссан байна. Ээлжийг хаалаа.",
+        );
       await generateShiftScorecard(activeShift, chatId);
       return;
     }
 
     let buttons = checklist.map((item: any) => {
-      if (item.done) return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
-      return [{ text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10)/10} ${item.unit})`, callback_data: `cnt_${item.name}` }];
+      if (item.done)
+        return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
+      return [
+        {
+          text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,
+          callback_data: `cnt_${item.name}`,
+        },
+      ];
     });
-    
-    buttons.push([{ text: "🔒 Ээлж хаах (Дуусаагүй байна)", callback_data: "close_shift_locked" }]);
+
+    buttons.push([
+      {
+        text: "🔒 Ээлж хаах (Дуусаагүй байна)",
+        callback_data: "close_shift_locked",
+      },
+    ]);
 
     if (messageIdToEdit) {
-      await editTelegramMessage(chatId, messageIdToEdit, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
+      await editTelegramMessage(
+        chatId,
+        messageIdToEdit,
+        "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:",
+        buttons,
+      );
     } else {
-      await sendTelegramMessageWithInlineKeyboard(chatId, "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:", buttons);
+      await sendTelegramMessageWithInlineKeyboard(
+        chatId,
+        "🛑 Ээлж хаахад дараах барааг тоолох шаардлагатай:",
+        buttons,
+      );
     }
   } else {
-    await supabaseAdmin.from('shifts').update({ is_active: false, end_time: new Date().toISOString() }).eq('id', activeShift.id);
-    await sendTelegramMessageWithMenu(chatId, "🌙 Тоолох бараа алга. Ээлж амжилттай хаагдлаа!");
+    await supabaseAdmin
+      .from("shifts")
+      .update({ is_active: false, end_time: new Date().toISOString() })
+      .eq("id", activeShift.id);
+    await sendTelegramMessageWithMenu(
+      chatId,
+      "🌙 Тоолох бараа алга. Ээлж амжилттай хаагдлаа!",
+    );
   }
 }
 
@@ -912,16 +1572,16 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
   const role = activeShift.character_role || "Бариста ☕";
 
   const { data: logs } = await supabaseAdmin
-    .from('inventory_logs')
-    .select('quantity, type, ingredient_id, total_cost, notes')
-    .eq('client_id', tenantClientId)
-    .gte('date', startTime)
-    .lte('date', endTime);
+    .from("inventory_logs")
+    .select("quantity, type, ingredient_id, total_cost, notes")
+    .eq("client_id", tenantClientId)
+    .gte("date", startTime)
+    .lte("date", endTime);
 
   const { data: ingredients } = await supabaseAdmin
-    .from('ingredients')
-    .select('id, name, unit_price, unit')
-    .eq('client_id', tenantClientId);
+    .from("ingredients")
+    .select("id, name, unit_price, unit")
+    .eq("client_id", tenantClientId);
 
   let totalWasteCost = 0;
   let itemsCounted = 0;
@@ -931,55 +1591,76 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
 
   if (logs && ingredients) {
     logs.forEach((log: any) => {
-      if (log.type === 'count') {
+      if (log.type === "count") {
         itemsCounted++;
-      } else if (log.type === 'purchase') {
+      } else if (log.type === "purchase") {
         totalPurchases++;
         const noteText = (log.notes || "").toLowerCase();
         if (!noteText.includes("scan") && !noteText.includes("e-barimt")) {
           manualPurchases++;
         }
-      } else if (['spoilage', 'testing', 'staff_meal', 'other'].includes(log.type)) {
+      } else if (
+        ["spoilage", "testing", "staff_meal", "other"].includes(log.type)
+      ) {
         loggedWasteEvents++;
         const ing = ingredients.find((i: any) => i.id === log.ingredient_id);
         if (ing) {
-          totalWasteCost += Math.abs(log.quantity) * (parseFloat(ing.unit_price) || 0);
+          totalWasteCost +=
+            Math.abs(log.quantity) * (parseFloat(ing.unit_price) || 0);
         }
       }
     });
   }
 
-  await supabaseAdmin.from('shifts').update({ is_active: false, end_time: endTime }).eq('id', activeShift.id);
+  await supabaseAdmin
+    .from("shifts")
+    .update({ is_active: false, end_time: endTime })
+    .eq("id", activeShift.id);
 
-  await sendTelegramMessageWithMenu(chatId, `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа!`);
+  await sendTelegramMessageWithMenu(
+    chatId,
+    `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа!`,
+  );
 
-  const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+  const durationMs =
+    new Date(endTime).getTime() - new Date(startTime).getTime();
   const hours = Math.floor(durationMs / (1000 * 60 * 60));
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
 
   const auditAlerts: string[] = [];
   if (manualPurchases > 0) {
-    auditAlerts.push(`⚠️ **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.**`);
+    auditAlerts.push(
+      `⚠️ **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.**`,
+    );
   } else if (totalPurchases > 0 && manualPurchases === 0) {
-    auditAlerts.push(`✅ Бүх татан авалтууд зураг болон E-Barimt-аар баталгаажсан.`);
+    auditAlerts.push(
+      `✅ Бүх татан авалтууд зураг болон E-Barimt-аар баталгаажсан.`,
+    );
   }
 
   if (loggedWasteEvents === 0) {
     auditAlerts.push(`⚠️ Ээлжийн турш ямар ч хаягдал бүртгэгдсэнгүй.`);
   } else {
-    auditAlerts.push(`✅ ${loggedWasteEvents} удаагийн хаягдлыг үнэн зөв бүртгэсэн.`);
+    auditAlerts.push(
+      `✅ ${loggedWasteEvents} удаагийн хаягдлыг үнэн зөв бүртгэсэн.`,
+    );
   }
 
-  const ownerScorecardText = `👑 **ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН**\n\n` +
+  const ownerScorecardText =
+    `👑 **ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН**\n\n` +
     `🏢 **Салбар:** ${tenantClientId}\n` +
     `👤 **Ажилтан:** ${role}\n` +
     `⏱ **Ажилласан:** ${hours} цаг ${minutes} минут\n` +
     `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
     `🗑 **Бүртгэсэн хаягдал:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
     `🛡 **АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
-    auditAlerts.map(alert => `• ${alert}`).join('\n');
+    auditAlerts.map((alert) => `• ${alert}`).join("\n");
 
-  const { data: owners } = await supabaseAdmin.from('profiles').select('telegram_chat_id').eq('client_id', tenantClientId).eq('role', 'owner');
+  const { data: owners } = await supabaseAdmin
+    .from("profiles")
+    .select("telegram_chat_id")
+    .eq("client_id", tenantClientId)
+    .eq("role", "owner");
   if (owners) {
     for (const owner of owners) {
       if (owner.telegram_chat_id && owner.telegram_chat_id !== chatId) {
