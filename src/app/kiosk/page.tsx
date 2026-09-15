@@ -2059,10 +2059,10 @@ function KioskPage() {
 
                   </div>
 
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Системд: <strong className="text-slate-200">{Math.round(stock * 10) / 10}</strong> {item.unit}
-                        {par > 0 && <span className="text-slate-500 ml-1.5">(Хэвийн нөөц: {par} {item.unit})</span>}
-                      </p>
+                    {/* ✅ ШИНЭ: ЗӨВХӨН НЭГЖИЙГ НЬ Л ХАРУУЛНА (Сохор тооллого): */}
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Тоолох нэгж: <strong className="text-slate-300 font-bold">{item.unit}</strong>
+                    </p>
                     </div>
 
                     <input 

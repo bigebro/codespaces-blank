@@ -73,16 +73,16 @@ export async function getAnalyticsData(
     { data: rawFixedOpex },
     { data: rawSettings }
   ] = await Promise.all([
-    supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId).lte('date', finalEndDate).order('date', { ascending: false }),
-    supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId).gte('date', finalStartDate).lte('date', finalEndDate),
-    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
-    supabaseAdmin.from('products').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId),
-    supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId),
-    supabaseAdmin.from('fixed_opex').select('*').ilike('client_id', clientId).eq('is_active', true),
-    supabaseAdmin.from('client_settings').select('*').ilike('client_id', clientId).maybeSingle()
+  supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId.trim()),
+    supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId.trim()),
+    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId.trim()).lte('date', finalEndDate).order('date', { ascending: false }),
+    supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId.trim()).gte('date', finalStartDate).lte('date', finalEndDate),
+    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId.trim()).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
+    supabaseAdmin.from('products').select('*').ilike('client_id', clientId.trim()),
+    supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId.trim()),
+    supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId.trim()),
+    supabaseAdmin.from('fixed_opex').select('*').ilike('client_id', clientId.trim()).eq('is_active', true),
+    supabaseAdmin.from('client_settings').select('*').ilike('client_id', clientId.trim()).maybeSingle()
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
