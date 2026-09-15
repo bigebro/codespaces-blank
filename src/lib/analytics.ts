@@ -201,18 +201,18 @@ export async function getAnalyticsData(
     if (!ing) return;
     const key = cleanString(ing.name);
 
-    if (log.type === 'count') {
-      const isStartNote = noteText.includes('start') || noteText.includes('эхний');
-      const isEndNote = noteText.includes('end') || noteText.includes('эцсийн');
+   if (log.type === 'count') {
+      const isStartNote = noteText.includes('start') || noteText.includes('эхний') || noteText.includes('эхлэл');
+      const isEndNote = noteText.includes('end') || noteText.includes('эцсийн') || noteText.includes('эцэс');
 
-      // 1. START ТООЛЛОГО: Хэрэв тайлбарт 'start' гэж байвал ЭСВЭЛ эхлэх өдрөөс өмнө тоологдсон бол
-      if (isStartNote || logDate <= startDay) {
+      // 1. START ТООЛЛОГО: Заавал 'end' биш байх ёстой!
+      if (isStartNote || (logDate <= startDay && !isEndNote)) {
         if (!countedStartMap.has(key) || log.date >= countedStartMap.get(key)!.date) {
           countedStartMap.set(key, { date: log.date, qty });
         }
       }
 
-      // 2. END ТООЛЛОГО: Хэрэв тайлбарт 'end' гэж байвал ЭСВЭЛ сонгосон хугацаанд тоологдсон бол
+      // 2. END ТООЛЛОГО: Заавал 'start' биш байх ёстой!
       if (isEndNote || (logDate >= startDay && logDate <= endDay && !isStartNote)) {
         if (!countedEndMap.has(key) || log.date >= countedEndMap.get(key)!.date) {
           countedEndMap.set(key, { date: log.date, qty });
@@ -329,24 +329,30 @@ export async function getAnalyticsData(
     loggedEvents[name] = { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
   });
 
-  rawInventoryLogs.forEach((log: any) => {
-    if (log.type === 'purchase' && !log.ingredient_id) return;
-    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-    if (!ing) return;
-    const nameKey = cleanString(ing.name);
-    const qty = Math.abs(parseFloat(log.quantity)) || 0;
 
-    if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
+    rawInventoryLogs.forEach((log: any) => {
+      if (log.type === 'purc
+        se' && !log.ingredient_id) return;
+      const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+      if (!ing) return;
+      const nameKey = cleanString(ing.name);
+      const qty = Math.abs(parseFloat(log.quantity)) || 0;
+      const logDate = log.date ? log.date.split('T')[0] : ''; // 👈 Огноог авах
 
-    if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
-    else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
-    else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
-    else loggedEvents[nameKey].other += qty;
+      if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
 
-    if (log.notes && log.notes !== `${log.type} logged manually`) {
-      loggedEvents[nameKey].notes.push(log.notes);
-    }
-  });
+      // 🚨 ЗАСВАР: Зөвхөн сонгогдсон сарын хаягдлыг л тооцно! (Хуучин сарын хаягдлыг алгасах)
+      if (logDate < startDay || logDate > endDay) return;
+
+      if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
+      else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
+      else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
+      else loggedEvents[nameKey].other += qty;
+
+      if (log.notes && log.notes !== `${log.type} logged manually`) {
+        loggedEvents[nameKey].notes.push(log.notes);
+      }
+    });
 
   const fullInventory: any[] = [];
   const wasteAuditItems: any[] = [];
