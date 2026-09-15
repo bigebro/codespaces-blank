@@ -331,8 +331,7 @@ export async function getAnalyticsData(
 
 
     rawInventoryLogs.forEach((log: any) => {
-      if (log.type === 'purc
-        se' && !log.ingredient_id) return;
+      if (log.type === 'purchase' && !log.ingredient_id) return;
       const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
       if (!ing) return;
       const nameKey = cleanString(ing.name);

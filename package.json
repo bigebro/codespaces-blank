@@ -15,7 +15,7 @@
     "iOS >= 12",
     "not dead"
   ],
-    "overrides": {
+  "overrides": {
     "mdast-util-gfm-autolink-literal": "2.0.0"
   },
   "dependencies": {
