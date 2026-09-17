@@ -321,6 +321,8 @@ export async function POST(request: Request) {
         });
       }
 
+      
+
       const logsToInsert: any[] = [];
       let successMsg = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
       const currentDate = new Date().toISOString();
@@ -401,7 +403,9 @@ export async function POST(request: Request) {
       if (logsToInsert.length > 0) {
         await supabaseAdmin.from("inventory_logs").insert(logsToInsert);
       }
-      return NextResponse.json({ success: true, message: successMsg });
+      return NextResponse.json({  success: true,
+        purchases: aiAnalysis.purchases,
+        is_ebarimt: aiAnalysis.purchases[0]?.is_ebarimt !== false});
     }
     // 3. ТЕКСТ БИЧИХ ҮЕД
     if (text) {
