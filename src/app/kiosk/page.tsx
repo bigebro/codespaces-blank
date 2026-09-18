@@ -1443,85 +1443,93 @@ function KioskPage() {
       setIsAiLoading(false);
     }
   };
-  // 🌙 НЭГДСЭН BATCH ХААЛТ (Trigger-тэй төгс зохицож 0.15с-д ажиллана)
-  const handleCloseShift = async () => {
-    const uncountedItems = inventoryToCount.filter(i => counts[i.id] === undefined || counts[i.id].toString().trim() === '');
-    
+const handleCloseShift = async () => {
+    // 1. Тооллого дутуу эсэхийг шалгах
+    const uncountedItems = inventoryToCount.filter(
+      (i) => counts[i.id] === undefined || counts[i.id].toString().trim() === ""
+    );
     if (uncountedItems.length > 0) {
-      setMsg(`⚠️ Тооллого дутуу байна: ${uncountedItems.map(i => i.name).join(', ')}`);
+      setMsg(`⚠️ Тооллого дутуу байна: ${uncountedItems.map((i) => i.name).join(", ")}`);
+      return;
+    }
+
+    // 2. 🧾 Z-Тайлангийн зураг заавал байх ёстой
+    if (!posZFile) {
+      setMsg("⚠️ ПОС-ын Z-Тайлангийн зургийг заавал дарж оруулна уу!");
+      return;
+    }
+
+    // 3. 💵 Кассын бэлэн мөнгийг заавал бичсэн байх (Байхгүй бол 0)
+    if (actualCashDrawer.trim() === "" || isNaN(Number(actualCashDrawer)) || Number(actualCashDrawer) < 0) {
+      setMsg("⚠️ Кассын бэлэн мөнгийг бичнэ үү (Бэлэн мөнгө байхгүй бол 0 гэж бичнэ)!");
       return;
     }
 
     setIsAiLoading(true);
     const endTime = new Date().toISOString();
 
-    let posZUrl = null;
-    if (posZFile) {
-      posZUrl = await uploadEvidencePhoto(posZFile, 'pos_z_reports');
-    }
+    // Z-Тайлангийн зургийг Cloud Storage-д хадгалах
+    let posZUrl = await uploadEvidencePhoto(posZFile, "pos_z_reports");
 
-    
-   // 1. БҮХ ТООЛЛОГЫГ 1 ХҮСЭЛТЭЭР БӨӨНӨӨР ХАДГАЛАХ
-    const countLogsToInsert: any[] = inventoryToCount.map(item => ({
+    // 4. Тооллого болон Кассын мөнгийг баазад хийх
+    const countLogsToInsert: any[] = inventoryToCount.map((item) => ({
       client_id: tenantClientId,
       ingredient_id: item.id,
       quantity: parseFloat(counts[item.id]) || 0,
-      type: 'count',
-      notes: 'Ээлж хаалтын бодит тооллого (Kiosk)',
+      type: "count",
+      notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
       worker_name: activeShift?.character_role || selectedWorker.full_name,
-      date: endTime
+      date: endTime,
     }));
 
-    if (countLogsToInsert.length > 0) {
-      await supabase.from('inventory_logs').insert(countLogsToInsert);
+    // Кассанд тоолсон бэлэн мөнгийг (0 байсан ч) лог болгон хадгална:
+    countLogsToInsert.push({
+      client_id: tenantClientId,
+      ingredient_id: null,
+      non_food_item: "Кассын хаалтын үлдэгдэл",
+      quantity: 1,
+      total_cost: parseFloat(actualCashDrawer) || 0,
+      type: "count",
+      notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(actualCashDrawer) || 0).toLocaleString()}₮`,
+      payment_method: "cash",
+      worker_name: activeShift?.character_role || selectedWorker.full_name,
+      date: endTime,
+    });
 
-    }
+    await supabase.from("inventory_logs").insert(countLogsToInsert);
 
-    // Хэрэв кассын бэлэн мөнгө тоолж бичсэн бол лог болгож хадгална:
-    if (actualCashDrawer && parseFloat(actualCashDrawer) >= 0) {
-      countLogsToInsert.push({
-        client_id: tenantClientId,
-        ingredient_id: null,
-        non_food_item: 'Кассын хаалтын үлдэгдэл',
-        quantity: 1,
-        total_cost: parseFloat(actualCashDrawer),
-        type: 'count',
-        notes: `Кассын тоолсон бэлэн мөнгө: ${parseFloat(actualCashDrawer).toLocaleString()}₮`,
-        payment_method: 'cash',
-        worker_name: activeShift?.character_role || selectedWorker.full_name,
-        date: endTime
-      });
-    }
-
-    // 2. ДААЛГАВАР БОЛОН ЭЭЛЖИЙГ ХААХ
+    // Даалгавруудыг хаах
     const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
     if (completedTaskIds.length > 0) {
-      await supabase.from('tasks').update({ is_active: false }).in('id', completedTaskIds);
+      await supabase.from("tasks").update({ is_active: false }).in("id", completedTaskIds);
     }
 
+    // Ээлжийг албан ёсоор хаах
     if (activeShift) {
-      await supabase.from('shifts').update({ 
-        is_active: false, 
-        end_time: endTime,
-        pos_z_image_url: posZUrl 
-      }).eq('id', activeShift.id);
+      await supabase
+        .from("shifts")
+        .update({
+          is_active: false,
+          end_time: endTime,
+          pos_z_image_url: posZUrl,
+        })
+        .eq("id", activeShift.id);
     }
 
-    setMsg("🌙 Ээлж амжилттай хаагдлаа. Сайн ажиллалаа!");
+    setMsg("🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
     setIsAiLoading(false);
-    
     await fetchKioskData(tenantClientId);
 
-    setTimeout(() => { 
-      setMsg(''); 
-      setStep('select_worker'); 
-      setSelectedWorker(null); 
+    setTimeout(() => {
+      setMsg("");
+      setStep("select_worker");
+      setSelectedWorker(null);
       setActiveShift(null);
       setTasks([]);
       setCounts({});
       setPosZFile(null);
+      setActualCashDrawer("");
     }, 2200);
-
   };
 
   return (
@@ -3161,8 +3169,7 @@ function KioskPage() {
             </form>
           </div>
         )}
-
-        {/* 8. CLOSE SHIFT & POS Z-REPORT */}
+{/* 8. CLOSE SHIFT & POS Z-REPORT */}
         {step === 'close_shift' && (
           <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="shrink-0 mb-2">
@@ -3195,7 +3202,7 @@ function KioskPage() {
                 </label>
               </div>
 
-            {/* 💵 ШИНЭ: КАССЫН БЭЛЭН МӨНГӨНИЙ БОДИТ ТООЛЛОГО */}
+              {/* 💵 ШИНЭ: КАССЫН БЭЛЭН МӨНГӨНИЙ БОДИТ ТООЛЛОГО */}
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
                   💵 Кассанд байгаа бэлэн мөнгө (Тоолсон дүн)
@@ -3205,13 +3212,14 @@ function KioskPage() {
                     type="number"
                     value={actualCashDrawer}
                     onChange={(e) => setActualCashDrawer(e.target.value)}
-                    placeholder="Кассын шүүгээнд яг хэдэн төгрөг байна вэ?"
+                    placeholder="Кассын шүүгээнд яг хэдэн төгрөг байна вэ? (Байхгүй бол 0)"
                     className="w-full bg-[#060b17] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-emerald-400 font-mono font-black outline-none focus:border-emerald-500"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₮</span>
                 </div>
               </div>
-           {/* PARETO 80/20 CYCLE COUNT ITEMS */}
+
+              {/* PARETO 80/20 CYCLE COUNT ITEMS */}
               {inventoryToCount.map(item => {
                 const stock = parseFloat(item.current_stock ?? item.live_stock ?? 0);
                 const par = parseFloat(item.par_level ?? 0);
@@ -3223,28 +3231,25 @@ function KioskPage() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-bold text-sm text-white">{item.name}</p>
                         
-                        {/* 🏷️ ПАЙЗНУУД: Яаралтай дуусаж буй бол УЛААН, A-Class бол ЯГААН, Цикл бол ЦЭНХЭР */}
+                        {/* 🏷️ ПАЙЗНУУД */}
                         {isUrgent ? (
                           <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-black animate-pulse">
                             🚨 Яаралтай (Нөөц бага)
                           </span>
                         ) : item.todayUsage > 0 ? (
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black">
-                        ⚡ Өдрийн эргэлт ({Math.round(item.moneyMoved || 0).toLocaleString()}₮)
-                      </span>
-                    ) : (
-                      <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
-                        🔄 Сар бүрийн цикл
-                      </span>
-                    )}
-                    {/* 👆👆👆 ЭНД ХҮРТЭЛ 👆👆👆 */}
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black">
+                            ⚡ Өдрийн эргэлт ({Math.round(item.moneyMoved || 0).toLocaleString()}₮)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
+                            🔄 Сар бүрийн цикл
+                          </span>
+                        )}
+                      </div>
 
-                  </div>
-
-                    {/* ✅ ШИНЭ: ЗӨВХӨН НЭГЖИЙГ НЬ Л ХАРУУЛНА (Сохор тооллого): */}
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Тоолох нэгж: <strong className="text-slate-300 font-bold">{item.unit}</strong>
-                    </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Тоолох нэгж: <strong className="text-slate-300 font-bold">{item.unit}</strong>
+                      </p>
                     </div>
 
                     <input 
@@ -3269,12 +3274,26 @@ function KioskPage() {
               >
                 Буцах
               </button>
+              
+              {/* 🔒 ЗӨВХӨН ЭНЭ ТОВЧ ДЭЭР Z-ТАЙЛАН БА КАССЫН БЭЛЭН МӨНГӨНИЙ ШАЛГАЛТ НЭМЭГДСЭН: */}
               <button 
+                type="button"
                 onClick={handleCloseShift} 
-                disabled={isAiLoading || inventoryToCount.some(i => !counts[i.id])} 
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-50 shadow-md"
+                disabled={
+                  isAiLoading || 
+                  inventoryToCount.some(i => counts[i.id] === undefined || counts[i.id].toString().trim() === '') ||
+                  !posZFile ||                     // 👈 Z-Тайлангийн зураггүй бол цоожтой
+                  actualCashDrawer.trim() === ''   // 👈 Кассын мөнгө хоосон бол цоожтой (0 байвал зөвшөөрнө)
+                } 
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
               >
-                {isAiLoading ? 'Хааж байна...' : 'Хаах & Илгээх'}
+                {isAiLoading 
+                  ? 'Хааж байна...' 
+                  : !posZFile 
+                  ? '📸 Z-ТАЙЛАНГИЙН ЗУРАГ ДАРНА УУ' 
+                  : actualCashDrawer.trim() === '' 
+                  ? '💵 КАССЫН МӨНГӨӨ БИЧНЭ ҮҮ' 
+                  : 'Хаах & Илгээх'}
               </button>
             </div>
           </div>
