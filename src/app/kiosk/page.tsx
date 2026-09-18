@@ -5,7 +5,7 @@ import {
   Coffee, CheckCircle, Users, LogOut, Camera, 
   MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert,
   ChevronRight, AlertTriangle, RotateCcw, ShieldCheck, 
-  Mic, MicOff, Wifi, WifiOff, Sparkles, Check, X,BookOpen 
+  Mic, MicOff, Wifi, WifiOff, Sparkles, Check, X,BookOpen, PlusCircle 
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -1034,6 +1034,13 @@ function KioskPage() {
   const [purchasePayMethod, setPurchasePayMethod] = useState<'bank' | 'cash'>('bank');
   const [isScanningReceipt, setIsScanningReceipt] = useState(false);
 
+   // ➕ ШИНЭ БАРАА НЭМЭХЭД ДУТАГДАЖ БАЙСАН STATE-ҮҮД:
+  const [showAddNewItemModal, setShowAddNewItemModal] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemUnit, setNewItemUnit] = useState('ш');
+  const [newItemQty, setNewItemQty] = useState('');
+  const [newItemCost, setNewItemCost] = useState('');
+  const [newItemFile, setNewItemFile] = useState<File | null>(null);
   // 🧾 2. E-Barimt уншсаны дараа ШАЛГАХ / ЗАСАХ (Preview/Approve) Modal-ийн State
   const [ebarimtReview, setEbarimtReview] = useState<{
     file: File;
@@ -2057,6 +2064,23 @@ function KioskPage() {
                   placeholder="🔍 Бараа хайх (нэг товшилтоор бүртгэнэ)..."
                   className="w-full bg-[#060b17] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-500"
                 />
+                   {/* ➕ ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
+                {kioskSearch.trim() && !ingredients.some(i => i.name.toLowerCase().trim() === kioskSearch.toLowerCase().trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewItemName(kioskSearch.trim());
+                      setNewItemQty('');
+                      setNewItemCost('');
+                      setNewItemFile(null);
+                      setShowAddNewItemModal(true);
+                    }}
+                    className="w-full bg-emerald-500/10 hover:bg-emerald-500/20 border-2 border-dashed border-emerald-500/40 text-emerald-400 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    <span>Шинэ түүхий эд: "{kioskSearch.trim()}" үүсгэх</span>
+                  </button>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
@@ -2417,56 +2441,64 @@ function KioskPage() {
                     </span>
                   </div>
 
-          {/* Хэрэв ОРЛОГО бол: Төлбөрийн хэлбэр + БАРААНЫ ЗУРАГ ЗААВАЛ НЭХНЭ */}
+     {/* Хэрэв ОРЛОГО бол: Үнэ бичих ба Үнийн өсөлтийг бодитоор харуулах */}
                   {kioskMode === 'purchase' && (
                     <div className="space-y-2 pt-1 border-t border-slate-800">
-                      
-                      {/* 1. Үнэ бичих */}
-                      <input
-                        type="number"
-                        value={purchaseCost}
-                        onChange={(e) => setPurchaseCost(e.target.value)}
-                        placeholder="Нийт төлсөн дүн ₮ (жишээ: 19000)"
-                        className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-emerald-400 font-bold outline-none focus:border-emerald-500"
-                      />
-
-                      {/* 2. Төлбөрийн хэлбэр: Бэлнээр үү, Дансаар уу? */}
-                      <div className="grid grid-cols-2 gap-1.5 bg-[#060b17] p-1 rounded-xl border border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => setPurchasePayMethod('bank')}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition ${
-                            purchasePayMethod === 'bank' ? 'bg-blue-600 text-white' : 'text-slate-400'
-                          }`}
-                        >
-                          💳 Дансаар
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPurchasePayMethod('cash')}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition ${
-                            purchasePayMethod === 'cash' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400'
-                          }`}
-                        >
-                          💵 Кассын бэлнээр
-                        </button>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1">Нийт төлсөн үнэ (₮):</label>
+                        <input
+                          type="number"
+                          value={purchaseCost}
+                          onChange={(e) => setPurchaseCost(e.target.value)}
+                          placeholder="Төлсөн нийт үнийг бичнэ үү..."
+                          className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500"
+                        />
                       </div>
 
-                      {/* 3. 📸 E-BARIMT-ГҮЙ ТУЛ БАРААНЫ ЗУРГИЙГ ЗААВАЛ ДАРАХ ХЭСЭГ */}
+                      {/* 🚨 ШУУД ҮНИЙН ӨСӨЛТ/БУУРАЛТЫГ ТООЦОЖ ХАРУУЛАХ БАДЖ */}
+                      {(() => {
+                        const qtyNum = parseFloat(quickQty) || 0;
+                        const costNum = parseFloat(purchaseCost) || 0;
+                        const oldPrice = parseFloat(quickItemModal.unit_price) || 0;
+                        if (qtyNum > 0 && costNum > 0 && oldPrice > 0) {
+                          const currentUnitPrice = Math.round(costNum / qtyNum);
+                          const diff = currentUnitPrice - oldPrice;
+                          const pct = Math.round((diff / oldPrice) * 100);
+
+                          if (diff > 0) {
+                            return (
+                              <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center animate-pulse">
+                                <span className="text-[11px] font-black text-rose-400">
+                                  🔺 ҮНЭ ӨССӨН БАЙНА: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
+                                </span>
+                              </div>
+                            );
+                          } else if (diff < 0) {
+                            return (
+                              <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-xl text-center">
+                                <span className="text-[11px] font-black text-emerald-400">
+                                  🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}%)
+                                </span>
+                              </div>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
+
+                      {/* 📸 ЭНД ЗУРГИЙГ ЗААВАЛ ДАРУУЛНА */}
                       <div className="space-y-1">
                         <div className="flex gap-2">
                           <input
                             type="file"
                             accept="image/*"
                             capture="environment"
-                            id="single-purchase-cam"
+                            id="single-pur-cam"
                             className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]);
-                            }}
+                            onChange={(e) => { if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]); }}
                           />
                           <label
-                            htmlFor="single-purchase-cam"
+                            htmlFor="single-pur-cam"
                             className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
                           >
                             <Camera className="h-4 w-4 text-emerald-400" />
@@ -2476,28 +2508,24 @@ function KioskPage() {
                           <input
                             type="file"
                             accept="image/*"
-                            id="single-purchase-gallery"
+                            id="single-pur-gallery"
                             className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]);
-                            }}
+                            onChange={(e) => { if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]); }}
                           />
                           <label
-                            htmlFor="single-purchase-gallery"
+                            htmlFor="single-pur-gallery"
                             className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
                           >
                             <span>🖼️ Цомог</span>
                           </label>
                         </div>
 
-                        {/* Зургийн төлөв */}
                         <p className={`text-[10px] font-bold text-center ${noEbarimtFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
-                          {noEbarimtFile ? `✅ Зураг хавсаргагдлаа: ${noEbarimtFile.name.substring(0, 16)}...` : '⚠️ Сүү/Барааны зургийг заавал дарна уу!'}
+                          {noEbarimtFile ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...` : '⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!'}
                         </p>
                       </div>
                     </div>
                   )}
-
                   <div className="grid grid-cols-3 gap-2">
                     {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'].map((digit) => (
                       <button
@@ -2761,6 +2789,174 @@ function KioskPage() {
                 </div>
               </div>
             )}
+                {/* ========================================================================= */}
+    {/* 5. 👉 ЭНД ТАНЫ showAddNewItemModal (ШИНЭ БАРАА ҮҮСГЭХ) ЦОНХ БАЙРЛАНА:       */}
+    {/* ========================================================================= */}
+    {showAddNewItemModal && (
+      <div
+        className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
+        onClick={() => setShowAddNewItemModal(false)}
+      >
+        <div
+          className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+            <div>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                Шинэ бараа үүсгэх
+              </span>
+              <h3 className="text-base font-black text-white mt-1">{newItemName}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddNewItemModal(false)}
+              className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs font-bold"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Нэгж сонгох: мл, гр, ш */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 mb-1">Хэмжих нэгж:</label>
+            <div className="grid grid-cols-3 gap-1.5 bg-[#060b17] p-1 rounded-xl border border-slate-800">
+              {['ш', 'мл', 'гр'].map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setNewItemUnit(u)}
+                  className={`py-1.5 rounded-lg text-xs font-bold transition ${
+                    newItemUnit === u ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400'
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Тоо хэмжээ ба Нийт үнэ */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Авсан тоо:</label>
+              <input
+                type="number"
+                value={newItemQty}
+                onChange={(e) => setNewItemQty(e.target.value)}
+                placeholder="Жишээ: 5"
+                className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-white font-bold outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Нийт үнэ (₮):</label>
+              <input
+                type="number"
+                value={newItemCost}
+                onChange={(e) => setNewItemCost(e.target.value)}
+                placeholder="Жишээ: 25000"
+                className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* 📸 Зураг заавал шаардах хэсэг */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400">Шинэ барааны зураг (Заавал):</label>
+            <div className="flex gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                id="new-item-cam"
+                className="hidden"
+                onChange={(e) => { if (e.target.files?.[0]) setNewItemFile(e.target.files[0]); }}
+              />
+              <label
+                htmlFor="new-item-cam"
+                className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+              >
+                <Camera className="h-4 w-4 text-emerald-400" />
+                <span>Камер</span>
+              </label>
+
+              <input
+                type="file"
+                accept="image/*"
+                id="new-item-gallery"
+                className="hidden"
+                onChange={(e) => { if (e.target.files?.[0]) setNewItemFile(e.target.files[0]); }}
+              />
+              <label
+                htmlFor="new-item-gallery"
+                className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+              >
+                <span>🖼️ Цомог</span>
+              </label>
+            </div>
+
+            <p className={`text-[10px] font-bold text-center ${newItemFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
+              {newItemFile ? `✅ Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...` : '⚠️ Зургийг заавал дарна уу!'}
+            </p>
+          </div>
+
+          {/* Батлах товч */}
+          <button
+            type="button"
+            disabled={!newItemQty || !newItemCost || !newItemFile || isAiLoading}
+            onClick={async () => {
+              const qty = parseFloat(newItemQty);
+              const cost = parseFloat(newItemCost);
+              const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
+              setIsAiLoading(true);
+
+              const uploadedUrl = await uploadEvidencePhoto(newItemFile!, 'new_items');
+
+              const { data: createdIng, error: ingErr } = await supabase.from('ingredients').insert([{
+                client_id: tenantClientId,
+                name: newItemName,
+                unit: newItemUnit,
+                unit_price: unitPrice,
+                current_stock: qty
+              }]).select().single();
+
+              if (ingErr || !createdIng) {
+                alert("Шинэ бараа үүсгэж чадсангүй.");
+                setIsAiLoading(false);
+                return;
+              }
+
+              const { data: newLog } = await supabase.from('inventory_logs').insert([{
+                client_id: tenantClientId,
+                ingredient_id: createdIng.id,
+                quantity: qty,
+                total_cost: cost,
+                type: 'purchase',
+                payment_method: 'bank',
+                image_url: uploadedUrl,
+                is_ebarimt: false,
+                notes: 'Kiosk дээр шинээр үүсгэж орлого авсан',
+                worker_name: activeShift?.character_role || selectedWorker.full_name,
+                date: new Date().toISOString()
+              }]).select().single();
+
+              setIsAiLoading(false);
+              setShowAddNewItemModal(false);
+              setKioskSearch('');
+
+              setRecentToast({
+                id: newLog?.id,
+                text: `✅ Шинэ бараа орлогод орлоо: ${newItemName} (${qty} ${newItemUnit})`
+              });
+              await fetchKioskData(tenantClientId);
+            }}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs transition shadow-lg active:scale-95"
+          >
+            {isAiLoading ? 'Үүсгэж байна...' : !newItemFile ? '📸 ЗУРАГ ОРУУЛНА УУ' : 'ШИНЭ БАРААГ БАТЛАХ'}
+          </button>
+        </div>
+      </div>
+    )}
 
             {/* ========================================================================= */}
             {/* 📸 БАРИМТЫГ УНШИЖ БАЙГААГ МЭДЭГДЭХ ТОМ ХӨДӨЛГӨӨНТ ЦОНХ */}

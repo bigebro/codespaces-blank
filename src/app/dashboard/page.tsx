@@ -390,6 +390,9 @@ function Home() {
   const [overwritePurchases, setOverwritePurchases] = useState(false);
   const [overwriteAudit, setOverwriteAudit] = useState(false);
   const [overwriteKitchen, setOverwriteKitchen] = useState(false);
+  const [auditDate, setAuditDate] = useState("2026-09-01");
+  const [auditType, setAuditType] = useState<"start" | "end">("start");
+
   // 🔒 Kiosk түгжээний State-үүд:
 
   const [isKioskLocked, setIsKioskLocked] = useState(false);
@@ -1765,12 +1768,8 @@ function Home() {
       setLoading(false);
     }
   };
-
-  // =========================================================================
-  // 7. ХЭВТЭЭ ТООЛЛОГО ИМПОРТЛОХ (Огноо толгой мөрөнд заавал байна)
-  // =========================================================================
-  // =========================================================================
-  // 🗂️ МОНГОЛ ТОЛГОЙ МӨРТЭЙ ХЭВТЭЭ ТООЛЛОГО ХУУЛАХ (HORIZONTAL AUDIT)
+// =========================================================================
+  // 🗂️ БОСОО ТООЛЛОГО (SMART HEADER & AUTO-DETECT)
   // =========================================================================
   const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1779,92 +1778,83 @@ function Home() {
     setLoading(true);
     try {
       const rows = inventoryPasteText.trim().split("\n");
-      if (rows.length < 2) {
-        alert("Алдаа: Толгой мөр болон доорх тооллогыг хамтад нь хуулна уу.");
-        setLoading(false);
-        return;
-      }
+      if (rows.length < 1) return;
 
-      // Түүхий эдүүдийг жижиг үсгээр цэвэрлэж хадгалах:
       const ingMap = new Map();
-      ingredients.forEach((i) => {
-        ingMap.set(cleanNameForMatch(i.name), i);
-        // Хэрэв "Milk (Сүү)" гэж байвал хоёуланг нь таних:
-        if (i.name.toLowerCase().includes("milk")) ingMap.set("сүү", i);
-        if (i.name.toLowerCase().includes("beans")) ingMap.set("кофе үр", i);
-      });
+      ingredients
+        .filter((i) => i.client_id === activeClient)
+        .forEach((i) => {
+          ingMap.set(cleanNameForMatch(i.name), i);
+          if (i.name.toLowerCase().includes("milk")) ingMap.set("сүү", i);
+          if (i.name.toLowerCase().includes("beans")) ingMap.set("кофе", i);
+        });
 
-      const headers = rows[0].split("\t").map((h) => cleanCell(h));
       const countsToInsert: any[] = [];
+      const defaultDate = auditDate ? `${auditDate}T00:00:00.000Z` : `${startDate}T00:00:00.000Z`;
+      const cleanType = auditType === "start" ? "start" : "end";
 
-      for (let r = 1; r < rows.length; r++) {
+      // 🧠 1. SMART HEADER ШАЛГАХ (Баганын дараалал хамаарахгүй)
+      const headerCols = rows[0].split("\t").map(cleanHeader);
+      let nameIdx = headerCols.findIndex(c =>
+        c.includes("бараа") || c.includes("item") || c.includes("нэр") || c.includes("ингредиент") || c.includes("product")
+      );
+      let qtyIdx = headerCols.findIndex(c =>
+        c.includes("тоо") || c.includes("хэмжээ") || c.includes("qty") || c.includes("count") || c.includes("үлдэгдэл") || c.includes("amount")
+      );
+      let dateIdx = headerCols.findIndex(c =>
+        c.includes("огноо") || c.includes("date") || c.includes("өдөр")
+      );
+
+      const hasSmartHeader = nameIdx !== -1 && qtyIdx !== -1;
+      const startRowIdx = hasSmartHeader ? 1 : 0; // Толгой мөртэй бол 1-ээс эхэлнэ
+
+      for (let r = startRowIdx; r < rows.length; r++) {
         const row = rows[r].trim();
         if (!row) continue;
-        const values = row.split("\t").map((v) => v.trim());
+        const cols = row.split("\t").map((c) => c.trim());
 
-        let dateVal = "";
-        let typeVal = "count";
-        let startColIdx = 2;
+        let itemName = "";
+        let qty = 0;
+        let rowDate = defaultDate;
 
-        // Огноо байгаа эсэхийг шалгах:
-        if (values[0] && /\d{4}[./-]\d{2}/.test(values[0])) {
-          dateVal = parseSafeDate(values[0], `${endDate}T12:00:00.000Z`);
-          typeVal = values[1]?.toLowerCase() || "count";
-          startColIdx = 2;
+        if (hasSmartHeader) {
+          // Толгой мөрөөр нь олох (Бараа эхэнд байна уу, Тоо эхэнд байна уу хамаагүй!)
+          itemName = cleanCell(cols[nameIdx] || "");
+          qty = parseFloat((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
+          if (dateIdx !== -1 && cols[dateIdx] && /\d{4}[./-]\d{2}/.test(cols[dateIdx])) {
+            rowDate = parseSafeDate(cols[dateIdx], defaultDate);
+          }
         } else {
-          // Огноо бичээгүй үед:
-          const col0 = values[0].toLowerCase();
-          const col1 = values[1] ? values[1].toLowerCase() : "";
+          // Толгой мөргүй үед: Автоматаар тоо ба текстийг нь ялгах!
+          // Хэрэв эхний баганад тоо (10000), хоёр дахь баганад нэр (Milk) байвал байрыг нь солино:
+          const col0IsNum = !isNaN(Number(cols[0]?.replace(/[^0-9.-]/g, "")));
+          const col1IsText = isNaN(Number(cols[1]));
 
-          if (
-            col0.includes("эх") ||
-            col0.includes("start") ||
-            col0.includes("эц") ||
-            col0.includes("end")
-          ) {
-            typeVal = col0;
-            startColIdx = 1;
-          } else if (
-            col1.includes("эх") ||
-            col1.includes("start") ||
-            col1.includes("эц") ||
-            col1.includes("end")
-          ) {
-            typeVal = col1;
-            startColIdx = 2;
+          if (cols.length >= 2 && col0IsNum && col1IsText) {
+            qty = parseFloat(cols[0].replace(/[^0-9.-]/g, "")) || 0;
+            itemName = cleanCell(cols[1]);
+          } else if (cols.length >= 2) {
+            itemName = cleanCell(cols[0]);
+            qty = parseFloat(cols[1].replace(/[^0-9.-]/g, "")) || 0;
           }
 
-          const isStart = typeVal.includes("start") || typeVal.includes("эх");
-          dateVal = isStart
-            ? `${startDate}T00:00:00.000Z`
-            : `${endDate}T23:59:59.000Z`;
+          if (cols[2] && /\d{4}[./-]\d{2}/.test(cols[2])) {
+            rowDate = parseSafeDate(cols[2], defaultDate);
+          }
         }
 
-        // Монгол төрлийг системд таниулах:
-        const cleanType =
-          typeVal.includes("эх") || typeVal.includes("start") ? "start" : "end";
+        if (!itemName || isNaN(qty)) continue;
 
-        for (let i = startColIdx; i < headers.length; i++) {
-          const rawHeaderName = headers[i];
-          if (!rawHeaderName) continue;
-
-          // 💡 ЗАСВАР: Том жижиг үсгийг ялгалгүй цэвэрлэж хайх:
-          const ing = ingMap.get(cleanNameForMatch(rawHeaderName));
-
-          if (ing) {
-            const rawQty = values[i]?.replace(/[, ]/g, "");
-            if (rawQty !== undefined && rawQty !== "" && rawQty !== "-") {
-              const qty = parseFloat(rawQty) || 0;
-              countsToInsert.push({
-                client_id: activeClient,
-                ingredient_id: ing.id,
-                quantity: qty,
-                type: "count",
-                notes: `Бөөнөөр Тоолсон Үлдэгдэл (${cleanType})`, // 'start' эсвэл 'end' болно
-                date: dateVal,
-              });
-            }
-          }
+        const matchedIng = ingMap.get(cleanNameForMatch(itemName));
+        if (matchedIng) {
+          countsToInsert.push({
+            client_id: activeClient,
+            ingredient_id: matchedIng.id,
+            quantity: qty,
+            type: "count",
+            notes: `Бөөнөөр Тоолсон Үлдэгдэл (${cleanType})`,
+            date: rowDate,
+          });
         }
       }
 
@@ -1874,8 +1864,8 @@ function Home() {
           .delete()
           .eq("client_id", activeClient)
           .eq("type", "count")
-          .gte("date", `${startDate}T00:00:00.000Z`)
-          .lte("date", `${endDate}T23:59:59.999Z`);
+          .gte("date", `${auditDate}T00:00:00.000Z`)
+          .lte("date", `${auditDate}T23:59:59.999Z`);
       }
 
       if (countsToInsert.length > 0) {
@@ -1889,9 +1879,7 @@ function Home() {
       setInventoryPasteText("");
       setOverwriteAudit(false);
       await fetchDatabaseData(activeClient);
-      alert(
-        `✅ Амжилттай! Нийт ${countsToInsert.length} тооллого хадгалагдлаа.`,
-      );
+      alert(`✅ Амжилттай! Нийт ${countsToInsert.length} барааны тооллого (${cleanType}: ${auditDate}) хадгалагдлаа.`);
       setTimeout(() => setInventoryImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Алдаа: ${err.message}`);
@@ -3377,94 +3365,96 @@ function Home() {
               </form>
             </div>
 
+            {/* 🗂️ БОСОО ТООЛЛОГО ИМПОРТЛОХ КАРТ */}
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 col-span-1 md:col-span-2">
               <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2">
                   <FileSpreadsheet className="h-6 w-6 text-teal-400" />
                   <h3 className="text-lg font-bold">
-                    Агуулахын Тооллого Хэвтээ Импортлох (Horizontal Inventory
-                    Audit Paste)
+                    Агуулахын Босоо Тооллого (Vertical Audit Paste)
                   </h3>
                 </div>
-                {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+                  {/* 👁️ ЗАГВАР ХАРАХ ТОВЧ */}
                 <button
                   type="button"
                   onClick={() => setActiveSampleModal("audit")}
-                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold text-teal-400 hover:text-teal-300 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
                   👁️ Загвар харах
                 </button>
               </div>
+
               <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Google Sheets-ээс{" "}
-                <strong>
-                  Толгой мөр (Ингредиентүүдийн нэрс) болон доорх Тооллогын
-                  мөрийг (Date, Type, болон утгууд)
-                </strong>{" "}
-                хамт чирж хуулаад доор шууд хуулж тавина уу.
+                Excel дээрх <strong>[Барааны нэр] болон [Тоо хэмжээ]</strong> гэсэн 2 босоо баганыг хуулаад доор тавина уу. (Хэвтээ 125 багана шаардлагагүй).
               </p>
 
               {inventoryImportSuccess && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-4 flex items-center gap-2.5">
                   <Check className="h-5 w-5" />
                   <p className="text-sm font-semibold">
-                    Тооллого амжилттай импортлогдож, бодит үлдэгдлүүд сэргэлээ!
+                    Тооллого амжилттай импортлогдож, үлдэгдлүүд шинэчлэгдлээ!
                   </p>
                 </div>
               )}
-              {/* STATUS BADGE */}
-              <div className="mb-3 p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 bg-slate-950 border-slate-800">
-                {existingAuditCount > 0 ? (
-                  <span className="text-teal-400 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-teal-400 animate-pulse" />
-                    🟢{" "}
-                    <strong>
-                      {startDate} - {endDate}
-                    </strong>{" "}
-                    хооронд нийт{" "}
-                    <strong>{existingAuditCount} барааны тооллого</strong>{" "}
-                    хийгдсэн байна.
-                  </span>
-                ) : (
-                  <span className="text-slate-400 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-slate-600" />⚪{" "}
-                    {startDate} - {endDate} хооронд тооллогын дата бүртгэгдээгүй
-                    байна.
-                  </span>
-                )}
+
+              {/* 📅 ОГНОО БА ТӨРӨЛ СОНГОХ (УХААЛАГ КОНТРОЛ) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Тооллогын Огноо:
+                  </label>
+                  <input
+                    type="date"
+                    value={auditDate}
+                    onChange={(e) => setAuditDate(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-bold outline-none focus:border-teal-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Тооллогын Төрөл:
+                  </label>
+                  <select
+                    value={auditType}
+                    onChange={(e) => setAuditType(e.target.value as "start" | "end")}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-teal-400 font-bold outline-none focus:border-teal-500 cursor-pointer"
+                  >
+                    <option value="start">🟢 Эхний үлдэгдэл (Start Balance)</option>
+                    <option value="end">🔴 Эцсийн тооллого (Ending Count)</option>
+                  </select>
+                </div>
               </div>
+
               <form onSubmit={handleBulkInventoryPaste} className="space-y-4">
                 <textarea
-                  rows={5}
+                  rows={8}
                   value={inventoryPasteText}
                   onChange={(e) => setInventoryPasteText(e.target.value)}
-                  placeholder="Жишээ:&#10;Date&#9;Type&#9;Apple syrup&#9;Bun&#9;Butter&#10;2026-05-30&#9;start&#9;751&#9;3&#9;0"
+                  placeholder="Жишээ:&#10;Matcha powder&#9;41.9&#10;Eggs&#9;5&#10;Hazelnut syrup&#9;833.9"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 font-mono focus:outline-none focus:border-teal-500 leading-normal"
                 />
 
                 {/* OVERWRITE CHECKBOX */}
-                {existingAuditCount > 0 && (
-                  <label className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={overwriteAudit}
-                      onChange={(e) => setOverwriteAudit(e.target.checked)}
-                      className="rounded border-slate-700 accent-amber-500"
-                    />
-                    <span>
-                      Энэ хугацааны хуучин тооллогуудыг{" "}
-                      <strong>цэвэрлээд, шинээр дарж оруулах</strong>
-                    </span>
-                  </label>
-                )}
+                <label className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={overwriteAudit}
+                    onChange={(e) => setOverwriteAudit(e.target.checked)}
+                    className="rounded border-slate-700 accent-amber-500"
+                  />
+                  <span>
+                    Сонгосон огнооны ({auditDate}) <strong>хуучин тооллогыг цэвэрлээд, шинээр дарж оруулах</strong>
+                  </span>
+                </label>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold py-3 rounded-xl transition text-xs flex items-center justify-center gap-2"
+                  className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-black py-3 rounded-xl transition text-xs flex items-center justify-center gap-2 active:scale-95"
                 >
                   <UploadCloud className="h-4 w-4" />
-                  Тооллого Бөөнөөр Шивэх (Import Audit)
+                  Босоо Тооллого Хадгалах (Import Vertical Audit)
                 </button>
               </form>
             </div>
@@ -3877,73 +3867,43 @@ function Home() {
                   {/* ========================================================================= */}
                   {/* 3. АГУУЛАХЫН ТОЛЛОГО (HORIZONTAL INVENTORY AUDIT) ЗАГВАР */}
                   {/* ========================================================================= */}
-                  {activeSampleModal === "audit" && (
+            {activeSampleModal === "audit" && (
                     <div className="space-y-3">
-                      <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-[11px] text-center">
-                        <div className="grid grid-cols-6 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
-                          <span>1. Огноо</span>
-                          <span>2. Төрөл</span>
-                          <span>Milk</span>
-                          <span>Beans</span>
-                          <span>Apple syrup</span>
-                          <span>Bun</span>
+                      <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+                        <div className="grid grid-cols-2 bg-slate-950 p-2.5 font-black text-teal-400 border-b border-slate-800">
+                          <span>1. Барааны нэр (Item Name)</span>
+                          <span>2. Тоо хэмжээ (Quantity)</span>
                         </div>
-                        <div className="grid grid-cols-6 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
-                          <span>2026-09-15</span>
-                          <span className="text-teal-300 font-bold">эхний</span>
-                          <span>10000</span>
-                          <span>2000</span>
-                          <span>750</span>
-                          <span>20</span>
+                        <div className="grid grid-cols-2 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+                          <span>Matcha powder</span>
+                          <span>41.9</span>
                         </div>
-                        <div className="grid grid-cols-6 p-2 bg-slate-900/50 text-slate-300">
-                          <span>2026-09-15</span>
-                          <span className="text-emerald-400 font-bold">
-                            эцсийн
-                          </span>
-                          <span>8000</span>
-                          <span>2200</span>
-                          <span>750</span>
-                          <span>20</span>
+                        <div className="grid grid-cols-2 p-2 bg-slate-900/50 text-slate-300 border-b border-slate-800/40">
+                          <span>Eggs</span>
+                          <span>5</span>
+                        </div>
+                        <div className="grid grid-cols-2 p-2 bg-slate-900/50 text-slate-300">
+                          <span>Hazelnut syrup</span>
+                          <span>833.9</span>
                         </div>
                       </div>
 
                       <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                        <p>
-                          💡{" "}
-                          <strong className="text-slate-200">
-                            Төрөл (Type) тайлбар:
-                          </strong>
-                        </p>
-                        <p>
-                          • <code className="text-teal-300">эхний</code> (эсвэл{" "}
-                          <code className="text-teal-300">start</code>): Сарын
-                          эхний гарааны бодит тооллого.
-                        </p>
-                        <p>
-                          • <code className="text-emerald-400">эцсийн</code>{" "}
-                          (эсвэл <code className="text-emerald-400">end</code>):
-                          Сарын эцсийн үлдэгдлийн бодит тооллого.
-                        </p>
-                        <p>
-                          • 3-р баганаас эхлэн түүхий эдүүдийнхээ нэрийг
-                          хэвтээгээр байршуулж, доор нь тоогоо бичнэ.
-                        </p>
+                        <p>💡 <strong className="text-slate-200">Заавар:</strong></p>
+                        <p>• Дээрх огноо сонгогчоос <strong>Огноо</strong> болон <strong>Эхний/Эцсийн</strong> үлдэгдлээ сонгоно.</p>
+                        <p>• Excel дээрх 2 баганаа шууд хуулаад талбарт Ctrl+V хийнэ.</p>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText(
-                            "Огноо\tТөрөл\tMilk\tBeans\tApple syrup\tBun\n2026-09-15\tэхний\t10000\t2000\t750\t20\n2026-09-15\tэцсийн\t8000\t2200\t750\t20",
-                          );
-                          alert(
-                            "Агуулахын тооллогын загвар хуулагдлаа! Одоо талбартаа Ctrl+V дарж тавина уу.",
-                          );
+                          // 📋 Толгой мөртэйгөө хамт хуулагдана:
+                          navigator.clipboard.writeText("Барааны нэр\tТоо хэмжээ\nMatcha powder\t41.9\nEggs\t5\nHazelnut syrup\t833.9\nMilk\t352.4");
+                          alert("Босоо тооллогын загвар (Толгой мөртэй) хуулагдлаа! Ctrl+V дарж тавина уу.");
                         }}
                         className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        📋 Тооллогын загвар хуулах (Copy Audit Template)
+                        📋 Босоо тооллогын загвар хуулах (Copy Template with Header)
                       </button>
                     </div>
                   )}
