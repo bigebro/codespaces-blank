@@ -340,7 +340,7 @@ async function compressImageForUpload(file: File): Promise<{ file: File; base64:
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
+        const MAX_WIDTH =  850;
         let width = img.width;
         let height = img.height;
         if (width > height && width > MAX_WIDTH) {
@@ -355,7 +355,7 @@ async function compressImageForUpload(file: File): Promise<{ file: File; base64:
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.drawImage(img, 0, 0, width, height);
 
-        const base64Url = canvas.toDataURL('image/jpeg', 0.75);
+        const base64Url = canvas.toDataURL('image/jpeg', 0.6);
         const cleanBase64 = base64Url.split(',')[1];
         canvas.toBlob((blob) => {
           const compressedFile = blob 
@@ -1386,7 +1386,10 @@ const loadInventoryToCount = () => {
 
 
 
-const handleCloseShift = async () => {
+// ⚡ 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
+ 
+const handleCloseShift = () => {
+    // 1. ШАЛГАЛТУУД (Дутуу зүйл байвал шууд анхааруулна)
     const uncountedItems = inventoryToCount.filter(
       (i) => counts[i.id] === undefined || counts[i.id].toString().trim() === ""
     );
@@ -1405,73 +1408,77 @@ const handleCloseShift = async () => {
       return;
     }
 
-    setIsAiLoading(true);
+    // ⚡ 2. ӨГӨГДЛҮҮДИЙГ БЭЛТГЭХ
     const endTime = new Date().toISOString();
+    const fileToUpload = posZFile;
+    const cashVal = actualCashDrawer;
+    const currentShift = activeShift;
+    const itemsCounted = [...inventoryToCount];
+    const itemCounts = { ...counts };
+    const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
 
-    try {
-      // 🚀 Бүх хүсэлтийг зэрэг ажиллуулна (Parallel execution)
-      const uploadPromise = uploadEvidencePhoto(posZFile, "pos_z_reports");
+    // ⚡ 3. ДЭЛГЭЦ ШУУД 0 МИЛЛИСЕКУНДЭД АМЖИЛТТАЙ ГЭЖ СОЛИГДОНО! (Хүлээхгүй)
+    setMsg("🌙 Ээлж амжилттай хаагдлаа!");
+    setStep("select_worker");
+    setSelectedWorker(null);
+    setActiveShift(null);
+    setTasks([]);
+    setCounts({});
+    setPosZFile(null);
+    setActualCashDrawer("");
 
-      const countLogsToInsert: any[] = inventoryToCount.map((item) => ({
-        client_id: tenantClientId,
-        ingredient_id: item.id,
-        quantity: parseFloat(counts[item.id]) || 0,
-        type: "count",
-        notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
-        worker_name: activeShift?.character_role || selectedWorker.full_name,
-        date: endTime,
-      }));
+    // ⚡ 4. ЗУРАГ ХУУЛАХ БА БААЗАД ХИЙХИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ АЖИЛЛУУЛАХ (Background)
+    (async () => {
+      try {
+        let posZUrl = null;
+        if (fileToUpload) {
+          posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports");
+        }
 
-      countLogsToInsert.push({
-        client_id: tenantClientId,
-        ingredient_id: null,
-        non_food_item: "Кассын хаалтын үлдэгдэл",
-        quantity: 1,
-        total_cost: parseFloat(actualCashDrawer) || 0,
-        type: "count",
-        notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(actualCashDrawer) || 0).toLocaleString()}₮`,
-        payment_method: "cash",
-        worker_name: activeShift?.character_role || selectedWorker.full_name,
-        date: endTime,
-      });
+        const countLogsToInsert: any[] = itemsCounted.map((item) => ({
+          client_id: tenantClientId,
+          ingredient_id: item.id,
+          quantity: parseFloat(itemCounts[item.id]) || 0,
+          type: "count",
+          notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
+          worker_name: currentShift?.character_role || selectedWorker?.full_name,
+          date: endTime,
+        }));
 
-      const logsPromise = supabase.from("inventory_logs").insert(countLogsToInsert);
+        if (cashVal && parseFloat(cashVal) >= 0) {
+          countLogsToInsert.push({
+            client_id: tenantClientId,
+            ingredient_id: null,
+            non_food_item: "Кассын хаалтын үлдэгдэл",
+            quantity: 1,
+            total_cost: parseFloat(cashVal) || 0,
+            type: "count",
+            notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(cashVal) || 0).toLocaleString()}₮`,
+            payment_method: "cash",
+            worker_name: currentShift?.character_role || selectedWorker?.full_name,
+            date: endTime,
+          });
+        }
 
-      const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
-      const tasksPromise = completedTaskIds.length > 0
-        ? supabase.from("tasks").update({ is_active: false }).in("id", completedTaskIds)
-        : Promise.resolve();
+        const logsPromise = supabase.from("inventory_logs").insert(countLogsToInsert);
+        
+        const shiftPromise = currentShift ? supabase.from("shifts").update({
+          is_active: false,
+          end_time: endTime,
+          pos_z_image_url: posZUrl,
+        }).eq("id", currentShift.id) : Promise.resolve();
 
-      // Зураг хуулах ба лог хадгалахыг зэрэг хүлээнэ
-      const [posZUrl] = await Promise.all([uploadPromise, logsPromise, tasksPromise]);
+        const tasksPromise = completedTaskIds.length > 0
+          ? supabase.from("tasks").update({ is_active: false }).in("id", completedTaskIds)
+          : Promise.resolve();
 
-      if (activeShift) {
-        await supabase
-          .from("shifts")
-          .update({
-            is_active: false,
-            end_time: endTime,
-            pos_z_image_url: posZUrl,
-          })
-          .eq("id", activeShift.id);
+        // 🚀 Бүгдийг зэрэг гүйцэтгэнэ
+        await Promise.all([logsPromise, shiftPromise, tasksPromise]);
+        fetchKioskData(tenantClientId);
+      } catch (e) {
+        console.error("Close shift background error:", e);
       }
-
-      // ⚡ 2.2 секундийн хуучин setTimeout-ийг бүрэн арилгаж, шууд гарна!
-      setIsAiLoading(false);
-      setMsg("🌙 Ээлж амжилттай хаагдлаа!");
-      setStep("select_worker");
-      setSelectedWorker(null);
-      setActiveShift(null);
-      setTasks([]);
-      setCounts({});
-      setPosZFile(null);
-      setActualCashDrawer("");
-
-      fetchKioskData(tenantClientId); // Баазыг цаана нь сэргээнэ
-    } catch (err: any) {
-      setIsAiLoading(false);
-      alert("Хаалт хийхэд алдаа гарлаа: " + err.message);
-    }
+    })();
   };
 
   return (
@@ -2312,38 +2319,59 @@ const handleCloseShift = async () => {
                   <button
                     type="button"
                     disabled={!cashOutAmount || parseFloat(cashOutAmount) <= 0 || (cashOutType === 'petty_cash' && !cashOutFile) || isAiLoading}
-                    onClick={async () => {
-                      const amount = parseFloat(cashOutAmount);
-                      setIsAiLoading(true);
-                      let uploadedImg = null;
-                      if (cashOutFile) uploadedImg = await uploadEvidencePhoto(cashOutFile, 'petty_cash');
+                  onClick={() => {
+                        const amount = parseFloat(cashOutAmount);
+                        const fileToUpload = cashOutFile;
+                        const typeToSave = cashOutType;
+                        const noteToSave = cashOutNote;
 
-                      const noteText = cashOutType === 'owner_draw'
-                        ? `Эзний хувийн таталт (Cash Draw): ${cashOutNote || 'Бэлнээр авсан'}`
-                        : `Жижиг зардал (Petty Cash): ${cashOutNote || 'Ахуйн хэрэгсэл'}`;
+                        // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
+                        setCashOutModal(false);
+                        setCashOutAmount('');
+                        setCashOutNote('');
+                        setCashOutFile(null);
 
-                      const { data: newLog, error } = await supabase.from('inventory_logs').insert([{
-                        client_id: tenantClientId,
-                        ingredient_id: null,
-                        non_food_item: cashOutType === 'owner_draw' ? 'Эзний таталт' : (cashOutNote || 'Ахуйн зардал'),
-                        quantity: 1,
-                        total_cost: amount,
-                        type: cashOutType === 'owner_draw' ? 'other' : 'purchase',
-                        payment_method: 'cash',
-                        notes: noteText,
-                        image_url: uploadedImg,
-                        worker_name: activeShift?.character_role || selectedWorker.full_name,
-                        date: new Date().toISOString()
-                      }]).select().single();
+                        // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
+                        setRecentToast({
+                          id: 'temp-' + Date.now(),
+                          text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
+                        });
 
-                      setIsAiLoading(false);
-                      setCashOutModal(false);
-                      if (error) alert(error.message);
-                      else {
-                        setRecentToast({ id: newLog.id, text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮` });
-                    
-                      }
-                    }}
+                        // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
+                        (async () => {
+                          try {
+                            let uploadedImg = null;
+                            if (fileToUpload) uploadedImg = await uploadEvidencePhoto(fileToUpload, 'petty_cash');
+
+                            const noteText = typeToSave === 'owner_draw'
+                              ? `Эзний хувийн таталт (Cash Draw): ${noteToSave || 'Бэлнээр авсан'}`
+                              : `Жижиг зардал (Petty Cash): ${noteToSave || 'Ахуйн хэрэгсэл'}`;
+
+                            const { data: newLog } = await supabase.from('inventory_logs').insert([{
+                              client_id: tenantClientId,
+                              ingredient_id: null,
+                              non_food_item: typeToSave === 'owner_draw' ? 'Эзний таталт' : (noteToSave || 'Ахуйн зардал'),
+                              quantity: 1,
+                              total_cost: amount,
+                              type: typeToSave === 'owner_draw' ? 'other' : 'purchase',
+                              payment_method: 'cash',
+                              notes: noteText,
+                              image_url: uploadedImg,
+                              worker_name: activeShift?.character_role || selectedWorker.full_name,
+                              date: new Date().toISOString()
+                            }]).select().single();
+
+                            if (newLog) {
+                              setRecentToast({
+                                id: newLog.id,
+                                text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
+                              });
+                            }
+                          } catch (e) {
+                            console.error("Cash out background error:", e);
+                          }
+                        })();
+                      }}
                     className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95"
                   >
                     {isAiLoading ? 'Хадгалж байна...' : (cashOutType === 'petty_cash' && !cashOutFile) ? '📸 ЗУРАГ ДАРНА УУ' : 'МӨНГӨ ГАРГАХЫГ БАТЛАХ'}
@@ -2703,57 +2731,61 @@ const handleCloseShift = async () => {
                   <button
                     type="button"
                     disabled={isAiLoading || ebarimtReview.items.length === 0}
-                    onClick={async () => {
-                      setIsAiLoading(true);
+                    onClick={() => {
+                      const reviewData = ebarimtReview;
 
-                      // 1. Эх баримтын зургийг Supabase Storage-д ХАДГАЛАХ
-                      const uploadedImgUrl = await uploadEvidencePhoto(ebarimtReview.file, 'receipts_evidence');
-
-                      // 2. Бүх барааг баталгаажуулж оруулах
-                      const logsToInsert = ebarimtReview.items.map((it) => {
-                        const matchedIng = ingredients.find(
-                          (ing) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim()
-                        );
-                        return {
-                          client_id: tenantClientId,
-                          ingredient_id: matchedIng ? matchedIng.id : null,
-                          non_food_item: matchedIng ? null : it.item_name,
-                          quantity: Math.abs(it.quantity),
-                          total_cost: it.total_cost || 0,
-                          type: 'purchase',
-                          payment_method: ebarimtReview.payMethod,
-                          image_url: uploadedImgUrl, // Баримтын зураг холбогдоно!
-                          is_ebarimt: true,
-                          notes: 'E-Barimt Баталгаажсан татан авалт',
-                          worker_name: activeShift?.character_role || selectedWorker.full_name,
-                          date: new Date().toISOString()
-                        };
-                      });
-
-                      const { data: insertedData, error } = await supabase
-                        .from('inventory_logs')
-                        .insert(logsToInsert)
-                        .select('id');
-
-                      setIsAiLoading(false);
+                      // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
                       setEbarimtReview(null);
 
-                      if (error) {
-                        alert(`Алдаа: ${error.message}`);
-                      } else {
-                        // ⚡ БҮХ БАРААГ ЗЭРЭГ БУЦААХ (BULK UNDO) БОЛОМЖТОЙ TOAST
-                        const insertedIds = (insertedData || []).map((d: any) => d.id);
-                        setRecentToast({
-                          id: insertedIds[0] || 'bulk',
-                          text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`
-                        });
-                        
-                        // Хэрэв бариста 10 секундийн дотор [Буцаах] дарвал бүх барааг баазаас устгана:
-             
-                        await fetchKioskData(tenantClientId);
-                      }
-                    }}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 shrink-0"
+                      // ⚡ 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
+                      setRecentToast({
+                        id: 'temp-' + Date.now(),
+                        text: `⚡ ${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`
+                      });
+
+                      // ⚡ 3. ЗУРАГ БА ЛОГИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ
+                      (async () => {
+                        try {
+                          const uploadedImgUrl = await uploadEvidencePhoto(reviewData.file, 'receipts_evidence');
+
+                          const logsToInsert = reviewData.items.map((it) => {
+                            const matchedIng = ingredients.find(
+                              (ing) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim()
+                            );
+                            return {
+                              client_id: tenantClientId,
+                              ingredient_id: matchedIng ? matchedIng.id : null,
+                              non_food_item: matchedIng ? null : it.item_name,
+                              quantity: Math.abs(it.quantity),
+                              total_cost: it.total_cost || 0,
+                              type: 'purchase',
+                              payment_method: reviewData.payMethod,
+                              image_url: uploadedImgUrl,
+                              is_ebarimt: true,
+                              notes: 'E-Barimt Баталгаажсан татан авалт',
+                              worker_name: activeShift?.character_role || selectedWorker.full_name,
+                              date: new Date().toISOString()
+                            };
+                          });
+
+                          const { data: insertedData } = await supabase
+                            .from('inventory_logs')
+                            .insert(logsToInsert)
+                            .select('id');
+
+                          const insertedIds = (insertedData || []).map((d: any) => d.id);
+                          setRecentToast({
+                            id: insertedIds[0] || 'bulk',
+                            text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`
+                          });
+
+                          fetchKioskData(tenantClientId);
+                              } catch (e) {
+                                console.error("E-barimt save error:", e);
+                              }
+                            })();
+                          }}
+                          className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 shrink-0"
                   >
                     {isAiLoading ? 'Баазад хадгалж байна...' : '✅ ШАЛГААД БҮГДИЙГ БАТЛАХ'}
                   </button>
