@@ -863,7 +863,7 @@ function KioskAiChatSection({
                   onClick={() => handleUndo(msg.logId!, i)}
                   className="mt-2.5 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
                 >
-                  <RotateCcw className="h-3 w-3" /> Буцаах (Undo)
+                  <RotateCcw className="h-3 w-3" /> Буцаах 
                 </button>
               )}
             </div>
@@ -1806,7 +1806,7 @@ const handleCloseShift = () => {
                     }}
                     className="bg-slate-950 text-emerald-400 hover:text-white px-2.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 shadow"
                   >
-                    ↩️ Буцаах (Undo)
+                    ↩️ Буцаах 
                   </button>
 
                   {/* ✕ Карт хаах товч */}
@@ -1904,7 +1904,7 @@ const handleCloseShift = () => {
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
                     <span>🧾 Олон бараатай E-Barimt уншуулах</span>
                   </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">AI уншаад батлахын өмнө танд шалгуулна</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Батлахын өмнө танд шалгуулна</p>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">

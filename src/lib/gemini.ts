@@ -606,13 +606,15 @@ const systemPrompt = `
   if (geminiKey) {
     try {
       const ai = new GoogleGenerativeAI(geminiKey);
-      const model = ai.getGenerativeModel({
-        model: "gemini-3.5-flash-lite",
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-        },
-      });
+     const model = ai.getGenerativeModel({
+  model: "gemini-3.5-flash-lite",
+  generationConfig: {
+    temperature: 0.1, // Strict, deterministic factual reading
+    responseMimeType: "application/json", // Enforces clean JSON
+    maxOutputTokens: 2048, // 🛡️ Safe ceiling: never cuts off 10-20 item receipts
+    thinkingConfig: { thinkingLevel: "LOW" }, // ⚡ Fast, but smart enough to read blurry text correctly
+  } as any,
+});
 
       const response = await model.generateContent({
         contents: [
