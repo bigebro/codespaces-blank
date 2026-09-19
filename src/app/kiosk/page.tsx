@@ -2749,11 +2749,14 @@ const handleCloseShift = () => {
                           const uploadedImgUrl = await uploadEvidencePhoto(reviewData.file, 'receipts_evidence');
 
                           const logsToInsert = reviewData.items.map((it) => {
-                            const matchedIng = ingredients.find(
-                              (ing) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim()
-                            );
+                            const isFood = it.is_food !== false; // Default to true unless AI flags it as non-food
+                            const matchedIng = isFood
+                              ? ingredients.find((ing) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim())
+                              : null;
                             return {
                               client_id: tenantClientId,
+                               // If it's FOOD and in catalog -> Inventory Asset (COGS)
+                              // If it's NOT food (soap, paper, gloves) -> OPEX Expense
                               ingredient_id: matchedIng ? matchedIng.id : null,
                               non_food_item: matchedIng ? null : it.item_name,
                               quantity: Math.abs(it.quantity),
@@ -2762,7 +2765,7 @@ const handleCloseShift = () => {
                               payment_method: reviewData.payMethod,
                               image_url: uploadedImgUrl,
                               is_ebarimt: true,
-                              notes: 'E-Barimt Баталгаажсан татан авалт',
+                               notes: isFood ? '🧾 E-Barimt (Хүнс)' : '🧾 E-Barimt (Хүнсний бус OPEX)',
                               worker_name: activeShift?.character_role || selectedWorker.full_name,
                               date: new Date().toISOString()
                             };
