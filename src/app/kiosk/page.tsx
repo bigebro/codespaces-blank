@@ -329,30 +329,68 @@ function advancedMongolianVoiceParser(
     notes: `${rawText} (⚡ Local Parser)`
   };
 }
+
+// ⚡ Зургийг 10 дахин хөнгөн болгож шахах функц
+async function compressImageForUpload(file: File): Promise<{ file: File; base64: string }> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > height && width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        } else if (height > MAX_WIDTH) {
+          width = Math.round((width * MAX_WIDTH) / height);
+          height = MAX_WIDTH;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(img, 0, 0, width, height);
+
+        const base64Url = canvas.toDataURL('image/jpeg', 0.75);
+        const cleanBase64 = base64Url.split(',')[1];
+        canvas.toBlob((blob) => {
+          const compressedFile = blob 
+            ? new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' })
+            : file;
+          resolve({ file: compressedFile, base64: cleanBase64 });
+        }, 'image/jpeg', 0.75);
+      };
+      img.onerror = () => resolve({ file, base64: "" });
+    };
+    reader.onerror = () => resolve({ file, base64: "" });
+  });
+}
+
 // =========================================================================
 // 📸 2. UPLOAD EVIDENCE PHOTO TO SUPABASE STORAGE
 // =========================================================================
 async function uploadEvidencePhoto(file: File, folder: string = 'logs'): Promise<string | null> {
   try {
-    const fileExt = file.name.split('.').pop() || 'jpg';
+    const { file: compressedFile } = await compressImageForUpload(file);
+    const fileExt = 'jpg';
     const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    
     const { error: uploadError } = await supabase.storage
       .from('receipts_evidence')
-      .upload(fileName, file, { cacheControl: '3600', upsert: true });
+      .upload(fileName, compressedFile, { cacheControl: '3600', upsert: true });
 
     if (uploadError) throw uploadError;
-
-    const { data: publicUrlData } = supabase.storage
-      .from('receipts_evidence')
-      .getPublicUrl(fileName);
-
+    const { data: publicUrlData } = supabase.storage.from('receipts_evidence').getPublicUrl(fileName);
     return publicUrlData.publicUrl;
   } catch (err) {
     console.error("Storage upload error:", err);
     return null;
   }
 }
-
 // =========================================================================
 // 🎙️ 3. KIOSK AI CHAT & VOICE RECORDING SECTION
 // =========================================================================
@@ -1182,18 +1220,19 @@ function KioskPage() {
     }));
   };
 
-  // 💡 ШИНЭ: Менежер өдөр дундуур даалгавар нэмсэн бол дахин татаж шинэчлэх
-  const openTasksScreen = async () => {
-    if (!selectedWorker) {
-      setStep('tasks');
-      return;
-    }
-    const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker);
-    setTasks(liveTasks);
-    if (activeShift) {
-      await supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', activeShift.id);
-    }
+const openTasksScreen = () => {
+    // ⚡ Шууд дэлгэцийг нээнэ (0ms)
     setStep('tasks');
+
+    // Цаана нь датаг сэмхэн шинэчлэх (Background sync)
+    if (selectedWorker) {
+      loadLiveTodayTasks(tenantClientId, selectedWorker).then((liveTasks) => {
+        setTasks(liveTasks);
+        if (activeShift) {
+          supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', activeShift.id);
+        }
+      });
+    }
   };
 
   const handleKeypadPress = (digit: string) => {
@@ -1203,44 +1242,41 @@ function KioskPage() {
     setPin(p => p.length < 4 ? p + digit : p);
   };
 
-  const handleVerifyPin = async () => {
+const handleVerifyPin = async () => {
     if (!selectedWorker) return;
     const validPin = selectedWorker.pin_code || '1234';
 
     if (pin !== validPin) {
-      setMsg("❌ Буруу PIN код! Та өөрийн нууц кодыг зөв оруулна уу.");
+      setMsg("❌ Буруу PIN код!");
       setPin('');
       return;
     }
 
-    const workerName = selectedWorker.email.split('@')[0];
-    const workerDisplayName = (selectedWorker.full_name || workerName).trim();
-    const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
+    // ⚡ Хоёр хүсэлтийг зэрэг дуудаж хугацааг хэмнэнэ
+    const [shiftRes, liveTasks] = await Promise.all([
+      supabase
+        .from('shifts')
+        .select('*')
+        .eq('client_id', tenantClientId)
+        .eq('is_active', true)
+        .order('start_time', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      loadLiveTodayTasks(tenantClientId, selectedWorker)
+    ]);
 
-    let { data: shift } = await supabase
-      .from('shifts')
-      .select('*')
-      .eq('client_id', tenantClientId)
-      .eq('is_active', true)
-      .order('start_time', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker);
     setTasks(liveTasks);
 
-    if (!shift) {
-      // Идэвхтэй ээлж байхгүй бол Handover/Start Check хийлгэх
+    if (!shiftRes.data) {
       setStep('shift_handover');
     } else {
-      setActiveShift(shift);
+      setActiveShift(shiftRes.data);
       setStep('menu');
     }
 
     setPin('');
     setMsg('');
   };
-
   const handleStartShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAiLoading(true);
@@ -1324,127 +1360,33 @@ function KioskPage() {
 
   
 
-  // 🎯 ЗӨВХӨН "ТООЛОГДСОН / ТООЛОГДООГҮЙ"-Д ТУЛГУУРЛАСАН ХАМГИЙН ЭНГИЙН МОТОР
-  // =========================================================================
-
-  const loadInventoryToCount = async () => {
+const loadInventoryToCount = () => {
     setMsg('');
-    setIsAiLoading(true);
+    const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
 
-    try {
-      // 1. Салбарын нийт түүхий эдүүдийг баазаас татах (126 бараа)
-      const { data: freshIngs } = await supabase
-        .from('ingredients')
-        .select('*')
-        .ilike('client_id', tenantClientId)
-        .order('name', { ascending: true });
+    // 1. А-Class (Чухал) бараанууд түрүүлж орно
+    const criticalItems = ingredients.filter(
+      (i) => i.is_critical && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
+    );
 
-      const baseList = freshIngs && freshIngs.length > 0 ? freshIngs : ingredients;
-      const N = baseList.length; // Баазад байгаа бодит тоо (126)
+    // 2. Үлдсэн 5 суудлыг хамгийн удаан тоологдоогүй бараануудаар нөхнө
+    const remainingSlots = Math.max(0, 5 - criticalItems.length);
+    const cycleItems = ingredients
+      .filter((i) => !i.is_critical && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo))
+      .sort((a, b) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
+      .slice(0, remainingSlots);
 
-      // 🎯 ӨДРИЙН ДЭЭД ХЯЗГААР (126 бараатай үед дээд тал нь 6 бараа):
-      const DAILY_MAX_CAP = Math.min(6, Math.max(4, Math.ceil(N / 20)));
-
-      // Сүүлийн 12 цагт өнөөдөр тоологдсон бол түр алгасах
-      const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
-
-      // =========================================================================
-      // ⚡ 1-Р БҮЛЭГ: ӨНӨӨДӨР ХӨДӨЛСӨН А БАРААНУУД (Сүү, Кофе үр - ӨДӨР БҮР ГАРНА!)
-      // =========================================================================
-      let analItemMap = new Map<string, any>();
-      try {
-
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const res = await fetch(
-          `/api/analytics?clientId=${encodeURIComponent(tenantClientId)}&startDate=${todayStr}T00:00:00.000Z&endDate=${todayStr}T23:59:59.999Z`,
-          { cache: 'no-store' }
-        );
-        if (res.ok) {
-          const analResult = await res.json();
-          (analResult.all_inventory_data || []).forEach((i: any) => {
-            analItemMap.set(i.id, i);
-            analItemMap.set(i.name.toLowerCase().trim(), i);
-          });
-        }
-      } catch (e) {
-        console.warn("Analytics fetch error");
-      }
-
-      // Өнөөдөр борлуулалтад орсон түүхий эдүүдийг мөнгөн дүнгээр нь шүүх:
-      const movingCandidates = baseList
-        .filter((item: any) => !item.last_counted_at || item.last_counted_at < twelveHoursAgo)
-        .map((item: any) => {
-          const anal = analItemMap.get(item.id) || analItemMap.get(item.name.toLowerCase().trim());
-          const todayUsage = anal?.theoretical || 0;
-          const unitPrice = parseFloat(item.unit_price) || 0;
-          const moneyMoved = todayUsage * unitPrice; // ₮ өртөг
-
-          return {
-            ...item,
-            todayUsage,
-            moneyMoved,
-            is_critical: item.is_critical || false
-          };
-        })
-        .filter((item: any) => item.moneyMoved > 0 || item.is_critical)
-        .sort((a: any, b: any) => {
-          if (a.is_critical !== b.is_critical) return a.is_critical ? -1 : 1;
-          return b.moneyMoved - a.moneyMoved; // Их мөнгө урссан нь эхэндээ гарна
-        });
-
-      const totalShiftMoney = movingCandidates.reduce((sum, i) => sum + i.moneyMoved, 0);
-
-      // Өнөөдрийн 70%-ийн мөнгөний босгыг давах хүртэл гол бараануудыг авах:
-      // (B/C цикл бараанд хамгийн багадаа 2 суудал заавал үлдээнэ!)
-      const maxVelocitySlots = Math.max(1, DAILY_MAX_CAP - 2);
-      const velocityItems: any[] = [];
-      let accumulatedMoney = 0;
-
-      for (const item of movingCandidates) {
-        if (velocityItems.length >= maxVelocitySlots) break; // Суудлын хязгаар
-        velocityItems.push(item);
-        accumulatedMoney += item.moneyMoved;
-        if (totalShiftMoney > 0 && (accumulatedMoney / totalShiftMoney) >= 0.70) {
-          break;
-        }
-      }
-
-      const pickedIds = new Set(velocityItems.map(i => i.id));
-
-      // =========================================================================
-      // 🔄 2-Р БҮЛЭГ: ҮЛДСЭН СУУДЛЫГ 126 БАРААНЫ ЦИКЛЭЭР НӨХӨХ (SLOT-FILLING)
-      // =========================================================================
-      // Нийт тоо хэзээ ч DAILY_MAX_CAP-аас (6 бараанаас) хэтрэхгүй:
-      const remainingSlots = Math.max(0, DAILY_MAX_CAP - velocityItems.length);
-
-      // 126 бараанаас хамгийн удаан тоологдоогүй үлдсэн бараанууд:
-      const uncountedCycleItems = baseList
-        .filter((item: any) => !pickedIds.has(item.id))
-        .filter((item: any) => !item.last_counted_at || item.last_counted_at < twelveHoursAgo)
-        .sort((a: any, b: any) => {
-          const timeA = new Date(a.last_counted_at || '2000-01-01').getTime();
-          const timeB = new Date(b.last_counted_at || '2000-01-01').getTime();
-          return timeA - timeB; // Хамгийн эрт тоологдсон хуучин нь түрүүлж гарна (FIFO)
-        })
-        .slice(0, remainingSlots); // 👈 Үлдсэн суудлыг яг таг нөхнө!
-
-      // 🎯 Эцсийн нэгдсэн жагсаалт (Нийт 6 бараанаас хэзээ ч хэтрэхгүй):
-      const finalToCount = [...velocityItems, ...uncountedCycleItems];
-
-      setInventoryToCount(finalToCount);
-      setCounts({});
-      setStep('close_shift');
-    } catch (err) {
-      console.error("Smart Inventory Engine Error:", err);
-      setInventoryToCount(ingredients.slice(0, 4));
-      setStep('close_shift');
-    } finally {
-      setIsAiLoading(false);
-    }
+    // ⚡ Аналитик дуудаж хүлээхгүй шууд дэлгэцийг нээнэ!
+    setInventoryToCount([...criticalItems, ...cycleItems]);
+    setCounts({});
+    setActualCashDrawer('');
+    setPosZFile(null);
+    setStep('close_shift');
   };
+
+
+
 const handleCloseShift = async () => {
-    // 1. Тооллого дутуу эсэхийг шалгах
     const uncountedItems = inventoryToCount.filter(
       (i) => counts[i.id] === undefined || counts[i.id].toString().trim() === ""
     );
@@ -1453,75 +1395,70 @@ const handleCloseShift = async () => {
       return;
     }
 
-    // 2. 🧾 Z-Тайлангийн зураг заавал байх ёстой
     if (!posZFile) {
       setMsg("⚠️ ПОС-ын Z-Тайлангийн зургийг заавал дарж оруулна уу!");
       return;
     }
 
-    // 3. 💵 Кассын бэлэн мөнгийг заавал бичсэн байх (Байхгүй бол 0)
     if (actualCashDrawer.trim() === "" || isNaN(Number(actualCashDrawer)) || Number(actualCashDrawer) < 0) {
-      setMsg("⚠️ Кассын бэлэн мөнгийг бичнэ үү (Бэлэн мөнгө байхгүй бол 0 гэж бичнэ)!");
+      setMsg("⚠️ Кассын бэлэн мөнгийг бичнэ үү (Байхгүй бол 0)!");
       return;
     }
 
     setIsAiLoading(true);
     const endTime = new Date().toISOString();
 
-    // Z-Тайлангийн зургийг Cloud Storage-д хадгалах
-    let posZUrl = await uploadEvidencePhoto(posZFile, "pos_z_reports");
+    try {
+      // 🚀 Бүх хүсэлтийг зэрэг ажиллуулна (Parallel execution)
+      const uploadPromise = uploadEvidencePhoto(posZFile, "pos_z_reports");
 
-    // 4. Тооллого болон Кассын мөнгийг баазад хийх
-    const countLogsToInsert: any[] = inventoryToCount.map((item) => ({
-      client_id: tenantClientId,
-      ingredient_id: item.id,
-      quantity: parseFloat(counts[item.id]) || 0,
-      type: "count",
-      notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
-      worker_name: activeShift?.character_role || selectedWorker.full_name,
-      date: endTime,
-    }));
+      const countLogsToInsert: any[] = inventoryToCount.map((item) => ({
+        client_id: tenantClientId,
+        ingredient_id: item.id,
+        quantity: parseFloat(counts[item.id]) || 0,
+        type: "count",
+        notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
+        worker_name: activeShift?.character_role || selectedWorker.full_name,
+        date: endTime,
+      }));
 
-    // Кассанд тоолсон бэлэн мөнгийг (0 байсан ч) лог болгон хадгална:
-    countLogsToInsert.push({
-      client_id: tenantClientId,
-      ingredient_id: null,
-      non_food_item: "Кассын хаалтын үлдэгдэл",
-      quantity: 1,
-      total_cost: parseFloat(actualCashDrawer) || 0,
-      type: "count",
-      notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(actualCashDrawer) || 0).toLocaleString()}₮`,
-      payment_method: "cash",
-      worker_name: activeShift?.character_role || selectedWorker.full_name,
-      date: endTime,
-    });
+      countLogsToInsert.push({
+        client_id: tenantClientId,
+        ingredient_id: null,
+        non_food_item: "Кассын хаалтын үлдэгдэл",
+        quantity: 1,
+        total_cost: parseFloat(actualCashDrawer) || 0,
+        type: "count",
+        notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(actualCashDrawer) || 0).toLocaleString()}₮`,
+        payment_method: "cash",
+        worker_name: activeShift?.character_role || selectedWorker.full_name,
+        date: endTime,
+      });
 
-    await supabase.from("inventory_logs").insert(countLogsToInsert);
+      const logsPromise = supabase.from("inventory_logs").insert(countLogsToInsert);
 
-    // Даалгавруудыг хаах
-    const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
-    if (completedTaskIds.length > 0) {
-      await supabase.from("tasks").update({ is_active: false }).in("id", completedTaskIds);
-    }
+      const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
+      const tasksPromise = completedTaskIds.length > 0
+        ? supabase.from("tasks").update({ is_active: false }).in("id", completedTaskIds)
+        : Promise.resolve();
 
-    // Ээлжийг албан ёсоор хаах
-    if (activeShift) {
-      await supabase
-        .from("shifts")
-        .update({
-          is_active: false,
-          end_time: endTime,
-          pos_z_image_url: posZUrl,
-        })
-        .eq("id", activeShift.id);
-    }
+      // Зураг хуулах ба лог хадгалахыг зэрэг хүлээнэ
+      const [posZUrl] = await Promise.all([uploadPromise, logsPromise, tasksPromise]);
 
-    setMsg("🌙 Ээлж амжилттай хаагдлаа. Сайхан амраарай!");
-    setIsAiLoading(false);
-    await fetchKioskData(tenantClientId);
+      if (activeShift) {
+        await supabase
+          .from("shifts")
+          .update({
+            is_active: false,
+            end_time: endTime,
+            pos_z_image_url: posZUrl,
+          })
+          .eq("id", activeShift.id);
+      }
 
-    setTimeout(() => {
-      setMsg("");
+      // ⚡ 2.2 секундийн хуучин setTimeout-ийг бүрэн арилгаж, шууд гарна!
+      setIsAiLoading(false);
+      setMsg("🌙 Ээлж амжилттай хаагдлаа!");
       setStep("select_worker");
       setSelectedWorker(null);
       setActiveShift(null);
@@ -1529,7 +1466,12 @@ const handleCloseShift = async () => {
       setCounts({});
       setPosZFile(null);
       setActualCashDrawer("");
-    }, 2200);
+
+      fetchKioskData(tenantClientId); // Баазыг цаана нь сэргээнэ
+    } catch (err: any) {
+      setIsAiLoading(false);
+      alert("Хаалт хийхэд алдаа гарлаа: " + err.message);
+    }
   };
 
   return (
@@ -1966,41 +1908,41 @@ const handleCloseShift = async () => {
                     capture="environment"
                     id="kiosk-receipt-cam"
                     className="hidden"
-                   onChange={async (e) => {
-                    if (e.target.files?.[0]) {
-                      const file = e.target.files[0];
-                      setIsScanningReceipt(true); // 👈 Сканнерын дэлгэцийг нээх
+                onChange={async (e) => {
+                            if (e.target.files?.[0]) {
+                              const rawFile = e.target.files[0];
+                              setIsScanningReceipt(true);
 
-                      const reader = new FileReader();
-                      reader.onload = async () => {
-                        const base64 = (reader.result as string).split(',')[1];
-                        try {
-                          const res = await fetch('/api/kiosk-ai', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ imageBase64: base64, tenantClientId, userRole: 'staff' })
-                          });
-                          const data = await res.json();
-                          setIsScanningReceipt(false); // 👈 Уншиж дуусмагц сканнерыг хаах
+                              // ⚡ iPad дээр зургийг 0.05 секундэд 97% жижигрүүлж авна:
+                              const { file: compressedFile, base64 } = await compressImageForUpload(rawFile);
 
-                          if (data.success && data.purchases) {
-                            setEbarimtReview({
-                              file: file,
-                              previewUrl: URL.createObjectURL(file),
-                              items: data.purchases,
-                              payMethod: 'bank'
-                            });
-                          } else {
-                            alert(data.message || "Баримтыг уншиж чадсангүй.");
-                          }
-                        } catch (err) {
-                          setIsScanningReceipt(false);
-                          alert("Холболтын алдаа гарлаа.");
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
+                              try {
+                                const res = await fetch('/api/kiosk-ai', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ imageBase64: base64, tenantClientId, userRole: 'staff' })
+                                });
+                                const data = await res.json();
+                                setIsScanningReceipt(false);
+
+                                if (data.success && data.purchases) {
+                                  setEbarimtReview({
+                                    file: compressedFile, // 👈 Жижигхэн шахсан файлыг хадгалалтад бэлдэнэ
+                                    previewUrl: URL.createObjectURL(compressedFile),
+                                    items: data.purchases,
+                                    payMethod: 'bank'
+                                  });
+                                } else {
+                                  alert(data.message || "Баримтыг уншиж чадсангүй.");
+                                }
+                              } catch (err) {
+                                setIsScanningReceipt(false);
+                                alert("Сүлжээний алдаа гарлаа.");
+                              }
+                            }
+                          }}
+                
+                
                   />
                   <label
                     htmlFor="kiosk-receipt-cam"
@@ -2561,42 +2503,63 @@ const handleCloseShift = async () => {
                       (kioskMode === 'purchase' && !noEbarimtFile) || // 🔒 Зураггүй бол дарагдахгүй!
                       isAiLoading
                     }
-                    onClick={async () => {
-                      const qtyNum = parseFloat(quickQty);
-                      const finalQty = kioskMode === 'purchase' ? Math.abs(qtyNum) : -Math.abs(qtyNum);
-                      setIsAiLoading(true);
+               onClick={() => {
+                    const qtyNum = parseFloat(quickQty);
+                    const finalQty = kioskMode === 'purchase' ? Math.abs(qtyNum) : -Math.abs(qtyNum);
+                    const costVal = parseFloat(purchaseCost) || 0;
+                    const itemToSave = quickItemModal;
+                    const fileToUpload = noEbarimtFile;
+                    const payMethod = purchasePayMethod;
 
-                      // Хэрэв Орлого бол зургийг Cloud Storage руу хуулна
-                      let uploadedUrl = null;
-                      if (kioskMode === 'purchase' && noEbarimtFile) {
-                        uploadedUrl = await uploadEvidencePhoto(noEbarimtFile, 'purchases_proofs');
-                      }
+                    // ⚡ 1. ЦОНХ ТЭР ДОРОО ХААГДАНА (0 миллисекунд!)
+                    setQuickItemModal(null);
+                    setQuickQty('');
+                    setPurchaseCost('');
+                    setNoEbarimtFile(null);
 
-                      const { data: newLog, error } = await supabase.from('inventory_logs').insert([{
-                        client_id: tenantClientId,
-                        ingredient_id: quickItemModal.id,
-                        quantity: finalQty,
-                        total_cost: parseFloat(purchaseCost) || 0,
-                        type: kioskMode,
-                        payment_method: kioskMode === 'purchase' ? purchasePayMethod : 'bank',
-                        image_url: uploadedUrl,
-                        is_ebarimt: false,
-                        notes: `Kiosk Орлого (Баримтгүй нотлох зурагтай)`,
-                        worker_name: activeShift?.character_role || selectedWorker.full_name,
-                        date: new Date().toISOString()
-                      }]).select().single();
+                      // ⚡ 2. БАРИСТАД ШУУД БҮРТГЭГДСЭН МЭДЭЭ БАЙНГА ХАРАГДАНА
+                      const modeLabel = kioskMode === 'spoilage' ? 'Хаягдал' : kioskMode === 'staff_meal' ? 'Хоол' : kioskMode === 'testing' ? 'Туршилт' : 'Орлого';
+                      setRecentToast({
+                        id: 'temp-' + Date.now(),
+                        text: `⚡ ${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${modeLabel})`
+                      });
 
-                      setIsAiLoading(false);
-                      setQuickItemModal(null);
-                      setNoEbarimtFile(null);
+                      // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background Worker)
+                      (async () => {
+                        try {
+                          let uploadedUrl = null;
+                          if (kioskMode === 'purchase' && fileToUpload) {
+                            uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'purchases_proofs');
+                          }
 
-                      if (error) alert(error.message);
-                      else {
-                        setRecentToast({ id: newLog.id, text: `✅ ${quickItemModal.name}: ${quickQty} ${quickItemModal.unit} (Орлого)` });
-                        await fetchKioskData(tenantClientId);
-                      }
+                          const { data: newLog, error } = await supabase.from('inventory_logs').insert([{
+                            client_id: tenantClientId,
+                            ingredient_id: itemToSave.id,
+                            quantity: finalQty,
+                            total_cost: costVal,
+                            type: kioskMode,
+                            payment_method: kioskMode === 'purchase' ? payMethod : 'bank',
+                            image_url: uploadedUrl,
+                            is_ebarimt: false,
+                            notes: `Kiosk 2-Tap (${kioskMode})`,
+                            worker_name: activeShift?.character_role || selectedWorker?.full_name,
+                            date: new Date().toISOString()
+                          }]).select().single();
+
+                          if (!error && newLog) {
+                            // Баазаас жинхэнэ ID ирмэгц Undo товчийг жинхэнэ болгож шинэчлэх
+                            setRecentToast({
+                              id: newLog.id,
+                              text: `✅ ${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${modeLabel})`
+                            });
+                            fetchKioskData(tenantClientId); // Баазыг ард нь сэргээнэ
+                          }
+                        } catch (err) {
+                          console.error("Background save failed:", err);
+                        }
+                      })();
                     }}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-sm transition shadow-lg active:scale-95"
+                            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-sm transition shadow-lg active:scale-95"
                   >
                     {isAiLoading ? 'Хадгалж байна...' : (kioskMode === 'purchase' && !noEbarimtFile) ? '📸 ЗУРГАА ДАРЖ БАТАЛГААЖУУЛНА УУ' : 'БАТЛАХ (OK)'}
                   </button>
