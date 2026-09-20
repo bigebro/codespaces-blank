@@ -6,31 +6,21 @@ import Link from "next/link";
 import {
   TrendingUp,
   Trash2,
-  Cpu,
-  Layers,
   DollarSign,
-  Percent,
   Activity,
   AlertTriangle,
   Database,
   Coffee,
-  PlusCircle,
-  History,
-  CheckCircle,
-  Undo2,
   Layers3,
   Building,
   Save,
   Check,
   FileSpreadsheet,
   UploadCloud,
-  Eye,
-  EyeOff,
   Bot,
   ShieldAlert,
   Download,
   Camera,
-  X,
   ExternalLink, // 👈 Add these 3
   Search,
 } from "lucide-react";
@@ -332,7 +322,6 @@ function Home() {
   const [inventoryLogs, setInventoryLogs] = useState<any[]>([]);
   const [salesLogs, setSalesLogs] = useState<any[]>([]);
   const [liveAnalytics, setLiveAnalytics] = useState<any>(null);
-  const [uniqueProducts, setUniqueProducts] = useState<string[]>([]);
   const [isLive, setIsLive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [selectedImageModal, setSelectedImageModal] = useState<{
@@ -359,12 +348,8 @@ function Home() {
   const [logNote, setLogNote] = useState("");
   const [isNonFood, setIsNonFood] = useState(false); // FIXED: Tracks if it is a non-food OPEX purchase
   const [nonFoodName, setNonFoodName] = useState(""); // FIXED: Stores non-food item name
-  const [lastLogId, setLastLogId] = useState<string | null>(null);
-  const [lastLogDetails, setLastLogDetails] = useState<string | null>(null);
-  const [logSuccess, setLogSuccess] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [salesQty, setSalesQty] = useState("");
-  const [salesSuccess, setSalesSuccess] = useState(false);
   const [kitchenPasteText, setKitchenPasteText] = useState(""); // NEW
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); // NEW
   const [logCost, setLogCost] = useState(""); // NEW: Holds the total purchase cost
@@ -392,7 +377,26 @@ function Home() {
   const [overwriteKitchen, setOverwriteKitchen] = useState(false);
   const [auditDate, setAuditDate] = useState("2026-09-01");
   const [auditType, setAuditType] = useState<"start" | "end">("start");
+  // 📋 3 ТУСДАА ХАЙЛТ & УДИРДЛАГЫН STATE-ҮҮД
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [catalogTab, setCatalogTab] = useState<'ingredients' | 'products' | 'recipes'>('ingredients');
+  const [ingSearch, setIngSearch] = useState('');
+  const [menuSearch, setMenuSearch] = useState('');
+  const [recipeSearch, setRecipeSearch] = useState('');
+  // 🎯 Мастер Каталог: Checkbox олноор сонгох & Шинээр нэмэх State-үүд
+  const [selectedIngIds, setSelectedIngIds] = useState<string[]>([]);
+  const [selectedProdIds, setSelectedProdIds] = useState<string[]>([]);
+  const [selectedRecipeProducts, setSelectedRecipeProducts] = useState<string[]>([]);
 
+  // ➕ Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
+  const [showAddIngModal, setShowAddIngModal] = useState(false);
+  const [newIngForm, setNewIngForm] = useState({ name: '', unit: 'гр', price: '', par: '0' });
+
+  const [showAddProdModal, setShowAddProdModal] = useState(false);
+  const [newProdForm, setNewProdForm] = useState({ name: '', category: 'COFFEE', price: '' });
+
+  const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+  const [newRecipeForm, setNewRecipeForm] = useState({ product_name: '', ingredient_id: '', amount: '' });
   // 🔒 Kiosk түгжээний State-үүд:
 
   const [isKioskLocked, setIsKioskLocked] = useState(false);
@@ -707,7 +711,8 @@ function Home() {
         { data: rolesData },
         { data: faData },
         { data: opexData },
-        { data: settData },
+        { data: settData }, 
+        { data: prodData },
       ] = await Promise.all([
         supabase
           .from("ingredients")
@@ -752,7 +757,9 @@ function Home() {
           .select("*")
           .ilike("client_id", targetClient)
           .maybeSingle(),
+        supabase.from("products").select("*").ilike("client_id", targetClient), 
       ]);
+      if (prodData) setProductsList(prodData);
       if (faData) setFixedAssets(faData);
       if (opexData) setFixedOpexList(opexData);
       if (settData) {
@@ -766,9 +773,7 @@ function Home() {
       if (saleData) setSalesLogs(saleData);
       if (recData) {
         setRecipes(recData);
-        setUniqueProducts(
-          Array.from(new Set(recData.map((r: any) => r.product_name))),
-        );
+      
       }
       if (taskData) setTasks(taskData);
       if (shiftData) setShifts(shiftData);
@@ -914,13 +919,6 @@ function Home() {
       if (error) throw error;
 
       if (logData) {
-        setLastLogId(logData.id);
-        setLastLogDetails(
-          isNonFood
-            ? `${nonFoodName}: ${Math.abs(finalQty)} ш (OPEX)`
-            : `${ingredients.find((i) => i.id === selectedIngredientId)?.name}: ${Math.abs(finalQty)} (${finalType})`,
-        );
-        setLogSuccess(true);
         setSelectedIngredientId("");
         setNonFoodName("");
         setIsNonFood(false);
@@ -928,7 +926,6 @@ function Home() {
         setLogNote("");
         setLogCost("");
         await fetchDatabaseData(activeClient);
-        setTimeout(() => setLogSuccess(false), 4000);
       }
     } catch (err: any) {
       alert(`Бүртгэл хийхэд алдаа гарлаа: ${err.message}`);
@@ -1030,11 +1027,9 @@ function Home() {
         if (logError) throw logError;
       }
 
-      setSalesSuccess(true);
       setSelectedProduct("");
       setSalesQty("");
       await fetchDatabaseData(activeClient);
-      setTimeout(() => setSalesSuccess(false), 4000);
     } catch (err: any) {
       alert(`Борлуулалт оруулахад алдаа гарлаа: ${err.message}`);
     } finally {
@@ -1907,21 +1902,7 @@ function Home() {
       .eq("id", id);
   };
 
-  const handleUndoLog = async () => {
-    if (!lastLogId) return;
-    setLoading(true);
-    try {
-      await supabase.from("inventory_logs").delete().eq("id", lastLogId);
-      setLastLogId(null);
-      setLastLogDetails(null);
-      await fetchDatabaseData();
-      alert("Цуцлагдлаа!");
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   // 💡 Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
 
@@ -2138,26 +2119,24 @@ function Home() {
               </button>
             </>
           )}
-          <button
+    
+          {!isOwner && (
+            <>
+            <button
             onClick={() => setActiveTab("operations")}
             className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === "operations" || (userRole === "barista" && activeTab === "dashboard") ? "bg-emerald-500 text-slate-950" : "bg-slate-900/50 text-slate-400 hover:text-white"}`}
           >
             📝 Үйл ажиллагааны бүртгэл ({userRole})
           </button>
-          {!isOwner && (
             <button
               onClick={() => router.push("/kiosk")}
               className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all"
             >
               📱 Гал тогооны Kiosk нээх
             </button>
+            </>
           )}
-          <button
-            onClick={() => setActiveTab("sales")}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === "sales" ? "bg-emerald-500 text-slate-950" : "bg-slate-900/50 text-slate-400 hover:text-white"}`}
-          >
-            📈 Борлуулалт Оруулах
-          </button>
+       
           <button
             onClick={() => setActiveTab("inventory")}
             className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-150 ${activeTab === "inventory" ? "bg-emerald-500 text-slate-950" : "bg-slate-900/50 text-slate-400 hover:text-white"}`}
@@ -2625,262 +2604,11 @@ function Home() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 lg:col-span-2">
-                <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-emerald-400">
-                  <PlusCircle className="h-5 w-5" />
-                  Өдөр тутмын бүртгэл хийх (Бараа/Зарлага)
-                </h3>
-
-                {logSuccess && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-6 flex items-center gap-2.5">
-                    <CheckCircle className="h-5 w-5" />
-                    <p className="text-sm font-semibold">
-                      Амжилттай бүртгэгдлээ: {lastLogDetails}
-                    </p>
-                  </div>
-                )}
-
-                <form onSubmit={handleLogSubmit} className="space-y-6">
-                  {/* Toggle between food ingredients and non-food OPEX */}
-                  <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-4 rounded-xl mb-4">
-                    <input
-                      type="checkbox"
-                      id="non-food-toggle"
-                      checked={isNonFood}
-                      onChange={(e) => {
-                        setIsNonFood(e.target.checked);
-                        if (e.target.checked) setLogType("purchase"); // Non-food are always purchases/expenses
-                      }}
-                      className="h-4 w-4 text-emerald-500 bg-slate-900 border-slate-800 rounded focus:ring-0"
-                    />
-                    <label
-                      htmlFor="non-food-toggle"
-                      className="text-slate-300 text-xs font-bold cursor-pointer"
-                    >
-                      Хүнсний бус зарлага (Household/OPEX - Сальфетка, аяга, таг
-                      гэх мэт)
-                    </label>
-                  </div>
-
-                  {!isNonFood ? (
-                    <div>
-                      <label className="block text-slate-400 text-sm font-bold mb-2">
-                        1. Түүхий эд сонгох
-                      </label>
-                      <select
-                        value={selectedIngredientId}
-                        onChange={(e) =>
-                          setSelectedIngredientId(e.target.value)
-                        }
-                        required={!isNonFood}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold"
-                      >
-                        <option value="">-- Сонгох --</option>
-                        {ingredients.map((ing) => (
-                          <option key={ing.id} value={ing.id}>
-                            {ing.name} ({ing.unit})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-slate-400 text-sm font-bold mb-2">
-                        1. Зарлагын нэр (Гараар бичнэ)
-                      </label>
-                      <input
-                        type="text"
-                        value={nonFoodName}
-                        onChange={(e) => setNonFoodName(e.target.value)}
-                        required={isNonFood}
-                        placeholder="Жишээ: Сальфетка, Хогны уут, Аяганы таг гэх мэт"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold"
-                      />
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-slate-400 text-sm font-bold mb-2">
-                        2. Төрөл
-                      </label>
-                      <select
-                        value={logType}
-                        disabled={isNonFood}
-                        onChange={(e) => setLogType(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold disabled:opacity-50"
-                      >
-                        <option value="spoilage">
-                          Муудаж хаягдсан (Spoilage)
-                        </option>
-                        <option value="purchase">
-                          Шинэ худалдан авалт (Purchase)
-                        </option>
-                        <option value="testing">
-                          Түүхий эдийн туршилт (Testing)
-                        </option>
-                        <option value="staff_meal">
-                          Ажилтны хоол (Staff Meal)
-                        </option>
-                        <option value="other">Бусад зарлага (Other)</option>{" "}
-                        {/* FIXED: Added this option */}
-                      </select>
-                    </div>
-                    {/* FIXED: The note explanation text box is now ALWAYS visible and active */}
-
-                    <div>
-                      <label className="block text-slate-400 text-sm font-bold mb-2">
-                        3. Тоо Хэмжээ
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={logQty}
-                        onChange={(e) => setLogQty(e.target.value)}
-                        required
-                        placeholder="Тооны хэмжээг оруулна уу"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold"
-                      />
-                    </div>
-                  </div>
-
-                  {/* FIXED: Conditionally renders input based on transaction type */}
-                  {logType === "purchase" ? (
-                    <div>
-                      <label className="block text-slate-400 text-sm font-bold mb-2">
-                        4. Худалдан авалтын нийт үнэ (₮)
-                      </label>
-                      <input
-                        type="number"
-                        value={logCost}
-                        onChange={(e) => setLogCost(e.target.value)}
-                        required={logType === "purchase"}
-                        placeholder="Нийт төлсөн зардлын дүнгээ бичнэ үү (Жишээ: 12000)"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold"
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-slate-400 text-sm font-bold mb-2">
-                        4. Тайлбар / Тэмдэглэл
-                      </label>
-                      <input
-                        type="text"
-                        value={logNote}
-                        onChange={(e) => setLogNote(e.target.value)}
-                        placeholder="Жишээ нь: Асгарч муудсан, оройн хоолонд хэрэглэсэн гэх мэт"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm"
-                      />
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 rounded-xl transition duration-150 text-sm"
-                  >
-                    {loading ? "Бүртгэж байна..." : "Базарт бүртгэх"}
-                  </button>
-                </form>
-              </div>
-
-              <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <History className="h-5 w-5 text-emerald-400" />
-                    Сүүлийн гүйлгээ засах
-                  </h3>
-                  {lastLogDetails ? (
-                    <div className="bg-slate-950 p-5 rounded-xl border border-slate-900">
-                      <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">
-                        Бүртгэгдсэн дата:
-                      </p>
-                      <p className="text-sm font-extrabold text-white mt-1.5">
-                        {lastLogDetails}
-                      </p>
-
-                      <button
-                        onClick={handleUndoLog}
-                        disabled={loading}
-                        className="mt-6 w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 text-xs"
-                      >
-                        <Undo2 className="h-4 w-4" />
-                        Бүртгэл цуцлах (Undo)
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-500 italic text-center py-12">
-                      Та одоогоор гүйлгээ хийгээгүй байна.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+       
           </div>
         )}
 
-        {/* 4. SALES SIMULATOR TAB */}
-        {activeTab === "sales" && (
-          <div className="max-w-xl mx-auto bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-emerald-400">
-              <PlusCircle className="h-5 w-5" />
-              Борлуулалтын симуляци хийх (Жор хасах)
-            </h3>
-
-            {salesSuccess && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl mb-6 flex items-center gap-2.5">
-                <CheckCircle className="h-5 w-5" />
-                <p className="text-sm font-semibold">
-                  Борлуулалт амжилттай тооцогдож, агуулахаас хасагдлаа!
-                </p>
-              </div>
-            )}
-
-            <form onSubmit={handleSalesSubmit} className="space-y-6">
-              <div>
-                <label className="block text-slate-400 text-sm font-bold mb-2">
-                  1. Зарагдсан бүтээгдэхүүн
-                </label>
-                <select
-                  value={selectedProduct}
-                  onChange={(e) => setSelectedProduct(e.target.value)}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold"
-                >
-                  <option value="">-- Сонгох --</option>
-                  {uniqueProducts.map((p, idx) => (
-                    <option key={idx} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 text-sm font-bold mb-2">
-                  2. Зарагдсан тоо ширхэг
-                </label>
-                <input
-                  type="number"
-                  value={salesQty}
-                  onChange={(e) => setSalesQty(e.target.value)}
-                  required
-                  placeholder="Зарагдсан хэмжээг оруулна уу"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 rounded-xl transition duration-150 text-sm"
-              >
-                {loading ? "Агуулахаас хасаж байна..." : "Борлуулалт тооцох"}
-              </button>
-            </form>
-          </div>
-        )}
+      
 
         {/* 5. SPREADSHEET BULK STOCK TAKE TAB */}
         {activeTab === "inventory" && (
@@ -3000,6 +2728,26 @@ function Home() {
                           <td className="py-3 px-4 font-bold text-slate-200">
                             <div className="flex items-center gap-2">
                               <span>{ing.name}</span>
+
+                                {/* ✏️ НЭРИЙГ ЗАСАХ ТОВЧ (Баристагийн алдаатай бичсэнийг засах) */}
+                              <button
+                                type="button"
+                                title="Нэр засах"
+                                onClick={async () => {
+                                  const newName = prompt(`"${ing.name}" барааны шинэ нэрийг оруулна уу:`, ing.name);
+                                  if (newName && newName.trim() && newName.trim() !== ing.name) {
+                                    const { error } = await supabase
+                                      .from('ingredients')
+                                      .update({ name: newName.trim() })
+                                      .eq('id', ing.id);
+                                    if (error) alert(`Алдаа: ${error.message}`);
+                                    else fetchDatabaseData(activeClient);
+                                  }
+                                }}
+                                className="text-slate-500 hover:text-emerald-400 text-xs transition p-1"
+                              >
+                                ✏️
+                              </button>
                               {(() => {
                                 const analItem =
                                   liveAnalytics?.all_inventory_data?.find(
@@ -3655,6 +3403,7 @@ function Home() {
                       Жор бөөнөөр хадгалах (Import Recipes)
                     </button>
                   </form>
+
                 </div>
 
                 <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900 mb-8">
@@ -3710,6 +3459,7 @@ function Home() {
                     </button>
                   </form>
                 </div>
+   
               </>
             )}
 
@@ -5059,6 +4809,650 @@ function Home() {
         {/* 8. ⚙️ 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
         {activeTab === "settings" && userRole === "owner" && (
           <div className="space-y-8">
+          {/* ========================================================================= */}
+            {/* 🎯 МАСТЕР КАТАЛОГ (ЦЭС, ЖОР, ТҮҮХИЙ ЭДИЙГ НЭГ ДОР УДИРДАХ)                  */}
+            {/* ========================================================================= */}
+            <div className="col-span-1 md:col-span-2 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 shadow-2xl mt-8">
+              
+              {/* ТОЛГОЙ БА 3 ТАБ СОЛИГЧ */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <span>🎯 Мастер Каталог & Нарийн Тохиргоо</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Түүхий эдийн өртөг, ПОС-ын зарах үнэ, Жорын ашиг маржиныг нэг дороос удирдах
+                  </p>
+                </div>
+
+                <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 gap-1 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setCatalogTab('ingredients'); setSelectedIngIds([]); }}
+                    className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-black transition ${
+                      catalogTab === 'ingredients' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    📦 Түүхий эд ({ingredients.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCatalogTab('products'); setSelectedProdIds([]); }}
+                    className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-black transition ${
+                      catalogTab === 'products' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    ☕ Менюний үнэ ({productsList.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCatalogTab('recipes'); setSelectedRecipeProducts([]); }}
+                    className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-xs font-black transition ${
+                      catalogTab === 'recipes' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    📖 Жорууд ({Array.from(new Set(recipes.map((r: any) => r.product_name))).length})
+                  </button>
+                </div>
+              </div>
+
+              {/* ========================================================================= */}
+              {/* 1. 📦 ТҮҮХИЙ ЭД & ӨРТӨГ (CHECKBOX БӨӨНӨӨР УСТГАХ + ШИНЭЭР НЭМЭХ)           */}
+              {/* ========================================================================= */}
+              {catalogTab === 'ingredients' && (
+                <div className="pt-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <input
+                      type="text"
+                      value={ingSearch}
+                      onChange={(e) => setIngSearch(e.target.value)}
+                      placeholder="🔍 Түүхий эдийн нэрээр хайх (сүү, кофе, саван...)"
+                      className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-500"
+                    />
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      {/* Gmail шиг олноор нь устгах товч */}
+                      {selectedIngIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`Сонгосон ${selectedIngIds.length} түүхий эдийг бүр мөсөн устгах уу?`)) return;
+                            setIngredients(prev => prev.filter(i => !selectedIngIds.includes(i.id)));
+                            const ids = [...selectedIngIds];
+                            setSelectedIngIds([]);
+                            await supabase.from('ingredients').delete().in('id', ids);
+                            fetchDatabaseData(activeClient);
+                          }}
+                          className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 shadow"
+                        >
+                          <span>🗑️ Сонгосон ({selectedIngIds.length}) устгах</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAddIngModal(true)}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 active:scale-95 shadow"
+                      >
+                        <span>+ Түүхий эд нэмэх</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto max-h-[420px] border border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10">
+                        <tr>
+                          <th className="py-3 px-3 w-8">
+                            <input
+                              type="checkbox"
+                              checked={selectedIngIds.length > 0 && selectedIngIds.length === ingredients.length}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedIngIds(ingredients.map(i => i.id));
+                                else setSelectedIngIds([]);
+                              }}
+                              className="w-4 h-4 accent-emerald-500 cursor-pointer rounded"
+                            />
+                          </th>
+                          <th className="py-3 px-3">Барааны нэр</th>
+                          <th className="py-3 px-3">Хэмжих нэгж</th>
+                          <th className="py-3 px-3 text-right">Нэгжийн өртөг (₮)</th>
+                          <th className="py-3 px-3 text-right">Хэвийн нөөц (Par)</th>
+                          <th className="py-3 px-3 text-right">Үйлдэл</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-medium">
+                        {ingredients
+                          .filter((i) => !ingSearch.trim() || i.name.toLowerCase().includes(ingSearch.toLowerCase().trim()))
+                          .map((ing) => (
+                            <tr key={ing.id} className="hover:bg-slate-900/60 transition">
+                              <td className="py-2.5 px-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIngIds.includes(ing.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedIngIds(prev => [...prev, ing.id]);
+                                    else setSelectedIngIds(prev => prev.filter(id => id !== ing.id));
+                                  }}
+                                  className="w-4 h-4 accent-emerald-500 cursor-pointer rounded"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-white">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{ing.name}</span>
+                                  {/* ✏️ 0ms Инлайн нэр засах */}
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const newName = prompt(`"${ing.name}" нэрийг засах:`, ing.name);
+                                      if (newName && newName.trim() && newName.trim() !== ing.name) {
+                                        setIngredients(prev => prev.map(i => i.id === ing.id ? { ...i, name: newName.trim() } : i));
+                                        await supabase.from('ingredients').update({ name: newName.trim() }).eq('id', ing.id);
+                                        fetchDatabaseData(activeClient);
+                                      }
+                                    }}
+                                    className="text-slate-500 hover:text-emerald-400 p-0.5 text-xs"
+                                    title="Нэр засах"
+                                  >
+                                    ✏️
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-400">{ing.unit}</td>
+                              <td className="py-2.5 px-3 text-right text-emerald-400 font-mono font-bold">
+                                {parseFloat(ing.unit_price || 0).toLocaleString()} ₮
+                              </td>
+                              <td className="py-2.5 px-3 text-right text-slate-300 font-mono">
+                                {ing.par_level || 0} {ing.unit}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm(`"${ing.name}" түүхий эдийг устгах уу?`)) return;
+                                    setIngredients(prev => prev.filter(i => i.id !== ing.id));
+                                    await supabase.from('ingredients').delete().eq('id', ing.id);
+                                    fetchDatabaseData(activeClient);
+                                  }}
+                                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-2.5 py-1 rounded-lg font-black transition active:scale-95"
+                                >
+                                  🗑️ Устгах
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================================= */}
+              {/* 2. ☕ МЕНЮ & ЗАРАХ ҮНЭ (CHECKBOX БӨӨНӨӨР УСТГАХ + ШИНЭЭР НЭМЭХ)            */}
+              {/* ========================================================================= */}
+              {catalogTab === 'products' && (
+                <div className="pt-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <input
+                      type="text"
+                      value={menuSearch}
+                      onChange={(e) => setMenuSearch(e.target.value)}
+                      placeholder="🔍 Менюний нэрээр хайх (Latte, Americano, Бургер...)"
+                      className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-blue-500"
+                    />
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      {selectedProdIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`Сонгосон ${selectedProdIds.length} цэсийг устгах уу?`)) return;
+                            setProductsList(prev => prev.filter(p => !selectedProdIds.includes(p.id)));
+                            const ids = [...selectedProdIds];
+                            setSelectedProdIds([]);
+                            await supabase.from('products').delete().in('id', ids);
+                            fetchDatabaseData(activeClient);
+                          }}
+                          className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 shadow"
+                        >
+                          <span>🗑️ Сонгосон ({selectedProdIds.length}) устгах</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAddProdModal(true)}
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 active:scale-95 shadow"
+                      >
+                        <span>+ Менюний цэс нэмэх</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto max-h-[420px] border border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10">
+                        <tr>
+                          <th className="py-3 px-3 w-8">
+                            <input
+                              type="checkbox"
+                              checked={selectedProdIds.length > 0 && selectedProdIds.length === productsList.length}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedProdIds(productsList.map(p => p.id));
+                                else setSelectedProdIds([]);
+                              }}
+                              className="w-4 h-4 accent-blue-500 cursor-pointer rounded"
+                            />
+                          </th>
+                          <th className="py-3 px-3">Ангилал</th>
+                          <th className="py-3 px-3">Бүтээгдэхүүний нэр</th>
+                          <th className="py-3 px-3 text-right">ПОС зарах үнэ (₮)</th>
+                          <th className="py-3 px-3 text-right">Үйлдэл</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-medium">
+                        {productsList
+                          .filter((p) => 
+                            !menuSearch.trim() || 
+                            p.name.toLowerCase().includes(menuSearch.toLowerCase().trim()) ||
+                            (p.category && p.category.toLowerCase().includes(menuSearch.toLowerCase().trim()))
+                          )
+                          .map((prod) => (
+                            <tr key={prod.id} className="hover:bg-slate-900/60 transition">
+                              <td className="py-2.5 px-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedProdIds.includes(prod.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedProdIds(prev => [...prev, prod.id]);
+                                    else setSelectedProdIds(prev => prev.filter(id => id !== prod.id));
+                                  }}
+                                  className="w-4 h-4 accent-blue-500 cursor-pointer rounded"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                                  {prod.category || 'General'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-white">{prod.name}</td>
+                              <td className="py-2.5 px-3 text-right text-emerald-400 font-mono font-black text-sm">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <span>{parseFloat(prod.selling_price || 0).toLocaleString()} ₮</span>
+                                  {/* ✏️ Зарах үнийг засах */}
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const newPrice = prompt(`"${prod.name}" зарах шинэ үнэ:`, prod.selling_price);
+                                      if (newPrice && !isNaN(Number(newPrice))) {
+                                        const pVal = parseFloat(newPrice);
+                                        setProductsList(prev => prev.map(p => p.id === prod.id ? { ...p, selling_price: pVal } : p));
+                                        await supabase.from('products').update({ selling_price: pVal }).eq('id', prod.id);
+                                        fetchDatabaseData(activeClient);
+                                      }
+                                    }}
+                                    className="text-slate-500 hover:text-blue-400 p-0.5 text-xs"
+                                    title="Үнэ засах"
+                                  >
+                                    ✏️
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm(`"${prod.name}" бүтээгдэхүүнийг цэснээс устгах уу?`)) return;
+                                    setProductsList(prev => prev.filter(p => p.id !== prod.id));
+                                    await supabase.from('products').delete().eq('id', prod.id);
+                                    fetchDatabaseData(activeClient);
+                                  }}
+                                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-2.5 py-1 rounded-lg font-black transition active:scale-95"
+                                >
+                                  🗑️ Устгах
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================================= */}
+              {/* 3. 📖 ЖОР & ӨРТӨГ, МАРЖИН ТОХИРУУЛАГЧ (FOOD COST CALCULATOR)              */}
+              {/* ========================================================================= */}
+              {catalogTab === 'recipes' && (
+                <div className="pt-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <input
+                      type="text"
+                      value={recipeSearch}
+                      onChange={(e) => setRecipeSearch(e.target.value)}
+                      placeholder="🔍 Бүтээгдэхүүний жор хайх (Latte, Americano, Сэндвич...)"
+                      className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-purple-500"
+                    />
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      {selectedRecipeProducts.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`Сонгосон ${selectedRecipeProducts.length} бүтээгдэхүүний бүх жорыг устгах уу?`)) return;
+                            const pNames = [...selectedRecipeProducts];
+                            setRecipes(prev => prev.filter(r => !pNames.includes(r.product_name)));
+                            setSelectedRecipeProducts([]);
+                            await supabase.from('recipes').delete().eq('client_id', activeClient).in('product_name', pNames);
+                            fetchDatabaseData(activeClient);
+                          }}
+                          className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 shadow"
+                        >
+                          <span>🗑️ Сонгосон ({selectedRecipeProducts.length}) устгах</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAddRecipeModal(true)}
+                        className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 active:scale-95 shadow"
+                      >
+                        <span>+ Шинэ жор угсрах</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ЖОРООР ГАРАХ ӨРТӨГ БОЛОН АШГИЙН КАРТУУД */}
+                  <div className="max-h-[440px] overflow-y-auto space-y-3 pr-1">
+                    {Array.from(new Set(recipes.map((r: any) => r.product_name)))
+                      .filter((pName: any) => !recipeSearch.trim() || pName.toLowerCase().includes(recipeSearch.toLowerCase().trim()))
+                      .map((pName: any) => {
+                        const productRecipes = recipes.filter((r: any) => r.product_name === pName);
+                        const matchedProduct = productsList.find(p => p.name.toLowerCase().trim() === pName.toLowerCase().trim());
+                        const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 0;
+
+                        // ⚡ Нэг аяга ундаа/хоолны бодит өртгийг орцуудаас шууд тооцох
+                        let calculatedCost = 0;
+                        productRecipes.forEach(r => {
+                          const ing = ingredients.find(i => i.id === r.ingredient_id);
+                          const uPrice = ing ? parseFloat(ing.unit_price || 0) : 0;
+                          calculatedCost += (parseFloat(r.amount) || 0) * uPrice;
+                        });
+
+                        const marginPct = sellPrice > 0 ? ((sellPrice - calculatedCost) / sellPrice) * 100 : 0;
+
+                        return (
+                          <div key={pName} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRecipeProducts.includes(pName)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedRecipeProducts(prev => [...prev, pName]);
+                                    else setSelectedRecipeProducts(prev => prev.filter(name => name !== pName));
+                                  }}
+                                  className="w-4 h-4 accent-purple-500 cursor-pointer rounded"
+                                />
+                                <h4 className="text-sm font-black text-white">{pName}</h4>
+                              </div>
+
+                              {/* ⚡ Өртөг, Зарах үнэ болон Бохир ашгийн хувь */}
+                              <div className="flex items-center gap-2 text-xs flex-wrap font-mono">
+                                <span className="text-slate-400">
+                                  Зарах: <strong className="text-white">{sellPrice.toLocaleString()} ₮</strong>
+                                </span>
+                                <span className="text-slate-700">•</span>
+                                <span className="text-slate-400">
+                                  Өртөг: <strong className="text-rose-400">{Math.round(calculatedCost).toLocaleString()} ₮</strong>
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black border ${
+                                  marginPct >= 75
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : marginPct >= 60
+                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                }`}>
+                                  Маржин: {marginPct.toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Орцууд ба Грамм задаргаа */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900">
+                              {productRecipes.map((r: any) => {
+                                const ing = ingredients.find(i => i.id === r.ingredient_id);
+                                return (
+                                  <div key={r.id} className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-xl text-[11px] flex items-center gap-1.5">
+                                    <span className="text-slate-300 font-bold">{ing?.name || "Орц"}</span>
+                                    <span className="text-purple-400 font-mono font-black">{r.amount} {ing?.unit || "гр"}</span>
+                                    {/* Ганц орцыг жороос хасах товч */}
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        setRecipes(prev => prev.filter(item => item.id !== r.id));
+                                        await supabase.from('recipes').delete().eq('id', r.id);
+                                        fetchDatabaseData(activeClient);
+                                      }}
+                                      className="text-slate-500 hover:text-rose-400 ml-1 text-xs"
+                                      title="Энэ орцыг жороос хасах"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                );
+                              })}
+
+                              {/* Бүхэл жорыг устгах товч */}
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!confirm(`"${pName}" бүтээгдэхүүний бүх жорыг устгах уу?`)) return;
+                                  setRecipes(prev => prev.filter(r => r.product_name !== pName));
+                                  await supabase.from('recipes').delete().eq('client_id', activeClient).eq('product_name', pName);
+                                  fetchDatabaseData(activeClient);
+                                }}
+                                className="text-rose-400 hover:text-rose-300 text-xs font-bold underline ml-auto py-1"
+                              >
+                                Бүхэл жорыг устгах
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ========================================================================= */}
+            {/* ➕ 1. ШИНЭ ТҮҮХИЙ ЭД НЭМЭХ МОДАЛ                                           */}
+            {/* ========================================================================= */}
+            {showAddIngModal && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-[#0d1527] border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 className="text-sm font-black text-white">+ Шинэ Түүхий эд нэмэх</h3>
+                    <button onClick={() => setShowAddIngModal(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={newIngForm.name}
+                    onChange={e => setNewIngForm({ ...newIngForm, name: e.target.value })}
+                    placeholder="Түүхий эдийн нэр (Жишээ: Овьёосны сүү)"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={newIngForm.unit}
+                      onChange={e => setNewIngForm({ ...newIngForm, unit: e.target.value })}
+                      placeholder="Нэгж (мл/гр/ш)"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={newIngForm.price}
+                      onChange={e => setNewIngForm({ ...newIngForm, price: e.target.value })}
+                      placeholder="Нэгжийн өртөг ₮"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newIngForm.name.trim()) return;
+                      const { data } = await supabase.from('ingredients').insert([{
+                        client_id: activeClient,
+                        name: newIngForm.name.trim(),
+                        unit: newIngForm.unit || 'гр',
+                        unit_price: parseFloat(newIngForm.price) || 0,
+                        par_level: parseFloat(newIngForm.par) || 0,
+                        current_stock: 0
+                      }]).select().single();
+                      if (data) setIngredients(prev => [...prev, data]);
+                      setShowAddIngModal(false);
+                      setNewIngForm({ name: '', unit: 'гр', price: '', par: '0' });
+                    }}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition"
+                  >
+                    Хадгалах
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* ➕ 2. ШИНЭ МЕНЮНИЙ ЦЭС НЭМЭХ МОДАЛ                                         */}
+            {/* ========================================================================= */}
+            {showAddProdModal && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-[#0d1527] border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 className="text-sm font-black text-white">+ Шинэ Менюний Цэс нэмэх</h3>
+                    <button onClick={() => setShowAddProdModal(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={newProdForm.name}
+                    onChange={e => setNewProdForm({ ...newProdForm, name: e.target.value })}
+                    placeholder="Бүтээгдэхүүний нэр (Жишээ: Oat Latte)"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={newProdForm.category}
+                      onChange={e => setNewProdForm({ ...newProdForm, category: e.target.value })}
+                      placeholder="Ангилал (COFFEE, FOOD)"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={newProdForm.price}
+                      onChange={e => setNewProdForm({ ...newProdForm, price: e.target.value })}
+                      placeholder="Зарах үнэ ₮"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newProdForm.name.trim()) return;
+                      const { data } = await supabase.from('products').insert([{
+                        client_id: activeClient,
+                        name: newProdForm.name.trim(),
+                        category: newProdForm.category || 'General',
+                        selling_price: parseFloat(newProdForm.price) || 0
+                      }]).select().single();
+                      if (data) setProductsList(prev => [...prev, data]);
+                      setShowAddProdModal(false);
+                      setNewProdForm({ name: '', category: 'COFFEE', price: '' });
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-2.5 rounded-xl text-xs transition"
+                  >
+                    Цэсэнд Нэмэх
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* ➕ 3. ШИНЭ ЖОР УГСРАХ МОДАЛ                                                */}
+            {/* ========================================================================= */}
+            {showAddRecipeModal && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-[#0d1527] border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <h3 className="text-sm font-black text-white">+ Шинэ Жор / Орц холбох</h3>
+                    <button onClick={() => setShowAddRecipeModal(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-bold mb-1">Бүтээгдэхүүний нэр:</label>
+                    <input
+                      type="text"
+                      value={newRecipeForm.product_name}
+                      onChange={e => setNewRecipeForm({ ...newRecipeForm, product_name: e.target.value })}
+                      placeholder="Жишээ: Caffe Latte, Oat Latte"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-bold mb-1">Орох Түүхий эд:</label>
+                    <select
+                      value={newRecipeForm.ingredient_id}
+                      onChange={e => setNewRecipeForm({ ...newRecipeForm, ingredient_id: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    >
+                      <option value="">-- Түүхий эд сонгох --</option>
+                      {ingredients.map(i => (
+                        <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-bold mb-1">Орцын хэмжээ (Грамм/мл):</label>
+                    <input
+                      type="number"
+                      value={newRecipeForm.amount}
+                      onChange={e => setNewRecipeForm({ ...newRecipeForm, amount: e.target.value })}
+                      placeholder="Жишээ: 200 (мл), 16 (гр)"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newRecipeForm.product_name.trim() || !newRecipeForm.ingredient_id || !newRecipeForm.amount) {
+                        alert("Бүх талбарыг бөглөнө үү!");
+                        return;
+                      }
+                      const { data } = await supabase.from('recipes').insert([{
+                        client_id: activeClient,
+                        product_name: newRecipeForm.product_name.trim(),
+                        ingredient_id: newRecipeForm.ingredient_id,
+                        amount: parseFloat(newRecipeForm.amount) || 0
+                      }]).select().single();
+                      if (data) setRecipes(prev => [...prev, data]);
+                      setShowAddRecipeModal(false);
+                      setNewRecipeForm({ product_name: '', ingredient_id: '', amount: '' });
+                      fetchDatabaseData(activeClient);
+                    }}
+                    className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-2.5 rounded-xl text-xs transition"
+                  >
+                    Жорд Хадгалах
+                  </button>
+                </div>
+              </div>
+            )}
+
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">
@@ -5246,6 +5640,8 @@ function Home() {
                 </div>
               </div>
             </div>
+
+            
 
             {/* 3. ҮНДСЭН ХӨРӨНГӨ (ТОНОГ ТӨХӨӨРӨМЖ, ШАРАХ ШҮҮГЭЭ, КОФЕ МАШИН) */}
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-900">

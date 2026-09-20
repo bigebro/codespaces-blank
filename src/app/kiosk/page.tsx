@@ -2910,53 +2910,75 @@ const handleCloseShift = () => {
           <button
             type="button"
             disabled={!newItemQty || !newItemCost || !newItemFile || isAiLoading}
-            onClick={async () => {
-              const qty = parseFloat(newItemQty);
-              const cost = parseFloat(newItemCost);
-              const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
-              setIsAiLoading(true);
+                 onClick={() => {
+                  const nameToSave = newItemName;
+                  const qty = parseFloat(newItemQty);
+                  const cost = parseFloat(newItemCost);
+                  const unitToSave = newItemUnit;
+                  const fileToUpload = newItemFile;
+                  const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
 
-              const uploadedUrl = await uploadEvidencePhoto(newItemFile!, 'new_items');
+                  // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
+                  setShowAddNewItemModal(false);
+                  setNewItemName('');
+                  setNewItemQty('');
+                  setNewItemCost('');
+                  setNewItemFile(null);
+                  setKioskSearch('');
 
-              const { data: createdIng, error: ingErr } = await supabase.from('ingredients').insert([{
-                client_id: tenantClientId,
-                name: newItemName,
-                unit: newItemUnit,
-                unit_price: unitPrice,
-                current_stock: qty
-              }]).select().single();
+                  // ⚡ 2. БАРИСТАД МЭДЭЭЛЭЛ ШУУД ХАРАГДАНА
+                  setRecentToast({
+                    id: 'temp-' + Date.now(),
+                    text: `⚡ Шинэ бараа: ${nameToSave} (${qty} ${unitToSave}) бүртгэж байна...`
+                  });
 
-              if (ingErr || !createdIng) {
-                alert("Шинэ бараа үүсгэж чадсангүй.");
-                setIsAiLoading(false);
-                return;
-              }
+                  // ⚡ 3. ЗУРАГ БА ШИНЭ БАРААГ ЦААНА НЬ ЧИМЭЭГҮЙ ҮҮСГЭХ (Background)
+                  (async () => {
+                    try {
+                      let uploadedUrl = null;
+                      if (fileToUpload) {
+                        uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'new_items');
+                      }
 
-              const { data: newLog } = await supabase.from('inventory_logs').insert([{
-                client_id: tenantClientId,
-                ingredient_id: createdIng.id,
-                quantity: qty,
-                total_cost: cost,
-                type: 'purchase',
-                payment_method: 'bank',
-                image_url: uploadedUrl,
-                is_ebarimt: false,
-                notes: 'Kiosk дээр шинээр үүсгэж орлого авсан',
-                worker_name: activeShift?.character_role || selectedWorker.full_name,
-                date: new Date().toISOString()
-              }]).select().single();
+                      // Ingredients хүснэгтэд шинээр нэмэх
+                      const { data: createdIng } = await supabase.from('ingredients').insert([{
+                        client_id: tenantClientId,
+                        name: nameToSave,
+                        unit: unitToSave,
+                        unit_price: unitPrice,
+                        current_stock: qty
+                      }]).select().single();
 
-              setIsAiLoading(false);
-              setShowAddNewItemModal(false);
-              setKioskSearch('');
+                      if (createdIng) {
+                        // Орлогын логийг зурагтай нь хадгалах
+                        const { data: newLog } = await supabase.from('inventory_logs').insert([{
+                          client_id: tenantClientId,
+                          ingredient_id: createdIng.id,
+                          quantity: qty,
+                          total_cost: cost,
+                          type: 'purchase',
+                          payment_method: 'bank',
+                          image_url: uploadedUrl,
+                          is_ebarimt: false,
+                          notes: 'Kiosk дээр шинээр үүсгэж орлого авсан',
+                          worker_name: activeShift?.character_role || selectedWorker?.full_name,
+                          date: new Date().toISOString()
+                        }]).select().single();
 
-              setRecentToast({
-                id: newLog?.id,
-                text: `✅ Шинэ бараа орлогод орлоо: ${newItemName} (${qty} ${newItemUnit})`
-              });
-              await fetchKioskData(tenantClientId);
-            }}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs transition shadow-lg active:scale-95"
+                        if (newLog) {
+                          setRecentToast({
+                            id: newLog.id,
+                            text: `✅ Шинэ бараа амжилттай бүртгэгдлээ: ${nameToSave} (${qty} ${unitToSave})`
+                          });
+                          fetchKioskData(tenantClientId); // Таблетын датаг цаана нь шинэчилнэ
+                        }
+                      }
+                    } catch (err) {
+                      console.error("New item background save error:", err);
+                    }
+                  })();
+                        }}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs transition shadow-lg active:scale-95"
           >
             {isAiLoading ? 'Үүсгэж байна...' : !newItemFile ? '📸 ЗУРАГ ОРУУЛНА УУ' : 'ШИНЭ БАРААГ БАТЛАХ'}
           </button>
