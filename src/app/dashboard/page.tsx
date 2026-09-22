@@ -28,6 +28,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import { exportAuditExcel } from "../../lib/exportAudit";
+import { findBestMenuMatch } from "../../lib/autoReconcile";
 
 // 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
@@ -521,20 +522,13 @@ const aliasMap: Record<string, string> = {
   "tiramsu": "tiramisu"
 };
 
-// ⚠️ МЕНЮНД БАЙХГҮЙ ЭСВЭЛ ЖОРГҮЙ БОРЛУУЛАЛТЫГ ИЛРҮҮЛЭХ
-  const unmappedSales = React.useMemo(() => {
-    // 1. Менюнд байгаа нэрс
+const unmappedSales = React.useMemo(() => {
+    // Менюнд байгаа нэрс
     const productNames = new Set(productsList.map((p: any) => cleanString(p.name).toLowerCase().trim()));
-    // 2. Жоронд байгаа нэрс
+    // Жоронд байгаа нэрс
     const recipeNames = new Set(recipes.map((r: any) => cleanString(r.product_name).toLowerCase().trim()));
 
-    const missingItems: { 
-      name: string; 
-      soldCount: number; 
-      unitPrice: number; 
-      inMenu: boolean; 
-      hasRecipe: boolean; 
-    }[] = [];
+    const missingItems: any[] = [];
     const seen = new Set<string>();
 
     salesLogs
@@ -546,13 +540,18 @@ const aliasMap: Record<string, string> = {
           pNameLower = aliasMap[pNameLower].toLowerCase().trim();
         }
 
-        const inMenu = productNames.has(pNameLower);
+      // 1. Меню дэх бүтээгдэхүүнийг олно
+        const matchedProd = productsList.find((p: any) => cleanString(p.name).toLowerCase() === pNameLower);
+        const inMenu = Boolean(matchedProd);
         const hasRecipe = recipeNames.has(pNameLower) || recipeNames.has(rawName.toLowerCase());
 
-        // 🚨 Хэрэв МЕНЮНД БАЙХГҮЙ эсвэл ЖОР НЬ БАЙХГҮЙ бол заавал анхааруулна!
-        if ((!inMenu || !hasRecipe) && !seen.has(pNameLower)) {
-          seen.add(pNameLower);
-          const calculatedPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
+        // 2. ПОС-ын үнэ Менюний үнэтэй таарч байгаа эсэх:
+        const calculatedPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
+        const priceMatches = matchedProd ? Number(matchedProd.selling_price) === calculatedPrice : false;
+
+        // 🚨 Хэрэв Жоргүй, Менюд байхгүй, ЭСВЭЛ ҮНЭ ЗӨРСӨН бол шар хайрцагт ЗААВАЛ гаргана:
+        if ((!inMenu || !hasRecipe || !priceMatches) && !seen.has(rawName.toLowerCase())) {
+          seen.add(rawName.toLowerCase());
           missingItems.push({
             name: s.product_name,
             soldCount: s.quantity_sold,
@@ -564,7 +563,7 @@ const aliasMap: Record<string, string> = {
       });
 
     return missingItems;
-  }, [salesLogs, productsList, recipes, activeClient]);
+  }, [salesLogs, productsList, recipes, activeClient, aliasMap]);
 
   // 🚨 Түүхий эдийн үнийн өсөлтийн дохио (% бодох):
   const priceSpikeAlerts = React.useMemo(() => {
@@ -1322,25 +1321,69 @@ const aliasMap: Record<string, string> = {
           .lte("date", `${endDate}T23:59:59.999Z`);
       }
 
-      if (salesToInsert.length > 0) {
-        const { error } = await supabase
+    if (salesToInsert.length > 0) {
+        // 1. Борлуулалтыг баазад хадгалах
+        const { error: saleErr } = await supabase
           .from("sales_logs")
           .insert(salesToInsert);
-        if (error) throw error;
-        const autoMenuProducts = salesToInsert.map(s => ({
-          client_id: activeClient,
-          name: s.product_name,
-          category: 'General',
-          selling_price: s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0
-        }));
+        if (saleErr) throw saleErr;
 
-        await supabase.from("products").upsert(autoMenuProducts, { onConflict: "client_id,name" });
+        // 2. ⚡ АВТО-ПИЛОТ: МЕНЮНИЙ НЭР БА ҮНИЙГ ЗОХИЦУУЛАХ
+        const currentMenuNames = productsList.map((p: any) => cleanString(p.name));
 
+        for (const s of salesToInsert) {
+          const rawPosName = cleanString(s.product_name);
+          const saleUnitPrice = s.quantity_sold > 0 
+            ? Math.round(s.total_revenue / s.quantity_sold) 
+            : 0;
+
+          if (!rawPosName) continue;
+
+          // autoReconcile-ийн EN_TO_MN_DICT толь ашиглан Менюгээс хайна:
+          const { matchedName, confidence } = findBestMenuMatch(rawPosName, currentMenuNames);
+
+          if (matchedName && confidence >= 0.85) {
+            // 🟢 1. СОЛЬЖ НЭГТГЭХ (Автоматаар):
+            const matchedProd = productsList.find(
+              (p: any) => cleanString(p.name).toLowerCase() === cleanString(matchedName).toLowerCase()
+            );
+
+            if (matchedProd) {
+              // А. Менюн дээрх нэрийг ПОС-ын шинэ нэрээр (Tymbark), үнийг ПОС-ын үнээр UPDATE хийнэ:
+              await supabase
+                .from('products')
+                .update({
+                  name: rawPosName,
+                  selling_price: saleUnitPrice > 0 ? saleUnitPrice : matchedProd.selling_price
+                })
+                .eq('id', matchedProd.id);
+
+              // Б. Хэрэв жор нь хуучин нэрээрээ (tymbarko) байвал жор дээрх нэрийг шинэчилнэ (Жор хувилахгүй!):
+              if (cleanString(matchedProd.name).toLowerCase() !== rawPosName.toLowerCase()) {
+                await supabase
+                  .from('recipes')
+                  .update({ product_name: rawPosName })
+                  .eq('client_id', activeClient)
+                  .ilike('product_name', matchedProd.name);
+              }
+            }
+          } else {
+            // 🟡 2. ШИНЭ ЦЭС ҮҮСГЭХ (Автоматаар):
+            // Менюд огт байхгүй бол Меню рүү шинэ үнээр нь нэмнэ. Жор үүсгэхгүй!
+            await supabase.from('products').upsert([{
+              client_id: activeClient,
+              name: rawPosName,
+              category: 'General',
+              selling_price: saleUnitPrice
+            }], { onConflict: 'client_id,name' });
+          }
+        }
       }
 
       setSalesImportSuccess(true);
       setSalesPasteText("");
       setOverwriteSales(false);
+      
       await fetchDatabaseData(activeClient);
       alert(
         `✅ Амжилттай! Нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`,
