@@ -86,7 +86,7 @@ function AiCfoChatTab({
   >([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
 
-  // ⚡ ШУУД ХОЛБОЛТ: Хөтчөө refresh хийх шаардлагагүй, шинэ дата орж ирэхэд дэлгэц шууд өөрөө шинэчлэгдэнэ
+  // ⚡ ХОЛБОЛТ: Хөтчөө refresh хийх шаардлагагүй, шинэ дата орж ирэхэд дэлгэц шууд өөрөө шинэчлэгдэнэ
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
