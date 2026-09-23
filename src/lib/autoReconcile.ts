@@ -1,6 +1,8 @@
 // src/lib/autoReconcile.ts
 
-// 1. ТАНЫ ӨГСӨН АВАРГА ТОЛЬ БИЧИГ (Бүрэн эхээрээ)
+// =========================================================================
+// 1. АВАРГА ТОЛЬ БИЧИГ (100% Complete F&B Dictionary)
+// =========================================================================
 export const EN_TO_MN_DICT: Record<string, string[]> = {
   // Товчлолууд
   syr: ["сироп", "шүүс", "бурам"],
@@ -179,7 +181,14 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   bag: ["уут", "тор", "хүүдий"]
 };
 
-// 2. КИРИЛЛ -> ЛАТИН АВИА ЗҮЙН ХӨРВҮҮЛЭГЧ
+// =========================================================================
+// 2. ХЭМЖЭЭ, ХЯМДРАЛЫН ҮГС (Эдгээр үг орсон бол эцэг бүтээгдэхүүнийг солихгүй!)
+// =========================================================================
+export const VARIANT_WORDS = new Set([
+  'big', 'small', 'jijig', 'tom', 'mini', 'large', 'medium', 'sale', 'хямдрал', 'discount'
+]);
+
+// 3. КИРИЛЛ -> ЛАТИН ХӨРВҮҮЛЭГЧ
 const MN_CYRILLIC_MAP: Record<string, string> = {
   'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
   'ж': 'j', 'з': 'z', 'и': 'i', 'й': 'i', 'к': 'k', 'л': 'l', 'м': 'm',
@@ -188,7 +197,21 @@ const MN_CYRILLIC_MAP: Record<string, string> = {
   'щ': 'sh', 'ъ': '', 'ы': 'y', 'ь': 'i', 'э': 'e', 'ю': 'yu', 'я': 'ya'
 };
 
-// 3. ҮСГИЙН АЛДАА ШАЛГАГЧ (Levenshtein)
+export function transliterate(text: string): string {
+  return (text || '').toLowerCase().split('').map(c => MN_CYRILLIC_MAP[c] || c).join('');
+}
+
+// ⚡ ХААЛТ () БОЛОН ТЭМДЭГТҮҮДИЙГ БҮРЭН ЦЭВЭРЛЭХ:
+// "Tiramisu (sale)" -> "tiramisu sale"
+export function sanitizeName(name: string): string {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[«»"'\(\)\[\]\/\\#\.,\+&]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Үсгийн төстэй байдал тооцоолох (Levenshtein)
 export function getSimilarity(s1: string, s2: string): number {
   let longer = (s1 || "").toLowerCase().trim();
   let shorter = (s2 || "").toLowerCase().trim();
@@ -197,8 +220,7 @@ export function getSimilarity(s1: string, s2: string): number {
     longer = shorter;
     shorter = temp;
   }
-  const longerLength = longer.length;
-  if (longerLength === 0) return 1.0;
+  if (longer.length === 0) return 1.0;
   const costs: number[] = [];
   for (let i = 0; i <= longer.length; i++) {
     let lastValue = i;
@@ -215,35 +237,25 @@ export function getSimilarity(s1: string, s2: string): number {
     }
     if (i > 0) costs[shorter.length] = lastValue;
   }
-  return (longerLength - costs[shorter.length]) / parseFloat(longerLength.toString());
+  return (longer.length - costs[shorter.length]) / parseFloat(longer.length.toString());
 }
 
-export function transliterate(text: string): string {
-  return (text || '').toLowerCase().split('').map(c => MN_CYRILLIC_MAP[c] || c).join('');
-}
-
-export function sanitizeName(name: string): string {
-  return (name || '')
-    .toLowerCase()
-    .replace(/[«»"'\(\)\[\]\/\\#\.,\+&]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// 4. МОНГОЛ ҮГЭЭС АНГЛИ ҮГИЙГ ТОЛЬ БИЧГЭЭС ОЛОХ
-export function getEnglishTranslations(mnWord: string): string[] {
-  const clean = mnWord.toLowerCase().replace(/(тай|тэй|той|ын|ийн|ийг|аар|ээр|оор|өөр)$/g, '');
-  const matches: string[] = [];
-
-  for (const [enKey, mnList] of Object.entries(EN_TO_MN_DICT)) {
-    if (mnList.some(mn => mn.includes(clean) || clean.includes(mn))) {
-      matches.push(enKey);
-    }
+// Нэрэн дотор хэмжээ, хямдралын үг байгаа эсэхийг ялгах
+export function getVariantModifier(cleanName: string): string | null {
+  const words = cleanName.split(' ');
+  for (const w of words) {
+    if (VARIANT_WORDS.has(w)) return w;
   }
-  return matches;
+  return null;
 }
 
-// 5. НЭРИЙГ ТОКЕН БОЛГОЖ ЗАДЛАХ
+// Мөстэй, хүйтнийг ялгах
+export function checkIcedModifier(text: string): boolean {
+  const clean = sanitizeName(text);
+  return /мөстэй|мөст|хүйтэн|ice|iced|cold/.test(clean);
+}
+
+// ҮГЭЭС ТОКЕН САЛГАХ & ОРЧУУЛАХ
 export function extractFnbTokens(name: string): Set<string> {
   const clean = sanitizeName(name);
   const rawWords = clean.split(' ').filter(w => w.length >= 2);
@@ -251,40 +263,45 @@ export function extractFnbTokens(name: string): Set<string> {
 
   for (const word of rawWords) {
     const root = word.replace(/(тай|тэй|той|ын|ийн|ийг|аар|ээр|оор|өөр)$/g, '');
+    if (root.length < 2) continue;
+
     tokens.add(root);
     tokens.add(transliterate(root));
 
-    // Толь бичгээс бүх хувилбарыг нэмнэ:
-    const enEquivalents = getEnglishTranslations(root);
-    enEquivalents.forEach(en => tokens.add(en));
+    // Толь бичгээс англи хувилбарыг олох
+    for (const [enKey, mnList] of Object.entries(EN_TO_MN_DICT)) {
+      if (mnList.some(mn => mn.includes(root) || root.includes(mn))) {
+        tokens.add(enKey);
+      }
+    }
   }
-
   return tokens;
 }
 
-// 6. ХОЁР БҮТЭЭГДЭХҮҮНИЙ ТААРАХ ОНООГ ТООЦООЛОХ (0.0 - 1.0)
-export function calculateMatchScore(posName: string, targetName: string): number {
+// ТААРАХ ОНООГ ТОГТООХ (0.0 - 1.0)
+export function calculateMatchScore(posName: string, candidateName: string): number {
   const posClean = sanitizeName(posName);
-  const targetClean = sanitizeName(targetName);
+  const candClean = sanitizeName(candidateName);
 
-  if (posClean === targetClean) return 1.0;
-  if (transliterate(posClean) === transliterate(targetClean)) return 0.99;
+  if (posClean === candClean) return 1.0;
+  if (transliterate(posClean) === transliterate(candClean)) return 0.99;
 
-  // Шууд үсгийн төстэй байдал (Жишээ: tymbark vs tymbarko -> 0.88)
-  const sim = getSimilarity(posClean, targetClean);
+  // Шууд төстэй үг (Tymbark vs tymbarko)
+  const sim = getSimilarity(posClean, candClean);
   if (sim >= 0.85) return sim;
 
+  // Токен огтлолцол
   const posTokens = extractFnbTokens(posName);
-  const targetTokens = extractFnbTokens(targetName);
-  if (posTokens.size === 0 || targetTokens.size === 0) return 0;
+  const candTokens = extractFnbTokens(candidateName);
+  if (posTokens.size === 0 || candTokens.size === 0) return 0;
 
   let intersection = 0;
-  posTokens.forEach(token => {
-    if (targetTokens.has(token)) {
+  posTokens.forEach(t => {
+    if (candTokens.has(t)) {
       intersection++;
     } else {
-      for (const tToken of targetTokens) {
-        if (tToken.includes(token) || token.includes(tToken)) {
+      for (const ct of candTokens) {
+        if (ct.includes(t) || t.includes(ct)) {
           intersection += 0.7;
           break;
         }
@@ -292,28 +309,162 @@ export function calculateMatchScore(posName: string, targetName: string): number
     }
   });
 
+  // Халуун / Мөстэй таарч буй эсэхээр оноог нэмэх/хасах
+  const posIsIced = checkIcedModifier(posName);
+  const candIsIced = checkIcedModifier(candidateName);
+  if (posIsIced === candIsIced) {
+    intersection += 0.3;
+  }
+
   const score = intersection / posTokens.size;
   return Math.min(1.0, Math.max(score, sim));
 }
 
-// 7. МЕНЮН ДОТРООС ХАМГИЙН ТӨСТЭЙ БАРААГ ОЛОХ ҮНДСЭН ФУНКЦ
-export function findBestMenuMatch(
-  posProductName: string,
-  availableMenuNames: string[]
-): { matchedName: string | null; confidence: number } {
-  let bestMatch: string | null = null;
-  let highestScore = 0;
+// [1-р ХАМГААЛАЛТ] ҮНИЙН ОГЦОМ ЗӨРҮҮНИЙ БАМБАЙ (Price Spike Shield)
+export function isPriceChangeSafe(menuPrice: number, posPrice: number): boolean {
+  if (!menuPrice || menuPrice <= 0 || !posPrice || posPrice <= 0) return true;
+  const ratio = posPrice / menuPrice;
+  return ratio >= 0.70 && ratio <= 1.50; // 30%-иас их хямдрал эсвэл 50%-иас их өсөлтийг хамгаална
+}
 
-  for (const menuName of availableMenuNames) {
-    const score = calculateMatchScore(posProductName, menuName);
-    if (score > highestScore) {
-      highestScore = score;
-      bestMatch = menuName;
+// =========================================================================
+// 7. [БҮХ ЗОХИЦУУЛАЛТЫГ ХИЙХ ГАНЦХАН ТАРХИ]
+// =========================================================================
+export interface ReconciliationResult {
+  decision: 'AUTO_MERGE' | 'TIE_BREAK' | 'NEW_PRODUCT';
+  action?: 'EXACT_MATCH' | 'VARIANT_PRODUCT' | 'TYPO_MERGE' | 'NEW_PRODUCT'; 
+  matchedProduct?: any;
+  targetProduct?: any;
+  canonicalName: string;
+  posPrice: number;
+  shouldUpdateMenuPrice: boolean;
+  shouldUpdatePrice?: boolean;
+  tieCandidates?: string[];
+  reason: string;
+  isVariant?: boolean;
+}
+
+export function evaluateSaleItem(
+  rawPosName: string,
+  posPrice: number,
+  productsList: any[],
+  aliasMap: Record<string, string> = {}
+): ReconciliationResult {
+  const cleanPos = sanitizeName(rawPosName);
+  const posIsIced = checkIcedModifier(rawPosName);
+  const posModifier = getVariantModifier(cleanPos);
+
+  // А. Яг ижил нэр байна уу? (Хаалт үл тооцогдоно: "Tiramisu (sale)" == "Tiramisu sale")
+  const exactProd = productsList.find(p => sanitizeName(p.name) === cleanPos);
+  if (exactProd) {
+    const isSafe = isPriceChangeSafe(Number(exactProd.selling_price), posPrice);
+    return {
+      decision: 'AUTO_MERGE',
+      matchedProduct: exactProd,
+      targetProduct: exactProd,
+      canonicalName: exactProd.name,
+      posPrice,
+      shouldUpdateMenuPrice: isSafe,
+      shouldUpdatePrice: isSafe,
+      isVariant: false,
+      reason: `Ижил бүтээгдэхүүн олдсон`
+    };
+  }
+
+  // Б. aliasMap санах ойд заасан эсэх
+  const directAlias = aliasMap[cleanPos];
+  if (directAlias) {
+    const prod = productsList.find(p => sanitizeName(p.name) === sanitizeName(directAlias));
+    if (prod) {
+      const isSafe = isPriceChangeSafe(Number(prod.selling_price), posPrice);
+      return {
+        decision: 'AUTO_MERGE',
+        matchedProduct: prod,
+        targetProduct: prod,
+        canonicalName: prod.name,
+        posPrice,
+        shouldUpdateMenuPrice: isSafe,
+        shouldUpdatePrice: isSafe,
+        isVariant: false,
+        reason: `Санах ойн холбоос: ${prod.name}`
+      };
     }
   }
 
+  // В. Меню дотроос хамгийн өндөр оноотойг хайх
+  const scored = productsList.map(prod => {
+    let score = calculateMatchScore(rawPosName, prod.name);
+    
+    // Халуун хувилбарт давуу эрх өгөх
+    const prodIsIced = checkIcedModifier(prod.name);
+    if (!posIsIced && !prodIsIced) {
+      score += 0.05;
+    } else if (posIsIced && prodIsIced) {
+      score += 0.10;
+    } else if (posIsIced !== prodIsIced) {
+      score -= 0.20;
+    }
+
+    return { prod, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const top = scored[0];
+  const second = scored[1];
+
+  // Г. [2-р Хамгаалалт] Тэнцсэн үед дур мэдэн шийдэхгүй (Tie-Break)
+  if (top && second && top.score >= 0.75 && Math.abs(top.score - second.score) < 0.05) {
+    return {
+      decision: 'TIE_BREAK',
+      canonicalName: rawPosName,
+      posPrice,
+      shouldUpdateMenuPrice: false,
+      shouldUpdatePrice: false,
+      tieCandidates: [top.prod.name, second.prod.name],
+      isVariant: false,
+      reason: `Хоёр өөр бүтээгдэхүүний оноо тэнцсэн (${top.prod.name} vs ${second.prod.name})`
+    };
+  }
+
+  // Д. Өндөр оноотой таарсан үед
+  if (top && top.score >= 0.80) {
+    const isSafe = isPriceChangeSafe(Number(top.prod.selling_price), posPrice);
+    const menuModifier = getVariantModifier(sanitizeName(top.prod.name));
+
+    // ⚡ АЛТАН ДҮРЭМ: Хэрэв нэг нь 'Big', 'jijig', 'sale' үгтэй бол ЭЦЭГ Tiramisu-Г УСТГАХГҮЙ, ХУВИЛБАР БОЛГОНО:
+    const isVariant = posModifier !== menuModifier;
+
+    return {
+      decision: 'AUTO_MERGE',
+      matchedProduct: top.prod,
+      targetProduct: top.prod,
+      canonicalName: top.prod.name,
+      posPrice,
+      shouldUpdateMenuPrice: isSafe,
+      shouldUpdatePrice: isSafe,
+      isVariant: isVariant, // 👈 ТУСДАА ХУВИЛБАР МӨН ЭСЭХ ТЭМДЭГ!
+      reason: isVariant 
+        ? `${top.prod.name}-ийн хувилбар (${posModifier})` 
+        : `Ижил бараа олдсон (${top.prod.name})`
+    };
+  }
+
+  // Е. Огт таараагүй цоо шинэ бараа
   return {
-    matchedName: bestMatch,
-    confidence: highestScore
+    decision: 'NEW_PRODUCT',
+    canonicalName: rawPosName,
+    posPrice,
+    shouldUpdateMenuPrice: true,
+    shouldUpdatePrice: true,
+    isVariant: false,
+    reason: `Менюд байхгүй шинэ бараа`
   };
 }
+
+// Хуучин кодтой нийцүүлэх нөөц Export:
+export const findBestRecipeMatch = (posName: string, availableNames: string[], aliasMap: Record<string, string> = {}) => {
+  const res = evaluateSaleItem(posName, 0, availableNames.map(n => ({ name: n })), aliasMap);
+  return {
+    matchedName: res.matchedProduct?.name || null,
+    confidence: res.decision === 'AUTO_MERGE' ? 0.90 : 0
+  };
+};

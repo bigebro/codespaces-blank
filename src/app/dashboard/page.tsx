@@ -28,7 +28,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import { exportAuditExcel } from "../../lib/exportAudit";
-import { findBestMenuMatch } from "../../lib/autoReconcile";
+import { evaluateSaleItem, sanitizeName } from "../../lib/autoReconcile";
 
 // 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
@@ -507,27 +507,11 @@ function Home() {
     amount: "",
   });
 
-const aliasMap: Record<string, string> = {
-  "матча латте": "matcha latte",
-  "салями сэндвич": "salami sandwich",
-  "хулууны зутан шөл": "pumpkin soup / хулууны зутан шөл ", 
-  "hot milk honey": "hot milk with honey",
-  "flavoured latte": "flavored caffe latte",
-  "tuna  sandwich": "tuna sandwich",         
-  "sloppy joe” burger": "\"sloppy joe\" burger", 
-  "caramel latte macchiato": "caramel macchiato",
-  "tiramisu sale": "tiramisu",
-  "tiramisu jijig": "tiramisu", 
-  "tiramisu big": "tiramisu",
-  "tiramsu": "tiramisu"
-};
+const aliasMap: Record<string, string> = {};
 
 const unmappedSales = React.useMemo(() => {
-    // Менюнд байгаа нэрс
+    // Зөвхөн Менюд ч байхгүй, Жоронд ч байхгүй ховор тохиолдлыг л шүүнэ:
     const productNames = new Set(productsList.map((p: any) => cleanString(p.name).toLowerCase().trim()));
-    // Жоронд байгаа нэрс
-    const recipeNames = new Set(recipes.map((r: any) => cleanString(r.product_name).toLowerCase().trim()));
-
     const missingItems: any[] = [];
     const seen = new Set<string>();
 
@@ -535,35 +519,22 @@ const unmappedSales = React.useMemo(() => {
       .filter((s: any) => s.client_id === activeClient)
       .forEach((s: any) => {
         const rawName = cleanString(s.product_name);
-        let pNameLower = rawName.toLowerCase();
-        if (aliasMap[pNameLower]) {
-          pNameLower = aliasMap[pNameLower].toLowerCase().trim();
-        }
+        const pNameLower = rawName.toLowerCase();
 
-      // 1. Меню дэх бүтээгдэхүүнийг олно
-        const matchedProd = productsList.find((p: any) => cleanString(p.name).toLowerCase() === pNameLower);
-        const inMenu = Boolean(matchedProd);
-        const hasRecipe = recipeNames.has(pNameLower) || recipeNames.has(rawName.toLowerCase());
-
-        // 2. ПОС-ын үнэ Менюний үнэтэй таарч байгаа эсэх:
-        const calculatedPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
-        const priceMatches = matchedProd ? Number(matchedProd.selling_price) === calculatedPrice : false;
-
-        // 🚨 Хэрэв Жоргүй, Менюд байхгүй, ЭСВЭЛ ҮНЭ ЗӨРСӨН бол шар хайрцагт ЗААВАЛ гаргана:
-        if ((!inMenu || !hasRecipe || !priceMatches) && !seen.has(rawName.toLowerCase())) {
-          seen.add(rawName.toLowerCase());
+        // Хэрэв авто-пилотоос гадуур үлдсэн бол л оруулна:
+        if (!productNames.has(pNameLower) && !aliasMap[pNameLower] && !seen.has(pNameLower)) {
+          seen.add(pNameLower);
+          const calculatedPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
           missingItems.push({
             name: s.product_name,
             soldCount: s.quantity_sold,
-            unitPrice: calculatedPrice,
-            inMenu,
-            hasRecipe
+            unitPrice: calculatedPrice
           });
         }
       });
 
     return missingItems;
-  }, [salesLogs, productsList, recipes, activeClient, aliasMap]);
+  }, [salesLogs, productsList, activeClient, aliasMap]);
 
   // 🚨 Түүхий эдийн үнийн өсөлтийн дохио (% бодох):
   const priceSpikeAlerts = React.useMemo(() => {
@@ -648,6 +619,90 @@ const unmappedSales = React.useMemo(() => {
   };
 
 
+
+ interface AutoPilotChange {
+    id: string;
+    productId: string;
+    productName: string;
+    type: 'NAME_MERGE' | 'PRICE_UPDATE' | 'VARIANT_ADDED' | 'NEW_PRODUCT'; 
+    oldName: string;
+    newName: string;
+    oldPrice: number;
+    newPrice: number;
+    oldCategory: string;
+    reverted: boolean;
+  }
+
+  const [autoPilotActivity, setAutoPilotActivity] = useState<{
+    totalSales: number;
+    changes: AutoPilotChange[];
+  } | null>(null);
+
+  const [showChangesModal, setShowChangesModal] = useState(false);
+
+  // ⚡ 1-CLICK ЗӨВ БУЦААХ (UNDO) ФУНКЦ
+  const handleSingleUndo = async (changeId: string) => {
+    if (!autoPilotActivity) return;
+    const targetChange = autoPilotActivity.changes.find(c => c.id === changeId);
+    if (!targetChange || targetChange.reverted) return;
+
+    setLoading(true);
+
+    try {
+      if (targetChange.type === 'NEW_PRODUCT') {
+        // Шинээр нэмэгдсэн барааг устгана:
+        await supabase
+          .from('products')
+          .delete()
+          .eq('client_id', activeClient)
+          .eq('id', targetChange.productId);
+
+        setProductsList(prev => prev.filter(p => p.id !== targetChange.productId));
+      } else {
+        // Нэр ба үнийг хуучин Меню дээр байсан хэвэнд нь буцааж UPDATE хийнэ:
+        await supabase
+          .from('products')
+          .update({
+            name: targetChange.oldName,
+            selling_price: targetChange.oldPrice,
+            category: targetChange.oldCategory
+          })
+          .eq('id', targetChange.productId);
+
+        // Жорон дээрх нэрийг хуучин нэр рүү нь буцаана:
+        await supabase
+          .from('recipes')
+          .update({ product_name: targetChange.oldName })
+          .eq('client_id', activeClient)
+          .ilike('product_name', targetChange.newName);
+
+        // Local state-ийг шинэчлэх:
+        setProductsList(prev => prev.map(p => 
+          p.id === targetChange.productId ? {
+            ...p,
+            name: targetChange.oldName,
+            selling_price: targetChange.oldPrice,
+            category: targetChange.oldCategory
+          } : p
+        ));
+      }
+
+      // Төлөвийг буцаагдсан болгох:
+      setAutoPilotActivity(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          changes: prev.changes.map(c => c.id === changeId ? { ...c, reverted: true } : c)
+        };
+      });
+
+      alert(`↩️ "${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`);
+    } catch (err: any) {
+      alert(`Алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
   // 🔒 Kiosk түгжээний State-үүд:
 
   const [isKioskLocked, setIsKioskLocked] = useState(false);
@@ -1203,7 +1258,7 @@ const unmappedSales = React.useMemo(() => {
   // =========================================================================
   // 📈 БОРЛУУЛАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
   // =========================================================================
-  const handleBulkSalesPaste = async (e: React.FormEvent) => {
+const handleBulkSalesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!salesPasteText.trim()) return;
 
@@ -1211,96 +1266,36 @@ const unmappedSales = React.useMemo(() => {
     try {
       const rows = salesPasteText.replace(/\r/g, "").trim().split("\n");
       if (rows.length < 2) {
-        alert(
-          "Алдаа: Толгой мөр (Header) болон доорх өгөгдлийг хамтад нь хуулна уу.",
-        );
+        alert("Толгой мөр болон өгөгдлөө хамтад нь хуулна уу.");
         setLoading(false);
         return;
       }
 
-  
-
-      // 1. Толгой мөрийг жижиг үсгээр цэвэрлэж авах:
       const headerCols = rows[0].split("\t").map(cleanHeader);
+      const nameIdx = headerCols.findIndex(c => c.includes("бүтээгдэхүүн") || c.includes("product") || c.includes("item") || c.includes("нэр"));
+      const qtyIdx = headerCols.findIndex(c => c.includes("тоо") || c.includes("хэмжээ") || c.includes("qty") || c.includes("count") || c.includes("ширхэг"));
+      const revIdx = headerCols.findIndex(c => c.includes("орлого") || c.includes("revenue") || c.includes("total") || c.includes("дүн"));
+      const dateIdx = headerCols.findIndex(c => c.includes("огноо") || c.includes("date"));
 
-      // 2. Утгаар нь багануудын байршлыг автоматаар олох:
-      const nameIdx = headerCols.findIndex(
-        (c) =>
-          c.includes("бүтээгдэхүүн") ||
-          c.includes("product") ||
-          c.includes("item") ||
-          c.includes("бараа") ||
-          c.includes("нэр") ||
-          c.includes("ундаа"),
-      );
-
-      const qtyIdx = headerCols.findIndex(
-        (c) =>
-          c.includes("тоо") ||
-          c.includes("хэмжээ") ||
-          c.includes("qty") ||
-          c.includes("count") ||
-          c.includes("ширхэг"),
-      );
-
-      const revIdx = headerCols.findIndex(
-        (c) =>
-          c.includes("орлого") ||
-          c.includes("revenue") ||
-          c.includes("total") ||
-          c.includes("борлуулалт") ||
-          (c.includes("дүн") && !c.includes("тоо")) ||
-          (c.includes("нийт") && !c.includes("тоо")) ||
-          c.includes("үнэ"),
-      );
-
-      const dateIdx = headerCols.findIndex(
-        (c) => c.includes("огноо") || c.includes("date") || c.includes("өдөр"),
-      );
-
-      // Шаардлагатай гол 2 багана олдохгүй бол сануулах:
       if (nameIdx === -1 || qtyIdx === -1) {
-        alert(
-          "Алдаа: 'Бүтээгдэхүүн' болон 'Тоо ширхэг' баганыг таньж чадсангүй.\n\nТолгой мөрөн дээрээ: [Бүтээгдэхүүн | Тоо ширхэг | Нийт орлого] гэж бичнэ үү.",
-        );
+        alert("Багануудыг таньж чадсангүй. Толгой мөрөө шалгана уу.");
         setLoading(false);
         return;
       }
 
-      // 3. Огноо бичигдээгүй үед Dashboard дээр сонгосон сарын огноог авах:
-      const activeMonthFallback = endDate
-        ? `${endDate}T12:00:00.000Z`
-        : `${startDate}T12:00:00.000Z`;
+      const activeMonthFallback = endDate ? `${endDate}T12:00:00.000Z` : `${startDate}T12:00:00.000Z`;
       const salesToInsert: any[] = [];
 
-      // 4. Мөр бүрийг унших:
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i].trim();
-        if (!row) continue; // Хоосон мөрийг алгасна
+        if (!row) continue;
         const cols = row.split("\t");
+        const pName = cleanCell(cols[nameIdx] || "");
+        const qty = parseInt((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const revenue = parseFloat((cols[revIdx >= 0 ? revIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const dateVal = parseSafeDate(dateIdx >= 0 ? cols[dateIdx] : undefined, activeMonthFallback);
 
-        let pName = cleanCell(cols[nameIdx] || "");
-        if (isGluedTextNumber(pName)) {
-          alert(
-            `⚠️ Зайны алдаа: Мөр ${i + 1} дээр "${pName}" наалдсан байна. Зай авна уу.`,
-          );
-          setLoading(false);
-          return;
-        }
-
-        const qty =
-          parseInt((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
-        const revenue =
-          parseFloat(
-            (cols[revIdx >= 0 ? revIdx : 2] || "0").replace(/[^0-9.-]/g, ""),
-          ) || 0;
-
-        // Хэрэв огноогүй хуулсан бол сонгосон сарын огноог өгнө:
-        const rawDate =
-          dateIdx >= 0 && cols[dateIdx] ? cols[dateIdx].trim() : undefined;
-        const dateVal = parseSafeDate(rawDate, activeMonthFallback);
-
-        if (pName && qty > 0 && !pName.toLowerCase().includes("бүтээгдэхүүн")) {
+        if (pName && qty > 0) {
           salesToInsert.push({
             client_id: activeClient,
             product_name: pName,
@@ -1311,83 +1306,158 @@ const unmappedSales = React.useMemo(() => {
         }
       }
 
-      // 5. Хэрэв "Хуучныг цэвэрлэх" сонгосон бол өмнөх датаг устгах:
       if (overwriteSales) {
-        await supabase
-          .from("sales_logs")
-          .delete()
+        await supabase.from("sales_logs").delete()
           .eq("client_id", activeClient)
           .gte("date", `${startDate}T00:00:00.000Z`)
           .lte("date", `${endDate}T23:59:59.999Z`);
       }
+if (salesToInsert.length > 0) {
+        // ⚡ АЛХАМ 1: Борлуулалтыг баазад хадгалах
+        await supabase.from("sales_logs").insert(salesToInsert);
 
-    if (salesToInsert.length > 0) {
-        // 1. Борлуулалтыг баазад хадгалах
-        const { error: saleErr } = await supabase
-          .from("sales_logs")
-          .insert(salesToInsert);
-        if (saleErr) throw saleErr;
-
-        // 2. ⚡ АВТО-ПИЛОТ: МЕНЮНИЙ НЭР БА ҮНИЙГ ЗОХИЦУУЛАХ
-        const currentMenuNames = productsList.map((p: any) => cleanString(p.name));
+        // ⚡ АЛХАМ 2: Давталт дотор бааз руу хандахгүй, Бүх барааг нэг массив дотор цуглуулна:
+        const recordedChanges: AutoPilotChange[] = [];
+        const seenInBatch = new Set<string>();
+        const productsToBatch: any[] = [];
+        const recipesToRenameBatch: Array<{ from: string; to: string }> = [];
 
         for (const s of salesToInsert) {
           const rawPosName = cleanString(s.product_name);
-          const saleUnitPrice = s.quantity_sold > 0 
-            ? Math.round(s.total_revenue / s.quantity_sold) 
-            : 0;
+          const posPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
+          if (!rawPosName || seenInBatch.has(rawPosName.toLowerCase())) continue;
+          seenInBatch.add(rawPosName.toLowerCase());
 
-          if (!rawPosName) continue;
+          // autoReconcile тархи дуудах (0.001ms):
+          const result = evaluateSaleItem(rawPosName, posPrice, productsList, aliasMap);
 
-          // autoReconcile-ийн EN_TO_MN_DICT толь ашиглан Менюгээс хайна:
-          const { matchedName, confidence } = findBestMenuMatch(rawPosName, currentMenuNames);
+          if (result.action === 'EXACT_MATCH' && result.targetProduct) {
+            const target = result.targetProduct;
+            if (result.shouldUpdatePrice && posPrice > 0 && Number(target.selling_price) !== posPrice) {
+              productsToBatch.push({
+                id: target.id,
+                client_id: activeClient,
+                name: target.name,
+                category: target.category || 'General',
+                selling_price: posPrice
+              });
 
-          if (matchedName && confidence >= 0.85) {
-            // 🟢 1. СОЛЬЖ НЭГТГЭХ (Автоматаар):
-            const matchedProd = productsList.find(
-              (p: any) => cleanString(p.name).toLowerCase() === cleanString(matchedName).toLowerCase()
-            );
-
-            if (matchedProd) {
-              // А. Менюн дээрх нэрийг ПОС-ын шинэ нэрээр (Tymbark), үнийг ПОС-ын үнээр UPDATE хийнэ:
-              await supabase
-                .from('products')
-                .update({
-                  name: rawPosName,
-                  selling_price: saleUnitPrice > 0 ? saleUnitPrice : matchedProd.selling_price
-                })
-                .eq('id', matchedProd.id);
-
-              // Б. Хэрэв жор нь хуучин нэрээрээ (tymbarko) байвал жор дээрх нэрийг шинэчилнэ (Жор хувилахгүй!):
-              if (cleanString(matchedProd.name).toLowerCase() !== rawPosName.toLowerCase()) {
-                await supabase
-                  .from('recipes')
-                  .update({ product_name: rawPosName })
-                  .eq('client_id', activeClient)
-                  .ilike('product_name', matchedProd.name);
-              }
+              recordedChanges.push({
+                id: `exact-${target.id}-${Date.now()}`,
+                productId: target.id,
+                productName: target.name,
+                type: 'PRICE_UPDATE',
+                oldName: target.name,
+                newName: target.name,
+                oldPrice: Number(target.selling_price),
+                newPrice: posPrice,
+                oldCategory: target.category || 'General',
+                reverted: false
+              });
             }
+
+          } else if (result.action === 'VARIANT_PRODUCT' && result.targetProduct) {
+            const parent = result.targetProduct;
+            const existingVar = productsList.find(p => sanitizeName(p.name) === sanitizeName(rawPosName));
+
+            productsToBatch.push({
+              ...(existingVar ? { id: existingVar.id } : {}),
+              client_id: activeClient,
+              name: rawPosName,
+              category: parent.category || 'DESSERT',
+              selling_price: posPrice
+            });
+
+            aliasMap[sanitizeName(rawPosName)] = sanitizeName(parent.name);
+
+            recordedChanges.push({
+              id: `var-${rawPosName}-${Date.now()}`,
+              productId: existingVar?.id || '',
+              productName: rawPosName,
+              type: 'VARIANT_ADDED',
+              oldName: `${parent.name}-ийн хувилбар`,
+              newName: `${rawPosName} (${posPrice.toLocaleString()} ₮)`,
+              oldPrice: Number(parent.selling_price),
+              newPrice: posPrice,
+              oldCategory: parent.category || 'DESSERT',
+              reverted: false
+            });
+
+          } else if (result.action === 'TYPO_MERGE' && result.targetProduct) {
+            const target = result.targetProduct;
+            productsToBatch.push({
+              id: target.id,
+              client_id: activeClient,
+              name: rawPosName,
+              category: target.category || 'General',
+              selling_price: posPrice > 0 ? posPrice : Number(target.selling_price)
+            });
+
+            recipesToRenameBatch.push({ from: target.name, to: rawPosName });
+
+            recordedChanges.push({
+              id: `typo-${target.id}-${Date.now()}`,
+              productId: target.id,
+              productName: rawPosName,
+              type: 'NAME_MERGE',
+              oldName: target.name,
+              newName: rawPosName,
+              oldPrice: Number(target.selling_price),
+              newPrice: posPrice,
+              oldCategory: target.category || 'General',
+              reverted: false
+            });
+
           } else {
-            // 🟡 2. ШИНЭ ЦЭС ҮҮСГЭХ (Автоматаар):
-            // Менюд огт байхгүй бол Меню рүү шинэ үнээр нь нэмнэ. Жор үүсгэхгүй!
-            await supabase.from('products').upsert([{
+            productsToBatch.push({
               client_id: activeClient,
               name: rawPosName,
               category: 'General',
-              selling_price: saleUnitPrice
-            }], { onConflict: 'client_id,name' });
+              selling_price: posPrice
+            });
+
+            recordedChanges.push({
+              id: `new-${rawPosName}-${Date.now()}`,
+              productId: '',
+              productName: rawPosName,
+              type: 'NEW_PRODUCT',
+              oldName: 'Байхгүй',
+              newName: `${rawPosName} (${posPrice.toLocaleString()} ₮)`,
+              oldPrice: 0,
+              newPrice: posPrice,
+              oldCategory: 'General',
+              reverted: false
+            });
           }
         }
+
+        // ⚡ АЛХАМ 3: БҮХ БАРААГ 52 УДАА БИШ, ГАНЦХАН СҮЛЖЭЭНИЙ ХҮСЭЛТЭЭР БӨӨНӨӨР НЬ ХАДГАЛАХ (0.2 секунд!):
+        if (productsToBatch.length > 0) {
+          await supabase.from("products").upsert(productsToBatch, { onConflict: "client_id,name" });
+        }
+
+        if (recipesToRenameBatch.length > 0) {
+          await Promise.all(
+            recipesToRenameBatch.map(rec =>
+              supabase.from("recipes").update({ product_name: rec.to })
+                .eq("client_id", activeClient).ilike("product_name", rec.from)
+            )
+          );
+        }
+
+        setAutoPilotActivity({
+          totalSales: salesToInsert.length,
+          changes: recordedChanges
+        });
       }
 
+      // ⚡ АЛХАМ 4: Ногоон амжилтын цонхыг тэр дор нь ШУУД асаана!
       setSalesImportSuccess(true);
       setSalesPasteText("");
       setOverwriteSales(false);
-      
+
+      // Датаг ард нь сэргээх
       await fetchDatabaseData(activeClient);
-      alert(
-        `✅ Амжилттай! Нийт ${salesToInsert.length} борлуулалт хадгалагдлаа.`,
-      );
       setTimeout(() => setSalesImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
@@ -1395,6 +1465,8 @@ const unmappedSales = React.useMemo(() => {
       setLoading(false);
     }
   };
+
+      
   // =========================================================================
   // 📦 ТАТАН АВАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
   // =========================================================================
@@ -5568,7 +5640,157 @@ const unmappedSales = React.useMemo(() => {
               {/* ========================================================================= */}
               {catalogTab === "products" && (
                 <div className="pt-4 space-y-3">
-               {/* ⚠️ ПОС-ООС ИРСЭН БҮТЭЭГДЭХҮҮНИЙГ СОЛЬЖ НЭГТГЭХ ЭСВЭЛ ШИНЭЭР НЭМЭХ ШАР БАННЕР */}
+           
+             {/* ⚡ АВТО-ПИЛОТ ТУУЗ: ЯГ ТАНЫ ХҮССЭН ТЕКСТ & ТОВЧ */}
+                {autoPilotActivity && (
+                  <div className="bg-emerald-500/10 border-2 border-emerald-500/30 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <p className="text-xs sm:text-sm text-emerald-300 font-black leading-relaxed">
+                        ⚡ Авто-Пилот: {autoPilotActivity.totalSales} борлуулалт амжилттай бодлоо. 
+                        {autoPilotActivity.changes.length > 0 
+                          ? ` Нийт ${autoPilotActivity.changes.filter(c => !c.reverted).length} бараанд өөрчлөлт орсон байна.` 
+                          : " Бүх үнэ, жор 100% таарсан байна."}
+                      </p>
+                    </div>
+
+                    {autoPilotActivity.changes.length > 0 && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowChangesModal(true)}
+                          className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow"
+                        >
+                          <span>👁️ Өөрчлөлтүүдийг харах ({autoPilotActivity.changes.filter(c => !c.reverted).length})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setAutoPilotActivity(null)}
+                          className="text-slate-500 hover:text-slate-300 p-1 text-xs"
+                          title="Хаах"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                              {/* 📋 [ 👁️ ӨӨРЧЛӨЛТҮҮДИЙГ ХАРАХ ] ПОПАП ЦОНХ */}
+                  {showChangesModal && autoPilotActivity && (
+                    <div 
+                      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 animate-in fade-in duration-150"
+                      onClick={() => setShowChangesModal(false)}
+                    >
+                      <div 
+                        className="bg-[#0d1527] border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                          <div>
+                            <h3 className="font-black text-white text-base flex items-center gap-2">
+                              <span>📋 Авто-Пилотын хийсэн өөрчлөлтүүд</span>
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Шинээр орж ирсэн ПОС-ын нэр болон үнийг шалгаж, шаардлагатай бол буцаана уу.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowChangesModal(false)}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs font-bold"
+                          >
+                            ✕ Хаах
+                          </button>
+                        </div>
+
+                        {/* ХҮСНЭГТ: ХУУЧИН БА ШИНЭ УТГУУД ЗӨВ БАЙРАНДАА */}
+                        <div className="flex-1 overflow-y-auto border border-slate-800 rounded-2xl">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800">
+                              <tr>
+                                <th className="py-2.5 px-3">Шинэ бүтээгдэхүүн (ПОС)</th>
+                                <th className="py-2.5 px-3">Төлөв</th>
+                                <th className="py-2.5 px-3 text-right">Хуучин (Меню)</th>
+                                <th className="py-2.5 px-3 text-right">Шинэ (ПОС)</th>
+                                <th className="py-2.5 px-3 text-center">Үйлдэл</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
+                              {autoPilotActivity.changes.map((ch) => (
+                                <tr key={ch.id} className={ch.reverted ? "opacity-40 line-through bg-slate-900/20" : "hover:bg-slate-900/40"}>
+                                  <td className="py-2.5 px-3 font-bold text-white">
+                                    {ch.productName}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                      ch.type === 'NAME_MERGE' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                                      ch.type === 'PRICE_UPDATE' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    }`}>
+                                      {ch.type === 'NAME_MERGE' ? 'Нэр нэгтгэгдсэн' :
+                                      ch.type === 'PRICE_UPDATE' ? 'Үнэ шинэчлэгдсэн' : 'Шинэ цэс'}
+                                    </span>
+                                  </td>
+                                  {/* ХУУЧИН МЭДЭЭЛЭЛ (Меню дээр байсан) */}
+                                  <td className="py-2.5 px-3 text-right text-slate-400 font-mono">
+                                    {ch.type === 'NAME_MERGE' ? (
+                                      <div>
+                                        <span>{ch.oldName}</span>
+                                        <span className="block text-[10px] text-slate-500">{ch.oldPrice.toLocaleString()} ₮</span>
+                                      </div>
+                                    ) : ch.type === 'PRICE_UPDATE' ? (
+                                      `${ch.oldPrice.toLocaleString()} ₮`
+                                    ) : '-'}
+                                  </td>
+                                  {/* ШИНЭ МЭДЭЭЛЭЛ (ПОС-оос орж ирсэн) */}
+                                  <td className="py-2.5 px-3 text-right text-emerald-400 font-mono font-black">
+                                    {ch.type === 'NAME_MERGE' ? (
+                                      <div>
+                                        <span>{ch.newName}</span>
+                                        <span className="block text-[10px] text-emerald-300">{ch.newPrice.toLocaleString()} ₮</span>
+                                      </div>
+                                    ) : (
+                                      `${ch.newPrice.toLocaleString()} ₮`
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center">
+                                    {ch.reverted ? (
+                                      <span className="text-[11px] text-slate-500 font-bold">Буцаагдсан ↩️</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSingleUndo(ch.id)}
+                                        className="bg-slate-800 hover:bg-rose-500/20 hover:text-rose-300 text-slate-300 border border-slate-700 hover:border-rose-500/40 px-2.5 py-1 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                                        title="Хуучин нэр ба үнэ рүү нь буцаах"
+                                      >
+                                        ↩️ Буцаах
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2">
+                          <p className="text-[11px] text-slate-500">
+                            💡 Буцаах товч дармагц тухайн бараа хуучин нэр болон үнэ рүүгээ тэр дороо шилжинэ.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowChangesModal(false)}
+                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs cursor-pointer transition shadow"
+                          >
+                            ✓ Ойлголоо, цонхыг хаах
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                      {/* ⚠️ ПОС-ООС ИРСЭН БҮТЭЭГДЭХҮҮНИЙГ СОЛЬЖ НЭГТГЭХ ЭСВЭЛ ШИНЭЭР НЭМЭХ ШАР БАННЕР */}
                   {unmappedSales.length > 0 && (
                     <div className="bg-amber-500/10 border-2 border-amber-500/40 p-4 rounded-2xl space-y-3 animate-in fade-in duration-150">
                       <div className="flex items-center gap-2">
@@ -6045,36 +6267,106 @@ const unmappedSales = React.useMemo(() => {
               {/* ========================================================================= */}
               {/* 3. 📖 ЖОР (САДААГҮЙ, САНАМСАРГҮЙ ЗАСАГДАХААС ХАМГААЛАГДСАН ШУУД ӨӨРЧЛӨЛТ) */}
               {/* ========================================================================= */}
-              {catalogTab === "recipes" && (
-                <div className="pt-4 space-y-3">
-                 {/* ТОЛГОЙН ТОВЧНУУД */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                    <input
-                      type="text"
-                      value={recipeSearch}
-                      onChange={(e) => setRecipeSearch(e.target.value)}
-                      placeholder="🔍 Бүтээгдэхүүний жор хайх..."
-                      className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-purple-500"
-                    />
+               {catalogTab === "recipes" && (() => {
+                // Нийт жортой бүтээгдэхүүний давхардаагүй нэрс:
+                const allRecipeProductNames = Array.from(new Set(recipes.map((r: any) => r.product_name)));
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                      {/* ⚡ ШИНЭ ЖОРЫН ХООСОН КАРТ НЭЭХ ТОВЧ (Поп-апгүй!) */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCreatingRecipeCard(!isCreatingRecipeCard);
-                          setNewRecipeNameDraft('');
-                          setNewRecipePriceDraft('');
-                          setNewRecipeItemsDraft([]);
-                        }}
-                        className={`${
-                          isCreatingRecipeCard ? 'bg-slate-800 text-slate-300' : 'bg-purple-600 hover:bg-purple-500 text-white'
-                        } px-3.5 py-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 shadow`}
-                      >
-                        <span>{isCreatingRecipeCard ? '✕ Болиулах' : '+ Шинэ жор үүсгэх'}</span>
-                      </button>
+                return (
+                  <div className="pt-4 space-y-3">
+                    {/* ТОЛГОЙ ХЭСЭГ: ХАЙЛТ, БҮГДИЙГ СОНГОХ БА ОЛНООР НЬ УСТГАХ */}
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                      <input
+                        type="text"
+                        value={recipeSearch}
+                        onChange={(e) => setRecipeSearch(e.target.value)}
+                        placeholder="🔍 Бүтээгдэхүүний жор хайх..."
+                        className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-purple-500"
+                      />
+
+                      <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 flex-wrap">
+                        {/* ☑️ БҮГДИЙГ СОНГОХ CHECKBOX */}
+                        <label className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={
+                              allRecipeProductNames.length > 0 &&
+                              selectedRecipeProducts.length === allRecipeProductNames.length
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRecipeProducts(allRecipeProductNames);
+                              } else {
+                                setSelectedRecipeProducts([]);
+                              }
+                            }}
+                            className="w-4 h-4 accent-purple-500 cursor-pointer rounded"
+                          />
+                          <span>Бүгдийг сонгох ({allRecipeProductNames.length})</span>
+                        </label>
+
+                        {/* 🗑️ СОНГОСОН ЖОРУУДЫГ ОЛНООР НЬ УСТГАХ ТОВЧ (Түүхий эд шиг) */}
+                        {selectedRecipeProducts.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (
+                                !confirm(
+                                  `Сонгосон ${selectedRecipeProducts.length} бүтээгдэхүүний бүх жорыг устгахдаа итгэлтэй байна уу?`
+                                )
+                              )
+                                return;
+
+                              setLoading(true);
+                              const namesToDelete = [...selectedRecipeProducts];
+
+                              // ⚡ 0ms Optimistic UI (Дэлгэцнээс шууд арилгана)
+                              setRecipes((prev) =>
+                                prev.filter((r) => !namesToDelete.includes(r.product_name))
+                              );
+                              setSelectedRecipeProducts([]);
+
+                              // Баазаас бүгдийг зэрэг устгах
+                              const { error } = await supabase
+                                .from("recipes")
+                                .delete()
+                                .eq("client_id", activeClient)
+                                .in("product_name", namesToDelete);
+
+                              if (error) {
+                                alert(`Устгахад алдаа гарлаа: ${error.message}`);
+                              } else {
+                                alert(`✅ Сонгосон ${namesToDelete.length} бүтээгдэхүүний жор бүрэн устгагдлаа.`);
+                              }
+
+                              setLoading(false);
+                              fetchDatabaseData(activeClient);
+                            }}
+                            className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 shadow"
+                          >
+                            <span>🗑️ Сонгосон ({selectedRecipeProducts.length}) устгах</span>
+                          </button>
+                        )}
+
+                        {/* ⚡ ШИНЭ ЖОР ҮҮСГЭХ ТОВЧ */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreatingRecipeCard(!isCreatingRecipeCard);
+                            setNewRecipeNameDraft("");
+                            setNewRecipePriceDraft("");
+                            setNewRecipeItemsDraft([]);
+                          }}
+                          className={`${
+                            isCreatingRecipeCard
+                              ? "bg-slate-800 text-slate-300"
+                              : "bg-purple-600 hover:bg-purple-500 text-white"
+                          } px-3.5 py-2.5 rounded-xl text-xs font-black transition active:scale-95 flex items-center gap-1.5 shadow`}
+                        >
+                          <span>{isCreatingRecipeCard ? "✕ Болиулах" : "+ Шинэ жор үүсгэх"}</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  
 
                {/* ⚡ ТАНЫ ЗУРАГ ШИГ ХАРАГДАХ ШИНЭ ЖОРЫН ХООСОН КАРТ */}
                   {isCreatingRecipeCard && (
@@ -6615,8 +6907,9 @@ const unmappedSales = React.useMemo(() => {
                         );
                       })}
                   </div>
-                </div>
-              )}
+                </div>);
+              })()}
+              
             </div>
             {/* ========================================================================= */}
             {/* ➕ 1. ШИНЭ ТҮҮХИЙ ЭД НЭМЭХ МОДАЛ                                           */}
