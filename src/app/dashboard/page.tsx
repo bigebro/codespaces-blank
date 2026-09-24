@@ -2341,7 +2341,7 @@ if (salesToInsert.length > 0) {
     );
   }
 // ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй 
-    if (loading && !user) {
+    if (loading && userRole !=="owner") {
     return (
       <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center select-none">
         <div className="relative w-12 h-12 flex items-center justify-center mb-4">
