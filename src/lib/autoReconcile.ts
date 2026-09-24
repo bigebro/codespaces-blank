@@ -277,18 +277,27 @@ export function extractFnbTokens(name: string): Set<string> {
   }
   return tokens;
 }
-
-// ТААРАХ ОНООГ ТОГТООХ (0.0 - 1.0)
+// 5. ТААРАХ ОНООГ ТОГТООХ (80% босго ба Төгсгөлийн 1 үсгийн зөрүүг таних дүрэм)
 export function calculateMatchScore(posName: string, candidateName: string): number {
   const posClean = sanitizeName(posName);
   const candClean = sanitizeName(candidateName);
 
+  // Яг ижил нэр
   if (posClean === candClean) return 1.0;
   if (transliterate(posClean) === transliterate(candClean)) return 0.99;
 
-  // Шууд төстэй үг (Tymbark vs tymbarko)
+  // ⚡ ШИНЭ ДҮРЭМ: Хэрэв Tymbark ба Tymbarko шиг нэг нь нөгөөгөөрөө эхэлсэн, 
+  // зөрүү нь ердөө 1 үсэг (o, a) байвал шууд 90% (0.90) гэж найдвартай үзнэ!
+  if (
+    Math.abs(posClean.length - candClean.length) <= 1 &&
+    (posClean.startsWith(candClean) || candClean.startsWith(posClean))
+  ) {
+    return 0.90;
+  }
+
+  // ⚡ БОСГЫГ 0.80 (80%) БОЛГОЖ ЗӨӨЛЛӨВ:
   const sim = getSimilarity(posClean, candClean);
-  if (sim >= 0.85) return sim;
+  if (sim >= 0.8) return sim;
 
   // Токен огтлолцол
   const posTokens = extractFnbTokens(posName);
@@ -309,7 +318,6 @@ export function calculateMatchScore(posName: string, candidateName: string): num
     }
   });
 
-  // Халуун / Мөстэй таарч буй эсэхээр оноог нэмэх/хасах
   const posIsIced = checkIcedModifier(posName);
   const candIsIced = checkIcedModifier(candidateName);
   if (posIsIced === candIsIced) {
@@ -319,7 +327,6 @@ export function calculateMatchScore(posName: string, candidateName: string): num
   const score = intersection / posTokens.size;
   return Math.min(1.0, Math.max(score, sim));
 }
-
 // [1-р ХАМГААЛАЛТ] ҮНИЙН ОГЦОМ ЗӨРҮҮНИЙ БАМБАЙ (Price Spike Shield)
 export function isPriceChangeSafe(menuPrice: number, posPrice: number): boolean {
   if (!menuPrice || menuPrice <= 0 || !posPrice || posPrice <= 0) return true;

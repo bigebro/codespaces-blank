@@ -1331,6 +1331,13 @@ if (salesToInsert.length > 0) {
           // autoReconcile тархи дуудах (0.001ms):
           const result = evaluateSaleItem(rawPosName, posPrice, productsList, aliasMap);
 
+              // 🔍 ЯГ ТАЙЛАХ ТҮЛХҮҮР:
+          if (rawPosName.toLowerCase().includes("tymb")) {
+            console.log("🔍 ПОС-оос ирсэн:", rawPosName);
+            console.log("🔍 Системийн шийдвэр:", result);
+            console.log("🔍 Менюд байгаа Tymbarko:", productsList.find(p => p.name.toLowerCase().includes("tymb")));
+          }
+
           if (result.action === 'EXACT_MATCH' && result.targetProduct) {
             const target = result.targetProduct;
             if (result.shouldUpdatePrice && posPrice > 0 && Number(target.selling_price) !== posPrice) {
@@ -1383,30 +1390,60 @@ if (salesToInsert.length > 0) {
               reverted: false
             });
 
-          } else if (result.action === 'TYPO_MERGE' && result.targetProduct) {
-            const target = result.targetProduct;
-            productsToBatch.push({
-              id: target.id,
-              client_id: activeClient,
-              name: rawPosName,
-              category: target.category || 'General',
-              selling_price: posPrice > 0 ? posPrice : Number(target.selling_price)
-            });
+          } else if (result.decision === 'AUTO_MERGE' && !result.isVariant && result.targetProduct) {
+              const target = result.targetProduct;
+            const oldName = target.name;
+            const oldPrice = Number(target.selling_price) || 0;
+            const oldCategory = target.category || 'General';
 
-            recipesToRenameBatch.push({ from: target.name, to: rawPosName });
+            const nameChanged = cleanString(rawPosName).toLowerCase() !== cleanString(oldName).toLowerCase();
+            const priceChanged = posPrice > 0 && oldPrice !== posPrice;
 
-            recordedChanges.push({
-              id: `typo-${target.id}-${Date.now()}`,
-              productId: target.id,
-              productName: rawPosName,
-              type: 'NAME_MERGE',
-              oldName: target.name,
-              newName: rawPosName,
-              oldPrice: Number(target.selling_price),
-              newPrice: posPrice,
-              oldCategory: target.category || 'General',
-              reverted: false
-            });
+            if (nameChanged || priceChanged) {
+              // 1. Хэрэв давхардсан бараа байвал урьдчилж цэвэрлэх
+              if (nameChanged) {
+                await supabase
+                  .from('products')
+                  .delete()
+                  .eq('client_id', activeClient)
+                  .ilike('name', rawPosName)
+                  .neq('id', target.id);
+              }
+
+              // 2. Бүтээгдэхүүний нэр ба үнийг UPDATE хийх:
+              const { error: upError } = await supabase.from("products").update({
+                name: rawPosName,
+                selling_price: posPrice > 0 ? posPrice : oldPrice,
+                category: oldCategory
+              }).eq("id", target.id);
+
+              if (upError) console.error("Бүтээгдэхүүн шинэчлэх алдаа:", upError);
+
+              // 3. ⚡ 409 CONFLICT-ООС СЭРГИЙЛЭХ:
+              // Зөвхөн тэр шинэ нэрээр жор БАЙХГҮЙ үед л жорын нэрийг шинэчилнэ!
+              const recipeAlreadyExists = recipes.some(
+                (r: any) => cleanString(r.product_name).toLowerCase() === rawPosName.toLowerCase()
+              );
+
+              if (nameChanged && !recipeAlreadyExists) {
+                await supabase.from("recipes").update({ product_name: rawPosName })
+                  .eq("client_id", activeClient).ilike("product_name", target.name);
+              }
+
+              recordedChanges.push({
+                id: `typo-${target.id}-${Date.now()}`,
+                productId: target.id,
+                productName: rawPosName,
+                type: nameChanged ? 'NAME_MERGE' : 'PRICE_UPDATE',
+                oldName: oldName,
+                newName: rawPosName,
+                oldPrice: oldPrice,
+                newPrice: posPrice,
+                oldCategory: oldCategory,
+                reverted: false
+              });
+            }
+          
 
           } else {
             productsToBatch.push({
@@ -2303,8 +2340,22 @@ if (salesToInsert.length > 0) {
       </div>
     );
   }
-
-  return (
+// ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй 
+    if (loading && !user) {
+    return (
+      <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center select-none">
+        <div className="relative w-12 h-12 flex items-center justify-center mb-4">
+          <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
+          <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+        <p className="text-xs font-black text-slate-400 tracking-widest uppercase animate-pulse">
+          Систем ачааллаж байна...
+        </p>
+      </div>
+    );
+  }
+ 
+     return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
       <div className="max-w-7xl mx-auto p-4 md:p-8">
         {/* Header Control Panel */}
