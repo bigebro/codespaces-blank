@@ -814,7 +814,7 @@ function KioskAiChatSection({
           <MessageSquare className="h-5 w-5 text-blue-400" />
           <h2 className="font-bold text-blue-400 text-sm sm:text-base">AI Туслах & Зарлага</h2>
           {!isOnline && (
-            <span className="bg-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
               <WifiOff className="h-3 w-3" /> Офлайн
             </span>
           )}
@@ -938,7 +938,7 @@ function KioskAiChatSection({
               />
               <label 
                 htmlFor="kiosk-ai-camera" 
-                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-emerald-400 font-bold text-[11px] sm:text-xs transition shrink-0 select-none"
+                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-emerald-400 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="Шууд камераар зураг дарах"
               >
                 <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -960,7 +960,7 @@ function KioskAiChatSection({
               />
               <label 
                 htmlFor="kiosk-ai-gallery" 
-                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-slate-300 font-bold text-[11px] sm:text-xs transition shrink-0 select-none"
+                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-slate-300 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="iPad эсвэл утасны цомгоос сонгох"
               >
                 <span className="text-xs shrink-0">🖼️</span>
@@ -971,7 +971,7 @@ function KioskAiChatSection({
               <button
                 type="button"
                 onClick={startVoiceRecording}
-                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center gap-1 font-bold text-[11px] sm:text-xs active:scale-95 transition-all shrink-0 select-none ${
+                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center gap-1 font-bold text-xs sm:text-xs active:scale-95 transition-all shrink-0 select-none ${
                   isListening 
                     ? 'bg-rose-600 text-white animate-bounce shadow-[0_0_12px_rgba(225,29,72,0.6)]' 
                     : 'bg-slate-800 hover:bg-slate-700 text-blue-400'
@@ -987,7 +987,7 @@ function KioskAiChatSection({
                 <button
                   type="button"
                   onClick={cancelVoiceRecording}
-                  className="h-8 sm:h-9 px-2 sm:px-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-xl flex items-center gap-1 font-bold text-[11px] sm:text-xs active:scale-95 transition shrink-0 select-none"
+                  className="h-8 sm:h-9 px-2 sm:px-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-xl flex items-center gap-1 font-bold text-xs sm:text-xs active:scale-95 transition shrink-0 select-none"
                   title="Цуцлах / Дахин ярих"
                 >
                   <X className="h-3.5 w-3.5 shrink-0" />
@@ -1000,7 +1000,7 @@ function KioskAiChatSection({
             <button 
               type="submit" 
               disabled={isAiLoading || !chatInput.trim()} 
-              className={`h-8 sm:h-9 px-3 sm:px-4 rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1.5 transition-all shrink-0 select-none ml-1 ${
+              className={`h-8 sm:h-9 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-xs flex items-center gap-1.5 transition-all shrink-0 select-none ml-1 ${
                 chatInput.trim() && !isAiLoading 
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md active:scale-95 cursor-pointer' 
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed'
@@ -1492,7 +1492,7 @@ const handleCloseShift = () => {
           </div>
           <div>
             <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase">{tenantClientId} KIOSK</h1>
-            <p className="text-[10px] text-emerald-400 font-bold uppercase">Smart Operations</p>
+            <p className="text-xs text-emerald-400 font-bold uppercase">Smart Operations</p>
           </div>
         </div>
 
@@ -1566,7 +1566,7 @@ const handleCloseShift = () => {
               )}
             </div>
 
-            <div className="text-center text-[10px] text-slate-500 pb-1 shrink-0">
+            <div className="text-center text-xs text-slate-500 pb-1 shrink-0">
               {tenantClientId} Kitchen Kiosk • Voice & AI Powered
             </div>
           </div>
@@ -1605,7 +1605,7 @@ const handleCloseShift = () => {
                   key={num} 
                   type="button"
                   onPointerDown={(e) => { e.preventDefault(); handleKeypadPress(num); }}
-                  className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
+                  className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-3xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
                 >
                   {num}
                 </button>
@@ -1622,7 +1622,7 @@ const handleCloseShift = () => {
               <button 
                 type="button"
                 onPointerDown={(e) => { e.preventDefault(); handleKeypadPress('0'); }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#0b1329] hover:bg-slate-800 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
               >
                 0
               </button>
@@ -1697,7 +1697,7 @@ const handleCloseShift = () => {
           </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
               
-              <p className="text-[11px] text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
+              <p className="text-xs text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
               
               <button 
                 onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
@@ -1788,7 +1788,7 @@ const handleCloseShift = () => {
             {recentToast && (
               <div className="absolute top-2 left-3 right-3 z-30 bg-emerald-500 text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="flex items-center gap-2 truncate pr-2">
-                  <span className="bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">Сүүлийнх:</span>
+                  <span className="bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">Сүүлийнх:</span>
                   <span className="truncate font-black">{recentToast.text}</span>
                 </div>
                 
@@ -1826,7 +1826,7 @@ const handleCloseShift = () => {
             <div className="shrink-0 space-y-2">
               <div className="flex justify-between items-center px-1">
                 <div>
-                  <span className="text-[11px] text-slate-400 font-medium">Ажилтан:</span>
+                  <span className="text-xs text-slate-400 font-medium">Ажилтан:</span>
                   <h2 className="text-sm sm:text-base font-black text-white uppercase leading-tight">
                     {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
                   </h2>
@@ -1861,7 +1861,7 @@ const handleCloseShift = () => {
                 <button
                   type="button"
                   onClick={() => setKioskMode('spoilage')}
-                  className={`py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === 'spoilage' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1870,7 +1870,7 @@ const handleCloseShift = () => {
                 <button
                   type="button"
                   onClick={() => setKioskMode('staff_meal')}
-                  className={`py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === 'staff_meal' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1879,7 +1879,7 @@ const handleCloseShift = () => {
                 <button
                   type="button"
                   onClick={() => setKioskMode('testing')}
-                  className={`py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === 'testing' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1888,7 +1888,7 @@ const handleCloseShift = () => {
                 <button
                   type="button"
                   onClick={() => setKioskMode('purchase')}
-                  className={`py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === 'purchase' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1904,7 +1904,7 @@ const handleCloseShift = () => {
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
                     <span>🧾 Олон бараатай E-Barimt уншуулах</span>
                   </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Батлахын өмнө танд шалгуулна</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Батлахын өмнө танд шалгуулна</p>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -2061,10 +2061,10 @@ const handleCloseShift = () => {
                         setQuickQty('');
                         setPurchaseCost('');
                       }}
-                      className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border border-slate-800 hover:border-slate-700 p-2.5 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[64px]"
+                      className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border border-slate-800 hover:border-slate-700 p-3 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[80px]"
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <span className="font-bold text-xs sm:text-sm text-white line-clamp-2 leading-snug">
+                        <span className="font-bold text-sm sm:text-base text-white line-clamp-2 leading-snug">
                           {ing.name}
                         </span>
                         {ing.is_critical && (
@@ -2075,7 +2075,7 @@ const handleCloseShift = () => {
                       </div>
                       
                       <div className="flex justify-between items-center mt-1">
-                        <span className="text-[10px] text-slate-400 font-medium">{ing.unit}</span>
+                        <span className="text-xs text-slate-400 font-medium">{ing.unit}</span>
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                           kioskMode === 'spoilage' ? 'bg-rose-500/10 text-rose-400' : kioskMode === 'staff_meal' ? 'bg-blue-500/10 text-blue-400' : kioskMode === 'testing' ? 'bg-purple-500/10 text-purple-400' : 'bg-emerald-500/10 text-emerald-400'
                         }`}>
@@ -2092,7 +2092,7 @@ const handleCloseShift = () => {
               <button
                 type="button"
                 onClick={openTasksScreen}
-                className="p-2.5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl border border-purple-500/30 text-purple-400 font-black text-[11px] flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl border border-purple-500/30 text-purple-400 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>Даалгавар</span>
@@ -2106,7 +2106,7 @@ const handleCloseShift = () => {
                   setCashOutNote('');
                   setCashOutFile(null);
                 }}
-                className="p-2.5 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 rounded-2xl border border-amber-500/30 text-amber-400 font-black text-[11px] flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 rounded-2xl border border-amber-500/30 text-amber-400 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <span className="text-sm">💵</span>
                 <span>Мөнгө гаргах</span>
@@ -2115,7 +2115,7 @@ const handleCloseShift = () => {
               <button
                 type="button"
                 onClick={loadInventoryToCount}
-                className="p-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-2xl border border-emerald-500/30 text-emerald-400 font-black text-[11px] flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-2xl border border-emerald-500/30 text-emerald-400 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <ListOrdered className="h-4 w-4" />
                 <span>Ээлж Хаах</span>
@@ -2141,7 +2141,7 @@ const handleCloseShift = () => {
                       </div>
                       <div>
                         <h3 className="font-black text-white text-base">Стандарт Жор & Заавар (SOP)</h3>
-                        <p className="text-[11px] text-slate-400">Хэнээс ч асуухгүйгээр жороо яг граммаар нь хийнэ үү</p>
+                        <p className="text-xs text-slate-400">Хэнээс ч асуухгүйгээр жороо яг граммаар нь хийнэ үү</p>
                       </div>
                     </div>
                     <button
@@ -2176,7 +2176,7 @@ const handleCloseShift = () => {
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                       <div className="flex justify-between items-center bg-[#060b17] p-3 rounded-2xl border border-slate-800">
                         <div>
-                          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Сонгосон Жор:</span>
+                          <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Сонгосон Жор:</span>
                           <h4 className="text-base font-black text-white">{selectedProductRecipe}</h4>
                         </div>
                         <button
@@ -2206,7 +2206,7 @@ const handleCloseShift = () => {
                         </div>
                       </div>
 
-                      <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-2xl text-[11px] text-blue-300 space-y-1">
+                      <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-2xl text-xs text-blue-300 space-y-1">
                         <p className="font-bold">💡 Санамж:</p>
                         <p>Дээрх граммыг яг баримталснаар кофены амт үргэлж стандартын дагуу 100% жигд гарна.</p>
                       </div>
@@ -2394,7 +2394,7 @@ const handleCloseShift = () => {
                 >
                   <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                     <div>
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                      <span className={`text-xs font-black uppercase px-2 py-0.5 rounded ${
                         kioskMode === 'spoilage' ? 'bg-rose-500/20 text-rose-400' : kioskMode === 'staff_meal' ? 'bg-blue-500/20 text-blue-400' : kioskMode === 'testing' ? 'bg-purple-500/20 text-purple-400' : 'bg-emerald-500/20 text-emerald-400'
                       }`}>
                         {kioskMode === 'spoilage' ? '🗑️ Хаягдал бүртгэх' : kioskMode === 'staff_meal' ? '🍽️ Ажилтны хоолонд' : kioskMode === 'testing' ? '🧪 Туршилт / Тохируулга' : '📦 Орлого авах'}
@@ -2423,7 +2423,7 @@ const handleCloseShift = () => {
                   {kioskMode === 'purchase' && (
                     <div className="space-y-2 pt-1 border-t border-slate-800">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1">Нийт төлсөн үнэ (₮):</label>
+                        <label className="block text-xs font-bold text-slate-400 mb-1">Нийт төлсөн үнэ (₮):</label>
                         <input
                           type="number"
                           value={purchaseCost}
@@ -2446,7 +2446,7 @@ const handleCloseShift = () => {
                           if (diff > 0) {
                             return (
                               <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center animate-pulse">
-                                <span className="text-[11px] font-black text-rose-400">
+                                <span className="text-xs font-black text-rose-400">
                                   🔺 ҮНЭ ӨССӨН БАЙНА: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
                                 </span>
                               </div>
@@ -2454,7 +2454,7 @@ const handleCloseShift = () => {
                           } else if (diff < 0) {
                             return (
                               <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-xl text-center">
-                                <span className="text-[11px] font-black text-emerald-400">
+                                <span className="text-xs font-black text-emerald-400">
                                   🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}%)
                                 </span>
                               </div>
@@ -2498,7 +2498,7 @@ const handleCloseShift = () => {
                           </label>
                         </div>
 
-                        <p className={`text-[10px] font-bold text-center ${noEbarimtFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
+                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
                           {noEbarimtFile ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...` : '⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!'}
                         </p>
                       </div>
@@ -2616,7 +2616,7 @@ const handleCloseShift = () => {
                       <h3 className="text-base font-black text-white flex items-center gap-1.5">
                         <span>🧾 E-Barimt Шалгах</span>
                       </h3>
-                      <p className="text-[10px] text-slate-400">AI-ийн таньсан тоо, үнийг шалгаж засна уу</p>
+                      <p className="text-xs text-slate-400">AI-ийн таньсан тоо, үнийг шалгаж засна уу</p>
                     </div>
                     {/* ЦУЦЛАХ ТОВЧ (Баазад юу ч хадгалагдахгүй, цэвэрхэн хаагдана) */}
                     <button
@@ -2635,7 +2635,7 @@ const handleCloseShift = () => {
                       alt="Receipt"
                       className="h-12 w-12 object-cover rounded-xl border border-slate-700 shrink-0"
                     />
-                    <div className="text-[11px]">
+                    <div className="text-xs">
                       <span className="text-emerald-400 font-bold block">📸 Баримтын эх зураг бэлэн</span>
                       <span className="text-slate-400">Нийт {ebarimtReview.items.length} бараа илэрсэн</span>
                     </div>
@@ -2684,7 +2684,7 @@ const handleCloseShift = () => {
                           <span className="font-bold text-white block truncate">{item.item_name}</span>
                           {/* Нийт үнийг засах input */}
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[10px] text-slate-500">Үнэ:</span>
+                            <span className="text-xs text-slate-500">Үнэ:</span>
                             <input
                               type="number"
                               value={item.total_cost || ''}
@@ -2694,15 +2694,15 @@ const handleCloseShift = () => {
                                 updated[idx].total_cost = newCost;
                                 setEbarimtReview({ ...ebarimtReview, items: updated });
                               }}
-                              className="w-20 bg-[#060b17] border border-slate-800 rounded px-1 py-0.5 text-emerald-400 font-mono text-[11px] outline-none"
+                              className="w-20 bg-[#060b17] border border-slate-800 rounded px-1 py-0.5 text-emerald-400 font-mono text-xs outline-none"
                             />
-                            <span className="text-[10px] text-slate-500">₮</span>
+                            <span className="text-xs text-slate-500">₮</span>
                           </div>
                         </div>
 
                         {/* Тоо ширхэгийг засах input */}
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[10px] text-slate-500">Тоо:</span>
+                          <span className="text-xs text-slate-500">Тоо:</span>
                           <input
                             type="number"
                             value={item.quantity || ''}
@@ -2809,7 +2809,7 @@ const handleCloseShift = () => {
         >
           <div className="flex justify-between items-center border-b border-slate-800 pb-2">
             <div>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+              <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
                 Шинэ бараа үүсгэх
               </span>
               <h3 className="text-base font-black text-white mt-1">{newItemName}</h3>
@@ -2825,7 +2825,7 @@ const handleCloseShift = () => {
 
           {/* Нэгж сонгох: мл, гр, ш */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 mb-1">Хэмжих нэгж:</label>
+            <label className="block text-xs font-bold text-slate-400 mb-1">Хэмжих нэгж:</label>
             <div className="grid grid-cols-3 gap-1.5 bg-[#060b17] p-1 rounded-xl border border-slate-800">
               {['ш', 'мл', 'гр'].map((u) => (
                 <button
@@ -2845,7 +2845,7 @@ const handleCloseShift = () => {
           {/* Тоо хэмжээ ба Нийт үнэ */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 mb-1">Авсан тоо:</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Авсан тоо:</label>
               <input
                 type="number"
                 value={newItemQty}
@@ -2855,7 +2855,7 @@ const handleCloseShift = () => {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 mb-1">Нийт үнэ (₮):</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Нийт үнэ (₮):</label>
               <input
                 type="number"
                 value={newItemCost}
@@ -2868,7 +2868,7 @@ const handleCloseShift = () => {
 
           {/* 📸 Зураг заавал шаардах хэсэг */}
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-slate-400">Шинэ барааны зураг (Заавал):</label>
+            <label className="block text-xs font-bold text-slate-400">Шинэ барааны зураг (Заавал):</label>
             <div className="flex gap-2">
               <input
                 type="file"
@@ -2901,7 +2901,7 @@ const handleCloseShift = () => {
               </label>
             </div>
 
-            <p className={`text-[10px] font-bold text-center ${newItemFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
+            <p className={`text-xs font-bold text-center ${newItemFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
               {newItemFile ? `✅ Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...` : '⚠️ Зургийг заавал дарна уу!'}
             </p>
           </div>
@@ -3253,21 +3253,21 @@ const handleCloseShift = () => {
                         
                         {/* 🏷️ ПАЙЗНУУД */}
                         {isUrgent ? (
-                          <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-black animate-pulse">
+                          <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-black animate-pulse">
                             🚨 Яаралтай (Нөөц бага)
                           </span>
                         ) : item.todayUsage > 0 ? (
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black">
+                          <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black">
                             ⚡ Өдрийн эргэлт ({Math.round(item.moneyMoved || 0).toLocaleString()}₮)
                           </span>
                         ) : (
-                          <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
+                          <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
                             🔄 Сар бүрийн цикл
                           </span>
                         )}
                       </div>
 
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5">
                         Тоолох нэгж: <strong className="text-slate-300 font-bold">{item.unit}</strong>
                       </p>
                     </div>
