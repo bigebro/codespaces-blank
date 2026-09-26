@@ -682,7 +682,7 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     return {
       date: log.date ? new Date(log.date).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar', dateStyle: 'short' }) : 'Unknown',
       time: log.date ? new Date(log.date).toLocaleTimeString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : '',
-      worker: log.worker_name || 'Үл мэдэгдэх',
+      worker: log.worker_name || 'Систем / Админ',
       item: ing ? ing.name : (log.non_food_item || "Unknown"),
       qty: log.quantity,
       unit: ing ? ing.unit : 'ш',

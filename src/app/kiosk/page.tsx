@@ -3200,6 +3200,13 @@ const handleCloseShift = () => {
             </div>
             
             <div className="space-y-2 py-1 flex-1 overflow-y-auto overscroll-contain pr-1">
+              {/* 🔄 САРЫН ЦИКЛИЙН ЯВЦ (KIOSK ДЭЭР АЖИЛТАНД ХАРАГДАХ) */}
+            <div className="bg-[#060b17] p-2.5 rounded-xl border border-slate-800 mb-2 flex items-center justify-between text-sm font-mono">
+              <span className="text-slate-400 font-sans">Энэ сарын циклийн гүйцэтгэл:</span>
+              <span className="text-emerald-400 font-black">
+                🔄 {ingredients.filter(i => i.last_counted_at && new Date(i.last_counted_at) >= new Date(Date.now() - 30*24*60*60*1000)).length} / {ingredients.length} бараа
+              </span>
+            </div>
               {/* POS Z-REPORT UPLOAD */}
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
