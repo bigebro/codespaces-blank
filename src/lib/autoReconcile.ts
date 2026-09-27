@@ -172,6 +172,7 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   blue: ["хөх", "цэнхэр"],
   red: ["улаан"],
   soup: ["шөл", "зутан"],
+  sandwich: ["сэндвич"],
 
   // Сав баглаа
   cup: ["аяга", "стакан"],

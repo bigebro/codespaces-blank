@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import { exportAuditExcel } from "../../lib/exportAudit";
-import { evaluateSaleItem, sanitizeName } from "../../lib/autoReconcile";
+import { evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
 
 function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -683,9 +683,26 @@ function Home() {
 
 const aliasMap: Record<string, string> = {};
 
-const unmappedSales = React.useMemo(() => {
-    // Зөвхөн Менюд ч байхгүй, Жоронд ч байхгүй ховор тохиолдлыг л шүүнэ:
-    const productNames = new Set(productsList.map((p: any) => cleanString(p.name).toLowerCase().trim()));
+// ⚡ 0.001 СЕКУНДЭД ШАЛГАХ ХЭТ ХУРДАН ХУВИЛБАР (CPU ХӨЛДӨХГҮЙ)
+
+  const unmappedSales = React.useMemo(() => {
+    // Бүх нэрсийг санах ойд (Set) 1 удаа бэлтгэх (O(1) хурд)
+    const knownSet = new Set<string>();
+    
+    productsList.forEach((p: any) => {
+      const clean = cleanString(p.name).toLowerCase();
+      knownSet.add(clean);
+      knownSet.add(sanitizeName(clean));
+      // Крилл үсгийг латин болгож санах ойд нэмэх (Салями сэндвич == salami sendvich)
+      if (typeof transliterate === 'function') knownSet.add(transliterate(clean));
+    });
+
+    // Санах ойн алиасуудыг нэмэх
+    Object.entries(aliasMap).forEach(([k, v]) => {
+      knownSet.add(k.toLowerCase());
+      knownSet.add(v.toLowerCase());
+    });
+
     const missingItems: any[] = [];
     const seen = new Set<string>();
 
@@ -694,9 +711,13 @@ const unmappedSales = React.useMemo(() => {
       .forEach((s: any) => {
         const rawName = cleanString(s.product_name);
         const pNameLower = rawName.toLowerCase();
+        const pClean = sanitizeName(pNameLower);
+        const pTrans = typeof transliterate === 'function' ? transliterate(pNameLower) : pNameLower;
 
-        // Хэрэв авто-пилотоос гадуур үлдсэн бол л оруулна:
-        if (!productNames.has(pNameLower) && !aliasMap[pNameLower] && !seen.has(pNameLower)) {
+        // ⚡ 300 сая биш, 0.00001 миллисекундэд шууд шалгана:
+        const isKnown = knownSet.has(pNameLower) || knownSet.has(pClean) || knownSet.has(pTrans);
+
+        if (!isKnown && !seen.has(pNameLower)) {
           seen.add(pNameLower);
           const calculatedPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
           missingItems.push({
@@ -708,7 +729,7 @@ const unmappedSales = React.useMemo(() => {
       });
 
     return missingItems;
-  }, [salesLogs, productsList, activeClient, aliasMap]);
+  }, [salesLogs, productsList, activeClient]);
 
   // 🚨 Түүхий эдийн үнийн өсөлтийн дохио (% бодох):
   const priceSpikeAlerts = React.useMemo(() => {
@@ -783,7 +804,7 @@ const unmappedSales = React.useMemo(() => {
         onConflict: "client_id,product_name,ingredient_id",
       });
 
-      // 3. Төстэй нэрийг толь (aliasMap)-д мөнх хадгалах
+      // 3. Төстэй нэрийг толь (aliasMap)-д хадгалах
       aliasMap[cleanMenuName.toLowerCase()] = cleanRecipeName.toLowerCase();
     }
 
@@ -2787,7 +2808,7 @@ if (salesToInsert.length > 0) {
     fetchDatabaseData(activeClient, firstDay, lastDay);
   };
 
-  // console.log(liveAnalytics?.menu_performance,"menu_performance")
+  console.log(liveAnalytics?.menu_performance,"menu_performance")
   // console.log(liveAnalytics?.financial_ladder,"financial_ladder")
   // console.log(liveAnalytics?.tax_summary,"tax_summary")
   // console.log(liveAnalytics?.cashflow_summary,"cashflow_summary")
@@ -6473,12 +6494,8 @@ if (salesToInsert.length > 0) {
                           .map((prod, idx) => { // 👈 idx нэмсэн
                             const isEditingThis = editingProdId === prod.id;
 
-                            // ⚡ ЖОРТОЙ ЭСЭХИЙГ ШАЛГАХ
-                            const prodRecipes = recipes.filter(
-                              (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase() ||
-                                          (aliasMap[cleanString(prod.name).toLowerCase()] === cleanString(r.product_name).toLowerCase())
-                            );
-                            const hasRecipe = prodRecipes.length > 0;
+              
+                   
 
                             if (isEditingThis) {
                               return (

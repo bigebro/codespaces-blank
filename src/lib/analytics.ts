@@ -1,19 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin';
+import { calculateMatchScore } from './autoReconcile';
 
-const aliasMap: Record<string, string> = {
-  "матча латте": "matcha latte",
-  "салями сэндвич": "salami sandwich",
-  "хулууны зутан шөл": "pumpkin soup / хулууны зутан шөл ", 
-  "hot milk honey": "hot milk with honey",
-  "flavoured latte": "flavored caffe latte",
-  "tuna  sandwich": "tuna sandwich",         
-  "sloppy joe” burger": "\"sloppy joe\" burger", 
-  "caramel latte macchiato": "caramel macchiato",
-  "tiramisu sale": "tiramisu (sale)",
-  "tiramisu jijig": "tiramisu", 
-  "tiramisu big": "tiramisu",
-  "tiramsu": "tiramisu"
-};
 
 function cleanString(str: string) {
   return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
@@ -246,17 +233,9 @@ export async function getAnalyticsData(
     }
   });
 
-  rawSales.forEach((s: any) => {
-    const pName = s.product_name;
-    let nameLower = cleanString(pName).toLowerCase();
-    if (aliasMap[nameLower]) nameLower = aliasMap[nameLower].toLowerCase();
-
-    const matchedRecipeKey = Object.keys(allRecipesMap).find(recipeName => 
-      recipeName.toLowerCase() === nameLower || 
-      getSimilarity(recipeName, nameLower) >= 0.85
-    );
-
-    const finalKey = matchedRecipeKey ? matchedRecipeKey.toLowerCase() : nameLower;
+rawSales.forEach((s: any) => {
+    const rawPosName = s.product_name;
+    const cleanPos = cleanString(rawPosName).toLowerCase();
     const revenue = parseFloat(s.total_revenue) || 0;
     const qty = parseInt(s.quantity_sold) || 0;
 
@@ -265,6 +244,13 @@ export async function getAnalyticsData(
     if (s.payment_method === 'cash') cashRevenue += revenue;
     else bankRevenue += revenue;
 
+    // ⚡ EN_TO_MN_DICT ба Transliteration ашиглан жороо олох
+    let matchedRecipeKey = Object.keys(allRecipesMap).find(rName => 
+      rName.toLowerCase() === cleanPos || 
+      calculateMatchScore(rawPosName, rName) >= 0.80
+    );
+
+    const finalKey = matchedRecipeKey ? matchedRecipeKey.toLowerCase() : cleanPos;
     productSales[finalKey] = (productSales[finalKey] || 0) + qty;
   });
 
@@ -283,45 +269,65 @@ export async function getAnalyticsData(
       master[key].theoretical += (qtySold * parseFloat(r.amount));
     }
   });
+// ⚡ Бүх 69 цэсийг (зарсан тоо нь 0 байсан ч) бүтнээр нь оруулах
+  const allKnownProducts = Array.from(new Set([
+    ...(rawProducts || []).map((p: any) => cleanString(p.name)),
+    ...rawRecipes.map((r: any) => cleanString(r.product_name))
+  ]));
 
-  const processedProducts = Array.from(new Set(rawRecipes.map((r: any) => r.product_name)));
-  processedProducts.forEach((pName: any) => {
-    const qtySold = productSales[pName.toLowerCase()] || 0;
-    if (qtySold > 0) {
-      const recipeItems = rawRecipes.filter((r: any) => r.product_name === pName);
-      let estCost = 0;
-      
-      const drinkRecipe = recipeItems.map((recipe: any) => {
-        const ing = rawIngredients.find((i: any) => i.id === recipe.ingredient_id);
-        const cost = ing ? parseFloat(recipe.amount) * parseFloat(ing.unit_price) : 0;
-        estCost += cost;
-        return {
-          ingredient: ing ? ing.name : 'Unknown',
-          amount: parseFloat(recipe.amount),
-          unit: ing ? ing.unit : '',
-          cost_per_cup: Math.round(cost)
-        };
-      });
-
-      const matchedProduct = rawProducts?.find(
-        (p: any) => p.name.toLowerCase().trim() === pName.toLowerCase().trim()
-      );
-      const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 8000;
-      const category = matchedProduct ? matchedProduct.category : 'General';
-
-      menuPerformance.push({
-        name: pName,
-        category: category,
-        sold: qtySold,
-        profit: Math.round((sellPrice - estCost) * qtySold),
-        unit_margin: sellPrice - estCost,
-        food_cost_pct: sellPrice > 0 ? (estCost / sellPrice) * 100 : 0,
-        gross_margin_pct: sellPrice > 0 ? ((sellPrice - estCost) / sellPrice) * 100 : 0,
-        recipe: drinkRecipe,
-        selling_price: sellPrice,           
-        cost_per_item: Math.round(estCost), 
-      });
+  allKnownProducts.forEach((pName: any) => {
+    const cleanP = cleanString(pName).toLowerCase();
+    
+    // Тухайн цэсний борлуулалтыг олох
+    let qtySold = productSales[cleanP] || 0;
+    if (qtySold === 0) {
+      const matchKey = Object.keys(productSales).find(k => calculateMatchScore(pName, k) >= 0.80);
+      if (matchKey) qtySold = productSales[matchKey];
     }
+
+    // Жорыг нь хайж олох (Крилл/Англи хамаарахгүй)
+    let recipeItems = rawRecipes.filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanP);
+    if (recipeItems.length === 0) {
+      const rMatch = Array.from(new Set(rawRecipes.map((r: any) => r.product_name))).find(rName => 
+        calculateMatchScore(pName, rName) >= 0.80
+      );
+      if (rMatch) {
+        recipeItems = rawRecipes.filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanString(rMatch).toLowerCase());
+      }
+    }
+
+    let estCost = 0;
+    const drinkRecipe = recipeItems.map((recipe: any) => {
+      const ing = rawIngredients.find((i: any) => i.id === recipe.ingredient_id);
+      const cost = ing ? parseFloat(recipe.amount) * (parseFloat(ing.unit_price) || 0) : 0;
+      estCost += cost;
+      return {
+        ingredient: ing ? ing.name : 'Unknown',
+        amount: parseFloat(recipe.amount),
+        unit: ing ? ing.unit : '',
+        cost_per_cup: Math.round(cost)
+      };
+    });
+
+    const matchedProduct = rawProducts?.find(
+      (p: any) => cleanString(p.name).toLowerCase() === cleanP || calculateMatchScore(p.name, pName) >= 0.80
+    );
+    const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 8000;
+    const category = matchedProduct ? matchedProduct.category : 'General';
+
+    // 69 цэс бүгд орно (Борлуулалтгүй бол sold: 0 болно)
+    menuPerformance.push({
+      name: pName,
+      category: category,
+      sold: qtySold,
+      profit: Math.round((sellPrice - estCost) * qtySold),
+      unit_margin: sellPrice - estCost,
+      food_cost_pct: sellPrice > 0 ? (estCost / sellPrice) * 100 : 0,
+      gross_margin_pct: sellPrice > 0 ? ((sellPrice - estCost) / sellPrice) * 100 : 0,
+      recipe: drinkRecipe,
+      selling_price: sellPrice,           
+      cost_per_item: Math.round(estCost), 
+    });
   });
 
   const loggedEvents: Record<string, any> = {};
