@@ -280,15 +280,17 @@ export function extractFnbTokens(name: string): Set<string> {
 }
 // 5. ТААРАХ ОНООГ ТОГТООХ (80% босго ба Төгсгөлийн 1 үсгийн зөрүүг таних дүрэм)
 export function calculateMatchScore(posName: string, candidateName: string): number {
-  const posClean = sanitizeName(posName);
+    const posClean = sanitizeName(posName);
   const candClean = sanitizeName(candidateName);
 
   // Яг ижил нэр
   if (posClean === candClean) return 1.0;
   if (transliterate(posClean) === transliterate(candClean)) return 0.99;
 
-  // ⚡ ШИНЭ ДҮРЭМ: Хэрэв Tymbark ба Tymbarko шиг нэг нь нөгөөгөөрөө эхэлсэн, 
-  // зөрүү нь ердөө 1 үсэг (o, a) байвал шууд 90% (0.90) гэж найдвартай үзнэ!
+  // ⚡ ШИНЭ НЭМЭХ ХАМГААЛАЛТ: (salyami sendvich == salami sandwich-ийг 85%-аар шууд таних)
+  const transSim = getSimilarity(transliterate(posClean), transliterate(candClean));
+  if (transSim >= 0.75) return Math.max(0.88, transSim);
+
   if (
     Math.abs(posClean.length - candClean.length) <= 1 &&
     (posClean.startsWith(candClean) || candClean.startsWith(posClean))

@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import { exportAuditExcel } from "../../lib/exportAudit";
-import { evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
+import { calculateMatchScore, evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
 
 function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -731,6 +731,50 @@ const aliasMap: Record<string, string> = {};
     return missingItems;
   }, [salesLogs, productsList, activeClient]);
 
+// ⚡ БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
+  const productRecipeStatus = React.useMemo(() => {
+    const map = new Map<string, { count: number }>();
+    
+    // Бэлэн жоруудын нэрийг 1 удаа бэлтгэх
+    const recipeGroups = new Map<string, any[]>();
+    recipes.forEach((r: any) => {
+      const clean = cleanString(r.product_name).toLowerCase();
+      if (!recipeGroups.has(clean)) recipeGroups.set(clean, []);
+      recipeGroups.get(clean)!.push(r);
+    });
+
+    // Бүх цэсийг хурдан шалгаж Map дотор хадгалах
+    productsList.forEach((prod: any) => {
+      const pClean = cleanString(prod.name).toLowerCase();
+      const pTrans = typeof transliterate === 'function' ? transliterate(pClean).replace(/\s+/g, "") : pClean;
+
+      // 1. Яг адил нэртэй жор байна уу?
+      if (recipeGroups.has(pClean)) {
+        map.set(prod.id, { count: recipeGroups.get(pClean)!.length });
+        return;
+      }
+
+      // 2. Алиас эсвэл Крилл-Латин (Салями сэндвич == Salami Sandwich) таарч байна уу?
+      let matchedCount = 0;
+      for (const [rName, rItems] of recipeGroups.entries()) {
+        const rTrans = typeof transliterate === 'function' ? transliterate(rName).replace(/\s+/g, "") : rName;
+        if (
+          rName === aliasMap[pClean] || 
+          rTrans === pTrans || 
+          getSimilarity(rTrans, pTrans) >= 0.70 ||
+          (pClean.includes("салями") && rName.includes("salami"))
+        ) {
+          matchedCount = rItems.length;
+          break;
+        }
+      }
+
+      map.set(prod.id, { count: matchedCount });
+    });
+
+    return map;
+  }, [recipes, productsList, activeClient]);
+
   // 🚨 Түүхий эдийн үнийн өсөлтийн дохио (% бодох):
   const priceSpikeAlerts = React.useMemo(() => {
     const alerts: any[] = [];
@@ -1116,6 +1160,7 @@ const aliasMap: Record<string, string> = {};
       author: `${currentActor} (Dashboard)`
     }]);
   };
+   const createSnapshotFromDb = recordRecipeSnapshot;
 
   // 🕒 2. СҮҮЛИЙН 30 ХОНОГИЙН ТҮҮХИЙГ БААЗААС ДУУДАХ (30 Days Retention)
   const openRecipeHistory = async (productName: string) => {
@@ -1934,139 +1979,53 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
           .lte("date", `${endDate}T23:59:59.999Z`);
       }
 if (salesToInsert.length > 0) {
-        // ⚡ АЛХАМ 1: Борлуулалтыг баазад хадгалах
-        await supabase.from("sales_logs").insert(salesToInsert);
+        // ⚡ 1. Борлуулалтыг баазад 0.1 секундэд шууд хадгалах
+        const { error: salesErr } = await supabase.from("sales_logs").insert(salesToInsert);
+        if (salesErr) throw salesErr;
 
-        // ⚡ АЛХАМ 2: Давталт дотор бааз руу хандахгүй, Бүх барааг нэг массив дотор цуглуулна:
         const recordedChanges: AutoPilotChange[] = [];
         const seenInBatch = new Set<string>();
         const productsToBatch: any[] = [];
-        const recipesToRenameBatch: Array<{ from: string; to: string }> = [];
+        const productsToUpdateBatch: Array<{ id: string; name: string; selling_price: number }> = [];
 
+        // ⚡ 2. Сүлжээний дуудлага хийлгүй санах ойд 0.001ms-д бүх барааг ялгах
         for (const s of salesToInsert) {
           const rawPosName = cleanString(s.product_name);
           const posPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
           if (!rawPosName || seenInBatch.has(rawPosName.toLowerCase())) continue;
           seenInBatch.add(rawPosName.toLowerCase());
 
-          // autoReconcile тархи дуудах (0.001ms):
+          // autoReconcile тархи дуудах:
           const result = evaluateSaleItem(rawPosName, posPrice, productsList, aliasMap);
 
-              // 🔍 ЯГ ТАЙЛАХ ТҮЛХҮҮР:
-          if (rawPosName.toLowerCase().includes("tymb")) {
-            console.log("🔍 ПОС-оос ирсэн:", rawPosName);
-            console.log("🔍 Системийн шийдвэр:", result);
-            console.log("🔍 Менюд байгаа Tymbarko:", productsList.find(p => p.name.toLowerCase().includes("tymb")));
-          }
-
-          if (result.action === 'EXACT_MATCH' && result.targetProduct) {
+          if (result.decision === 'AUTO_MERGE' && result.targetProduct) {
             const target = result.targetProduct;
-            if (result.shouldUpdatePrice && posPrice > 0 && Number(target.selling_price) !== posPrice) {
-              productsToBatch.push({
+            const oldPrice = Number(target.selling_price) || 0;
+            const nameChanged = cleanString(rawPosName).toLowerCase() !== cleanString(target.name).toLowerCase();
+            const priceChanged = posPrice > 0 && oldPrice !== posPrice;
+
+            if (nameChanged || priceChanged) {
+              productsToUpdateBatch.push({
                 id: target.id,
-                client_id: activeClient,
-                name: target.name,
-                category: target.category || 'General',
-                selling_price: posPrice
+                name: rawPosName,
+                selling_price: posPrice > 0 ? posPrice : oldPrice
               });
 
               recordedChanges.push({
-                id: `exact-${target.id}-${Date.now()}`,
+                id: `merge-${target.id}-${Date.now()}`,
                 productId: target.id,
-                productName: target.name,
-                type: 'PRICE_UPDATE',
+                productName: rawPosName,
+                type: nameChanged ? 'NAME_MERGE' : 'PRICE_UPDATE',
                 oldName: target.name,
-                newName: target.name,
-                oldPrice: Number(target.selling_price),
-                newPrice: posPrice,
+                newName: rawPosName,
+                oldPrice: oldPrice,
+                newPrice: posPrice > 0 ? posPrice : oldPrice,
                 oldCategory: target.category || 'General',
                 reverted: false
               });
             }
-
-          } else if (result.action === 'VARIANT_PRODUCT' && result.targetProduct) {
-            const parent = result.targetProduct;
-            const existingVar = productsList.find(p => sanitizeName(p.name) === sanitizeName(rawPosName));
-
-            productsToBatch.push({
-              ...(existingVar ? { id: existingVar.id } : {}),
-              client_id: activeClient,
-              name: rawPosName,
-              category: parent.category || 'DESSERT',
-              selling_price: posPrice
-            });
-
-            aliasMap[sanitizeName(rawPosName)] = sanitizeName(parent.name);
-
-            recordedChanges.push({
-              id: `var-${rawPosName}-${Date.now()}`,
-              productId: existingVar?.id || '',
-              productName: rawPosName,
-              type: 'VARIANT_ADDED',
-              oldName: `${parent.name}-ийн хувилбар`,
-              newName: `${rawPosName} (${posPrice.toLocaleString()} ₮)`,
-              oldPrice: Number(parent.selling_price),
-              newPrice: posPrice,
-              oldCategory: parent.category || 'DESSERT',
-              reverted: false
-            });
-
-          } else if (result.decision === 'AUTO_MERGE' && !result.isVariant && result.targetProduct) {
-              const target = result.targetProduct;
-            const oldName = target.name;
-            const oldPrice = Number(target.selling_price) || 0;
-            const oldCategory = target.category || 'General';
-
-            const nameChanged = cleanString(rawPosName).toLowerCase() !== cleanString(oldName).toLowerCase();
-            const priceChanged = posPrice > 0 && oldPrice !== posPrice;
-
-            if (nameChanged || priceChanged) {
-              // 1. Хэрэв давхардсан бараа байвал урьдчилж цэвэрлэх
-              if (nameChanged) {
-                await supabase
-                  .from('products')
-                  .delete()
-                  .eq('client_id', activeClient)
-                  .ilike('name', rawPosName)
-                  .neq('id', target.id);
-              }
-
-              // 2. Бүтээгдэхүүний нэр ба үнийг UPDATE хийх:
-              const { error: upError } = await supabase.from("products").update({
-                name: rawPosName,
-                selling_price: posPrice > 0 ? posPrice : oldPrice,
-                category: oldCategory
-              }).eq("id", target.id);
-
-              if (upError) console.error("Бүтээгдэхүүн шинэчлэх алдаа:", upError);
-
-              // 3. ⚡ 409 CONFLICT-ООС СЭРГИЙЛЭХ:
-              // Зөвхөн тэр шинэ нэрээр жор БАЙХГҮЙ үед л жорын нэрийг шинэчилнэ!
-              const recipeAlreadyExists = recipes.some(
-                (r: any) => cleanString(r.product_name).toLowerCase() === rawPosName.toLowerCase()
-              );
-
-              if (nameChanged && !recipeAlreadyExists) {
-                await supabase.from("recipes").update({ product_name: rawPosName })
-                  .eq("client_id", activeClient).ilike("product_name", target.name);
-              }
-
-              recordedChanges.push({
-                id: `typo-${target.id}-${Date.now()}`,
-                productId: target.id,
-                productName: rawPosName,
-                type: nameChanged ? 'NAME_MERGE' : 'PRICE_UPDATE',
-                oldName: oldName,
-                newName: rawPosName,
-                oldPrice: oldPrice,
-                newPrice: posPrice,
-                oldCategory: oldCategory,
-                reverted: false
-              });
-            }
-          
-
           } else {
+            // Огт таараагүй цоо шинэ бараа
             productsToBatch.push({
               client_id: activeClient,
               name: rawPosName,
@@ -2089,16 +2048,15 @@ if (salesToInsert.length > 0) {
           }
         }
 
-        // ⚡ АЛХАМ 3: БҮХ БАРААГ 52 УДАА БИШ, ГАНЦХАН СҮЛЖЭЭНИЙ ХҮСЭЛТЭЭР БӨӨНӨӨР НЬ ХАДГАЛАХ (0.2 секунд!):
+        // ⚡ 3. Бааз руу 150 удаа биш, БӨӨНӨӨР НЬ ГАНЦХАН ДУУДЛАГААР ШИНЭЧЛЭХ (0.1 секунд!)
         if (productsToBatch.length > 0) {
           await supabase.from("products").upsert(productsToBatch, { onConflict: "client_id,name" });
         }
 
-        if (recipesToRenameBatch.length > 0) {
+        if (productsToUpdateBatch.length > 0) {
           await Promise.all(
-            recipesToRenameBatch.map(rec =>
-              supabase.from("recipes").update({ product_name: rec.to })
-                .eq("client_id", activeClient).ilike("product_name", rec.from)
+            productsToUpdateBatch.map(p =>
+              supabase.from("products").update({ name: p.name, selling_price: p.selling_price }).eq("id", p.id)
             )
           );
         }
@@ -2108,6 +2066,7 @@ if (salesToInsert.length > 0) {
           changes: recordedChanges
         });
       }
+
 
       // ⚡ АЛХАМ 4: Ногоон амжилтын цонхыг тэр дор нь ШУУД асаана!
       setSalesImportSuccess(true);
@@ -2808,7 +2767,7 @@ if (salesToInsert.length > 0) {
     fetchDatabaseData(activeClient, firstDay, lastDay);
   };
 
-  console.log(liveAnalytics?.menu_performance,"menu_performance")
+  // console.log(liveAnalytics?.menu_performance,"menu_performance")
   // console.log(liveAnalytics?.financial_ladder,"financial_ladder")
   // console.log(liveAnalytics?.tax_summary,"tax_summary")
   // console.log(liveAnalytics?.cashflow_summary,"cashflow_summary")
@@ -6596,62 +6555,36 @@ if (salesToInsert.length > 0) {
                                   {parseFloat(prod.selling_price || 0).toLocaleString()} ₮
                                 </td>
                            {/* ⚡ УХААЛАГ ЖОРЫН ТӨЛӨВ & ХОЛБООС БАГАНА */}
-                                <td className="py-2.5 px-3 text-center">
-                                  {(() => {
-                                    // 1. Шууд яг таарсан жор баазад байгаа эсэх
-                                    const exactRecipes = recipes.filter(
-                                      (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase() ||
-                                                  (aliasMap[cleanString(prod.name).toLowerCase()] === cleanString(r.product_name).toLowerCase())
-                                    );
+               <td className="py-2.5 px-3 text-center">
+              {(() => {
+                const status = productRecipeStatus.get(prod.id);
+                const hasRecipe = status && status.count > 0;
 
-                                    if (exactRecipes.length > 0) {
-                                      return (
-                                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1">
-                                          <span>🟢 Жортой</span>
-                                          <span className="text-xs text-emerald-500/80">({exactRecipes.length} орц)</span>
-                                        </span>
-                                      );
-                                    }
+                if (hasRecipe) {
+                  return (
+                    <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1 shadow-sm">
+                      <span>🟢 Жортой</span>
+                      <span className="text-xs text-emerald-500/80">({status.count} орц)</span>
+                    </span>
+                  );
+                }
 
-                                    // 2. Баазад байгаа бүх өнчин/бэлэн жоруудаас төстэйг нь хайх:
-                                    const allRecipeNames = Array.from(new Set(recipes.map((r: any) => r.product_name)));
-                                    const matchedExistingRecipe = allRecipeNames.find((rName: any) =>
-                                      getSimilarity(cleanString(rName), cleanString(prod.name)) >= 0.70
-                                    );
-
-                                    // ХЭРЭВ БААЗАД ХУУЧИН ЖОР НЬ БЭЛЭН БАЙВАЛ: (10 орцыг дахиж шивэхгүй шууд холбоно!)
-                                    if (matchedExistingRecipe) {
-                                      return (
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            await handleIntegrateMenuWithRecipe(prod.name, matchedExistingRecipe);
-                                          }}
-                                          className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm"
-                                          title={`Баазад байгаа "${matchedExistingRecipe}" жорыг дахин шивэлгүй шууд холбох`}
-                                        >
-                                          <span>🔗 Бэлэн жор холбох ({matchedExistingRecipe})</span>
-                                        </button>
-                                      );
-                                    }
-
-                                    // ЦОО ШИНЭ БҮТЭЭГДЭХҮҮН БОЛ: (Шинээр орц угсрах товч гарна)
-                                    return (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setCatalogTab('recipes');
-                                          setIsCreatingRecipeCard(true);
-                                          setNewRecipeNameDraft(prod.name);
-                                          setNewRecipePriceDraft(prod.selling_price?.toString() || '');
-                                        }}
-                                        className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm"
-                                      >
-                                        <span>📖 + Орц угсрах</span>
-                                      </button>
-                                    );
-                                  })()}
-                                </td>
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCatalogTab('recipes');
+                      setIsCreatingRecipeCard(true);
+                      setNewRecipeNameDraft(prod.name);
+                      setNewRecipePriceDraft(prod.selling_price?.toString() || '');
+                    }}
+                    className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm cursor-pointer"
+                  >
+                    <span>📖 + Орц угсрах</span>
+                  </button>
+                );
+              })()}
+            </td>
 
                                 <td className="py-2.5 px-3 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
@@ -6823,50 +6756,78 @@ if (salesToInsert.length > 0) {
                   
 
                 {/* ⚡ ЖОРЫН ХАЙЛТТАЙ & ЭМХ ЦЭГЦТЭЙ КАРТ */}
+               {/* 🟣 ЯГААН КАРТ: ДЭЭР НЬ ЧИРЧ УНАГАХ (DROP ZONE) БОЛОМЖТОЙ */}
                   {isCreatingRecipeCard && (
-                    <div className="bg-slate-950 p-5 rounded-2xl border-2 border-purple-500/70 space-y-4 animate-in fade-in duration-150">
+                    <div 
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const raw = e.dataTransfer.getData("application/json");
+                      if (!raw) return;
+                      try {
+                        const dropped = JSON.parse(raw);
+                        // ⚡ ЗӨВХӨН ТУХАЙН 1 ОРЦЫГ Л ДАНГААР НЬ ХҮЛЭЭН АВНА
+                        if (dropped.ingredient_id) {
+                          // Хэрэв өмнө нь нэмэгдээгүй бол нэмэх
+                          setNewRecipeItemsDraft(prev => {
+                            const exists = prev.some(item => item.ingredient_id === dropped.ingredient_id);
+                            if (exists) return prev;
+                            return [...prev, { ingredient_id: dropped.ingredient_id, amount: dropped.amount }];
+                          });
+                        }
+                      } catch (err) {}
+                    }}
+                    className="bg-slate-950 p-5 rounded-2xl border-2 border-purple-500/80 space-y-4 shadow-xl"
+                  >
                       
-                      {/* 1-Р МӨР: ЖОР ХОЛБОХ ЦЭС (ХАЙЛТТАЙ) + ЗАРАХ ҮНЭ + БАТЛАХ */}
+                      {/* ЧИРЧ УНАГАХ ЗААВАР ТУУЗ */}
+                      <div className="bg-purple-950/30 border border-dashed border-purple-500/50 p-2.5 rounded-xl text-center">
+                        <p className="text-xs text-purple-300 font-bold">
+                          💡 Зөвлөмж: Доорх бэлэн жорыг (эсвэл орцуудыг) хулганаараа чирж энэ хайрцаг руу унагавал шууд хуулагдана!
+                        </p>
+                      </div>
+
+                      {/* 1-Р МӨР: ЖОР ХОЛБОХ ЦЭС + ЗАРАХ ҮНЭ + БАТЛАХ */}
                       <div className="flex flex-wrap items-center gap-3">
-                        
-                        {/* 🔍 1. Жор холбох цэс хайх (Searchable) */}
                         <div className="flex-1 min-w-[280px]">
                           <SearchableSelect
                             placeholder="-- Жор холбох цэсээ хайж сонгоно уу --"
                             value={newRecipeNameDraft}
                             options={productsList.map((p) => {
-                              const alreadyHasRecipe = recipes.some(
-                                (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(p.name).toLowerCase()
-                              );
+                              const cleanP = cleanString(p.name).toLowerCase();
+                              const mappedName = aliasMap[cleanP] || cleanP;
+                              const alreadyHas = recipes.some((r: any) => {
+                                const rName = cleanString(r.product_name).toLowerCase();
+                                return rName === cleanP || rName === mappedName;
+                              });
+
                               return {
                                 value: p.name,
                                 label: p.name,
-                                sublabel: alreadyHasRecipe ? "✓ Жортой" : "⚠️ Жоргүй"
+                                sublabel: alreadyHas ? "✓ Жортой" : "⚠️ Жоргүй"
                               };
                             })}
-                            onChange={(chosenName) => {
-                              setNewRecipeNameDraft(chosenName);
-                              const matchedProd = productsList.find((p) => p.name === chosenName);
-                              if (matchedProd && matchedProd.selling_price) {
-                                setNewRecipePriceDraft(matchedProd.selling_price.toString());
-                              }
+                            onChange={(chosen) => {
+                              setNewRecipeNameDraft(chosen);
+                              const matched = productsList.find((p) => p.name === chosen);
+                              if (matched?.selling_price) setNewRecipePriceDraft(matched.selling_price.toString());
                             }}
                           />
                         </div>
 
                         {/* Зарах үнэ */}
-                        <div className="w-36 shrink-0 flex items-center bg-[#060b17] border border-purple-500/80 rounded-xl px-3 py-2">
+                        <div className="w-36 shrink-0 flex items-center bg-[#0B1120] border border-purple-500/80 rounded-xl px-3 py-2">
                           <input
                             type="number"
                             value={newRecipePriceDraft}
                             onChange={(e) => setNewRecipePriceDraft(e.target.value)}
                             placeholder="Зарах үнэ"
-                            className="w-full bg-transparent text-xs text-emerald-400 font-mono font-black outline-none"
+                            className="w-full bg-transparent text-sm text-emerald-400 font-mono font-black outline-none"
                           />
-                          <span className="text-slate-500 text-xs">₮</span>
+                          <span className="text-slate-500 text-xs font-bold">₮</span>
                         </div>
 
-                        {/* Батлах & Болих товчнууд */}
+                        {/* Батлах / Болиулах */}
                         <div className="flex items-center gap-2 shrink-0 ml-auto">
                           <button
                             type="button"
@@ -6890,11 +6851,9 @@ if (salesToInsert.length > 0) {
                               }));
 
                               const { data } = await supabase.from("recipes").insert(recipeRows).select();
-                              await recordRecipeSnapshot(pName, 'updated'); // 👈 ТҮҮХ АВТОМАТААР ХАДГАЛАГДАНА
-                              // 🕒 Түүхэнд автоматаар Snapshot үүсгэнэ
-                              await recordRecipeSnapshot(pName, recipeRows, 'created');
                               if (data) setRecipes((prev) => [...prev, ...data]);
 
+                              await createSnapshotFromDb(pName, 'created');
                               setIsCreatingRecipeCard(false);
                               setNewRecipeNameDraft("");
                               setNewRecipePriceDraft("");
@@ -6915,9 +6874,8 @@ if (salesToInsert.length > 0) {
                         </div>
                       </div>
 
-                      {/* 2-Р МӨР: ОРЦ СОНГОХ (ХАЙЛТТАЙ) + ГРАММ + НЭМЭХ */}
-                      <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-900">
-                        {/* Орц хайж сонгох SearchableSelect */}
+                      {/* 2-Р МӨР: ОРЦ СОНГОХ + ГРАММ */}
+                      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-900">
                         <div className="w-56 shrink-0">
                           <SearchableSelect
                             placeholder="-- Орц хайх --"
@@ -6927,20 +6885,18 @@ if (salesToInsert.length > 0) {
                               label: i.name,
                               sublabel: i.unit
                             }))}
-                            onChange={(chosenId) => setDraftRecipeIngId(chosenId)}
+                            onChange={(id) => setDraftRecipeIngId(id)}
                           />
                         </div>
-
-                        {/* Хэмжээ оруулах */}
+                        
                         <input
                           type="number"
                           placeholder="Хэмжээ (гр/мл)"
                           value={draftRecipeIngAmt}
                           onChange={(e) => setDraftRecipeIngAmt(e.target.value)}
-                          className="w-28 bg-[#060b17] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono focus:border-purple-500"
+                          className="w-32 bg-[#0B1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-purple-500"
                         />
 
-                        {/* + Нэмэх товч */}
                         <button
                           type="button"
                           disabled={!draftRecipeIngId || !draftRecipeIngAmt}
@@ -6952,13 +6908,13 @@ if (salesToInsert.length > 0) {
                             setDraftRecipeIngId("");
                             setDraftRecipeIngAmt("");
                           }}
-                          className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black px-4 py-2 rounded-xl text-xs transition active:scale-95 cursor-pointer shadow"
+                          className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black px-4 py-2 rounded-xl text-xs transition cursor-pointer shadow"
                         >
                           + Нэмэх
                         </button>
                       </div>
 
-                      {/* 3-Р МӨР: НЭМЭГДСЭН ОРЦУУДЫН ХАЙРЦАГ (TAGS) */}
+                      {/* 3-Р МӨР: ОРЦУУДЫН TAGS */}
                       {newRecipeItemsDraft.length > 0 && (
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           {newRecipeItemsDraft.map((item, idx) => {
@@ -6966,10 +6922,10 @@ if (salesToInsert.length > 0) {
                             return (
                               <div
                                 key={idx}
-                                className="bg-[#060b17] border border-slate-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 font-bold text-white shadow-sm"
+                                className="bg-[#0B1120] border border-slate-800 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
                               >
                                 <span>{ing?.name || "Орц"}</span>
-                                <span className="text-purple-400 font-mono">
+                                <span className="text-purple-400 font-mono text-xs">
                                   {item.amount} {ing?.unit}
                                 </span>
                                 <button
@@ -7032,228 +6988,115 @@ if (salesToInsert.length > 0) {
                             : 0;
 
                         return (
-                          <div
+                         <div
                             key={pName}
+                            // ❌ Бүхэл картыг чирэхийг болиулсан (draggable={false})
                             className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition"
                           >
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                              <div className="flex items-center gap-2.5">
+                              <div className="flex items-center gap-2">
                                 <input
                                   type="checkbox"
                                   checked={selectedRecipeProducts.includes(pName)}
-                                 onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedRecipeProducts((prev) => [...prev, pName]);
-                                  } else {
-                                    setSelectedRecipeProducts((prev) => prev.filter((name) => name !== pName));
-                                  }
-                                }}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedRecipeProducts([...selectedRecipeProducts, pName]);
+                                    else setSelectedRecipeProducts(selectedRecipeProducts.filter(name => name !== pName));
+                                  }}
                                   className="w-4 h-4 accent-purple-500 cursor-pointer rounded"
                                 />
-                                <h4 className="text-sm font-black text-white">
-                                  {pName}
-                                </h4>
-                                   <button
-                                        type="button"
-                                        onClick={() => openRecipeHistory(pName)}
-                                        className="bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ml-1"
-                                        title="Энэ жорын өмнөх хувилбаруудыг харах & сэргээх"
-                                      >
-                                        <span>🕒 Түүх</span>
-                                      </button>
-                              </div>
-                                      
-                              <div className="flex items-center gap-2 text-sm flex-wrap font-mono">
-                                <span className="text-slate-400">
-                                  Зарах:{" "}
-                                  <strong className="text-white">
-                                    {sellPrice.toLocaleString()} ₮
-                                  </strong>
-                                </span>
-                                <span className="text-slate-700">•</span>
-                                <span className="text-slate-400">
-                                  Өртөг:{" "}
-                                  <strong className="text-rose-400">
-                                    {Math.round(
-                                      calculatedCost,
-                                    ).toLocaleString()}{" "}
-                                    ₮
-                                  </strong>
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded-lg text-xs font-black border ${
-                                    marginPct >= 75
-                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                      : marginPct >= 60
-                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                                        : "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                                  }`}
+                                <h4 className="text-sm font-black text-white">{pName}</h4>
+
+                                <button
+                                  type="button"
+                                  onClick={() => openRecipeHistory(pName)}
+                                  className="bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ml-1"
                                 >
+                                  <span>🕒 Түүх</span>
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-sm flex-wrap font-mono">
+                                <span className="text-slate-400">Зарах: <strong className="text-white">{sellPrice.toLocaleString()} ₮</strong></span>
+                                <span className="text-slate-700">•</span>
+                                <span className="text-slate-400">Өртөг: <strong className="text-rose-400">{Math.round(calculatedCost).toLocaleString()} ₮</strong></span>
+                                <span className={`px-2 py-0.5 rounded-lg text-xs font-black border ${
+                                  marginPct >= 75 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                }`}>
                                   Маржин: {marginPct.toFixed(1)}%
                                 </span>
                               </div>
                             </div>
 
-                            {/* ⚡ ОРЦУУДЫН ХАЙРЦАГ (БАТАЛГААТАЙ ШУУД ЗАСАХ & ИНЛАЙН НЭМЭХ) */}
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-800">
+                            {/* ⚡ ОРЦ БҮРИЙГ ГАНЦ ГАНЦААР НЬ ЧИРЭХ ЭСВЭЛ [+] ДАРЖ ХУУЛАХ ХЭСЭГ */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900">
                               {productRecipes.map((r: any) => {
-                                const ing = ingredients.find(
-                                  (i) => i.id === r.ingredient_id,
-                                );
-                                const draftVal = recipeDrafts[r.id];
-                                const isDrafting =
-                                  draftVal !== undefined &&
-                                  draftVal !== r.amount.toString();
-
+                                const ing = ingredients.find((i) => i.id === r.ingredient_id);
                                 return (
                                   <div
                                     key={r.id}
-                                    className={`bg-slate-900/90 border px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2.5 transition shadow-sm ${
-                                      isDrafting
-                                        ? "border-amber-400 bg-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
-                                        : "border-slate-800 hover:border-slate-700"
-                                    }`}
+                                    // ⚡ ЗӨВХӨН ЭНЭ 1 ОРЦ Л ЧИРЭГДЭНЭ
+                                    draggable={true}
+                                    onDragStart={(e) => {
+                                      e.stopPropagation(); // Дээшээ карт руу дамжихаас хамгаална
+                                      e.dataTransfer.setData("application/json", JSON.stringify({
+                                        ingredient_id: r.ingredient_id,
+                                        amount: r.amount.toString()
+                                      }));
+                                    }}
+                                    className="bg-slate-900/90 border border-slate-800 hover:border-purple-500/60 px-2.5 py-1.5 rounded-2xl text-sm flex items-center gap-2 transition shadow-sm cursor-grab active:cursor-grabbing"
+                                    title="Энэ орцыг чирж эсвэл [+] дарж шинэ жор руу оруулж болно"
                                   >
-                                    {/* Орцын нэр (Тод цагаан, 12px) */}
-                                    <span className="text-slate-200 font-bold">
-                                      {ing?.name || "Орц"}
-                                    </span>
-
-                                    {/* ✏️ ТООГ ЗАСАХ ХАЙРЦАГ (Тодорхой хүрээтэй, хулгана очиход цайрна) */}
-                                    <div
-                                      className="flex items-center gap-1 bg-slate-950 px-2.5 py-1 rounded-xl border border-purple-500/40 hover:border-purple-400 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-500/20 transition cursor-text group"
-                                      title="Энд дарж граммыг шууд өөрчилнө үү"
-                                    >
-                                      <span className="text-sm text-purple-400/80 group-hover:text-purple-300 select-none">
-                                        ✏️
-                                      </span>
-                                      <input
-                                        type="number"
-                                        value={
-                                          draftVal !== undefined
-                                            ? draftVal
-                                            : r.amount
-                                        }
-                                        onFocus={(e) => e.target.select()}
-                                        onChange={(e) => {
-                                          setRecipeDrafts({
-                                            ...recipeDrafts,
-                                            [r.id]: e.target.value,
+                                    <span className="text-slate-200 font-bold">{ing?.name || "Орц"}</span>
+                                    
+                                    {/* 👈 ШИНЭ: Чирэх дургүй үед 1 дарж хуулах [+] товч (Ягаан хайрцаг нээлттэй үед л харагдана) */}
+                                    {isCreatingRecipeCard && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setNewRecipeItemsDraft(prev => {
+                                            const exists = prev.some(item => item.ingredient_id === r.ingredient_id);
+                                            if (exists) return prev;
+                                            return [...prev, { ingredient_id: r.ingredient_id, amount: r.amount.toString() }];
                                           });
                                         }}
-                                        onKeyDown={async (e) => {
-                                          if (e.key === "Enter") {
-                                            const val = parseFloat(draftVal);
-                                            if (!isNaN(val) && val > 0) {
-                                              setRecipes((prev) =>
-                                                prev.map((item) =>
-                                                  item.id === r.id
-                                                    ? { ...item, amount: val }
-                                                    : item,
-                                                ),
-                                              );
-                                              setRecipeDrafts((prev) => {
-                                                const n = { ...prev };
-                                                delete n[r.id];
-                                                return n;
-                                              });
-                                              await supabase
-                                                .from("recipes")
-                                                .update({ amount: val })
-                                                .eq("id", r.id);
-                                              fetchDatabaseData(activeClient);
-                                            }
-                                          } else if (e.key === "Escape") {
-                                            setRecipeDrafts((prev) => {
-                                              const n = { ...prev };
-                                              delete n[r.id];
-                                              return n;
-                                            });
-                                          }
-                                        }}
-                                        className="w-14 bg-transparent text-center text-purple-200 font-mono font-black text-sm outline-none cursor-text p-0"
-                                      />
-                                      <span className="text-xs text-slate-400 font-semibold select-none">
-                                        {ing?.unit || "гр"}
-                                      </span>
-                                    </div>
-
-                                    {/* ⚡ ӨӨРЧИЛСӨН ҮЕД: ХАДГАЛАХ [✓] БА БОЛИУЛАХ [✕] ТОД ТОВЧНУУД */}
-                                    {isDrafting && (
-                                      <div className="flex items-center gap-1 animate-in fade-in duration-100">
-                                        {/* ✓ БАТЛАХ */}
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            const val = parseFloat(draftVal);
-                                            if (!isNaN(val) && val > 0) {
-                                              setRecipes((prev) =>
-                                                prev.map((item) =>
-                                                  item.id === r.id
-                                                    ? { ...item, amount: val }
-                                                    : item,
-                                                ),
-                                              );
-                                              setRecipeDrafts((prev) => {
-                                                const n = { ...prev };
-                                                delete n[r.id];
-                                                return n;
-                                              });
-                                              await supabase
-                                                .from("recipes")
-                                                .update({ amount: val })
-                                                .eq("id", r.id);
-                                              fetchDatabaseData(activeClient);
-                                            }
-                                          }}
-                                          className="h-7 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-black text-sm transition active:scale-95 shadow-md flex items-center justify-center cursor-pointer"
-                                          title="Хадгалах (Enter)"
-                                        >
-                                          ✓
-                                        </button>
-
-                                        {/* ✕ БОЛИУЛАХ */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setRecipeDrafts((prev) => {
-                                              const n = { ...prev };
-                                              delete n[r.id];
-                                              return n;
-                                            });
-                                          }}
-                                          className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-sm transition active:scale-95 flex items-center justify-center cursor-pointer"
-                                          title="Болих (Хуучин тоог үлдээх)"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
+                                        className="h-5 w-5 bg-purple-600 hover:bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-black transition cursor-pointer active:scale-90"
+                                        title="Дээд талын шинэ жор руу шууд нэмэх"
+                                      >
+                                        +
+                                      </button>
                                     )}
 
-                                    {/* 🗑️ ТОД ХҮРЭЭТЭЙ ХОГИЙН САВ ТОВЧЛУУР (Улаан hover эффекттэй) */}
+                                    {/* Грамм засах талбар */}
+                                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-xl border border-purple-500/40">
+                                      <input
+                                        type="number"
+                                        defaultValue={r.amount}
+                                        onKeyDown={async (e) => {
+                                          if (e.key === "Enter") {
+                                            const val = parseFloat((e.target as HTMLInputElement).value);
+                                            if (!isNaN(val) && val > 0) {
+                                              await supabase.from("recipes").update({ amount: val }).eq("id", r.id);
+                                              await recordRecipeSnapshot(pName, 'updated');
+                                              fetchDatabaseData(activeClient);
+                                            }
+                                          }
+                                        }}
+                                        className="w-12 bg-transparent text-center text-purple-200 font-mono font-black text-xs outline-none"
+                                      />
+                                      <span className="text-xs text-slate-400">{ing?.unit || "гр"}</span>
+                                    </div>
+
+                                    {/* Орц устгах хогийн сав */}
                                     <button
                                       type="button"
                                       onClick={async () => {
-                                        if (
-                                          !confirm(
-                                            `"${pName}"-ийн жороос "${ing?.name}" орцыг хасах уу?`,
-                                          )
-                                        )
-                                          return;
-                                        setRecipes((prev) =>
-                                          prev.filter(
-                                            (item) => item.id !== r.id,
-                                          ),
-                                        );
-                                        await recordRecipeSnapshot(pName, 'updated'); // 👈 УСТГАХЫН ӨМНӨ ТҮҮХЭНД БИЧНЭ
-                                        await supabase
-                                          .from("recipes")
-                                          .delete()
-                                          .eq("id", r.id);
+                                        if (!confirm(`"${pName}"-ийн жороос "${ing?.name}" орцыг хасах уу?`)) return;
+                                        await recordRecipeSnapshot(pName, 'updated');
+                                        await supabase.from("recipes").delete().eq("id", r.id);
                                         fetchDatabaseData(activeClient);
                                       }}
-                                      className="h-7 w-7 rounded-xl bg-slate-950/70 hover:bg-rose-500/20 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-300 flex items-center justify-center text-sm transition active:scale-95 shrink-0 cursor-pointer shadow-sm"
-                                      title="Энэ орцыг жороос хасах"
+                                      className="text-slate-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer"
                                     >
                                       🗑️
                                     </button>
@@ -7261,81 +7104,49 @@ if (salesToInsert.length > 0) {
                                 );
                               })}
 
-                              {/* ➕ ТОД ХҮРЭЭТЭЙ "+ ОРЦ" ТОВЧ */}
+                              {/* + Орц нэмэх товч */}
                               {inlineAddRecipeProduct === pName ? (
-                                <div className="flex items-center gap-1.5 bg-purple-950/60 border-2 border-purple-500/60 p-1 rounded-2xl animate-in fade-in duration-150">
+                                <div className="flex items-center gap-1.5 bg-purple-950/60 border border-purple-500/60 p-1 rounded-2xl">
                                   <select
                                     value={inlineRecipeDraft.ingredient_id}
-                                    onChange={(e) =>
-                                      setInlineRecipeDraft({
-                                        ...inlineRecipeDraft,
-                                        ingredient_id: e.target.value,
-                                      })
-                                    }
-                                    className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-sm text-white outline-none cursor-pointer"
+                                    onChange={(e) => setInlineRecipeDraft({ ...inlineRecipeDraft, ingredient_id: e.target.value })}
+                                    className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-white outline-none"
                                   >
                                     <option value="">-- Түүхий эд --</option>
                                     {ingredients.map((i) => (
-                                      <option key={i.id} value={i.id}>
-                                        {i.name} ({i.unit})
-                                      </option>
+                                      <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>
                                     ))}
                                   </select>
                                   <input
                                     type="number"
                                     placeholder="Тоо..."
                                     value={inlineRecipeDraft.amount}
-                                    onChange={(e) =>
-                                      setInlineRecipeDraft({
-                                        ...inlineRecipeDraft,
-                                        amount: e.target.value,
-                                      })
-                                    }
-                                    className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-sm text-white outline-none font-mono"
+                                    onChange={(e) => setInlineRecipeDraft({ ...inlineRecipeDraft, amount: e.target.value })}
+                                    className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-white outline-none font-mono"
                                   />
                                   <button
                                     type="button"
-                                    disabled={
-                                      !inlineRecipeDraft.ingredient_id ||
-                                      !inlineRecipeDraft.amount
-                                    }
+                                    disabled={!inlineRecipeDraft.ingredient_id || !inlineRecipeDraft.amount}
                                     onClick={async () => {
-                                      const { data } = await supabase
-                                        .from("recipes")
-                                        .insert([
-                                          {
-                                            client_id: activeClient,
-                                            product_name: pName,
-                                            ingredient_id:
-                                              inlineRecipeDraft.ingredient_id,
-                                            amount:
-                                              parseFloat(
-                                                inlineRecipeDraft.amount,
-                                              ) || 0,
-                                          },
-                                        ])
-                                        .select()
-                                        .single();
-                                      if (data)
-                                        setRecipes((prev) => [...prev, data]);
+                                      await supabase.from("recipes").insert([{
+                                        client_id: activeClient,
+                                        product_name: pName,
+                                        ingredient_id: inlineRecipeDraft.ingredient_id,
+                                        amount: parseFloat(inlineRecipeDraft.amount) || 0,
+                                      }]);
+                                      await recordRecipeSnapshot(pName, 'updated');
                                       setInlineAddRecipeProduct(null);
-                                      setInlineRecipeDraft({
-                                        ingredient_id: "",
-                                        amount: "",
-                                      });
+                                      setInlineRecipeDraft({ ingredient_id: "", amount: "" });
                                       fetchDatabaseData(activeClient);
                                     }}
-                                    className="h-7 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-sm cursor-pointer"
-                                    title="Нэмэх"
+                                    className="h-7 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs"
                                   >
                                     ✓
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setInlineAddRecipeProduct(null)
-                                    }
-                                    className="h-7 px-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl text-sm cursor-pointer"
+                                    onClick={() => setInlineAddRecipeProduct(null)}
+                                    className="h-7 px-2 bg-slate-800 text-slate-400 rounded-xl text-xs"
                                   >
                                     ✕
                                   </button>
@@ -7345,40 +7156,27 @@ if (salesToInsert.length > 0) {
                                   type="button"
                                   onClick={() => {
                                     setInlineAddRecipeProduct(pName);
-                                    setInlineRecipeDraft({
-                                      ingredient_id: "",
-                                      amount: "",
-                                    });
+                                    setInlineRecipeDraft({ ingredient_id: "", amount: "" });
                                   }}
-                                  className="h-8 px-3 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-2 border-dashed border-purple-500/40 hover:border-purple-400 rounded-2xl text-sm font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                                  className="h-7 px-2.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-2xl text-xs font-bold transition flex items-center gap-1"
                                 >
                                   <span>+ Орц нэмэх</span>
                                 </button>
                               )}
 
                               {/* Бүхэл жорыг устгах */}
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!confirm(`"${pName}" бүтээгдэхүүний жорыг устгах уу? (Түүх хэсгээс хүссэн үедээ буцааж сэргээх боломжтой)`)) return;
-                                
-                                // 1. Устгахаас өмнө бүх орцыг нь Хогийн сав (Deleted) болгон хадгална
-                                const currentItems = productRecipes.map((r: any) => ({
-                                  ingredient_id: r.ingredient_id,
-                                  amount: parseFloat(r.amount) || 0
-                                }));
-                                await recordRecipeSnapshot(pName, currentItems, 'deleted');
-
-                                // 2. Дэлгэц болон баазаас устгана
-                                setRecipes((prev) => prev.filter((r) => r.product_name !== pName));
-                                await supabase.from("recipes").delete().eq("client_id", activeClient).eq("product_name", pName);
-                                fetchDatabaseData(activeClient);
-                                alert(`🗑️ "${pName}"-ийн жор устгагдлаа. Та "🕒 Түүх" товчоор хүссэн үедээ буцааж сэргээх боломжтой.`);
-                              }}
-                              className="text-rose-400 hover:text-rose-300 text-xs font-bold underline ml-auto py-1 cursor-pointer"
-                            >
-                              Бүхэл жорыг устгах
-                            </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!confirm(`"${pName}" бүтээгдэхүүний бүх жорыг устгах уу?`)) return;
+                                  await recordRecipeSnapshot(pName, 'deleted');
+                                  await supabase.from("recipes").delete().eq("client_id", activeClient).eq("product_name", pName);
+                                  fetchDatabaseData(activeClient);
+                                }}
+                                className="text-rose-400 hover:text-rose-300 text-xs font-bold underline ml-auto py-1"
+                              >
+                                Бүхэл жорыг устгах
+                              </button>
                             </div>
                           </div>
                         );
