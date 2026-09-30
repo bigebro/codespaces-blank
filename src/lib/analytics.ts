@@ -516,13 +516,42 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
   // =========================================================================
   // 💡 ШИНЭЭР НЭМСЭН: 3. WAC MARGIN GUARD (Үнийн өсөлт & Маржин хамгаалагч)
   // =========================================================================
+// =========================================================================
+  // 💡 3. WAC MARGIN GUARD (ДЭЛХИЙН СТАНДАРТЫН ДИНАМИК АНГИЛЛААР БОДОХ)
+  // =========================================================================
+// ⚡ 100% УНИВЕРСАЛ БӨГӨӨД БАТ БӨХ МАРЖИН ХАМГААЛАГЧ
+  const GLOBAL_CATEGORY_MARGINS: Record<string, number> = {
+    'HOT_BEVERAGE': 82,
+    'COLD_BEVERAGE': 78,
+    'FOOD_PREP': 68,
+    'BAKERY_DESSERT': 75,
+    'RETAIL_FMCG': 50,
+    'GENERAL': 72
+  };
+
+  const customMargins: Record<string, number> = rawSettings?.category_margins || {};
+
+  const getTargetMarginPct = (categoryName: string): number => {
+    const cat = (categoryName || 'GENERAL').trim();
+    // 1. Хэрэв эзэн энэ ангилалд өөрийн хувийг заасан бол түүнийг барина
+    if (customMargins[cat] !== undefined && Number(customMargins[cat]) > 0) {
+      return Number(customMargins[cat]);
+    }
+    // 2. Үгүй бол системд суурилагдсан албан ёсны стандартыг барина
+    return GLOBAL_CATEGORY_MARGINS[cat] || GLOBAL_CATEGORY_MARGINS['GENERAL'];
+  };
+
   const marginAlerts: any[] = [];
   (rawProducts || []).forEach((prod: any) => {
-    const productRecipes = (rawRecipes || []).filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase());
+    const productRecipes = (rawRecipes || []).filter(
+      (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase()
+    );
     let currentRecipeCost = 0;
 
     productRecipes.forEach((r: any) => {
-      const ing = fullInventory.find((i: any) => i.name.toLowerCase() === cleanString(r.product_name).toLowerCase() || i.id === r.ingredient_id);
+      const ing = fullInventory.find(
+        (i: any) => i.name.toLowerCase() === cleanString(r.product_name).toLowerCase() || i.id === r.ingredient_id
+      );
       const ingPrice = ing ? ing.price : (rawIngredients?.find((i: any) => i.id === r.ingredient_id)?.unit_price || 0);
       currentRecipeCost += (parseFloat(r.amount) || 0) * (parseFloat(ingPrice) || 0);
     });
@@ -530,11 +559,15 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     const sellingPrice = parseFloat(prod.selling_price) || 0;
     if (sellingPrice > 0 && currentRecipeCost > 0) {
       const currentMarginPct = ((sellingPrice - currentRecipeCost) / sellingPrice) * 100;
-      const targetMarginPct = 75; // 75% Бохир ашгийн маржин
+      
+      // ⚡ ДИНАМИК ЗОРИЛТОТ МАРЖИНГ АНГИЛЛААС НЬ УНШИХ:
+      const targetMarginPct = getTargetMarginPct(prod.category || 'General');
 
+      // Хэрэв тухайн ангиллын стандартаас доош унасан бол сануулна
       if (currentMarginPct < targetMarginPct) {
         const rawSuggestedPrice = currentRecipeCost / (1 - (targetMarginPct / 100));
         const suggestedPrice = Math.ceil(rawSuggestedPrice / 500) * 500; // 500₮-өөр дээшээ бүхэлчлэх
+        
         marginAlerts.push({
           product_name: prod.name,
           category: prod.category || 'General',

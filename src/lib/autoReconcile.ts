@@ -354,6 +354,241 @@ export interface ReconciliationResult {
   isVariant?: boolean;
 }
 
+// =========================================================================
+// 8. 🎯 EN_TO_MN_DICT-ИЙН БҮХ 142 ҮГИЙН САНХҮҮГИЙН АНГИЛАЛ (100% EXHAUSTIVE)
+// =========================================================================
+export const FNB_DICT_CATEGORY_MAP: Record<
+  string, 
+  'HOT_BEVERAGE' | 'COLD_BEVERAGE' | 'FOOD_PREP' | 'BAKERY_DESSERT' | 'RETAIL_FMCG' | 'GENERAL'
+> = {
+  // Товчлолууд
+  syr: 'COLD_BEVERAGE',
+  fr: 'COLD_BEVERAGE',
+  cr: 'BAKERY_DESSERT',
+  bl: 'COLD_BEVERAGE',
+  veg: 'FOOD_PREP',
+  vegg: 'FOOD_PREP',
+  veggies: 'FOOD_PREP',
+  c: 'FOOD_PREP',
+  can: 'RETAIL_FMCG',
+  canned: 'RETAIL_FMCG',
+  chick: 'FOOD_PREP',
+  pickl: 'FOOD_PREP',
+  mascarp: 'BAKERY_DESSERT',
+  boulillon: 'FOOD_PREP',
+
+  // Сүү, Өндөг, Цөцгий, Бяслаг
+  milk: 'HOT_BEVERAGE',
+  egg: 'FOOD_PREP',
+  eggs: 'FOOD_PREP',
+  butter: 'BAKERY_DESSERT',
+  cheese: 'FOOD_PREP',
+  cream: 'BAKERY_DESSERT',
+  creamy: 'BAKERY_DESSERT',
+  sauer: 'FOOD_PREP',
+  sour: 'FOOD_PREP',
+  balloon: 'BAKERY_DESSERT',
+  yogurt: 'COLD_BEVERAGE',
+  moloko: 'BAKERY_DESSERT',
+  whipped: 'BAKERY_DESSERT',
+
+  // Кофе, Цай, Ундаанууд
+  bean: 'HOT_BEVERAGE',
+  beans: 'HOT_BEVERAGE',
+  coffee: 'HOT_BEVERAGE',
+  espresso: 'HOT_BEVERAGE',
+  kick: 'HOT_BEVERAGE',
+  tea: 'HOT_BEVERAGE',
+  teas: 'HOT_BEVERAGE',
+  brew: 'HOT_BEVERAGE',
+  matcha: 'HOT_BEVERAGE',
+  chai: 'HOT_BEVERAGE',
+  rooibos: 'HOT_BEVERAGE',
+  hibis: 'HOT_BEVERAGE',
+  butterfl: 'HOT_BEVERAGE',
+  green: 'HOT_BEVERAGE',
+  bulbous: 'HOT_BEVERAGE',
+  water: 'COLD_BEVERAGE',
+  bonaque: 'RETAIL_FMCG',
+  soda: 'COLD_BEVERAGE',
+  cola: 'RETAIL_FMCG',
+  laaztai: 'RETAIL_FMCG',
+  craft: 'COLD_BEVERAGE',
+  soft: 'COLD_BEVERAGE',
+  drink: 'COLD_BEVERAGE',
+  juice: 'COLD_BEVERAGE',
+  calpis: 'COLD_BEVERAGE',
+  tonic: 'COLD_BEVERAGE',
+  orice: 'COLD_BEVERAGE',
+  smoothie: 'COLD_BEVERAGE',
+
+  // Сироп, Чихэрлэг
+  syrup: 'COLD_BEVERAGE',
+  sugar: 'HOT_BEVERAGE',
+  sweetener: 'HOT_BEVERAGE',
+  honey: 'HOT_BEVERAGE',
+  caramel: 'BAKERY_DESSERT',
+  vanilla: 'BAKERY_DESSERT',
+  hazelnut: 'HOT_BEVERAGE',
+  pistacchio: 'BAKERY_DESSERT',
+  pistachio: 'BAKERY_DESSERT',
+  cinnamon: 'BAKERY_DESSERT',
+  chocolate: 'HOT_BEVERAGE',
+  choco: 'HOT_BEVERAGE',
+  cocoa: 'HOT_BEVERAGE',
+  mocha: 'HOT_BEVERAGE',
+  mint: 'COLD_BEVERAGE',
+  curasao: 'COLD_BEVERAGE',
+  grenade: 'COLD_BEVERAGE',
+
+  // Мах, Уураг
+  beef: 'FOOD_PREP',
+  pork: 'FOOD_PREP',
+  chicken: 'FOOD_PREP',
+  sheep: 'FOOD_PREP',
+  lamb: 'FOOD_PREP',
+  bacon: 'FOOD_PREP',
+  salami: 'FOOD_PREP',
+  patty: 'FOOD_PREP',
+  tuna: 'FOOD_PREP',
+  ground: 'FOOD_PREP',
+
+  // Жимс
+  apple: 'COLD_BEVERAGE',
+  banana: 'COLD_BEVERAGE',
+  lemon: 'COLD_BEVERAGE',
+  orange: 'COLD_BEVERAGE',
+  grapefruit: 'COLD_BEVERAGE',
+  kiwi: 'COLD_BEVERAGE',
+  peach: 'COLD_BEVERAGE',
+  mango: 'COLD_BEVERAGE',
+  passion: 'COLD_BEVERAGE',
+  cherry: 'COLD_BEVERAGE',
+  berry: 'COLD_BEVERAGE',
+  strawberry: 'COLD_BEVERAGE',
+  raspberry: 'COLD_BEVERAGE',
+  blueberry: 'COLD_BEVERAGE',
+  currant: 'COLD_BEVERAGE',
+  buckthorn: 'COLD_BEVERAGE',
+  fruits: 'COLD_BEVERAGE',
+  wildberry: 'COLD_BEVERAGE',
+  sea: 'COLD_BEVERAGE',
+
+  // Ногоо, Ургамал
+  tomato: 'FOOD_PREP',
+  tomatoes: 'FOOD_PREP',
+  cucumber: 'FOOD_PREP',
+  carrot: 'FOOD_PREP',
+  onion: 'FOOD_PREP',
+  garlic: 'FOOD_PREP',
+  lettuce: 'FOOD_PREP',
+  celery: 'FOOD_PREP',
+  selleries: 'FOOD_PREP',
+  parsley: 'FOOD_PREP',
+  pepper: 'FOOD_PREP',
+  sweet: 'FOOD_PREP',
+  corn: 'FOOD_PREP',
+  pumpkin: 'FOOD_PREP',
+  ginger: 'HOT_BEVERAGE',
+  herbs: 'FOOD_PREP',
+  farm: 'FOOD_PREP',
+  plant: 'HOT_BEVERAGE',
+
+  // Гурил, Сүмс, Нарийн боов
+  bread: 'FOOD_PREP',
+  bun: 'FOOD_PREP',
+  flour: 'BAKERY_DESSERT',
+  powder: 'BAKERY_DESSERT',
+  power: 'BAKERY_DESSERT',
+  sauce: 'FOOD_PREP',
+  burger: 'FOOD_PREP',
+  ketchup: 'FOOD_PREP',
+  mayo: 'FOOD_PREP',
+  mustard: 'FOOD_PREP',
+  oil: 'FOOD_PREP',
+  olive: 'FOOD_PREP',
+  vinegar: 'FOOD_PREP',
+  salt: 'FOOD_PREP',
+  tabasco: 'FOOD_PREP',
+  worchest: 'FOOD_PREP',
+  seasonings: 'FOOD_PREP',
+  various: 'FOOD_PREP',
+  chips: 'RETAIL_FMCG',
+  slice: 'FOOD_PREP',
+  piece: 'FOOD_PREP',
+  stick: 'BAKERY_DESSERT',
+  velvet: 'BAKERY_DESSERT',
+  ladies: 'BAKERY_DESSERT',
+  finger: 'BAKERY_DESSERT',
+  baking: 'BAKERY_DESSERT',
+  dried: 'FOOD_PREP',
+  fresh: 'FOOD_PREP',
+  sliced: 'FOOD_PREP',
+  hot: 'HOT_BEVERAGE',
+  black: 'HOT_BEVERAGE',
+  blue: 'COLD_BEVERAGE',
+  red: 'BAKERY_DESSERT',
+  soup: 'FOOD_PREP',
+  sandwich: 'FOOD_PREP',
+
+  // Сав баглаа
+  cup: 'GENERAL',
+  lid: 'GENERAL',
+  straw: 'GENERAL',
+  napkin: 'GENERAL',
+  bag: 'GENERAL',
+};
+
+// =========================================================================
+// ⚡ 100% ТОЛЬ БИЧИГТ СУУРИЛСАН АВТОМАТ АНГИЛАГЧ (NO HARDCODED ARRAYS)
+// =========================================================================
+export function autoCategorizeProduct(productName: string): string | null {
+  const isIced = checkIcedModifier(productName);
+  
+  // 1. Толь бичгээс бүх холбогдох түлхүүр үгсийг (English Keys) авах
+  const tokens = extractFnbTokens(productName);
+  if (tokens.size === 0) return null;
+
+  // 2. Дээрх FNB_DICT_CATEGORY_MAP-аас тохирох ангиллуудыг олох
+  const matchedCategories = new Set<string>();
+  tokens.forEach((token) => {
+    const cat = FNB_DICT_CATEGORY_MAP[token.toLowerCase()];
+    if (cat) matchedCategories.add(cat);
+  });
+
+  // 3. Зэрэглэлийн логик (Бүтээгдэхүүний үндсэн шинжийг тодорхойлох):
+  // Хоол (Сэндвич, Бургер, Мах) орсон бол хоолны ангилал хамгийн давуу эрхтэй
+  if (matchedCategories.has('FOOD_PREP')) {
+    return 'FOOD_PREP';
+  }
+
+  // Бэйкэри (Бялуу, десерт) орсон бол
+  if (matchedCategories.has('BAKERY_DESSERT')) {
+    return 'BAKERY_DESSERT';
+  }
+
+  // Лаазтай/Савласан бэлэн бүтээгдэхүүн
+  if (matchedCategories.has('RETAIL_FMCG')) {
+    return 'RETAIL_FMCG';
+  }
+
+  // Ундаа / Кофе: Хэрэв мөстэй эсвэл хүйтэн шинжтэй бол COLD_BEVERAGE, үгүй бол HOT_BEVERAGE
+  if (matchedCategories.has('HOT_BEVERAGE') || matchedCategories.has('COLD_BEVERAGE')) {
+    if (isIced || matchedCategories.has('COLD_BEVERAGE')) {
+      return 'COLD_BEVERAGE';
+    }
+    return 'HOT_BEVERAGE';
+  }
+
+  // Сав баглаа эсвэл ерөнхий хэрэгсэл
+  if (matchedCategories.has('GENERAL')) {
+    return 'GENERAL';
+  }
+
+  return null; // Танигдаагүй бол AI Batch руу шилжинэ
+}
+
+
 export function evaluateSaleItem(
   rawPosName: string,
   posPrice: number,

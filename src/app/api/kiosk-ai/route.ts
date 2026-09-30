@@ -193,6 +193,43 @@ export async function POST(request: Request) {
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
     const clientId = tenantClientId;
 
+    // =========================================================================
+    // 🤖 AI BATCH CATEGORIZATION (Токен хэмнэж олноор нь ангилах мотор)
+    // =========================================================================
+    if (action === "categorize" && body.names && Array.isArray(body.names)) {
+      const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+      if (!key) return NextResponse.json({ success: false, message: "No API Key" });
+
+      const prompt = `
+        Classify these food industry products into ONE of these 6 STRICT categories:
+        - "HOT_BEVERAGE" (Coffee, hot tea, espresso, hot drinks)
+        - "COLD_BEVERAGE" (Juices, smoothies, iced drinks, beer, cocktails, water)
+        - "FOOD_PREP" (Cooked meals, sandwiches, burgers, salads, pizza, soup)
+        - "BAKERY_DESSERT" (Cakes, pastries, bread, sweets, buns)
+        - "RETAIL_FMCG" (Canned/bottled drinks, pre-packaged snacks, items bought to resell)
+        - "GENERAL" (Unidentifiable or merchandise)
+
+        Respond ONLY with a valid JSON object mapping the product name to the category string.
+        Example: { "Caffe Latte": "HOT_BEVERAGE", "Tymbark": "RETAIL_FMCG" }
+
+        Products to classify:
+        ${JSON.stringify(body.names)}
+      `;
+
+      try {
+        const ai = new GoogleGenerativeAI(key);
+        const model = ai.getGenerativeModel({
+          model: "gemini-3.5-flash-lite",
+          generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
+        });
+        const response = await model.generateContent(prompt);
+        const resultText = response.response.text().replace(/```json|```/g, "").trim();
+        return NextResponse.json({ success: true, categories: JSON.parse(resultText) });
+      } catch (err) {
+        return NextResponse.json({ success: false, error: String(err) });
+      }
+    }
+
     // 1. UNDO
     if (action === "undo" && logId) {
       const { error } = await supabaseAdmin

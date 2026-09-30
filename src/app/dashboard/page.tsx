@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import { exportAuditExcel } from "../../lib/exportAudit";
-import { calculateMatchScore, evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
+import { autoCategorizeProduct, evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
 
 function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -604,7 +604,33 @@ function Home() {
     price: "",
     par: "0",
   });
+  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ
+  const UNIVERSAL_CATEGORIES = [
+    { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', margin: 82 },
+    { id: 'COLD_BEVERAGE', name: '🍹 Хүйтэн ундаа', margin: 78 },
+    { id: 'FOOD_PREP', name: '🍳 Гал тогоо (Хоол)', margin: 68 },
+    { id: 'BAKERY_DESSERT', name: '🥐 Бэйкэри & Десерт', margin: 75 },
+    { id: 'RETAIL_FMCG', name: '🥤 Бэлэн бараа (Лааз/Сав)', margin: 50 },
+    { id: 'GENERAL', name: '📦 Бусад (Сав баглаа г.м)', margin: 70 }
+  ];
 
+  // 🤖 ХҮНЭЭР БАТЛУУЛАХ MODAL STATE
+  const [pendingCategoryReview, setPendingCategoryReview] = useState<{
+    salesToInsert: any[];
+    productsToReview: Array<{ name: string; category: string; method: string; price: number; isUnknown?: boolean }>;
+    isProcessing: boolean;
+  } | null>(null);
+
+  // 📖 ОРОН НУТГИЙН ТОЛЬ БИЧИГ (Үнэгүй, 0.001 секундын танигч)
+  const guessCategoryLocal = (name: string) => {
+    const lower = name.toLowerCase();
+    if (/coffee|кофе|latte|espresso|americano|cappuccino|mocha|macchiato|hot|халуун|цай|tea/.test(lower)) return 'HOT_BEVERAGE';
+    if (/ундаа|жүүс|juice|smoothie|смүүти|shake|cold|iced|cocktail|beer|пиво|мөстэй|ус|water|calpis/.test(lower)) return 'COLD_BEVERAGE';
+    if (/sandwich|сэндвич|burger|бургер|pizza|пицца|шөл|soup|meal|хоол|salad|салат|мах|хуушуур|бууз|өндөг|egg/.test(lower)) return 'FOOD_PREP';
+    if (/cake|бялуу|tiramisu|тирамису|croissant|круассан|bakery|бэйкэри|талх|bread|десерт/.test(lower)) return 'BAKERY_DESSERT';
+    if (/cola|кола|sprite|лааз|can|bottle|ууттай|snack|чипс|chips/.test(lower)) return 'RETAIL_FMCG';
+    return null;
+  };
   const [showAddProdModal, setShowAddProdModal] = useState(false);
   const [newProdForm, setNewProdForm] = useState({
     name: "",
@@ -1923,11 +1949,8 @@ function SearchableSelect({
       .replace(/[\r\n\s\-_.]/g, "")
       .trim();
 
-  // =========================================================================
-  // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огноотой & Огноогүй аль алийг нь танина)
-  // =========================================================================
-  // =========================================================================
-  // 📈 БОРЛУУЛАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
+// =========================================================================
+  // 📈 БОРЛУУЛАЛТ ИМПОРТЛОХ (AI ROUTER + ХУРДАН ХАДГАЛАЛТ)
   // =========================================================================
 const handleBulkSalesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2030,11 +2053,14 @@ if (salesToInsert.length > 0) {
               });
             }
           } else {
+            // ⚡ ЦОО ШИНЭ БАРААГ Ч БАС ТОЛЬ БИЧГЭЭРЭЭ АНГИЛАХ:
+             const smartCategory = autoCategorizeProduct(rawPosName) || 'GENERAL';
+
             // Огт таараагүй цоо шинэ бараа
             productsToBatch.push({
               client_id: activeClient,
               name: rawPosName,
-              category: 'General',
+              category: smartCategory,
               selling_price: posPrice
             });
 
@@ -2044,10 +2070,10 @@ if (salesToInsert.length > 0) {
               productName: rawPosName,
               type: 'NEW_PRODUCT',
               oldName: 'Байхгүй',
-              newName: `${rawPosName} (${posPrice.toLocaleString()} ₮)`,
+              newName: `${rawPosName} (${posPrice.toLocaleString()} ₮) [${smartCategory}]`,
               oldPrice: 0,
               newPrice: posPrice,
-              oldCategory: 'General',
+              oldCategory: smartCategory,
               reverted: false
             });
           }
@@ -2083,6 +2109,41 @@ if (salesToInsert.length > 0) {
       setTimeout(() => setSalesImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ⚡ БОРЛУУЛАЛТ ХАДГАЛАХ ЦӨМ ФУНКЦ
+  const insertSalesData = async (sales: any[], newProducts: any[]) => {
+    try {
+      if (overwriteSales) {
+        await supabase.from("sales_logs").delete()
+          .eq("client_id", activeClient).gte("date", `${startDate}T00:00:00.000Z`).lte("date", `${endDate}T23:59:59.999Z`);
+      }
+      
+      if (newProducts.length > 0) {
+        const prodBatch = newProducts.map(p => ({
+          client_id: activeClient,
+          name: p.name,
+          category: p.category,
+          selling_price: p.price
+        }));
+        await supabase.from("products").upsert(prodBatch, { onConflict: "client_id,name" });
+      }
+
+      if (sales.length > 0) {
+        await supabase.from("sales_logs").insert(sales);
+      }
+
+      setSalesImportSuccess(true);
+      setSalesPasteText("");
+      setOverwriteSales(false);
+      setPendingCategoryReview(null);
+      await fetchDatabaseData(activeClient);
+      setTimeout(() => setSalesImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Хадгалах үед алдаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -8145,6 +8206,92 @@ if (salesToInsert.length > 0) {
                 </div>
               </div>
             )}
+
+            {/* ========================================================================= */}
+        {/* 🤖 ШИНЭ ЦЭСНИЙ АНГИЛАЛЫГ ХҮНЭЭР БАТЛУУЛАХ ЦОНХ (HUMAN-IN-THE-LOOP)        */}
+        {/* ========================================================================= */}
+        {pendingCategoryReview && (
+          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150">
+            <div className="bg-[#0d1527] border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+              
+              <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <span>✨ Шинэ цэсүүдийг ангилах</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    ПОС-оос орж ирсэн доорх <strong>{pendingCategoryReview.productsToReview.length} шинэ цэсийг</strong> систем автоматаар ангиллаа. Батлахын өмнө шалгаад, буруу байвал өөрөө засаж сонгоно уу.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingCategoryReview(null)}
+                  className="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl text-xs font-bold text-slate-300"
+                >
+                  ✕ Цуцлах
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-1">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10 text-[10px]">
+                    <tr>
+                      <th className="py-2.5 px-3">Шинэ Цэсний Нэр</th>
+                      <th className="py-2.5 px-3">Ухаалаг Ангилал</th>
+                      <th className="py-2.5 px-3 text-right">Яаж таньсан бэ?</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
+                    {pendingCategoryReview.productsToReview.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-900/40">
+                        <td className="py-3 px-3 font-bold text-white text-sm">
+                          {item.name}
+                          <span className="block text-[10px] text-slate-500 font-mono mt-0.5">Үнэ: {item.price.toLocaleString()}₮</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <select
+                            value={item.category}
+                            disabled={pendingCategoryReview.isProcessing}
+                            onChange={(e) => {
+                              const updated = [...pendingCategoryReview.productsToReview];
+                              updated[idx].category = e.target.value;
+                              updated[idx].method = "👤 Гараар зассан";
+                              setPendingCategoryReview({ ...pendingCategoryReview, productsToReview: updated });
+                            }}
+                            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-200 outline-none cursor-pointer w-full max-w-[160px]"
+                          >
+                            {UNIVERSAL_CATEGORIES.map(cat => (
+                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                            item.method.includes('Толь бичиг') ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                            item.method.includes('AI') && !item.isUnknown ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
+                            item.method.includes('Гараар') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                            'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
+                          }`}>
+                            {item.method}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <button
+                type="button"
+                disabled={pendingCategoryReview.isProcessing}
+                onClick={() => insertSalesData(pendingCategoryReview.salesToInsert, pendingCategoryReview.productsToReview)}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs transition shadow-lg active:scale-95"
+              >
+                {pendingCategoryReview.isProcessing ? '⏳ AI уншиж байна...' : '✅ БҮГД ЗӨВ, БАТЛАХ & ХАДГАЛАХ'}
+              </button>
+            </div>
+          </div>
+        )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
