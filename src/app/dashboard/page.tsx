@@ -7,7 +7,7 @@ import {
   TrendingUp, Trash2, DollarSign, Activity, AlertTriangle, Database, Coffee, 
   Layers3, Save, Check, FileSpreadsheet, UploadCloud, Bot, 
   ShieldAlert, Download, Camera, ExternalLink, Search,
-  LayoutDashboard, CheckSquare, LogOut, Smartphone, Settings,  PanelLeftClose, Menu 
+  LayoutDashboard, CheckSquare, LogOut, Smartphone, Settings,  PanelLeftClose, Menu,ChevronDown, ChevronUp 
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -591,7 +591,11 @@ function Home() {
   const [selectedRecipeProducts, setSelectedRecipeProducts] = useState<
     string[]
   >([]);
-
+  // 🔍 Үнэ өссөн барааг хайх стэйт:
+  const [spikeSearch, setSpikeSearch] = useState("");
+  // 🚨 Үнийн өсөлтийг хумих/дэлгэх & Маржин хайх стэйтүүд:
+  const [isSpikesExpanded, setIsSpikesExpanded] = useState(false); 
+  const [marginSearch, setMarginSearch] = useState("");
   // ➕ Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
   const [showAddIngModal, setShowAddIngModal] = useState(false);
   const [newIngForm, setNewIngForm] = useState({
@@ -730,7 +734,8 @@ const aliasMap: Record<string, string> = {};
 
     return missingItems;
   }, [salesLogs, productsList, activeClient]);
-
+  // 🔗 ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
+  const [mergeSelections, setMergeSelections] = useState<Record<string, string>>({});
 // ⚡ БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
   const productRecipeStatus = React.useMemo(() => {
     const map = new Map<string, { count: number }>();
@@ -3029,22 +3034,103 @@ if (salesToInsert.length > 0) {
    {activeTab === "dashboard" && userRole === "owner" && (
           <div className="space-y-6">
             
-            {/* 🚨 ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТИЙН АНХААРУУЛГА */}
-            {priceSpikeAlerts.length > 0 && (
-              <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in duration-200">
-                <div className="flex items-center gap-2.5">
-                  <AlertTriangle className="h-5 w-5 text-rose-400 animate-pulse shrink-0" />
-                  <div>
-                    <h4 className="text-sm sm:text-sm font-black text-rose-300">Түүхий эдийн үнэ зах зээл дээр өссөн байна!</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Сүүлийн татан авалтаар зарим барааны нэгжийн үнэ 3%-иас дээш нэмэгджээ.</p>
-                  </div>
-                </div>
-                <span className="text-sm font-bold text-rose-400 font-mono shrink-0">
-                  {priceSpikeAlerts.length} бараа өссөн
-                </span>
-              </div>
-            )}
+    {/* 🚨 ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТ (АНХНААСАА ХУМИГДСАН, ДАРАХАД ДЭЛГЭГДДЭГ) */}
+            {priceSpikeAlerts.length > 0 && (() => {
+              const filteredSpikes = priceSpikeAlerts.filter((item: any) =>
+                item.name.toLowerCase().includes(spikeSearch.toLowerCase().trim())
+              );
 
+              return (
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl overflow-hidden transition-all duration-200 shadow-md">
+                  
+                  {/* 1. ХУМИГДСАН ҮЕД ХАРАГДАХ ЦЭВЭРХЭН 1 МӨР ТУУЗ */}
+                  <div 
+                    onClick={() => setIsSpikesExpanded(!isSpikesExpanded)}
+                    className="p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-rose-500/15 transition select-none"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <AlertTriangle className="h-5 w-5 text-rose-400 animate-pulse shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-black text-rose-300">
+                          Түүхий эдийн үнэ зах зээл дээр өссөн байна!
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Сүүлийн татан авалтаар нэгжийн үнэ 3%-иас дээш өссөн {priceSpikeAlerts.length} бараа илэрлээ.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-black text-rose-400 bg-rose-500/20 border border-rose-500/30 px-3 py-1 rounded-xl font-mono">
+                        {priceSpikeAlerts.length} бараа өссөн
+                      </span>
+
+                      {/* ⌵ Дэлгэх / Хумих товч */}
+                      <button
+                        type="button"
+                        className="bg-slate-900 border border-rose-500/30 text-rose-300 p-1.5 rounded-xl hover:bg-slate-800 transition"
+                      >
+                        {isSpikesExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. ДЭЛГЭГДСЭН ҮЕД ХАРАГДАХ ХАЙЛТ БА КАРТУУД */}
+                  {isSpikesExpanded && (
+                    <div className="p-4 pt-0 border-t border-rose-500/20 space-y-3 animate-in fade-in duration-150">
+                      
+                      {/* Дэлгэгдсэн үеийн Хайлтын талбар */}
+                      <div className="pt-3 flex justify-between items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400">Өссөн бараануудын задаргаа:</span>
+                        <input
+                          type="text"
+                          value={spikeSearch}
+                          onChange={(e) => setSpikeSearch(e.target.value)}
+                          placeholder="🔍 Бараа хайх..."
+                          className="bg-slate-950 border border-rose-500/40 focus:border-rose-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-48 font-bold"
+                        />
+                      </div>
+
+                      {/* Картуудын гүйдэг хайрцаг */}
+                      <div className="max-h-56 overflow-y-auto pr-1">
+                        {filteredSpikes.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic py-3 text-center">
+                            "{spikeSearch}" нэртэй бараа олдсонгүй.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            {filteredSpikes.map((alert: any) => (
+                              <div
+                                key={alert.id}
+                                className="bg-[#0B1120] p-3 rounded-xl border border-rose-500/20 space-y-1 shadow-sm"
+                              >
+                                <div className="flex justify-between items-start gap-1">
+                                  <span className="text-sm font-bold text-white truncate" title={alert.name}>
+                                    {alert.name}
+                                  </span>
+                                  <span className="text-xs font-black text-rose-400 font-mono shrink-0">
+                                    ▲ +{alert.percent}%
+                                  </span>
+                                </div>
+                                
+                                <p className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                                  <span>{alert.oldPrice.toLocaleString()} ₮</span>
+                                  <span className="text-slate-600">➔</span>
+                                  <strong className="text-rose-300 font-bold">{alert.newPrice.toLocaleString()} ₮</strong>
+                                  <span className="text-slate-500 font-sans">/ {alert.unit}</span>
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              );
+            })()}
             {/* ========================================================================= */}
             {/* БҮС 1: ОГНООНЫ КОНТРОЛ + 🚦 ӨРТГИЙН НИЙЦЛИЙН ЗААГУУР (HERO STATUS)         */}
             {/* ========================================================================= */}
@@ -3368,6 +3454,103 @@ if (salesToInsert.length > 0) {
               </div>
 
             </div>
+{/* 🛡️ МАРЖИН ХАМГААЛАГЧ (ХАЙЛТТАЙ & ЗӨВЛӨМЖИЙН ХАЙРЦАГ) */}
+            {liveAnalytics?.margin_guard_alerts?.length > 0 && (() => {
+              // 🔍 Маржин зөвлөмжийг цэсний нэрээр хайж шүүх
+              const filteredMargins = liveAnalytics.margin_guard_alerts.filter((item: any) =>
+                item.product_name.toLowerCase().includes(marginSearch.toLowerCase().trim())
+              );
+
+              return (
+                <div className="bg-[#1E293B] p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
+                  
+                  {/* ТОЛГОЙ: Гарчиг + 🔍 Хайлтын талбар + Тоо */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 shrink-0">
+                        <AlertTriangle className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-amber-300">
+                          Маржин Хамгаалагч: Үнээ нэмэх шаардлагатай бүтээгдэхүүнүүд
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Түүхий эдийн өртөг өссөнөөс болж ашиг нь 75%-иас доош орсон цэсүүд.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                      {/* 🔍 ШУУРХАЙ ЦЭС ХАЙХ ТАЛБАР */}
+                      <input
+                        type="text"
+                        value={marginSearch}
+                        onChange={(e) => setMarginSearch(e.target.value)}
+                        placeholder="🔍 Цэс хайх..."
+                        className="bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-36 sm:w-48 font-bold"
+                      />
+
+                      <span className="text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shrink-0 font-mono">
+                        Нийт {liveAnalytics.margin_guard_alerts.length} цэс
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 📋 ГҮЙДЭГ КАРТУУД */}
+                  <div className="max-h-60 overflow-y-auto pr-1">
+                    {filteredMargins.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic py-4 text-center">
+                        "{marginSearch}" нэртэй цэс олдсонгүй.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {filteredMargins.map((alert: any, idx: number) => (
+                          <div
+                            key={idx}
+                            className="bg-[#0B1120] p-4 rounded-xl border border-amber-500/20 space-y-2 shadow-sm hover:border-amber-500/40 transition"
+                          >
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="text-sm font-bold text-white truncate" title={alert.product_name}>
+                                {alert.product_name}
+                              </span>
+                              <span className="text-xs font-black text-rose-400 font-mono shrink-0 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                                Маржин: {alert.current_margin_pct}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-400 space-y-1 font-mono">
+                              <div className="flex justify-between">
+                                <span>Одоогийн өртөг:</span>
+                                <strong className="text-slate-200">{alert.cost_price.toLocaleString()} ₮</strong>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>ПОС Зарах үнэ:</span>
+                                <span className="text-slate-300">{alert.selling_price.toLocaleString()} ₮</span>
+                              </div>
+                            </div>
+
+                            {/* ЗӨВЛӨХ ЗАРАХ ҮНЭ */}
+                            <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-bold">Зөвлөх зарах үнэ:</span>
+                              <div className="text-right">
+                                <strong className="text-emerald-400 font-black font-mono text-sm block">
+                                  {alert.suggested_price.toLocaleString()} ₮
+                                </strong>
+                                <span className="text-emerald-500 font-bold font-mono text-xs">
+                                  (+{alert.price_gap.toLocaleString()} ₮ нэмэх)
+                                </span>
+                              </div>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })()}
           </div>
         )}
         {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
@@ -6204,21 +6387,19 @@ if (salesToInsert.length > 0) {
 
                             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                               
-                              {/* ⚡ СОНГОЛТ 1: ХУУЧИН ЖОРТОЙ СОЛЬЖ НЭГТГЭХ (Chicken Sandwich -> Chicken sa) */}
+                              {/* ⚡ СОНГОЛТ 1: ХУУЧИН ЖОРТОЙ СОЛЬЖ НЭГТГЭХ (ХАЙЛТТАЙ, АРИЛАХГҮЙ) */}
                               <div className="flex items-center gap-1.5 flex-1 lg:flex-none">
                                 <div className="w-56">
                                   <SearchableSelect
                                     placeholder="-- Жор хайж сонгох --"
-                                    value={item.selectedMergeRecipe || ""}
+                                    value={mergeSelections[item.name] || ""}
                                     options={Array.from(new Set(recipes.map((r: any) => r.product_name))).map((rName: any) => ({
                                       value: rName,
                                       label: `📖 ${rName}`
                                     }))}
                                     onChange={(chosenRecipe) => {
-                                      // Түр хадгалах төлөв
-                                      item.selectedMergeRecipe = chosenRecipe;
-                                      // Дэлгэцийг сэргээх
-                                      setProductsList([...productsList]);
+                                      // Сонголтыг найдвартай хадгална (Арилж алга болохгүй)
+                                      setMergeSelections(prev => ({ ...prev, [item.name]: chosenRecipe }));
                                     }}
                                   />
                                 </div>
@@ -6226,8 +6407,8 @@ if (salesToInsert.length > 0) {
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    const selectEl = document.getElementById(`merge-select-${idx}`) as HTMLSelectElement;
-                                    const selectedOldName = selectEl?.value;
+                                    // ⚡ Сонгосон жорыг санах ойноос шууд уншина
+                                    const selectedOldName = mergeSelections[item.name];
                                     if (!selectedOldName) {
                                       alert("Сольж нэгтгэх хуучин жороо сонгоно уу!");
                                       return;
@@ -6236,18 +6417,17 @@ if (salesToInsert.length > 0) {
                                     const posName = item.name.trim();
                                     setLoading(true);
 
-                                    // Хуучин бүтээгдэхүүний ангиллыг хадгалах
                                     const existingProd = productsList.find(p => p.name.toLowerCase().trim() === selectedOldName.toLowerCase().trim());
                                     const preservedCategory = existingProd?.category || 'General';
 
-                                    // A. Recipes хүснэгт дэх жорын нэрийг шинэчилнэ:
+                                    // 1. Recipes хүснэгт дэх жорын нэрийг ПОС-ын шинэ нэрээр солих:
                                     await supabase
                                       .from('recipes')
                                       .update({ product_name: posName })
                                       .eq('client_id', activeClient)
                                       .eq('product_name', selectedOldName);
 
-                                    // B. Products хүснэгт дэх нэр, үнийг шинэчилж, ангиллыг үлдээнэ:
+                                    // 2. Products хүснэгт дэх нэрийг шинэчлэх:
                                     if (existingProd) {
                                       await supabase
                                         .from('products')
@@ -6266,14 +6446,14 @@ if (salesToInsert.length > 0) {
                                       }], { onConflict: 'client_id,name' });
                                     }
 
-                                    // C. aliasMap-д бүртгэх
-                                    aliasMap[cleanString(posName).toLowerCase()] = cleanString(posName).toLowerCase();
+                                    // 3. Түүхэнд бичих
+                                    await createSnapshotFromDb(posName, 'updated');
 
                                     setLoading(false);
                                     fetchDatabaseData(activeClient);
-                                    alert(`✅ "${selectedOldName}"-ийн жор ба ангиллыг "${posName}" (${item.unitPrice.toLocaleString()}₮) болгож амжилттай нэгтгэлээ!`);
+                                    alert(`✅ "${selectedOldName}"-ийн жорыг "${posName}"-тай амжилттай холболоо!`);
                                   }}
-                                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl font-black text-sm transition active:scale-95 whitespace-nowrap shadow"
+                                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
                                 >
                                   🔗 Сольж нэгтгэх
                                 </button>
@@ -6281,7 +6461,7 @@ if (salesToInsert.length > 0) {
 
                               <span className="text-slate-600 text-sm hidden lg:inline">эсвэл</span>
 
-                              {/* ⚡ СОНГОЛТ 2: ЦОО ШИНЭЭР ЦЭСЭНД НЭМЭХ (Хэрэв жоргүй шинэ бараа бол) */}
+                              {/* ⚡ СОНГОЛТ 2: ЦОО ШИНЭЭР ЦЭСЭНД НЭМЭХ */}
                               <button
                                 type="button"
                                 onClick={async () => {
@@ -6294,7 +6474,7 @@ if (salesToInsert.length > 0) {
 
                                   if (data) {
                                      setProductsList(prev => [data, ...prev.filter(p => p.id !== data.id)]);
-                                       }
+                                  }
                                   fetchDatabaseData(activeClient);
                                 }}
                                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl font-bold text-sm transition active:scale-95 whitespace-nowrap"
@@ -6914,34 +7094,49 @@ if (salesToInsert.length > 0) {
                         </button>
                       </div>
 
-                      {/* 3-Р МӨР: ОРЦУУДЫН TAGS */}
-                      {newRecipeItemsDraft.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          {newRecipeItemsDraft.map((item, idx) => {
-                            const ing = ingredients.find((i) => i.id === item.ingredient_id);
-                            return (
-                              <div
-                                key={idx}
-                                className="bg-[#0B1120] border border-slate-800 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
-                              >
-                                <span>{ing?.name || "Орц"}</span>
-                                <span className="text-purple-400 font-mono text-xs">
-                                  {item.amount} {ing?.unit}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setNewRecipeItemsDraft(newRecipeItemsDraft.filter((_, i) => i !== idx))
-                                  }
-                                  className="text-rose-400 hover:text-rose-300 p-0.5 ml-1 font-bold cursor-pointer"
+                     {/* 3-Р МӨР: ШИНЭ ЖОРТ НЭМЭГДСЭН ОРЦУУД (ГРАММЫГ НЬ ЗАСАХ БОЛОМЖТОЙ) */}
+                        {newRecipeItemsDraft.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-2 pt-2">
+                            {newRecipeItemsDraft.map((item, idx) => {
+                              const ing = ingredients.find((i) => i.id === item.ingredient_id);
+                              return (
+                                <div
+                                  key={idx}
+                                  className="bg-[#0B1120] border border-slate-700 hover:border-purple-500/60 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
                                 >
-                                  ×
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                                  <span>{ing?.name || "Орц"}</span>
+                                  
+                                  {/* 👈 ОРСНЫ ДАРАА ТООГ НЬ ШУУД ӨӨРЧИЛЖ БОЛОХ INPUT */}
+                                  <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-lg border border-purple-500/50">
+                                    <input
+                                      type="number"
+                                      value={item.amount}
+                                      onChange={(e) => {
+                                        const newAmt = e.target.value;
+                                        setNewRecipeItemsDraft(prev =>
+                                          prev.map((it, i) => i === idx ? { ...it, amount: newAmt } : it)
+                                        );
+                                      }}
+                                      className="w-14 bg-transparent text-center text-purple-200 font-mono font-black text-xs outline-none"
+                                    />
+                                    <span className="text-xs text-slate-400 font-normal">{ing?.unit || "гр"}</span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setNewRecipeItemsDraft(newRecipeItemsDraft.filter((_, i) => i !== idx))
+                                    }
+                                    className="text-rose-400 hover:text-rose-300 p-0.5 ml-1 font-bold cursor-pointer"
+                                    title="Хасах"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
 
                     </div>
                   )}
@@ -7029,74 +7224,126 @@ if (salesToInsert.length > 0) {
 
                             {/* ⚡ ОРЦ БҮРИЙГ ГАНЦ ГАНЦААР НЬ ЧИРЭХ ЭСВЭЛ [+] ДАРЖ ХУУЛАХ ХЭСЭГ */}
                             <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900">
-                              {productRecipes.map((r: any) => {
+                        {productRecipes.map((r: any) => {
                                 const ing = ingredients.find((i) => i.id === r.ingredient_id);
+                                const draftVal = recipeDrafts[r.id];
+                                const isDrafting = draftVal !== undefined && draftVal !== r.amount.toString();
+
+                                // 🟢 А. ШИНЭ ЖОР УГСАРЧ БАЙХ ҮЕД (ХААНА Ч ДАРСАН ДЭЭШЭЭ ШУУД НЭМЭГДЭХ ГОРИМ)
+                                if (isCreatingRecipeCard) {
+                                  return (
+                                    <div
+                                      key={r.id}
+                                      draggable={true}
+                                      onDragStart={(e) => {
+                                        e.stopPropagation();
+                                        e.dataTransfer.setData("application/json", JSON.stringify({
+                                          ingredient_id: r.ingredient_id,
+                                          amount: r.amount.toString()
+                                        }));
+                                      }}
+                                      onClick={() => {
+                                        setNewRecipeItemsDraft(prev => {
+                                          const exists = prev.some(item => item.ingredient_id === r.ingredient_id);
+                                          if (exists) return prev;
+                                          return [...prev, { ingredient_id: r.ingredient_id, amount: r.amount.toString() }];
+                                        });
+                                      }}
+                                      className="bg-slate-900/90 hover:bg-purple-950/60 border border-slate-800 hover:border-purple-500/70 px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2.5 transition shadow-sm cursor-pointer active:scale-95 select-none"
+                                      title="Дарж дээд талын шинэ жор руу шууд нэмэх"
+                                    >
+                                      <span className="text-slate-200 font-bold">{ing?.name || "Орц"}</span>
+                                      <span className="text-purple-300 font-mono text-xs bg-purple-950/60 border border-purple-500/30 px-2 py-0.5 rounded-lg">
+                                        {r.amount} {ing?.unit || "гр"}
+                                      </span>
+                                      <span className="h-5 w-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-black shrink-0">
+                                        +
+                                      </span>
+                                    </div>
+                                  );
+                                }
+
+                                // ⚪ Б. ЭНГИЙН ҮЕД: ГРАММ ЗАСАХ [✓] БАТЛАХ ТОBЧТОЙ ХУВИЛБАР (ШИНЭ КАРТ ҮҮСГЭНЭ)
                                 return (
                                   <div
                                     key={r.id}
-                                    // ⚡ ЗӨВХӨН ЭНЭ 1 ОРЦ Л ЧИРЭГДЭНЭ
-                                    draggable={true}
-                                    onDragStart={(e) => {
-                                      e.stopPropagation(); // Дээшээ карт руу дамжихаас хамгаална
-                                      e.dataTransfer.setData("application/json", JSON.stringify({
-                                        ingredient_id: r.ingredient_id,
-                                        amount: r.amount.toString()
-                                      }));
-                                    }}
-                                    className="bg-slate-900/90 border border-slate-800 hover:border-purple-500/60 px-2.5 py-1.5 rounded-2xl text-sm flex items-center gap-2 transition shadow-sm cursor-grab active:cursor-grabbing"
-                                    title="Энэ орцыг чирж эсвэл [+] дарж шинэ жор руу оруулж болно"
+                                    className={`bg-slate-900/90 border px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2 transition shadow-sm ${
+                                      isDrafting ? "border-amber-400 bg-slate-950" : "border-slate-800 hover:border-slate-700"
+                                    }`}
                                   >
                                     <span className="text-slate-200 font-bold">{ing?.name || "Орц"}</span>
-                                    
-                                    {/* 👈 ШИНЭ: Чирэх дургүй үед 1 дарж хуулах [+] товч (Ягаан хайрцаг нээлттэй үед л харагдана) */}
-                                    {isCreatingRecipeCard && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setNewRecipeItemsDraft(prev => {
-                                            const exists = prev.some(item => item.ingredient_id === r.ingredient_id);
-                                            if (exists) return prev;
-                                            return [...prev, { ingredient_id: r.ingredient_id, amount: r.amount.toString() }];
-                                          });
-                                        }}
-                                        className="h-5 w-5 bg-purple-600 hover:bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-black transition cursor-pointer active:scale-90"
-                                        title="Дээд талын шинэ жор руу шууд нэмэх"
-                                      >
-                                        +
-                                      </button>
-                                    )}
 
-                                    {/* Грамм засах талбар */}
-                                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-xl border border-purple-500/40">
+                                    {/* Грамм бичих талбар */}
+                                    <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1 rounded-xl border border-purple-500/40">
                                       <input
                                         type="number"
-                                        defaultValue={r.amount}
+                                        value={draftVal !== undefined ? draftVal : r.amount}
+                                        onFocus={(e) => e.target.select()}
+                                        onChange={(e) => {
+                                          setRecipeDrafts({ ...recipeDrafts, [r.id]: e.target.value });
+                                        }}
                                         onKeyDown={async (e) => {
                                           if (e.key === "Enter") {
-                                            const val = parseFloat((e.target as HTMLInputElement).value);
+                                            const val = parseFloat(draftVal);
                                             if (!isNaN(val) && val > 0) {
                                               await supabase.from("recipes").update({ amount: val }).eq("id", r.id);
-                                              await recordRecipeSnapshot(pName, 'updated');
+                                              // 👈 ГРАММ ӨӨРЧЛӨГДӨХӨД ШИНЭ ТҮҮХ/КАРТ ҮҮСГЭХ:
+                                              await createSnapshotFromDb(pName, 'updated');
+                                              setRecipeDrafts(prev => { const n = { ...prev }; delete n[r.id]; return n; });
                                               fetchDatabaseData(activeClient);
                                             }
                                           }
                                         }}
-                                        className="w-12 bg-transparent text-center text-purple-200 font-mono font-black text-xs outline-none"
+                                        className="w-14 bg-transparent text-center text-purple-200 font-mono font-black text-sm outline-none"
                                       />
-                                      <span className="text-xs text-slate-400">{ing?.unit || "гр"}</span>
+                                      <span className="text-xs text-slate-400 font-semibold">{ing?.unit || "гр"}</span>
                                     </div>
 
-                                    {/* Орц устгах хогийн сав */}
+                                    {/* 👈 БУЦААЖ НЭМСЭН [✓ БАТЛАХ] & [✕ БОЛИУЛАХ] ТОВЧНУУД */}
+                                    {isDrafting && (
+                                      <div className="flex items-center gap-1 animate-in fade-in duration-100">
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            const val = parseFloat(draftVal);
+                                            if (!isNaN(val) && val > 0) {
+                                              await supabase.from("recipes").update({ amount: val }).eq("id", r.id);
+                                              // 👈 ДАРСАН ДАРУЙД ШИНЭ ТҮҮХ/КАРТ ҮҮСГЭНЭ:
+                                              await createSnapshotFromDb(pName, 'updated');
+                                              setRecipeDrafts(prev => { const n = { ...prev }; delete n[r.id]; return n; });
+                                              fetchDatabaseData(activeClient);
+                                            }
+                                          }}
+                                          className="h-7 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-black text-xs transition active:scale-95 shadow cursor-pointer flex items-center justify-center"
+                                          title="Хадгалах"
+                                        >
+                                          ✓
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setRecipeDrafts(prev => { const n = { ...prev }; delete n[r.id]; return n; });
+                                          }}
+                                          className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center"
+                                          title="Болих"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {/* Орц устгах хогийн сав (УСТГАХАД БАС ШИНЭ КАРТ ҮҮСНЭ) */}
                                     <button
                                       type="button"
                                       onClick={async () => {
                                         if (!confirm(`"${pName}"-ийн жороос "${ing?.name}" орцыг хасах уу?`)) return;
-                                        await recordRecipeSnapshot(pName, 'updated');
                                         await supabase.from("recipes").delete().eq("id", r.id);
+                                        // 👈 ОРЦ УСТГАХАД ШИНЭ ТҮҮХ ҮҮСГЭХ:
+                                        await createSnapshotFromDb(pName, 'updated');
                                         fetchDatabaseData(activeClient);
                                       }}
-                                      className="text-slate-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer"
+                                      className="text-slate-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer ml-1"
+                                      title="Орц хасах"
                                     >
                                       🗑️
                                     </button>
@@ -8374,9 +8621,10 @@ if (salesToInsert.length > 0) {
                                   title="Грамм нь өөрчлөгдсөн байна"
                                 >
                                   <span>{diff.name}:</span>
-                                  <strong className="text-amber-200 font-mono">
-                                    {diff.snapAmount} {diff.unit} → {diff.currAmount} {diff.unit}
-                                  </strong>
+                               <span className="flex items-center gap-1 font-mono">
+                                <strong className="text-amber-200">{diff.snapAmount} {diff.unit}</strong>
+                                <span className="text-amber-400/80 font-normal text-xs">(Одоо: {diff.currAmount} {diff.unit})</span>
+                              </span>
                                 </span>
                               );
                             }
