@@ -358,10 +358,13 @@ export interface ReconciliationResult {
 // 8. 🎯 EN_TO_MN_DICT-ИЙН БҮХ 142 ҮГИЙН САНХҮҮГИЙН АНГИЛАЛ (100% EXHAUSTIVE)
 // =========================================================================
 export const FNB_DICT_CATEGORY_MAP: Record<
-  string, 
+  string,
   'HOT_BEVERAGE' | 'COLD_BEVERAGE' | 'FOOD_PREP' | 'BAKERY_DESSERT' | 'RETAIL_FMCG' | 'GENERAL'
 > = {
-  // Товчлолууд
+  // =========================================================
+  // Товчлолууд / EXTRA WORDS
+  // These are not in the first guide, so keep their categories
+  // =========================================================
   syr: 'COLD_BEVERAGE',
   fr: 'COLD_BEVERAGE',
   cr: 'BAKERY_DESSERT',
@@ -377,22 +380,27 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   mascarp: 'BAKERY_DESSERT',
   boulillon: 'FOOD_PREP',
 
+  // =========================================================
   // Сүү, Өндөг, Цөцгий, Бяслаг
-  milk: 'HOT_BEVERAGE',
-  egg: 'FOOD_PREP',
-  eggs: 'FOOD_PREP',
-  butter: 'BAKERY_DESSERT',
-  cheese: 'FOOD_PREP',
-  cream: 'BAKERY_DESSERT',
+  // First dictionary = SOURCE OF TRUTH
+  // =========================================================
+  milk: 'GENERAL',
+  egg: 'GENERAL',
+  eggs: 'GENERAL',
+  butter: 'GENERAL',
+  cheese: 'GENERAL',
+  cream: 'GENERAL',
   creamy: 'BAKERY_DESSERT',
   sauer: 'FOOD_PREP',
   sour: 'FOOD_PREP',
-  balloon: 'BAKERY_DESSERT',
-  yogurt: 'COLD_BEVERAGE',
-  moloko: 'BAKERY_DESSERT',
+  balloon: 'GENERAL',
+  yogurt: 'GENERAL',
+  moloko: 'GENERAL',
   whipped: 'BAKERY_DESSERT',
 
+  // =========================================================
   // Кофе, Цай, Ундаанууд
+  // =========================================================
   bean: 'HOT_BEVERAGE',
   beans: 'HOT_BEVERAGE',
   coffee: 'HOT_BEVERAGE',
@@ -422,18 +430,20 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   orice: 'COLD_BEVERAGE',
   smoothie: 'COLD_BEVERAGE',
 
+  // =========================================================
   // Сироп, Чихэрлэг
+  // =========================================================
   syrup: 'COLD_BEVERAGE',
-  sugar: 'HOT_BEVERAGE',
-  sweetener: 'HOT_BEVERAGE',
-  honey: 'HOT_BEVERAGE',
-  caramel: 'BAKERY_DESSERT',
-  vanilla: 'BAKERY_DESSERT',
-  hazelnut: 'HOT_BEVERAGE',
-  pistacchio: 'BAKERY_DESSERT',
-  pistachio: 'BAKERY_DESSERT',
-  cinnamon: 'BAKERY_DESSERT',
-  chocolate: 'HOT_BEVERAGE',
+  sugar: 'GENERAL',
+  sweetener: 'GENERAL',
+  honey: 'GENERAL',
+  caramel: 'GENERAL',
+  vanilla: 'GENERAL',
+  hazelnut: 'GENERAL',
+  pistacchio: 'GENERAL',
+  pistachio: 'GENERAL',
+  cinnamon: 'GENERAL',
+  chocolate: 'GENERAL',
   choco: 'HOT_BEVERAGE',
   cocoa: 'HOT_BEVERAGE',
   mocha: 'HOT_BEVERAGE',
@@ -441,10 +451,12 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   curasao: 'COLD_BEVERAGE',
   grenade: 'COLD_BEVERAGE',
 
+  // =========================================================
   // Мах, Уураг
-  beef: 'FOOD_PREP',
+  // =========================================================
+  beef: 'GENERAL',
   pork: 'FOOD_PREP',
-  chicken: 'FOOD_PREP',
+  chicken: 'GENERAL',
   sheep: 'FOOD_PREP',
   lamb: 'FOOD_PREP',
   bacon: 'FOOD_PREP',
@@ -453,28 +465,32 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   tuna: 'FOOD_PREP',
   ground: 'FOOD_PREP',
 
+  // =========================================================
   // Жимс
-  apple: 'COLD_BEVERAGE',
-  banana: 'COLD_BEVERAGE',
-  lemon: 'COLD_BEVERAGE',
-  orange: 'COLD_BEVERAGE',
-  grapefruit: 'COLD_BEVERAGE',
-  kiwi: 'COLD_BEVERAGE',
-  peach: 'COLD_BEVERAGE',
-  mango: 'COLD_BEVERAGE',
-  passion: 'COLD_BEVERAGE',
-  cherry: 'COLD_BEVERAGE',
-  berry: 'COLD_BEVERAGE',
-  strawberry: 'COLD_BEVERAGE',
-  raspberry: 'COLD_BEVERAGE',
-  blueberry: 'COLD_BEVERAGE',
-  currant: 'COLD_BEVERAGE',
-  buckthorn: 'COLD_BEVERAGE',
-  fruits: 'COLD_BEVERAGE',
-  wildberry: 'COLD_BEVERAGE',
-  sea: 'COLD_BEVERAGE',
+  // =========================================================
+  apple: 'GENERAL',
+  banana: 'GENERAL',
+  lemon: 'GENERAL',
+  orange: 'GENERAL',
+  grapefruit: 'GENERAL',
+  kiwi: 'GENERAL',
+  peach: 'GENERAL',
+  mango: 'GENERAL',
+  passion: 'GENERAL',
+  cherry: 'GENERAL',
+  berry: 'GENERAL',
+  strawberry: 'GENERAL',
+  raspberry: 'GENERAL',
+  blueberry: 'GENERAL',
+  currant: 'GENERAL',
+  buckthorn: 'GENERAL',
+  fruits: 'GENERAL',
+  wildberry: 'GENERAL',
+  sea: 'GENERAL',
 
+  // =========================================================
   // Ногоо, Ургамал
+  // =========================================================
   tomato: 'FOOD_PREP',
   tomatoes: 'FOOD_PREP',
   cucumber: 'FOOD_PREP',
@@ -486,17 +502,18 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   selleries: 'FOOD_PREP',
   parsley: 'FOOD_PREP',
   pepper: 'FOOD_PREP',
-  sweet: 'FOOD_PREP',
   corn: 'FOOD_PREP',
   pumpkin: 'FOOD_PREP',
   ginger: 'HOT_BEVERAGE',
-  herbs: 'FOOD_PREP',
+  herbs: 'GENERAL',
   farm: 'FOOD_PREP',
   plant: 'HOT_BEVERAGE',
 
+  // =========================================================
   // Гурил, Сүмс, Нарийн боов
-  bread: 'FOOD_PREP',
-  bun: 'FOOD_PREP',
+  // =========================================================
+  bread: 'GENERAL',
+  bun: 'GENERAL',
   flour: 'BAKERY_DESSERT',
   powder: 'BAKERY_DESSERT',
   power: 'BAKERY_DESSERT',
@@ -512,18 +529,12 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   tabasco: 'FOOD_PREP',
   worchest: 'FOOD_PREP',
   seasonings: 'FOOD_PREP',
-  various: 'FOOD_PREP',
   chips: 'RETAIL_FMCG',
-  slice: 'FOOD_PREP',
-  piece: 'FOOD_PREP',
   stick: 'BAKERY_DESSERT',
   velvet: 'BAKERY_DESSERT',
   ladies: 'BAKERY_DESSERT',
   finger: 'BAKERY_DESSERT',
   baking: 'BAKERY_DESSERT',
-  dried: 'FOOD_PREP',
-  fresh: 'FOOD_PREP',
-  sliced: 'FOOD_PREP',
   hot: 'HOT_BEVERAGE',
   black: 'HOT_BEVERAGE',
   blue: 'COLD_BEVERAGE',
@@ -531,7 +542,20 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   soup: 'FOOD_PREP',
   sandwich: 'FOOD_PREP',
 
+  // =========================================================
+  // Тэмдэг нэрүүд / EXTRA WORDS
+  // =========================================================
+  sweet: 'GENERAL',
+  various: 'GENERAL',
+  slice: 'GENERAL',
+  piece: 'GENERAL',
+  dried: 'GENERAL',
+  fresh: 'GENERAL',
+  sliced: 'GENERAL',
+
+  // =========================================================
   // Сав баглаа
+  // =========================================================
   cup: 'GENERAL',
   lid: 'GENERAL',
   straw: 'GENERAL',
@@ -539,67 +563,98 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   bag: 'GENERAL',
 };
 
-// =========================================================================
-// ⚡ 100% ТОЛЬ БИЧИГТ СУУРИЛСАН АВТОМАТ АНГИЛАГЧ (NO HARDCODED ARRAYS)
-// =========================================================================
-export function autoCategorizeProduct(productName: string): string | null {
-  const isIced = checkIcedModifier(productName);
-  
-  // 1. Толь бичгээс бүх холбогдох түлхүүр үгсийг (English Keys) авах
-  const tokens = extractFnbTokens(productName);
+// 1. ТӨЛӨВ ӨӨРЧЛӨГЧ ТОЛЬ (Temperature Modifiers)
+const MODIFIERS = {
+  hot: ['халуун', 'hot', 'warm', 'бүлээн'],
+  cold: ['мөстэй', 'мөст', 'хүйтэн', 'ice', 'iced', 'cold', 'frappe', 'мөс'],
+};
+
+// src/lib/autoReconcile.ts
+
+export function autoCategorizeProduct(
+  productName: string, 
+  learnedCategories: any[] = [] // 👈 Хоёр дахь параметр болгон нэмсэн
+): string | null {
+  const clean = sanitizeName(productName);
+  const lower = clean.toLowerCase();
+
+  // 0. 🧠 ХЭРЭВ СИСТЕМ ӨМНӨ НЬ СУРСАН БОЛ: Шууд хариулна (0.001ms)
+  const learned = learnedCategories.find(lc => sanitizeName(lc.product_name) === clean);
+  if (learned) return learned.category;
+
+  const tokens = extractFnbTokens(productName); 
   if (tokens.size === 0) return null;
 
-  // 2. Дээрх FNB_DICT_CATEGORY_MAP-аас тохирох ангиллуудыг олох
-  const matchedCategories = new Set<string>();
-  tokens.forEach((token) => {
-    const cat = FNB_DICT_CATEGORY_MAP[token.toLowerCase()];
-    if (cat) matchedCategories.add(cat);
-  });
+  let baseCategory: string | null = null;
+  let isCold = false;
+  let isHot = false;
+  let highestConfidence = 0;
 
-  // 3. Зэрэглэлийн логик (Бүтээгдэхүүний үндсэн шинжийг тодорхойлох):
-  // Хоол (Сэндвич, Бургер, Мах) орсон бол хоолны ангилал хамгийн давуу эрхтэй
-  if (matchedCategories.has('FOOD_PREP')) {
-    return 'FOOD_PREP';
-  }
+  for (const token of tokens) {
+    const word = token.toLowerCase();
 
-  // Бэйкэри (Бялуу, десерт) орсон бол
-  if (matchedCategories.has('BAKERY_DESSERT')) {
-    return 'BAKERY_DESSERT';
-  }
+    if (MODIFIERS.hot.includes(word)) isHot = true;
+    if (MODIFIERS.cold.includes(word)) isCold = true;
 
-  // Лаазтай/Савласан бэлэн бүтээгдэхүүн
-  if (matchedCategories.has('RETAIL_FMCG')) {
-    return 'RETAIL_FMCG';
-  }
+    for (const [dictWord, cat] of Object.entries(FNB_DICT_CATEGORY_MAP)) {
+      if (cat === 'GENERAL') continue;
 
-  // Ундаа / Кофе: Хэрэв мөстэй эсвэл хүйтэн шинжтэй бол COLD_BEVERAGE, үгүй бол HOT_BEVERAGE
-  if (matchedCategories.has('HOT_BEVERAGE') || matchedCategories.has('COLD_BEVERAGE')) {
-    if (isIced || matchedCategories.has('COLD_BEVERAGE')) {
-      return 'COLD_BEVERAGE';
+      const score = getSimilarity(word, dictWord);
+      const requiredConfidence = dictWord.length <= 4 ? 1.0 : 0.80; // Богино үгсийг хамгаалах
+
+      if (score > highestConfidence && score >= requiredConfidence) {
+        highestConfidence = score;
+        baseCategory = cat;
+      }
     }
-    return 'HOT_BEVERAGE';
   }
 
-  // Сав баглаа эсвэл ерөнхий хэрэгсэл
-  if (matchedCategories.has('GENERAL')) {
-    return 'GENERAL';
+  if (!baseCategory || highestConfidence < 0.80) return null;
+
+  if (baseCategory === 'HOT_BEVERAGE' || baseCategory === 'COLD_BEVERAGE') {
+    if (isCold) return 'COLD_BEVERAGE';
+    if (isHot) return 'HOT_BEVERAGE';
+    if (/чацаргана|аньс|нэрс/i.test(lower)) return 'HOT_BEVERAGE';
   }
 
-  return null; // Танигдаагүй бол AI Batch руу шилжинэ
+  return baseCategory;
 }
 
 
+// ⚡ evaluateSaleItem дотор параметрүүдийн дарааллыг зөв тохируулав!
 export function evaluateSaleItem(
   rawPosName: string,
   posPrice: number,
   productsList: any[],
-  aliasMap: Record<string, string> = {}
+  aliasMap: Record<string, string> = {},
+  learnedMenus: any[] = [],    // 👈 4-р параметр нь learnedMenus (Array)
+  // 👈 5-р параметр нь aliasMap (Record)
 ): ReconciliationResult {
   const cleanPos = sanitizeName(rawPosName);
   const posIsIced = checkIcedModifier(rawPosName);
   const posModifier = getVariantModifier(cleanPos);
 
-  // А. Яг ижил нэр байна уу? (Хаалт үл тооцогдоно: "Tiramisu (sale)" == "Tiramisu sale")
+  // 0. 🧠 ХЭРЭВ ЭЗЭН ӨМНӨ НЬ СОЛЬЖ НЭГТГЭСЭН БОЛ: (Auto-Link)
+  const learnedMatch = learnedMenus.find(lm => sanitizeName(lm.pos_name) === cleanPos);
+  if (learnedMatch) {
+    const exactProd = productsList.find(p => sanitizeName(p.name) === sanitizeName(learnedMatch.official_product_name));
+    if (exactProd) {
+      const isSafe = isPriceChangeSafe(Number(exactProd.selling_price), posPrice);
+      return {
+        decision: 'AUTO_MERGE',
+        matchedProduct: exactProd,
+        targetProduct: exactProd,
+        canonicalName: exactProd.name,
+        posPrice,
+        shouldUpdateMenuPrice: isSafe,
+        shouldUpdatePrice: isSafe,
+        isVariant: false,
+        reason: `🧠 Систем сурсан (Learned Menu: ${exactProd.name})`
+      };
+    }
+  }
+
+  // А. Яг ижил нэр байна уу?
   const exactProd = productsList.find(p => sanitizeName(p.name) === cleanPos);
   if (exactProd) {
     const isSafe = isPriceChangeSafe(Number(exactProd.selling_price), posPrice);
@@ -639,24 +694,17 @@ export function evaluateSaleItem(
   // В. Меню дотроос хамгийн өндөр оноотойг хайх
   const scored = productsList.map(prod => {
     let score = calculateMatchScore(rawPosName, prod.name);
-    
-    // Халуун хувилбарт давуу эрх өгөх
     const prodIsIced = checkIcedModifier(prod.name);
-    if (!posIsIced && !prodIsIced) {
-      score += 0.05;
-    } else if (posIsIced && prodIsIced) {
-      score += 0.10;
-    } else if (posIsIced !== prodIsIced) {
-      score -= 0.20;
-    }
-
+    if (!posIsIced && !prodIsIced) score += 0.05;
+    else if (posIsIced && prodIsIced) score += 0.10;
+    else if (posIsIced !== prodIsIced) score -= 0.20;
     return { prod, score };
   }).sort((a, b) => b.score - a.score);
 
   const top = scored[0];
   const second = scored[1];
 
-  // Г. [2-р Хамгаалалт] Тэнцсэн үед дур мэдэн шийдэхгүй (Tie-Break)
+  // Г. Tie-Break (Тэнцсэн үед)
   if (top && second && top.score >= 0.75 && Math.abs(top.score - second.score) < 0.05) {
     return {
       decision: 'TIE_BREAK',
@@ -674,10 +722,7 @@ export function evaluateSaleItem(
   if (top && top.score >= 0.80) {
     const isSafe = isPriceChangeSafe(Number(top.prod.selling_price), posPrice);
     const menuModifier = getVariantModifier(sanitizeName(top.prod.name));
-
-    // ⚡ АЛТАН ДҮРЭМ: Хэрэв нэг нь 'Big', 'jijig', 'sale' үгтэй бол ЭЦЭГ Tiramisu-Г УСТГАХГҮЙ, ХУВИЛБАР БОЛГОНО:
     const isVariant = posModifier !== menuModifier;
-
     return {
       decision: 'AUTO_MERGE',
       matchedProduct: top.prod,
@@ -686,14 +731,12 @@ export function evaluateSaleItem(
       posPrice,
       shouldUpdateMenuPrice: isSafe,
       shouldUpdatePrice: isSafe,
-      isVariant: isVariant, // 👈 ТУСДАА ХУВИЛБАР МӨН ЭСЭХ ТЭМДЭГ!
-      reason: isVariant 
-        ? `${top.prod.name}-ийн хувилбар (${posModifier})` 
-        : `Ижил бараа олдсон (${top.prod.name})`
+      isVariant: isVariant,
+      reason: isVariant ? `${top.prod.name}-ийн хувилбар (${posModifier})` : `Ижил бараа олдсон (${top.prod.name})`
     };
   }
 
-  // Е. Огт таараагүй цоо шинэ бараа
+  // Е. Цоо шинэ бараа
   return {
     decision: 'NEW_PRODUCT',
     canonicalName: rawPosName,

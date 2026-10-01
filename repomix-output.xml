@@ -1919,17 +1919,307 @@ export interface ReconciliationResult {
   isVariant?: boolean;
 }
 
+// =========================================================================
+// 8. 🎯 EN_TO_MN_DICT-ИЙН БҮХ 142 ҮГИЙН САНХҮҮГИЙН АНГИЛАЛ (100% EXHAUSTIVE)
+// =========================================================================
+export const FNB_DICT_CATEGORY_MAP: Record<
+  string,
+  'HOT_BEVERAGE' | 'COLD_BEVERAGE' | 'FOOD_PREP' | 'BAKERY_DESSERT' | 'RETAIL_FMCG' | 'GENERAL'
+> = {
+  // =========================================================
+  // Товчлолууд / EXTRA WORDS
+  // These are not in the first guide, so keep their categories
+  // =========================================================
+  syr: 'COLD_BEVERAGE',
+  fr: 'COLD_BEVERAGE',
+  cr: 'BAKERY_DESSERT',
+  bl: 'COLD_BEVERAGE',
+  veg: 'FOOD_PREP',
+  vegg: 'FOOD_PREP',
+  veggies: 'FOOD_PREP',
+  c: 'FOOD_PREP',
+  can: 'RETAIL_FMCG',
+  canned: 'RETAIL_FMCG',
+  chick: 'FOOD_PREP',
+  pickl: 'FOOD_PREP',
+  mascarp: 'BAKERY_DESSERT',
+  boulillon: 'FOOD_PREP',
+
+  // =========================================================
+  // Сүү, Өндөг, Цөцгий, Бяслаг
+  // First dictionary = SOURCE OF TRUTH
+  // =========================================================
+  milk: 'GENERAL',
+  egg: 'GENERAL',
+  eggs: 'GENERAL',
+  butter: 'GENERAL',
+  cheese: 'GENERAL',
+  cream: 'GENERAL',
+  creamy: 'BAKERY_DESSERT',
+  sauer: 'FOOD_PREP',
+  sour: 'FOOD_PREP',
+  balloon: 'GENERAL',
+  yogurt: 'GENERAL',
+  moloko: 'GENERAL',
+  whipped: 'BAKERY_DESSERT',
+
+  // =========================================================
+  // Кофе, Цай, Ундаанууд
+  // =========================================================
+  bean: 'HOT_BEVERAGE',
+  beans: 'HOT_BEVERAGE',
+  coffee: 'HOT_BEVERAGE',
+  espresso: 'HOT_BEVERAGE',
+  kick: 'HOT_BEVERAGE',
+  tea: 'HOT_BEVERAGE',
+  teas: 'HOT_BEVERAGE',
+  brew: 'HOT_BEVERAGE',
+  matcha: 'HOT_BEVERAGE',
+  chai: 'HOT_BEVERAGE',
+  rooibos: 'HOT_BEVERAGE',
+  hibis: 'HOT_BEVERAGE',
+  butterfl: 'HOT_BEVERAGE',
+  green: 'HOT_BEVERAGE',
+  bulbous: 'HOT_BEVERAGE',
+  water: 'COLD_BEVERAGE',
+  bonaque: 'RETAIL_FMCG',
+  soda: 'COLD_BEVERAGE',
+  cola: 'RETAIL_FMCG',
+  laaztai: 'RETAIL_FMCG',
+  craft: 'COLD_BEVERAGE',
+  soft: 'COLD_BEVERAGE',
+  drink: 'COLD_BEVERAGE',
+  juice: 'COLD_BEVERAGE',
+  calpis: 'COLD_BEVERAGE',
+  tonic: 'COLD_BEVERAGE',
+  orice: 'COLD_BEVERAGE',
+  smoothie: 'COLD_BEVERAGE',
+
+  // =========================================================
+  // Сироп, Чихэрлэг
+  // =========================================================
+  syrup: 'COLD_BEVERAGE',
+  sugar: 'GENERAL',
+  sweetener: 'GENERAL',
+  honey: 'GENERAL',
+  caramel: 'GENERAL',
+  vanilla: 'GENERAL',
+  hazelnut: 'GENERAL',
+  pistacchio: 'GENERAL',
+  pistachio: 'GENERAL',
+  cinnamon: 'GENERAL',
+  chocolate: 'GENERAL',
+  choco: 'HOT_BEVERAGE',
+  cocoa: 'HOT_BEVERAGE',
+  mocha: 'HOT_BEVERAGE',
+  mint: 'COLD_BEVERAGE',
+  curasao: 'COLD_BEVERAGE',
+  grenade: 'COLD_BEVERAGE',
+
+  // =========================================================
+  // Мах, Уураг
+  // =========================================================
+  beef: 'GENERAL',
+  pork: 'FOOD_PREP',
+  chicken: 'GENERAL',
+  sheep: 'FOOD_PREP',
+  lamb: 'FOOD_PREP',
+  bacon: 'FOOD_PREP',
+  salami: 'FOOD_PREP',
+  patty: 'FOOD_PREP',
+  tuna: 'FOOD_PREP',
+  ground: 'FOOD_PREP',
+
+  // =========================================================
+  // Жимс
+  // =========================================================
+  apple: 'GENERAL',
+  banana: 'GENERAL',
+  lemon: 'GENERAL',
+  orange: 'GENERAL',
+  grapefruit: 'GENERAL',
+  kiwi: 'GENERAL',
+  peach: 'GENERAL',
+  mango: 'GENERAL',
+  passion: 'GENERAL',
+  cherry: 'GENERAL',
+  berry: 'GENERAL',
+  strawberry: 'GENERAL',
+  raspberry: 'GENERAL',
+  blueberry: 'GENERAL',
+  currant: 'GENERAL',
+  buckthorn: 'GENERAL',
+  fruits: 'GENERAL',
+  wildberry: 'GENERAL',
+  sea: 'GENERAL',
+
+  // =========================================================
+  // Ногоо, Ургамал
+  // =========================================================
+  tomato: 'FOOD_PREP',
+  tomatoes: 'FOOD_PREP',
+  cucumber: 'FOOD_PREP',
+  carrot: 'FOOD_PREP',
+  onion: 'FOOD_PREP',
+  garlic: 'FOOD_PREP',
+  lettuce: 'FOOD_PREP',
+  celery: 'FOOD_PREP',
+  selleries: 'FOOD_PREP',
+  parsley: 'FOOD_PREP',
+  pepper: 'FOOD_PREP',
+  corn: 'FOOD_PREP',
+  pumpkin: 'FOOD_PREP',
+  ginger: 'HOT_BEVERAGE',
+  herbs: 'GENERAL',
+  farm: 'FOOD_PREP',
+  plant: 'HOT_BEVERAGE',
+
+  // =========================================================
+  // Гурил, Сүмс, Нарийн боов
+  // =========================================================
+  bread: 'GENERAL',
+  bun: 'GENERAL',
+  flour: 'BAKERY_DESSERT',
+  powder: 'BAKERY_DESSERT',
+  power: 'BAKERY_DESSERT',
+  sauce: 'FOOD_PREP',
+  burger: 'FOOD_PREP',
+  ketchup: 'FOOD_PREP',
+  mayo: 'FOOD_PREP',
+  mustard: 'FOOD_PREP',
+  oil: 'FOOD_PREP',
+  olive: 'FOOD_PREP',
+  vinegar: 'FOOD_PREP',
+  salt: 'FOOD_PREP',
+  tabasco: 'FOOD_PREP',
+  worchest: 'FOOD_PREP',
+  seasonings: 'FOOD_PREP',
+  chips: 'RETAIL_FMCG',
+  stick: 'BAKERY_DESSERT',
+  velvet: 'BAKERY_DESSERT',
+  ladies: 'BAKERY_DESSERT',
+  finger: 'BAKERY_DESSERT',
+  baking: 'BAKERY_DESSERT',
+  hot: 'HOT_BEVERAGE',
+  black: 'HOT_BEVERAGE',
+  blue: 'COLD_BEVERAGE',
+  red: 'BAKERY_DESSERT',
+  soup: 'FOOD_PREP',
+  sandwich: 'FOOD_PREP',
+
+  // =========================================================
+  // Тэмдэг нэрүүд / EXTRA WORDS
+  // =========================================================
+  sweet: 'GENERAL',
+  various: 'GENERAL',
+  slice: 'GENERAL',
+  piece: 'GENERAL',
+  dried: 'GENERAL',
+  fresh: 'GENERAL',
+  sliced: 'GENERAL',
+
+  // =========================================================
+  // Сав баглаа
+  // =========================================================
+  cup: 'GENERAL',
+  lid: 'GENERAL',
+  straw: 'GENERAL',
+  napkin: 'GENERAL',
+  bag: 'GENERAL',
+};
+
+// 1. ТӨЛӨВ ӨӨРЧЛӨГЧ ТОЛЬ (Temperature Modifiers)
+const MODIFIERS = {
+  hot: ['халуун', 'hot', 'warm', 'бүлээн'],
+  cold: ['мөстэй', 'мөст', 'хүйтэн', 'ice', 'iced', 'cold', 'frappe', 'мөс'],
+};
+
+// src/lib/autoReconcile.ts
+
+export function autoCategorizeProduct(
+  productName: string, 
+  learnedCategories: any[] = [] // 👈 Хоёр дахь параметр болгон нэмсэн
+): string | null {
+  const clean = sanitizeName(productName);
+  const lower = clean.toLowerCase();
+
+  // 0. 🧠 ХЭРЭВ СИСТЕМ ӨМНӨ НЬ СУРСАН БОЛ: Шууд хариулна (0.001ms)
+  const learned = learnedCategories.find(lc => sanitizeName(lc.product_name) === clean);
+  if (learned) return learned.category;
+
+  const tokens = extractFnbTokens(productName); 
+  if (tokens.size === 0) return null;
+
+  let baseCategory: string | null = null;
+  let isCold = false;
+  let isHot = false;
+  let highestConfidence = 0;
+
+  for (const token of tokens) {
+    const word = token.toLowerCase();
+
+    if (MODIFIERS.hot.includes(word)) isHot = true;
+    if (MODIFIERS.cold.includes(word)) isCold = true;
+
+    for (const [dictWord, cat] of Object.entries(FNB_DICT_CATEGORY_MAP)) {
+      if (cat === 'GENERAL') continue;
+
+      const score = getSimilarity(word, dictWord);
+      const requiredConfidence = dictWord.length <= 4 ? 1.0 : 0.80; // Богино үгсийг хамгаалах
+
+      if (score > highestConfidence && score >= requiredConfidence) {
+        highestConfidence = score;
+        baseCategory = cat;
+      }
+    }
+  }
+
+  if (!baseCategory || highestConfidence < 0.80) return null;
+
+  if (baseCategory === 'HOT_BEVERAGE' || baseCategory === 'COLD_BEVERAGE') {
+    if (isCold) return 'COLD_BEVERAGE';
+    if (isHot) return 'HOT_BEVERAGE';
+    if (/чацаргана|аньс|нэрс/i.test(lower)) return 'HOT_BEVERAGE';
+  }
+
+  return baseCategory;
+}
+
+
+// ⚡ evaluateSaleItem дотор параметрүүдийн дарааллыг зөв тохируулав!
 export function evaluateSaleItem(
   rawPosName: string,
   posPrice: number,
   productsList: any[],
-  aliasMap: Record<string, string> = {}
+  aliasMap: Record<string, string> = {},
+  learnedMenus: any[] = [],    // 👈 4-р параметр нь learnedMenus (Array)
+  // 👈 5-р параметр нь aliasMap (Record)
 ): ReconciliationResult {
   const cleanPos = sanitizeName(rawPosName);
   const posIsIced = checkIcedModifier(rawPosName);
   const posModifier = getVariantModifier(cleanPos);
 
-  // А. Яг ижил нэр байна уу? (Хаалт үл тооцогдоно: "Tiramisu (sale)" == "Tiramisu sale")
+  // 0. 🧠 ХЭРЭВ ЭЗЭН ӨМНӨ НЬ СОЛЬЖ НЭГТГЭСЭН БОЛ: (Auto-Link)
+  const learnedMatch = learnedMenus.find(lm => sanitizeName(lm.pos_name) === cleanPos);
+  if (learnedMatch) {
+    const exactProd = productsList.find(p => sanitizeName(p.name) === sanitizeName(learnedMatch.official_product_name));
+    if (exactProd) {
+      const isSafe = isPriceChangeSafe(Number(exactProd.selling_price), posPrice);
+      return {
+        decision: 'AUTO_MERGE',
+        matchedProduct: exactProd,
+        targetProduct: exactProd,
+        canonicalName: exactProd.name,
+        posPrice,
+        shouldUpdateMenuPrice: isSafe,
+        shouldUpdatePrice: isSafe,
+        isVariant: false,
+        reason: `🧠 Систем сурсан (Learned Menu: ${exactProd.name})`
+      };
+    }
+  }
+
+  // А. Яг ижил нэр байна уу?
   const exactProd = productsList.find(p => sanitizeName(p.name) === cleanPos);
   if (exactProd) {
     const isSafe = isPriceChangeSafe(Number(exactProd.selling_price), posPrice);
@@ -1969,24 +2259,17 @@ export function evaluateSaleItem(
   // В. Меню дотроос хамгийн өндөр оноотойг хайх
   const scored = productsList.map(prod => {
     let score = calculateMatchScore(rawPosName, prod.name);
-    
-    // Халуун хувилбарт давуу эрх өгөх
     const prodIsIced = checkIcedModifier(prod.name);
-    if (!posIsIced && !prodIsIced) {
-      score += 0.05;
-    } else if (posIsIced && prodIsIced) {
-      score += 0.10;
-    } else if (posIsIced !== prodIsIced) {
-      score -= 0.20;
-    }
-
+    if (!posIsIced && !prodIsIced) score += 0.05;
+    else if (posIsIced && prodIsIced) score += 0.10;
+    else if (posIsIced !== prodIsIced) score -= 0.20;
     return { prod, score };
   }).sort((a, b) => b.score - a.score);
 
   const top = scored[0];
   const second = scored[1];
 
-  // Г. [2-р Хамгаалалт] Тэнцсэн үед дур мэдэн шийдэхгүй (Tie-Break)
+  // Г. Tie-Break (Тэнцсэн үед)
   if (top && second && top.score >= 0.75 && Math.abs(top.score - second.score) < 0.05) {
     return {
       decision: 'TIE_BREAK',
@@ -2004,10 +2287,7 @@ export function evaluateSaleItem(
   if (top && top.score >= 0.80) {
     const isSafe = isPriceChangeSafe(Number(top.prod.selling_price), posPrice);
     const menuModifier = getVariantModifier(sanitizeName(top.prod.name));
-
-    // ⚡ АЛТАН ДҮРЭМ: Хэрэв нэг нь 'Big', 'jijig', 'sale' үгтэй бол ЭЦЭГ Tiramisu-Г УСТГАХГҮЙ, ХУВИЛБАР БОЛГОНО:
     const isVariant = posModifier !== menuModifier;
-
     return {
       decision: 'AUTO_MERGE',
       matchedProduct: top.prod,
@@ -2016,14 +2296,12 @@ export function evaluateSaleItem(
       posPrice,
       shouldUpdateMenuPrice: isSafe,
       shouldUpdatePrice: isSafe,
-      isVariant: isVariant, // 👈 ТУСДАА ХУВИЛБАР МӨН ЭСЭХ ТЭМДЭГ!
-      reason: isVariant 
-        ? `${top.prod.name}-ийн хувилбар (${posModifier})` 
-        : `Ижил бараа олдсон (${top.prod.name})`
+      isVariant: isVariant,
+      reason: isVariant ? `${top.prod.name}-ийн хувилбар (${posModifier})` : `Ижил бараа олдсон (${top.prod.name})`
     };
   }
 
-  // Е. Огт таараагүй цоо шинэ бараа
+  // Е. Цоо шинэ бараа
   return {
     decision: 'NEW_PRODUCT',
     canonicalName: rawPosName,
@@ -2613,7 +2891,7 @@ export async function parseOperationalText(
     - "item_name": (string or null. Must match one of the allowed ingredients list exactly)
     - "quantity": (number or null. Negative for waste/meals/testing, positive for purchases)
     - "type": (string or null. Either "spoilage", "purchase", "testing", or "staff_meal")
-    - "extracted_phrase": (string. The exact raw Mongolian words user called this item, without numbers or action verbs. E.g. for "нэг алимны сироп аву" return "алимны сироп")
+    - "extracted_phrase": (string. The exact core noun/item name the user said, EXCLUDING any numbers, units, adjectives and verbs. E.g. if user says "2 литр сүү асгачихлаа", return JUST "сүү". If "урт шар муудсан", return JUST "урт шар").
     - "notes": (string or null. Brief description in Mongolian)
 
     Allowed ingredients list:
@@ -5006,13 +5284,42 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
   // =========================================================================
   // 💡 ШИНЭЭР НЭМСЭН: 3. WAC MARGIN GUARD (Үнийн өсөлт & Маржин хамгаалагч)
   // =========================================================================
+// =========================================================================
+  // 💡 3. WAC MARGIN GUARD (ДЭЛХИЙН СТАНДАРТЫН ДИНАМИК АНГИЛЛААР БОДОХ)
+  // =========================================================================
+// ⚡ 100% УНИВЕРСАЛ БӨГӨӨД БАТ БӨХ МАРЖИН ХАМГААЛАГЧ
+  const GLOBAL_CATEGORY_MARGINS: Record<string, number> = {
+    'HOT_BEVERAGE': 82,
+    'COLD_BEVERAGE': 78,
+    'FOOD_PREP': 68,
+    'BAKERY_DESSERT': 75,
+    'RETAIL_FMCG': 50,
+    'GENERAL': 72
+  };
+
+  const customMargins: Record<string, number> = rawSettings?.category_margins || {};
+
+  const getTargetMarginPct = (categoryName: string): number => {
+    const cat = (categoryName || 'GENERAL').trim();
+    // 1. Хэрэв эзэн энэ ангилалд өөрийн хувийг заасан бол түүнийг барина
+    if (customMargins[cat] !== undefined && Number(customMargins[cat]) > 0) {
+      return Number(customMargins[cat]);
+    }
+    // 2. Үгүй бол системд суурилагдсан албан ёсны стандартыг барина
+    return GLOBAL_CATEGORY_MARGINS[cat] || GLOBAL_CATEGORY_MARGINS['GENERAL'];
+  };
+
   const marginAlerts: any[] = [];
   (rawProducts || []).forEach((prod: any) => {
-    const productRecipes = (rawRecipes || []).filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase());
+    const productRecipes = (rawRecipes || []).filter(
+      (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(prod.name).toLowerCase()
+    );
     let currentRecipeCost = 0;
 
     productRecipes.forEach((r: any) => {
-      const ing = fullInventory.find((i: any) => i.name.toLowerCase() === cleanString(r.product_name).toLowerCase() || i.id === r.ingredient_id);
+      const ing = fullInventory.find(
+        (i: any) => i.name.toLowerCase() === cleanString(r.product_name).toLowerCase() || i.id === r.ingredient_id
+      );
       const ingPrice = ing ? ing.price : (rawIngredients?.find((i: any) => i.id === r.ingredient_id)?.unit_price || 0);
       currentRecipeCost += (parseFloat(r.amount) || 0) * (parseFloat(ingPrice) || 0);
     });
@@ -5020,11 +5327,15 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     const sellingPrice = parseFloat(prod.selling_price) || 0;
     if (sellingPrice > 0 && currentRecipeCost > 0) {
       const currentMarginPct = ((sellingPrice - currentRecipeCost) / sellingPrice) * 100;
-      const targetMarginPct = 75; // 75% Бохир ашгийн маржин
+      
+      // ⚡ ДИНАМИК ЗОРИЛТОТ МАРЖИНГ АНГИЛЛААС НЬ УНШИХ:
+      const targetMarginPct = getTargetMarginPct(prod.category || 'General');
 
+      // Хэрэв тухайн ангиллын стандартаас доош унасан бол сануулна
       if (currentMarginPct < targetMarginPct) {
         const rawSuggestedPrice = currentRecipeCost / (1 - (targetMarginPct / 100));
         const suggestedPrice = Math.ceil(rawSuggestedPrice / 500) * 500; // 500₮-өөр дээшээ бүхэлчлэх
+        
         marginAlerts.push({
           product_name: prod.name,
           category: prod.category || 'General',
@@ -5478,6 +5789,69 @@ export async function POST(request: Request) {
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
     const clientId = tenantClientId;
 
+// src/app/api/kiosk-ai/route.ts доторх categorize хэсэг:
+if (action === "categorize" && body.names && Array.isArray(body.names)) {
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+const prompt = `
+    You are a data classifier for a Mongolian Coffee Shop & Restaurant.
+    Classify the following menu items into ONE of these 6 STRICT categories:
+    
+    1. "HOT_BEVERAGE": Coffee, hot tea, espresso, and any explicitly "халуун" (hot) drinks.
+    2. "COLD_BEVERAGE": Juices, smoothies, water, and any explicitly "мөстэй/хүйтэн" (iced/cold) coffees or teas.
+    3. "FOOD_PREP": Cooked meals, sandwiches, burgers, salads, bakery, bakery items.
+    4. "BAKERY_DESSERT": Cakes, pastries, bread, sweets, desserts.
+    5. "RETAIL_FMCG": Canned/bottled drinks, pre-packaged snacks (e.g., Tymbark, Cola).
+    6. "GENERAL": Unidentifiable words, random numbers, merchandise, or non-food items.
+
+    CRITICAL RULES:
+    - If a coffee/tea has the word "мөстэй", "iced", or "хүйтэн", you MUST classify it as "COLD_BEVERAGE".
+    - If an item is totally unrecognizable or gibberish (e.g., "b123", "Тооцоо"), use "GENERAL".
+    
+    Respond ONLY with a valid JSON object mapping the exact product name to the category string.
+    Example: { "Мөстэй Латте": "COLD_BEVERAGE", "Tymbark": "RETAIL_FMCG", "Chicken Sandwich": "FOOD_PREP" }
+
+    Products to classify:
+    ${JSON.stringify(body.names)}
+  `;
+
+  let resultJson: Record<string, string> | null = null;
+
+  // 1. Google Gemini 3.5 Flash-Lite-аар унших
+  if (key) {
+    try {
+      const ai = new GoogleGenerativeAI(key);
+      const model = ai.getGenerativeModel({
+        model: "gemini-3.5-flash-lite",
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
+      });
+      const response = await model.generateContent(prompt);
+      const resultText = response.response.text().replace(/```json|```/g, "").trim();
+      resultJson = JSON.parse(resultText);
+    } catch (err) {
+      console.warn("Categorize Gemini failed, falling back to Groq:", err);
+    }
+  }
+
+  // 2. Хэрэв Gemini алдаа өгвөл Groq (Llama/OpenAI OSS) нөөц рүү үсрэх
+  if (!resultJson) {
+    try {
+      const groqResult = await callGroqFallback(
+        "You are an expert F&B classifier. Return ONLY a valid JSON object mapping product name to category.",
+        prompt
+      );
+      resultJson = JSON.parse(groqResult.replace(/```json|```/g, "").trim());
+    } catch (groqErr) {
+      console.error("Categorize Groq fallback failed:", groqErr);
+    }
+  }
+
+  if (resultJson) {
+    return NextResponse.json({ success: true, categories: resultJson });
+  }
+
+  return NextResponse.json({ success: false, message: "AI ангилал хийж чадсангүй." });
+}
+
     // 1. UNDO
     if (action === "undo" && logId) {
       const { error } = await supabaseAdmin
@@ -5694,15 +6068,13 @@ export async function POST(request: Request) {
     if (text) {
       const lower = text.toLowerCase().trim();
 
-      // ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
+// ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
       if (!isOwner) {
-        // 1. Баазаас өмнө нь суралцсан алиасуудыг татах
         const { data: learnedAliases } = await supabaseAdmin
           .from("learned_aliases")
           .select("phrase, ingredient_id")
           .eq("client_id", clientId);
 
-        // 2. Local Parser-аар 0.001ms-д шалгах
         const aiAnalysis = await parseOperationalText(
           text,
           allowedNames,
@@ -5711,11 +6083,10 @@ export async function POST(request: Request) {
 
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(
-            (i) =>
-              i.name.toLowerCase().trim() ===
-              aiAnalysis.item_name.toLowerCase().trim(),
+            (i) => i.name.toLowerCase().trim() === aiAnalysis.item_name.toLowerCase().trim(),
           );
           if (ingredient) {
+            // 1. Зарлагын лог хадгалах
             const { data: log } = await supabaseAdmin
               .from("inventory_logs")
               .insert([
@@ -5732,35 +6103,32 @@ export async function POST(request: Request) {
               .select()
               .single();
 
-            const rawPhrase = aiAnalysis.extracted_phrase || text;
-            // Тоо болон үйл үгсийг цэвэрлэх
-            const cleanPhrase = rawPhrase
-              .replace(/[\d\.]+/g, "")
-              .replace(
-                /литр|мл|кг|гр|грамм|ш|ширхэг|хайрцаг|уут|асгасан|авсан|муудсан|аву|авчлаа|гашлаа/gi,
-                "",
-              )
-              .trim()
-              .toLowerCase();
+            // 2. ⚡ ЗӨВХӨН ЦЭВЭР ҮГ СУРАХ (Алдаатай урт өгүүлбэр цээжлэхгүй!)
+            let newlyLearnedId: string | null = null;
+            if (aiAnalysis.extracted_phrase) {
+              const cleanPhrase = aiAnalysis.extracted_phrase.toLowerCase().trim();
+              const alreadyKnown = 
+                ingredient.name.toLowerCase() === cleanPhrase || 
+                (learnedAliases || []).some(a => a.phrase === cleanPhrase);
 
-            if (cleanPhrase && cleanPhrase.length >= 3) {
-              await supabaseAdmin.from("learned_aliases").upsert(
-                [
+              if (!alreadyKnown && cleanPhrase.length >= 2) {
+                const { data: aliasData } = await supabaseAdmin.from("learned_aliases").insert([
                   {
                     client_id: clientId,
                     phrase: cleanPhrase,
                     ingredient_id: ingredient.id,
                   },
-                ],
-                { onConflict: "client_id,phrase" },
-              );
+                ]).select().single();
+                if (aliasData) newlyLearnedId = aliasData.id;
+              }
             }
 
             return NextResponse.json({
               success: true,
               is_log: true,
               log_id: log?.id,
-              message: `📝 **Бүртгэгдлээ (0.01s):**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
+              learned_alias_id: newlyLearnedId, // 👈 Undo хийх үед устгах ID
+              message: `📝 **Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
             });
           }
         }
@@ -5768,8 +6136,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           is_log: false,
-          message:
-            "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан').",
+          message: "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна.",
         });
       }
 
@@ -6575,13 +6942,13 @@ import {
   TrendingUp, Trash2, DollarSign, Activity, AlertTriangle, Database, Coffee, 
   Layers3, Save, Check, FileSpreadsheet, UploadCloud, Bot, 
   ShieldAlert, Download, Camera, ExternalLink, Search,
-  LayoutDashboard, CheckSquare, LogOut, Smartphone, Settings,  PanelLeftClose, Menu 
+  LayoutDashboard, CheckSquare, LogOut, Smartphone, Settings,  PanelLeftClose, Menu,ChevronDown, ChevronUp 
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import { exportAuditExcel } from "../../lib/exportAudit";
-import { calculateMatchScore, evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
+import { autoCategorizeProduct, evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
 
 function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -7159,15 +7526,31 @@ function Home() {
   const [selectedRecipeProducts, setSelectedRecipeProducts] = useState<
     string[]
   >([]);
-
+  // 🔍 Үнэ өссөн барааг хайх стэйт:
+  const [spikeSearch, setSpikeSearch] = useState("");
+  // 🚨 Үнийн өсөлтийг хумих/дэлгэх & Маржин хайх стэйтүүд:
+  const [isSpikesExpanded, setIsSpikesExpanded] = useState(false); 
+  const [marginSearch, setMarginSearch] = useState("");
   // ➕ Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
   const [showAddIngModal, setShowAddIngModal] = useState(false);
+  const [learnedMenus, setLearnedMenus] = useState<any[]>([]);
+  const [learnedCategories, setLearnedCategories] = useState<any[]>([]);
   const [newIngForm, setNewIngForm] = useState({
     name: "",
     unit: "гр",
     price: "",
     par: "0",
   });
+  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ
+  const UNIVERSAL_CATEGORIES = [
+    { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', margin: 82 },
+    { id: 'COLD_BEVERAGE', name: '🍹 Хүйтэн ундаа', margin: 78 },
+    { id: 'FOOD_PREP', name: '🍳 Гал тогоо (Хоол)', margin: 68 },
+    { id: 'BAKERY_DESSERT', name: '🥐 Бэйкэри & Десерт', margin: 75 },
+    { id: 'RETAIL_FMCG', name: '🥤 Бэлэн бараа (Лааз/Сав)', margin: 50 },
+    { id: 'GENERAL', name: '📦 Бусад (Сав баглаа г.м)', margin: 70 }
+  ];
+
 
   const [showAddProdModal, setShowAddProdModal] = useState(false);
   const [newProdForm, setNewProdForm] = useState({
@@ -7391,41 +7774,6 @@ const aliasMap: Record<string, string> = {};
   const [newRecipeItemsDraft, setNewRecipeItemsDraft] = useState<Array<{ ingredient_id: string; amount: string }>>([]);
   const [draftRecipeIngId, setDraftRecipeIngId] = useState('');
   const [draftRecipeIngAmt, setDraftRecipeIngAmt] = useState('');
-  // 🔗 АЛХАМ 2: ЖОРГҮЙ МЕНЮГ БЭЛЭН ЖОРТОЙ НЭГТГЭЖ ХОЛБОХ ФУНКЦ
-  const handleIntegrateMenuWithRecipe = async (menuProductName: string, existingRecipeName: string) => {
-    if (!menuProductName || !existingRecipeName) return;
-    setLoading(true);
-
-    const cleanMenuName = cleanString(menuProductName);
-    const cleanRecipeName = cleanString(existingRecipeName);
-
-    // 1. Сонгосон хуучин жорын бүх орцуудыг олох
-    const sourceRecipeRows = recipes.filter(
-      (r: any) => cleanString(r.product_name).toLowerCase() === cleanRecipeName.toLowerCase()
-    );
-
-    if (sourceRecipeRows.length > 0) {
-      // 2. Тэр жорын орцуудыг шинэ Менюний нэр дээр хуулж холбох (Recipes хүснэгтэд оруулах)
-      const newRecipeRows = sourceRecipeRows.map((r: any) => ({
-        client_id: activeClient,
-        product_name: cleanMenuName,
-        ingredient_id: r.ingredient_id,
-        amount: parseFloat(r.amount) || 0,
-      }));
-
-      await supabase.from("recipes").upsert(newRecipeRows, {
-        onConflict: "client_id,product_name,ingredient_id",
-      });
-
-      // 3. Төстэй нэрийг толь (aliasMap)-д хадгалах
-      aliasMap[cleanMenuName.toLowerCase()] = cleanRecipeName.toLowerCase();
-    }
-
-    setLoading(false);
-    fetchDatabaseData(activeClient);
-    alert(`✅ "${cleanMenuName}" цэсийг "${cleanRecipeName}"-ийн жортой амжилттай холболоо!`);
-  };
-
 
 
  interface AutoPilotChange {
@@ -7458,16 +7806,15 @@ const aliasMap: Record<string, string> = {};
 
     try {
       if (targetChange.type === 'NEW_PRODUCT') {
-        // Шинээр нэмэгдсэн барааг устгана:
         await supabase
           .from('products')
           .delete()
           .eq('client_id', activeClient)
-          .eq('id', targetChange.productId);
+          .or(`id.eq.${targetChange.productId},name.eq.${targetChange.productName}`);
 
-        setProductsList(prev => prev.filter(p => p.id !== targetChange.productId));
+        setProductsList(prev => prev.filter(p => p.id !== targetChange.productId && p.name !== targetChange.productName));
       } else {
-        // Нэр ба үнийг хуучин Меню дээр байсан хэвэнд нь буцааж UPDATE хийнэ:
+              // Нэр ба үнийг хуучин Меню дээр байсан хэвэнд нь буцааж UPDATE хийнэ:
         await supabase
           .from('products')
           .update({
@@ -8251,7 +8598,9 @@ function SearchableSelect({
         { data: faData },
         { data: opexData },
         { data: settData },
-        { data: prodData }
+        { data: prodData },
+        { data: lmData },
+        { data: lcData }
       ] = await Promise.all([
         supabase.from("ingredients").select("*").ilike("client_id", targetClient).order("name", { ascending: true }),
         supabase.from("recipes").select("*").ilike("client_id", targetClient),
@@ -8264,9 +8613,12 @@ function SearchableSelect({
         supabase.from("fixed_assets").select("*").ilike("client_id", targetClient),
         supabase.from("fixed_opex").select("*").ilike("client_id", targetClient).eq("is_active", true),
         supabase.from("client_settings").select("*").ilike("client_id", targetClient).maybeSingle(),
-        supabase.from("products").select("*").ilike("client_id", targetClient)
+        supabase.from("products").select("*").ilike("client_id", targetClient),
+        supabase.from("learned_menus").select("*").ilike("client_id", targetClient),
+        supabase.from("learned_categories").select("*").ilike("client_id", targetClient)
       ]);
-
+      if (lmData) setLearnedMenus(lmData);
+      if (lcData) setLearnedCategories(lcData);
       if (faData) setFixedAssets(faData);
       if (opexData) setFixedOpexList(opexData);
       if (settData) {
@@ -8487,13 +8839,139 @@ function SearchableSelect({
       .replace(/[\r\n\s\-_.]/g, "")
       .trim();
 
+// 1. Стэйтийг sessionStorage-оос сэргээж эхлүүлэх
+const [pendingCategoryReview, setPendingCategoryReview] = useState<{
+  salesToInsert: any[];
+  productsToReview: Array<{ name: string; category: string; method: string; price: number; isUnknown?: boolean }>;
+  productsToUpdateBatch: Array<{ id: string; name: string; selling_price: number }>;
+  existingChanges: AutoPilotChange[];
+  isProcessing: boolean;
+} | null>(() => {
+  if (typeof window !== 'undefined') {
+    const saved = sessionStorage.getItem('operlink_pending_review');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+  }
+  return null;
+});
+
+// Стэйт өөрчлөгдөх бүрд sessionStorage-д синхрончлох туслах функц
+const updatePendingReview = (val: any) => {
+  setPendingCategoryReview(val);
+  if (typeof window !== 'undefined') {
+    if (val) sessionStorage.setItem('operlink_pending_review', JSON.stringify(val));
+    else sessionStorage.removeItem('operlink_pending_review');
+  }
+};
+// =========================================================================
+  // ⚡ ЭЦСИЙН ХАДГАЛАЛТ ХИЙХ ЦӨМ ФУНКЦ (БҮХ НЭРСИЙГ ЖИГДЭЛСЭН)
   // =========================================================================
-  // 1. БОРЛУУЛАЛТ БӨӨНӨӨР ИМПОРТЛОХ (Огноотой & Огноогүй аль алийг нь танина)
+  const commitFinalSales = async (
+    sales: any[],
+    newProductsList: any[] = [], // 👈 Параметрийн нэр: newProductsList
+    updates: any[] = [],
+    existingChanges: AutoPilotChange[] = []
+  ) => {
+    setLoading(true);
+    try {
+      // 1. Хуучин борлуулалтыг дарах:
+      if (overwriteSales) {
+        await supabase.from("sales_logs").delete()
+          .eq("client_id", activeClient)
+          .gte("date", `${startDate}T00:00:00.000Z`)
+          .lte("date", `${endDate}T23:59:59.999Z`);
+      }
+
+      // 2. Борлуулалтыг оруулах:
+      if (sales && sales.length > 0) {
+        const { error: salesErr } = await supabase.from("sales_logs").insert(sales);
+        if (salesErr) throw salesErr;
+      }
+
+      // 3. Шинэ цэсүүдийг каталогт хадгалах:
+      let insertedNewProds: any[] = [];
+      if (newProductsList && newProductsList.length > 0) {
+        const prodBatch = newProductsList.map((p: any) => ({
+          client_id: activeClient,
+          name: p.name,
+          category: p.category,
+          selling_price: p.price || 0
+        }));
+
+        const { data, error: prodErr } = await supabase
+          .from("products")
+          .upsert(prodBatch, { onConflict: "client_id,name" })
+          .select();
+
+        if (prodErr) throw prodErr;
+        if (data) insertedNewProds = data;
+
+        // 🧠 4. СУРСАН АНГИЛЛУУДЫГ LEARNED_CATEGORIES РҮҮ ОРУУЛАХ:
+        // (newProductsList нэрийг ашигласан тул ямар ч алдаа заахгүй!)
+        const learnedCatsToInsert = newProductsList
+          .filter((p: any) => p.method !== '🤖 Толь бичиг' && p.method !== '🧠 Систем сурсан')
+          .map((p: any) => ({
+            client_id: activeClient,
+            product_name: p.name,
+            category: p.category
+          }));
+
+        if (learnedCatsToInsert.length > 0) {
+          await supabase.from('learned_categories').upsert(learnedCatsToInsert, { onConflict: 'client_id,product_name' });
+        }
+      }
+
+      // 5. Хуучин цэсүүдийн үнэ/нэр шинэчлэх:
+      if (updates && updates.length > 0) {
+        await Promise.all(
+          updates.map((p: any) =>
+            supabase.from("products").update({ name: p.name, selling_price: p.selling_price }).eq("id", p.id)
+          )
+        );
+      }
+
+      // 6. Auto-Pilot түүхийг нэгтгэх:
+      const newProductChanges: AutoPilotChange[] = insertedNewProds.map((p: any) => ({
+        id: `new-${p.id}-${Date.now()}`,
+        productId: p.id,
+        productName: p.name,
+        type: 'NEW_PRODUCT',
+        oldName: 'Байхгүй',
+        newName: `${p.name} (${Number(p.selling_price).toLocaleString()} ₮) [${p.category}]`,
+        oldPrice: 0,
+        newPrice: Number(p.selling_price),
+        oldCategory: p.category || 'General',
+        reverted: false
+      }));
+
+      setAutoPilotActivity({
+        totalSales: (sales || []).length,
+        changes: [...existingChanges, ...newProductChanges]
+      });
+
+      // 7. Амжилттай төлөвүүд:
+      setSalesImportSuccess(true);
+      setSalesPasteText("");
+      setOverwriteSales(false);
+      setPendingCategoryReview(null);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('operlink_pending_review');
+      }
+
+      await fetchDatabaseData(activeClient);
+      setTimeout(() => setSalesImportSuccess(false), 4000);
+    } catch (err: any) {
+      alert(`Хадгалах үед алдаа гарлаа: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // =========================================================================
+  // 📈 2. БОРЛУУЛАЛТ ИМПОРТЛОХ (Type Mismatch алдааг зассан)
   // =========================================================================
-  // 📈 БОРЛУУЛАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
-  // =========================================================================
-const handleBulkSalesPaste = async (e: React.FormEvent) => {
+  const handleBulkSalesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!salesPasteText.trim()) return;
 
@@ -8541,118 +9019,180 @@ const handleBulkSalesPaste = async (e: React.FormEvent) => {
         }
       }
 
-      if (overwriteSales) {
-        await supabase.from("sales_logs").delete()
-          .eq("client_id", activeClient)
-          .gte("date", `${startDate}T00:00:00.000Z`)
-          .lte("date", `${endDate}T23:59:59.999Z`);
+      if (salesToInsert.length === 0) {
+        alert("Оруулах борлуулалт олдсонгүй.");
+        setLoading(false);
+        return;
       }
-if (salesToInsert.length > 0) {
-        // ⚡ 1. Борлуулалтыг баазад 0.1 секундэд шууд хадгалах
-        const { error: salesErr } = await supabase.from("sales_logs").insert(salesToInsert);
-        if (salesErr) throw salesErr;
 
-        const recordedChanges: AutoPilotChange[] = [];
-        const seenInBatch = new Set<string>();
-        const productsToBatch: any[] = [];
-        const productsToUpdateBatch: Array<{ id: string; name: string; selling_price: number }> = [];
+      // ⚡ ЗАСВАР: learnedMenus-ийг Record<string, string> бүтэц рүү хөрвүүлж алдааг арилгав!
+      const dynamicAliasMap: Record<string, string> = { ...aliasMap };
+      (learnedMenus || []).forEach((lm: any) => {
+        if (lm.pos_name && lm.official_product_name) {
+          dynamicAliasMap[sanitizeName(lm.pos_name)] = lm.official_product_name;
+        }
+      });
 
-        // ⚡ 2. Сүлжээний дуудлага хийлгүй санах ойд 0.001ms-д бүх барааг ялгах
-        for (const s of salesToInsert) {
-          const rawPosName = cleanString(s.product_name);
-          const posPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
-          if (!rawPosName || seenInBatch.has(rawPosName.toLowerCase())) continue;
-          seenInBatch.add(rawPosName.toLowerCase());
+      const seenInBatch = new Set<string>();
+      const productsToUpdateBatch: Array<{ id: string; name: string; selling_price: number }> = [];
+      const existingAutoPilotChanges: AutoPilotChange[] = [];
+      const rawNewProducts: Array<{ name: string; price: number }> = [];
 
-          // autoReconcile тархи дуудах:
-          const result = evaluateSaleItem(rawPosName, posPrice, productsList, aliasMap);
+      // evaluateSaleItem-ийг төрлийн алдаагүйгээр дуудах:
+      for (const s of salesToInsert) {
+        const rawPosName = cleanString(s.product_name);
+        const posPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
+        if (!rawPosName || seenInBatch.has(rawPosName.toLowerCase())) continue;
+        seenInBatch.add(rawPosName.toLowerCase());
 
-          if (result.decision === 'AUTO_MERGE' && result.targetProduct) {
-            const target = result.targetProduct;
-            const oldPrice = Number(target.selling_price) || 0;
-            const nameChanged = cleanString(rawPosName).toLowerCase() !== cleanString(target.name).toLowerCase();
-            const priceChanged = posPrice > 0 && oldPrice !== posPrice;
+        const result = evaluateSaleItem(rawPosName, posPrice, productsList, dynamicAliasMap);
 
-            if (nameChanged || priceChanged) {
-              productsToUpdateBatch.push({
-                id: target.id,
-                name: rawPosName,
-                selling_price: posPrice > 0 ? posPrice : oldPrice
-              });
+        if (result.decision === 'AUTO_MERGE' && result.targetProduct) {
+          const target = result.targetProduct;
+          const oldPrice = Number(target.selling_price) || 0;
+          const nameChanged = cleanString(rawPosName).toLowerCase() !== cleanString(target.name).toLowerCase();
+          const priceChanged = posPrice > 0 && oldPrice !== posPrice;
 
-              recordedChanges.push({
-                id: `merge-${target.id}-${Date.now()}`,
-                productId: target.id,
-                productName: rawPosName,
-                type: nameChanged ? 'NAME_MERGE' : 'PRICE_UPDATE',
-                oldName: target.name,
-                newName: rawPosName,
-                oldPrice: oldPrice,
-                newPrice: posPrice > 0 ? posPrice : oldPrice,
-                oldCategory: target.category || 'General',
-                reverted: false
-              });
-            }
-          } else {
-            // Огт таараагүй цоо шинэ бараа
-            productsToBatch.push({
-              client_id: activeClient,
+          if (nameChanged || priceChanged) {
+            productsToUpdateBatch.push({
+              id: target.id,
               name: rawPosName,
-              category: 'General',
-              selling_price: posPrice
+              selling_price: posPrice > 0 ? posPrice : oldPrice
             });
 
-            recordedChanges.push({
-              id: `new-${rawPosName}-${Date.now()}`,
-              productId: '',
+            existingAutoPilotChanges.push({
+              id: `merge-${target.id}-${Date.now()}`,
+              productId: target.id,
               productName: rawPosName,
-              type: 'NEW_PRODUCT',
-              oldName: 'Байхгүй',
-              newName: `${rawPosName} (${posPrice.toLocaleString()} ₮)`,
-              oldPrice: 0,
-              newPrice: posPrice,
-              oldCategory: 'General',
+              type: nameChanged ? 'NAME_MERGE' : 'PRICE_UPDATE',
+              oldName: target.name,
+              newName: rawPosName,
+              oldPrice: oldPrice,
+              newPrice: posPrice > 0 ? posPrice : oldPrice,
+              oldCategory: target.category || 'General',
               reverted: false
             });
           }
+        } else {
+          rawNewProducts.push({ name: rawPosName, price: posPrice });
         }
-
-        // ⚡ 3. Бааз руу 150 удаа биш, БӨӨНӨӨР НЬ ГАНЦХАН ДУУДЛАГААР ШИНЭЧЛЭХ (0.1 секунд!)
-        if (productsToBatch.length > 0) {
-          await supabase.from("products").upsert(productsToBatch, { onConflict: "client_id,name" });
-        }
-
-        if (productsToUpdateBatch.length > 0) {
-          await Promise.all(
-            productsToUpdateBatch.map(p =>
-              supabase.from("products").update({ name: p.name, selling_price: p.selling_price }).eq("id", p.id)
-            )
-          );
-        }
-
-        setAutoPilotActivity({
-          totalSales: salesToInsert.length,
-          changes: recordedChanges
-        });
       }
 
+      if (rawNewProducts.length === 0) {
+        await commitFinalSales(salesToInsert, [], productsToUpdateBatch, existingAutoPilotChanges);
+        return;
+      }
 
-      // ⚡ АЛХАМ 4: Ногоон амжилтын цонхыг тэр дор нь ШУУД асаана!
-      setSalesImportSuccess(true);
-      setSalesPasteText("");
-      setOverwriteSales(false);
+      // =========================================================================
+      // ⚡ ШИНЭ ЦЭСҮҮДИЙГ АНГИЛАХ ХЭСЭГ (Scope алдаагүй)
+      // =========================================================================
+      const productsToReview: Array<{ name: string; category: string; method: string; price: number; isUnknown?: boolean }> = [];
+      const needsAiClassification: Array<{ name: string; price: number; index: number }> = [];
 
-      // Датаг ард нь сэргээх
-      await fetchDatabaseData(activeClient);
-      setTimeout(() => setSalesImportSuccess(false), 4000);
+      rawNewProducts.forEach((item) => {
+        // 1. Систем өмнө нь сурсан эсэхийг баазаас шалгах:
+        const learned = (learnedCategories || []).find(
+          (lc: any) => sanitizeName(lc.product_name) === sanitizeName(item.name)
+        );
+
+        if (learned) {
+          productsToReview.push({
+            name: item.name,
+            category: learned.category,
+            method: '🧠 Систем сурсан',
+            price: item.price,
+            isUnknown: false
+          });
+        } else {
+          // 2. Толь бичгээс хайх (Зөвхөн 1 аргумент дамжуулна):
+          const localCat = autoCategorizeProduct(item.name);
+          if (localCat) {
+            productsToReview.push({
+              name: item.name,
+              category: localCat,
+              method: '🤖 Толь бичиг',
+              price: item.price,
+              isUnknown: false
+            });
+          } else {
+            const curIdx = productsToReview.length;
+            productsToReview.push({
+              name: item.name,
+              category: 'GENERAL',
+              method: '⏳ AI ангилж байна...',
+              price: item.price,
+              isUnknown: true
+            });
+            needsAiClassification.push({ name: item.name, price: item.price, index: curIdx });
+          }
+        }
+      });
+
+      // AI Багцлалт
+      if (needsAiClassification.length > 0) {
+        try {
+          const res = await fetch('/api/kiosk-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'categorize',
+              names: needsAiClassification.map(x => x.name)
+            })
+          });
+          const aiData = await res.json();
+          if (aiData.success && aiData.categories) {
+            needsAiClassification.forEach(item => {
+              const detected = aiData.categories[item.name];
+              if (detected && UNIVERSAL_CATEGORIES.some(c => c.id === detected)) {
+                productsToReview[item.index].category = detected;
+                productsToReview[item.index].method = '✨ AI таамагласан';
+                productsToReview[item.index].isUnknown = false;
+              } else {
+                productsToReview[item.index].category = 'GENERAL';
+                productsToReview[item.index].method = '⚠️ Шалгах шаардлагатай';
+                productsToReview[item.index].isUnknown = true;
+              }
+            });
+          } else {
+            needsAiClassification.forEach(item => {
+              productsToReview[item.index].category = 'GENERAL';
+              productsToReview[item.index].method = '⚠️ Шалгах шаардлагатай';
+              productsToReview[item.index].isUnknown = true;
+            });
+          }
+        } catch (err) {
+          needsAiClassification.forEach(item => {
+            productsToReview[item.index].category = 'GENERAL';
+            productsToReview[item.index].method = '⚠️ Шалгах шаардлагатай';
+            productsToReview[item.index].isUnknown = true;
+          });
+        }
+      }
+
+      setPendingCategoryReview({
+        salesToInsert,
+        productsToReview,
+        productsToUpdateBatch,
+        existingChanges: existingAutoPilotChanges,
+        isProcessing: false
+      });
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('operlink_pending_review', JSON.stringify({
+          salesToInsert,
+          productsToReview,
+          productsToUpdateBatch,
+          existingChanges: existingAutoPilotChanges,
+          isProcessing: false
+        }));
+      }
+
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
-
-      
+ 
   // =========================================================================
   // 📦 ТАТАН АВАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
   // =========================================================================
@@ -9598,22 +10138,103 @@ if (salesToInsert.length > 0) {
    {activeTab === "dashboard" && userRole === "owner" && (
           <div className="space-y-6">
             
-            {/* 🚨 ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТИЙН АНХААРУУЛГА */}
-            {priceSpikeAlerts.length > 0 && (
-              <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in duration-200">
-                <div className="flex items-center gap-2.5">
-                  <AlertTriangle className="h-5 w-5 text-rose-400 animate-pulse shrink-0" />
-                  <div>
-                    <h4 className="text-sm sm:text-sm font-black text-rose-300">Түүхий эдийн үнэ зах зээл дээр өссөн байна!</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Сүүлийн татан авалтаар зарим барааны нэгжийн үнэ 3%-иас дээш нэмэгджээ.</p>
-                  </div>
-                </div>
-                <span className="text-sm font-bold text-rose-400 font-mono shrink-0">
-                  {priceSpikeAlerts.length} бараа өссөн
-                </span>
-              </div>
-            )}
+    {/* 🚨 ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТ (АНХНААСАА ХУМИГДСАН, ДАРАХАД ДЭЛГЭГДДЭГ) */}
+            {priceSpikeAlerts.length > 0 && (() => {
+              const filteredSpikes = priceSpikeAlerts.filter((item: any) =>
+                item.name.toLowerCase().includes(spikeSearch.toLowerCase().trim())
+              );
 
+              return (
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl overflow-hidden transition-all duration-200 shadow-md">
+                  
+                  {/* 1. ХУМИГДСАН ҮЕД ХАРАГДАХ ЦЭВЭРХЭН 1 МӨР ТУУЗ */}
+                  <div 
+                    onClick={() => setIsSpikesExpanded(!isSpikesExpanded)}
+                    className="p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-rose-500/15 transition select-none"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <AlertTriangle className="h-5 w-5 text-rose-400 animate-pulse shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-black text-rose-300">
+                          Түүхий эдийн үнэ зах зээл дээр өссөн байна!
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Сүүлийн татан авалтаар нэгжийн үнэ 3%-иас дээш өссөн {priceSpikeAlerts.length} бараа илэрлээ.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-black text-rose-400 bg-rose-500/20 border border-rose-500/30 px-3 py-1 rounded-xl font-mono">
+                        {priceSpikeAlerts.length} бараа өссөн
+                      </span>
+
+                      {/* ⌵ Дэлгэх / Хумих товч */}
+                      <button
+                        type="button"
+                        className="bg-slate-900 border border-rose-500/30 text-rose-300 p-1.5 rounded-xl hover:bg-slate-800 transition"
+                      >
+                        {isSpikesExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. ДЭЛГЭГДСЭН ҮЕД ХАРАГДАХ ХАЙЛТ БА КАРТУУД */}
+                  {isSpikesExpanded && (
+                    <div className="p-4 pt-0 border-t border-rose-500/20 space-y-3 animate-in fade-in duration-150">
+                      
+                      {/* Дэлгэгдсэн үеийн Хайлтын талбар */}
+                      <div className="pt-3 flex justify-between items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400">Өссөн бараануудын задаргаа:</span>
+                        <input
+                          type="text"
+                          value={spikeSearch}
+                          onChange={(e) => setSpikeSearch(e.target.value)}
+                          placeholder="🔍 Бараа хайх..."
+                          className="bg-slate-950 border border-rose-500/40 focus:border-rose-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-48 font-bold"
+                        />
+                      </div>
+
+                      {/* Картуудын гүйдэг хайрцаг */}
+                      <div className="max-h-56 overflow-y-auto pr-1">
+                        {filteredSpikes.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic py-3 text-center">
+                            "{spikeSearch}" нэртэй бараа олдсонгүй.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            {filteredSpikes.map((alert: any) => (
+                              <div
+                                key={alert.id}
+                                className="bg-[#0B1120] p-3 rounded-xl border border-rose-500/20 space-y-1 shadow-sm"
+                              >
+                                <div className="flex justify-between items-start gap-1">
+                                  <span className="text-sm font-bold text-white truncate" title={alert.name}>
+                                    {alert.name}
+                                  </span>
+                                  <span className="text-xs font-black text-rose-400 font-mono shrink-0">
+                                    ▲ +{alert.percent}%
+                                  </span>
+                                </div>
+                                
+                                <p className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                                  <span>{alert.oldPrice.toLocaleString()} ₮</span>
+                                  <span className="text-slate-600">➔</span>
+                                  <strong className="text-rose-300 font-bold">{alert.newPrice.toLocaleString()} ₮</strong>
+                                  <span className="text-slate-500 font-sans">/ {alert.unit}</span>
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              );
+            })()}
             {/* ========================================================================= */}
             {/* БҮС 1: ОГНООНЫ КОНТРОЛ + 🚦 ӨРТГИЙН НИЙЦЛИЙН ЗААГУУР (HERO STATUS)         */}
             {/* ========================================================================= */}
@@ -9937,6 +10558,103 @@ if (salesToInsert.length > 0) {
               </div>
 
             </div>
+{/* 🛡️ МАРЖИН ХАМГААЛАГЧ (ХАЙЛТТАЙ & ЗӨВЛӨМЖИЙН ХАЙРЦАГ) */}
+            {liveAnalytics?.margin_guard_alerts?.length > 0 && (() => {
+              // 🔍 Маржин зөвлөмжийг цэсний нэрээр хайж шүүх
+              const filteredMargins = liveAnalytics.margin_guard_alerts.filter((item: any) =>
+                item.product_name.toLowerCase().includes(marginSearch.toLowerCase().trim())
+              );
+
+              return (
+                <div className="bg-[#1E293B] p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
+                  
+                  {/* ТОЛГОЙ: Гарчиг + 🔍 Хайлтын талбар + Тоо */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 shrink-0">
+                        <AlertTriangle className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-amber-300">
+                          Маржин Хамгаалагч: Үнээ нэмэх шаардлагатай бүтээгдэхүүнүүд
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Түүхий эдийн өртөг өссөнөөс болж ашиг нь 75%-иас доош орсон цэсүүд.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                      {/* 🔍 ШУУРХАЙ ЦЭС ХАЙХ ТАЛБАР */}
+                      <input
+                        type="text"
+                        value={marginSearch}
+                        onChange={(e) => setMarginSearch(e.target.value)}
+                        placeholder="🔍 Цэс хайх..."
+                        className="bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-36 sm:w-48 font-bold"
+                      />
+
+                      <span className="text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shrink-0 font-mono">
+                        Нийт {liveAnalytics.margin_guard_alerts.length} цэс
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 📋 ГҮЙДЭГ КАРТУУД */}
+                  <div className="max-h-60 overflow-y-auto pr-1">
+                    {filteredMargins.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic py-4 text-center">
+                        "{marginSearch}" нэртэй цэс олдсонгүй.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {filteredMargins.map((alert: any, idx: number) => (
+                          <div
+                            key={idx}
+                            className="bg-[#0B1120] p-4 rounded-xl border border-amber-500/20 space-y-2 shadow-sm hover:border-amber-500/40 transition"
+                          >
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="text-sm font-bold text-white truncate" title={alert.product_name}>
+                                {alert.product_name}
+                              </span>
+                              <span className="text-xs font-black text-rose-400 font-mono shrink-0 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                                Маржин: {alert.current_margin_pct}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-400 space-y-1 font-mono">
+                              <div className="flex justify-between">
+                                <span>Одоогийн өртөг:</span>
+                                <strong className="text-slate-200">{alert.cost_price.toLocaleString()} ₮</strong>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>ПОС Зарах үнэ:</span>
+                                <span className="text-slate-300">{alert.selling_price.toLocaleString()} ₮</span>
+                              </div>
+                            </div>
+
+                            {/* ЗӨВЛӨХ ЗАРАХ ҮНЭ */}
+                            <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-bold">Зөвлөх зарах үнэ:</span>
+                              <div className="text-right">
+                                <strong className="text-emerald-400 font-black font-mono text-sm block">
+                                  {alert.suggested_price.toLocaleString()} ₮
+                                </strong>
+                                <span className="text-emerald-500 font-bold font-mono text-xs">
+                                  (+{alert.price_gap.toLocaleString()} ₮ нэмэх)
+                                </span>
+                              </div>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })()}
           </div>
         )}
         {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
@@ -12834,7 +13552,25 @@ if (salesToInsert.length > 0) {
 
                                     // 3. Түүхэнд бичих
                                     await createSnapshotFromDb(posName, 'updated');
+                                      // 4. "🔗 СОЛЬЖ НЭГТГЭХ" ТОВЧ (Шар туузан дээр) ДАРАХАД СУРАХ
+                                    
+                                  await supabase.from('learned_menus').upsert([{
+                                    client_id: activeClient,
+                                    pos_name: posName,
+                                    official_product_name: selectedOldName
+                                  }], { onConflict: 'client_id,pos_name' });
 
+                                  // 5. БАТЛАХ (commitFinalSales) ДАРАХАД ШИНЭ АНГИЛАЛУУДЫГ СУРАХ
+                              const learnedCatsToInsert = newProducts
+                                .filter(p => p.method !== '🤖 Толь бичиг' && p.method !== '🧠 Систем сурсан') // Гараар зассан болон AI таасан бүхнийг сурна
+                                .map(p => ({
+                                    client_id: activeClient,
+                                    product_name: p.name,
+                                    category: p.category
+                                }));
+                              if (learnedCatsToInsert.length > 0) {
+                                  await supabase.from('learned_categories').upsert(learnedCatsToInsert, { onConflict: 'client_id,product_name' });
+  }
                                     setLoading(false);
                                     fetchDatabaseData(activeClient);
                                     alert(`✅ "${selectedOldName}"-ийн жорыг "${posName}"-тай амжилттай холболоо!`);
@@ -14532,6 +15268,110 @@ if (salesToInsert.length > 0) {
               </div>
             )}
 
+            {/* ========================================================================= */}
+        {/* 🤖 ШИНЭ ЦЭСНИЙ АНГИЛАЛЫГ ХҮНЭЭР БАТЛУУЛАХ ЦОНХ (HUMAN-IN-THE-LOOP)        */}
+        {/* ========================================================================= */}
+                  {pendingCategoryReview && (
+                <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150">
+                  <div className="bg-[#0d1527] border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                    
+                    {/* Толгой хэсэг */}
+                    <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+                      <div>
+                        <h3 className="text-base font-black text-white flex items-center gap-2">
+                          <span>✨ Шинэ цэсүүдийг ангилах</span>
+                        </h3>
+                        <p className="text-xs text-amber-300 font-bold mt-1 leading-relaxed bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl">
+                          ℹ️ Санамж: Борлуулалт одоогоор түр түгжигдсэн байна. Та доорх ангиллуудыг шалгаад хамгийн доор байрлах ногоон товчийг дарснаар бүрэн хадгалагдана.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updatePendingReview(null)}
+                        className="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl text-xs font-bold text-slate-300 cursor-pointer"
+                        title="Цуцлах"
+                      >
+                        ✕ Цуцлах
+                      </button>
+                    </div>
+
+                    {/* Хүснэгт */}
+                    <div className="flex-1 overflow-y-auto pr-1">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10 text-[10px]">
+                          <tr>
+                            <th className="py-2.5 px-3">Шинэ Цэсний Нэр</th>
+                            <th className="py-2.5 px-3">Ухаалаг Ангилал</th>
+                            <th className="py-2.5 px-3 text-right">Яаж таньсан бэ?</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
+                          {pendingCategoryReview.productsToReview.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-900/40">
+                              <td className="py-3 px-3 font-bold text-white text-sm">
+                                {item.name}
+                                <span className="block text-[10px] text-slate-500 font-mono mt-0.5">Үнэ: {item.price.toLocaleString()}₮</span>
+                              </td>
+                              <td className="py-3 px-3">
+                                <select
+                                  value={item.category}
+                                  disabled={pendingCategoryReview.isProcessing}
+                                  onChange={(e) => {
+                                    const updated = [...pendingCategoryReview.productsToReview];
+                                    updated[idx].category = e.target.value;
+                                    updated[idx].method = "👤 Гараар зассан";
+                                    updatePendingReview({ ...pendingCategoryReview, productsToReview: updated });
+                                  }}
+                                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-200 outline-none cursor-pointer w-full max-w-[160px]"
+                                >
+                                  {UNIVERSAL_CATEGORIES.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                                  item.method.includes('Толь бичиг') ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                                  item.method.includes('AI') && !item.isUnknown ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
+                                  item.method.includes('Гараар') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                                  'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
+                                }`}>
+                                  {item.method}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+            <button
+  type="button"
+  disabled={pendingCategoryReview.isProcessing}
+  onClick={async () => {
+    setPendingCategoryReview({ ...pendingCategoryReview, isProcessing: true });
+    await commitFinalSales(
+      pendingCategoryReview.salesToInsert,
+      pendingCategoryReview.productsToReview, // 👈 Эндээс шинэ цэсүүд newProductsList рүү дамжина
+      pendingCategoryReview.productsToUpdateBatch,
+      pendingCategoryReview.existingChanges
+    );
+  }}
+  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+>
+  {pendingCategoryReview.isProcessing ? (
+    <>
+      <span className="animate-spin">⏳</span>
+      <span>Баазад хадгалж байна...</span>
+    </>
+  ) : (
+    '✅ БҮГД ЗӨВ, БАТЛАХ & ХАДГАЛАХ'
+  )}
+</button>
+                  </div>
+                </div>
+              )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
               <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
@@ -15007,9 +15847,10 @@ if (salesToInsert.length > 0) {
                                   title="Грамм нь өөрчлөгдсөн байна"
                                 >
                                   <span>{diff.name}:</span>
-                                  <strong className="text-amber-200 font-mono">
-                                    {diff.snapAmount} {diff.unit} → {diff.currAmount} {diff.unit}
-                                  </strong>
+                               <span className="flex items-center gap-1 font-mono">
+                                <strong className="text-amber-200">{diff.snapAmount} {diff.unit}</strong>
+                                <span className="text-amber-400/80 font-normal text-xs">(Одоо: {diff.currAmount} {diff.unit})</span>
+                              </span>
                                 </span>
                               );
                             }
@@ -16079,10 +16920,15 @@ function KioskAiChatSection({
       });
       if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
 
-      const data = await res.json();
-      if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
+              const data = await res.json();
+        if (isCancelledRef.current) return;
 
-      setChatHistory(prev => [...prev, { sender: 'ai', text: data.message || "Гүйлгээ боловсруулагдлаа.", logId: data.log_id }]);
+        setChatHistory(prev => [...prev, { 
+          sender: 'ai', 
+          text: data.message || "Гүйлгээ боловсруулагдлаа.", 
+          logId: data.log_id,
+          learnedAliasId: data.learned_alias_id // 👈 Баазад шинээр сурсан үгийн ID хадгалах
+        }]);
     } catch (err: any) {
       if (err.name === 'AbortError' || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
       setChatHistory(prev => [...prev, { sender: 'ai', text: `❌ Алдаа: ${err.message || 'Сервертэй холбогдож чадсангүй.'}` }]);
@@ -16091,13 +16937,22 @@ function KioskAiChatSection({
     }
   };
 
-  const handleUndo = async (logId: string, index: number) => {
+
+  // 2. handleUndo функцийг шинэчлэх (learnedAliasId хүлээн авдаг болгоно):
+  const handleUndo = async (logId: string, index: number, learnedAliasId?: string) => {
     setIsAiLoading(true);
     try {
+      // А. Агуулахын лог устгах
       const { error } = await supabase.from('inventory_logs').delete().eq('id', logId);
       if (error) throw error;
+
+      // Б. ⚡ Хэрэв буруу үг сурсан байвал түүнийг баазаас устгаж "мартах"
+      if (learnedAliasId) {
+        await supabase.from('learned_aliases').delete().eq('id', learnedAliasId);
+      }
+
       const newHistory = [...chatHistory];
-      newHistory[index] = { sender: 'ai', text: "↩️ Бүртгэл амжилттай цуцлагдаж, агуулахын үлдэгдэл буцаж сэргэлээ." };
+      newHistory[index] = { sender: 'ai', text: "↩️ Бүртгэл цуцлагдаж, буруу таасан үгийг систем санах ойгоосоо устгалаа." };
       setChatHistory(newHistory);
     } catch (err) {
       alert("Буцаах үйлдэл амжилтгүй.");
@@ -16160,7 +17015,7 @@ function KioskAiChatSection({
               
               {msg.logId && (
                 <button 
-                  onClick={() => handleUndo(msg.logId!, i)}
+                  onClick={() => handleUndo(msg.logId!, i, (msg as any).learnedAliasId)}
                   className="mt-2.5 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
                 >
                   <RotateCcw className="h-3 w-3" /> Буцаах 

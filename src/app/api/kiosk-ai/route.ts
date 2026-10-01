@@ -193,42 +193,68 @@ export async function POST(request: Request) {
     const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
     const clientId = tenantClientId;
 
-    // =========================================================================
-    // 🤖 AI BATCH CATEGORIZATION (Токен хэмнэж олноор нь ангилах мотор)
-    // =========================================================================
-    if (action === "categorize" && body.names && Array.isArray(body.names)) {
-      const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
-      if (!key) return NextResponse.json({ success: false, message: "No API Key" });
+// src/app/api/kiosk-ai/route.ts доторх categorize хэсэг:
+if (action === "categorize" && body.names && Array.isArray(body.names)) {
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+const prompt = `
+    You are a data classifier for a Mongolian Coffee Shop & Restaurant.
+    Classify the following menu items into ONE of these 6 STRICT categories:
+    
+    1. "HOT_BEVERAGE": Coffee, hot tea, espresso, and any explicitly "халуун" (hot) drinks.
+    2. "COLD_BEVERAGE": Juices, smoothies, water, and any explicitly "мөстэй/хүйтэн" (iced/cold) coffees or teas.
+    3. "FOOD_PREP": Cooked meals, sandwiches, burgers, salads, bakery, bakery items.
+    4. "BAKERY_DESSERT": Cakes, pastries, bread, sweets, desserts.
+    5. "RETAIL_FMCG": Canned/bottled drinks, pre-packaged snacks (e.g., Tymbark, Cola).
+    6. "GENERAL": Unidentifiable words, random numbers, merchandise, or non-food items.
 
-      const prompt = `
-        Classify these food industry products into ONE of these 6 STRICT categories:
-        - "HOT_BEVERAGE" (Coffee, hot tea, espresso, hot drinks)
-        - "COLD_BEVERAGE" (Juices, smoothies, iced drinks, beer, cocktails, water)
-        - "FOOD_PREP" (Cooked meals, sandwiches, burgers, salads, pizza, soup)
-        - "BAKERY_DESSERT" (Cakes, pastries, bread, sweets, buns)
-        - "RETAIL_FMCG" (Canned/bottled drinks, pre-packaged snacks, items bought to resell)
-        - "GENERAL" (Unidentifiable or merchandise)
+    CRITICAL RULES:
+    - If a coffee/tea has the word "мөстэй", "iced", or "хүйтэн", you MUST classify it as "COLD_BEVERAGE".
+    - If an item is totally unrecognizable or gibberish (e.g., "b123", "Тооцоо"), use "GENERAL".
+    
+    Respond ONLY with a valid JSON object mapping the exact product name to the category string.
+    Example: { "Мөстэй Латте": "COLD_BEVERAGE", "Tymbark": "RETAIL_FMCG", "Chicken Sandwich": "FOOD_PREP" }
 
-        Respond ONLY with a valid JSON object mapping the product name to the category string.
-        Example: { "Caffe Latte": "HOT_BEVERAGE", "Tymbark": "RETAIL_FMCG" }
+    Products to classify:
+    ${JSON.stringify(body.names)}
+  `;
 
-        Products to classify:
-        ${JSON.stringify(body.names)}
-      `;
+  let resultJson: Record<string, string> | null = null;
 
-      try {
-        const ai = new GoogleGenerativeAI(key);
-        const model = ai.getGenerativeModel({
-          model: "gemini-3.5-flash-lite",
-          generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
-        });
-        const response = await model.generateContent(prompt);
-        const resultText = response.response.text().replace(/```json|```/g, "").trim();
-        return NextResponse.json({ success: true, categories: JSON.parse(resultText) });
-      } catch (err) {
-        return NextResponse.json({ success: false, error: String(err) });
-      }
+  // 1. Google Gemini 3.5 Flash-Lite-аар унших
+  if (key) {
+    try {
+      const ai = new GoogleGenerativeAI(key);
+      const model = ai.getGenerativeModel({
+        model: "gemini-3.5-flash-lite",
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
+      });
+      const response = await model.generateContent(prompt);
+      const resultText = response.response.text().replace(/```json|```/g, "").trim();
+      resultJson = JSON.parse(resultText);
+    } catch (err) {
+      console.warn("Categorize Gemini failed, falling back to Groq:", err);
     }
+  }
+
+  // 2. Хэрэв Gemini алдаа өгвөл Groq (Llama/OpenAI OSS) нөөц рүү үсрэх
+  if (!resultJson) {
+    try {
+      const groqResult = await callGroqFallback(
+        "You are an expert F&B classifier. Return ONLY a valid JSON object mapping product name to category.",
+        prompt
+      );
+      resultJson = JSON.parse(groqResult.replace(/```json|```/g, "").trim());
+    } catch (groqErr) {
+      console.error("Categorize Groq fallback failed:", groqErr);
+    }
+  }
+
+  if (resultJson) {
+    return NextResponse.json({ success: true, categories: resultJson });
+  }
+
+  return NextResponse.json({ success: false, message: "AI ангилал хийж чадсангүй." });
+}
 
     // 1. UNDO
     if (action === "undo" && logId) {
@@ -446,15 +472,13 @@ export async function POST(request: Request) {
     if (text) {
       const lower = text.toLowerCase().trim();
 
-      // ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
+// ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
       if (!isOwner) {
-        // 1. Баазаас өмнө нь суралцсан алиасуудыг татах
         const { data: learnedAliases } = await supabaseAdmin
           .from("learned_aliases")
           .select("phrase, ingredient_id")
           .eq("client_id", clientId);
 
-        // 2. Local Parser-аар 0.001ms-д шалгах
         const aiAnalysis = await parseOperationalText(
           text,
           allowedNames,
@@ -463,11 +487,10 @@ export async function POST(request: Request) {
 
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(
-            (i) =>
-              i.name.toLowerCase().trim() ===
-              aiAnalysis.item_name.toLowerCase().trim(),
+            (i) => i.name.toLowerCase().trim() === aiAnalysis.item_name.toLowerCase().trim(),
           );
           if (ingredient) {
+            // 1. Зарлагын лог хадгалах
             const { data: log } = await supabaseAdmin
               .from("inventory_logs")
               .insert([
@@ -484,35 +507,32 @@ export async function POST(request: Request) {
               .select()
               .single();
 
-            const rawPhrase = aiAnalysis.extracted_phrase || text;
-            // Тоо болон үйл үгсийг цэвэрлэх
-            const cleanPhrase = rawPhrase
-              .replace(/[\d\.]+/g, "")
-              .replace(
-                /литр|мл|кг|гр|грамм|ш|ширхэг|хайрцаг|уут|асгасан|авсан|муудсан|аву|авчлаа|гашлаа/gi,
-                "",
-              )
-              .trim()
-              .toLowerCase();
+            // 2. ⚡ ЗӨВХӨН ЦЭВЭР ҮГ СУРАХ (Алдаатай урт өгүүлбэр цээжлэхгүй!)
+            let newlyLearnedId: string | null = null;
+            if (aiAnalysis.extracted_phrase) {
+              const cleanPhrase = aiAnalysis.extracted_phrase.toLowerCase().trim();
+              const alreadyKnown = 
+                ingredient.name.toLowerCase() === cleanPhrase || 
+                (learnedAliases || []).some(a => a.phrase === cleanPhrase);
 
-            if (cleanPhrase && cleanPhrase.length >= 3) {
-              await supabaseAdmin.from("learned_aliases").upsert(
-                [
+              if (!alreadyKnown && cleanPhrase.length >= 2) {
+                const { data: aliasData } = await supabaseAdmin.from("learned_aliases").insert([
                   {
                     client_id: clientId,
                     phrase: cleanPhrase,
                     ingredient_id: ingredient.id,
                   },
-                ],
-                { onConflict: "client_id,phrase" },
-              );
+                ]).select().single();
+                if (aliasData) newlyLearnedId = aliasData.id;
+              }
             }
 
             return NextResponse.json({
               success: true,
               is_log: true,
               log_id: log?.id,
-              message: `📝 **Бүртгэгдлээ (0.01s):**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
+              learned_alias_id: newlyLearnedId, // 👈 Undo хийх үед устгах ID
+              message: `📝 **Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
             });
           }
         }
@@ -520,8 +540,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           is_log: false,
-          message:
-            "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна (Жишээ: '500мл сүү асгасан').",
+          message: "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна.",
         });
       }
 

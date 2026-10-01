@@ -432,7 +432,7 @@ export async function parseOperationalText(
     - "item_name": (string or null. Must match one of the allowed ingredients list exactly)
     - "quantity": (number or null. Negative for waste/meals/testing, positive for purchases)
     - "type": (string or null. Either "spoilage", "purchase", "testing", or "staff_meal")
-    - "extracted_phrase": (string. The exact raw Mongolian words user called this item, without numbers or action verbs. E.g. for "нэг алимны сироп аву" return "алимны сироп")
+    - "extracted_phrase": (string. The exact core noun/item name the user said, EXCLUDING any numbers, units, adjectives and verbs. E.g. if user says "2 литр сүү асгачихлаа", return JUST "сүү". If "урт шар муудсан", return JUST "урт шар").
     - "notes": (string or null. Brief description in Mongolian)
 
     Allowed ingredients list:

@@ -779,10 +779,15 @@ function KioskAiChatSection({
       });
       if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
 
-      const data = await res.json();
-      if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
+              const data = await res.json();
+        if (isCancelledRef.current) return;
 
-      setChatHistory(prev => [...prev, { sender: 'ai', text: data.message || "Гүйлгээ боловсруулагдлаа.", logId: data.log_id }]);
+        setChatHistory(prev => [...prev, { 
+          sender: 'ai', 
+          text: data.message || "Гүйлгээ боловсруулагдлаа.", 
+          logId: data.log_id,
+          learnedAliasId: data.learned_alias_id // 👈 Баазад шинээр сурсан үгийн ID хадгалах
+        }]);
     } catch (err: any) {
       if (err.name === 'AbortError' || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
       setChatHistory(prev => [...prev, { sender: 'ai', text: `❌ Алдаа: ${err.message || 'Сервертэй холбогдож чадсангүй.'}` }]);
@@ -791,13 +796,22 @@ function KioskAiChatSection({
     }
   };
 
-  const handleUndo = async (logId: string, index: number) => {
+
+  // 2. handleUndo функцийг шинэчлэх (learnedAliasId хүлээн авдаг болгоно):
+  const handleUndo = async (logId: string, index: number, learnedAliasId?: string) => {
     setIsAiLoading(true);
     try {
+      // А. Агуулахын лог устгах
       const { error } = await supabase.from('inventory_logs').delete().eq('id', logId);
       if (error) throw error;
+
+      // Б. ⚡ Хэрэв буруу үг сурсан байвал түүнийг баазаас устгаж "мартах"
+      if (learnedAliasId) {
+        await supabase.from('learned_aliases').delete().eq('id', learnedAliasId);
+      }
+
       const newHistory = [...chatHistory];
-      newHistory[index] = { sender: 'ai', text: "↩️ Бүртгэл амжилттай цуцлагдаж, агуулахын үлдэгдэл буцаж сэргэлээ." };
+      newHistory[index] = { sender: 'ai', text: "↩️ Бүртгэл цуцлагдаж, буруу таасан үгийг систем санах ойгоосоо устгалаа." };
       setChatHistory(newHistory);
     } catch (err) {
       alert("Буцаах үйлдэл амжилтгүй.");
@@ -860,7 +874,7 @@ function KioskAiChatSection({
               
               {msg.logId && (
                 <button 
-                  onClick={() => handleUndo(msg.logId!, i)}
+                  onClick={() => handleUndo(msg.logId!, i, (msg as any).learnedAliasId)}
                   className="mt-2.5 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
                 >
                   <RotateCcw className="h-3 w-3" /> Буцаах 
