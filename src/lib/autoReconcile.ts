@@ -4,7 +4,9 @@
 // 1. АВАРГА ТОЛЬ БИЧИГ (100% Complete F&B Dictionary)
 // =========================================================================
 export const EN_TO_MN_DICT: Record<string, string[]> = {
+  // =========================================================
   // Товчлолууд
+  // =========================================================
   syr: ["сироп", "шүүс", "бурам"],
   fr: ["жимс", "жимсний", "жимстэй"],
   cr: ["крем", "цөцгий", "хөөс"],
@@ -20,7 +22,9 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   mascarp: ["маскарпоне"],
   boulillon: ["бульон", "шөл"],
 
+  // =========================================================
   // Сүү, Өндөг, Цөцгий, Бяслаг
+  // =========================================================
   milk: ["сүү", "сү", "милк"],
   egg: ["өндөг", "өндөгний"],
   eggs: ["өндөг", "өндөгний"],
@@ -35,10 +39,23 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   moloko: ["молоко", "өтгөрүүлсэн сүү"],
   whipped: ["хөөсрүүлсэн", "вип", "хутгасан"],
 
-  // Кофе, Цай, Ундаанууд
+  // =========================================================
+  // Кофе, Цай, Ундаанууд (БҮХ ДУТУУ ЦЭСҮҮДИЙГ НЭМЭВ)
+  // =========================================================
+  latte: ["латте", "латтэ", "лате", "latte", "lata"],                      // 👈 НЭМСЭН (Латте танигдана)
+  cappuccino: ["капучино", "капуччино", "cappuccino", "capuccino"],        // 👈 НЭМСЭН (Капучино танигдана)
+  americano: ["американо", "американо", "americano"],                      // 👈 НЭМСЭН (Американо танигдана)
+  macchiato: ["макиато", "маккиато", "macchiato"],                         // 👈 НЭМСЭН (Макиато танигдана)
+  frappuccino: ["фраппучино", "фраппе", "фраппуччино", "frappuccino", "frappe", "frap"], // 👈 НЭМСЭН (Фраппе танигдана)
+  lemonade: ["лимонад", "lemonade"],                                       // 👈 НЭМСЭН (Лимонад танигдана)
+  ade: ["эйд", "эйд", "ade"],                                              // 👈 НЭМСЭН (Fruit Ade танигдана)
+  shake: ["шейк", "милкшейк", "shake", "milkshake"],                       // 👈 НЭМСЭН (Шейк танигдана)
+  mojito: ["мохито", "mojito"],                                            // 👈 НЭМСЭН
+  coldbrew: ["колд брью", "хүйтэн ханд", "coldbrew", "cold brew"],         // 👈 НЭМСЭН
+  hotmilk: ["халуун сүү", "сүүтэй"],                                       // 👈 НЭМСЭН
   bean: ["үр", "үрэл", "кофе", "шош"],
   beans: ["үр", "үрэл", "кофе", "шош"],
-  coffee: ["кофе", "эспрессо"],
+  coffee: ["кофе", "эспрессо", "caffe", "cafe"],
   espresso: ["эспрессо", "кофе"],
   kick: ["кик", "хүчтэй кофе"],
   tea: ["цай", "байхуу", "хөндмөл", "ханд"],
@@ -47,14 +64,16 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   matcha: ["матча", "ногоон цай"],
   chai: ["чай", "цай", "масала"],
   rooibos: ["ройбос", "улаан цай"],
-  hibis: ["хибискус", "сарнай"],
+  hibis: ["хибискус", "гибискус", "сарнай"],
   butterfl: ["эрвээхэй", "цэнхэр цай"],
   green: ["ногоон", "ногоон цай"],
   bulbous: ["булцуут", "ургамал"],
   water: ["ус", "цэвэр ус", "рашаан"],
-  bonaque: ["ус", "бонакуа"],
+  bonaqua: ["ус", "бонакуа", "бонаква", "bonaqua", "bonaque"],
   soda: ["сода", "хийжүүлсэн", "хийтэй"],
-  cola: ["кола", "ундаа"],
+  cola: ["кола", "ундаа", "cola", "coca", "pepsi", "sprite", "fanta"],
+  tymbark: ["тимбарк", "түмбарк", "tymbark"],                             // 👈 НЭМСЭН
+  redbull: ["редбулл", "redbull", "монстер", "monster"],                   // 👈 НЭМСЭН
   laaztai: ["лаазтай", "лааз"],
   craft: ["крафт"],
   soft: ["ундаа", "хийжүүлсэн"],
@@ -65,7 +84,10 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   orice: ["орис", "будааны"],
   smoothie: ["смүүти", "смути"],
 
+  // =========================================================
   // Сироп, Чихэрлэг
+  // =========================================================
+  flavor: ["flavor", "flavored", "амталсан"],                             // 👈 НЭМСЭН
   syrup: ["сироп", "шүүс", "бурам"],
   sugar: ["сахар", "элсэн чихэр"],
   sweetener: ["сахар орлуулагч", "чихэрлэг"],
@@ -75,19 +97,30 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   hazelnut: ["самар", "самрын", "хазелнат"],
   pistacchio: ["пистачио", "фисташка"],
   pistachio: ["пистачио", "фисташка"],
-  cinnamon: ["шанц", "синнамон", "савхан шанц"],
+  cinnamon: ["шанц", "синнамон", "синамон", "савхан шанц"],
   chocolate: ["шоколад", "шоко", "какао", "халуун шоколад"],
   choco: ["шоко", "шоколад"],
   cocoa: ["какао"],
-  mocha: ["мока"],
+  mocha: ["мока", "мокка"],
   mint: ["гаа", "гааны", "минт"],
   curasao: ["кюрасао", "курасао"],
   grenade: ["анар", "гренадин"],
 
-  // Мах, Уураг
+  // =========================================================
+  // Мах, Уураг, Хоол (САЛАТ БА ХООЛЫГ НЭМЭВ)
+  // =========================================================
+  salad: ["салат", "салатны", "salad"],                                    // 👈 НЭМСЭН (Салат танигдана!)
+  soup: ["шөл", "зутан"],
+  sandwich: ["сэндвич", "сендвич"],
+  burger: ["бургер", "бургерын"],
+  pizza: ["пицца", "pizza"],                                               // 👈 НЭМСЭН
+  pasta: ["паста", "pasta", "гоймон"],                                     // 👈 НЭМСЭН
+  steak: ["стейк", "steak"],                                               // 👈 НЭМСЭН
+  tsuiwan: ["цуйван", "хуушуур", "бууз"],                                  // 👈 НЭМСЭН
+  meal: ["хоол", "хуурга", "meal"],                                        // 👈 НЭМСЭН
   beef: ["үхэр", "үхрийн мах", "үхрийн"],
   pork: ["гахай", "гахайн мах"],
-  chicken: ["тахиа", "тахианы мах", "цээж мах"],
+  chicken: ["тахиа", "тахианы мах", "цээж мах", "breast"],
   sheep: ["хонь", "хонины мах", "хонины"],
   lamb: ["хурга", "хурганы мах"],
   bacon: ["бекон", "гахайн мах"],
@@ -96,7 +129,9 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   tuna: ["туна", "загас", "загасны мах"],
   ground: ["татсан", "татсан мах"],
 
+  // =========================================================
   // Жимс
+  // =========================================================
   apple: ["алим", "алимны"],
   banana: ["гадил", "банан"],
   lemon: ["нимбэг", "лимон", "нимбэгний"],
@@ -117,7 +152,9 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   wildberry: ["зэрлэг жимс", "ойн жимс"],
   sea: ["чацаргана", "далайн"],
 
+  // =========================================================
   // Ногоо, Ургамал
+  // =========================================================
   tomato: ["улаан лооль", "помидор", "лооль"],
   tomatoes: ["улаан лооль", "помидор"],
   cucumber: ["өргөст хэмх", "огурцы"],
@@ -137,14 +174,26 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   farm: ["фермийн", "ногооны"],
   plant: ["ургамал", "булцуут"],
 
-  // Гурил, Сүмс, Нарийн боов
+  // =========================================================
+  // Гурил, Сүмс, Нарийн боов & Бэйкэри (КАПКЕЙК, ТОРТ, МЕДОВИКИЙГ НЭМЭВ)
+  // =========================================================
+  cupcake: ["капкейк", "кэкс", "cupcake", "кэк"],                          // 👈 НЭМСЭН (Капкейк танигдана!)
+  cake: ["бялуу", "бялууны", "cake", "торт", "медовик", "трюфель"],        // 👈 НЭМСЭН (Медовик/Трюфель танигдана!)
+  tiramisu: ["тирамису", "тирамисү", "tiramisu"],                          // 👈 НЭМСЭН (Тирамису танигдана!)
+  croissant: ["круассан", "круассон", "croissant"],                        // 👈 НЭМСЭН
+  cheesecake: ["чизкейк", "cheesecake"],                                   // 👈 НЭМСЭН
+  muffin: ["маффин", "muffin"],                                            // 👈 НЭМСЭН
+  cookie: ["жигнэмэг", "cookie", "cookies"],                               // 👈 НЭМСЭН
+  donut: ["пончик", "донат", "donut"],                                     // 👈 НЭМСЭН
+  waffle: ["вафли", "waffle"],                                             // 👈 НЭМСЭН
+  pie: ["пирог", "пай", "pie", "тарт", "tart"],                            // 👈 НЭМСЭН
+  dessert: ["десерт", "амттан", "dessert"],                                // 👈 НЭМСЭН
   bread: ["талх", "хэрчсэн", "зүссэн"],
   bun: ["талх", "булочка", "бургерын талх"],
   flour: ["гурил", "гурилан"],
   powder: ["нунтаг", "паудэр", "пудр", "хөөлгөгч"],
   power: ["нунтаг", "паудэр"],
   sauce: ["соус", "сүмс", "амтлагч"],
-  burger: ["бургер", "бургерын"],
   ketchup: ["кетчуп"],
   mayo: ["майонез"],
   mustard: ["гич", "мустард"],
@@ -171,17 +220,16 @@ export const EN_TO_MN_DICT: Record<string, string[]> = {
   black: ["хар", "үхрийн нүд"],
   blue: ["хөх", "цэнхэр"],
   red: ["улаан"],
-  soup: ["шөл", "зутан"],
-  sandwich: ["сэндвич"],
 
+  // =========================================================
   // Сав баглаа
+  // =========================================================
   cup: ["аяга", "стакан"],
   lid: ["таг", "бөглөө"],
   straw: ["соруул", "гуурс"],
   napkin: ["сальфетка", "арчуур", "цаас"],
   bag: ["уут", "тор", "хүүдий"]
 };
-
 // =========================================================================
 // 2. ХЭМЖЭЭ, ХЯМДРАЛЫН ҮГС (Эдгээр үг орсон бол эцэг бүтээгдэхүүнийг солихгүй!)
 // =========================================================================
@@ -363,12 +411,11 @@ export const FNB_DICT_CATEGORY_MAP: Record<
 > = {
   // =========================================================
   // Товчлолууд / EXTRA WORDS
-  // These are not in the first guide, so keep their categories
   // =========================================================
-  syr: 'COLD_BEVERAGE',
-  fr: 'COLD_BEVERAGE',
+  syr: 'GENERAL', // 👈 Сироп нь ундааг хүйтэн болгохгүйн тулд GENERAL
+  fr: 'GENERAL',  // 👈 Жимстэй халуун цайг хүйтэн болгохгүйн тулд GENERAL
   cr: 'BAKERY_DESSERT',
-  bl: 'COLD_BEVERAGE',
+  bl: 'GENERAL',
   veg: 'FOOD_PREP',
   vegg: 'FOOD_PREP',
   veggies: 'FOOD_PREP',
@@ -382,7 +429,6 @@ export const FNB_DICT_CATEGORY_MAP: Record<
 
   // =========================================================
   // Сүү, Өндөг, Цөцгий, Бяслаг
-  // First dictionary = SOURCE OF TRUTH
   // =========================================================
   milk: 'GENERAL',
   egg: 'GENERAL',
@@ -396,11 +442,23 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   balloon: 'GENERAL',
   yogurt: 'GENERAL',
   moloko: 'GENERAL',
-  whipped: 'BAKERY_DESSERT',
+  whipped: 'GENERAL',
 
   // =========================================================
-  // Кофе, Цай, Ундаанууд
+  // Кофе, Цай, Ундаанууд (БҮХ ДУТУУ ЦЭСҮҮДИЙГ НЭМСЭН)
   // =========================================================
+  latte: 'HOT_BEVERAGE',       // 👈 НЭМСЭН (Caffe latte танигдана)
+  cappuccino: 'HOT_BEVERAGE',  // 👈 НЭМСЭН (Cappuccino танигдана)
+  americano: 'HOT_BEVERAGE',   // 👈 НЭМСЭН (Americano танигдана)
+  macchiato: 'HOT_BEVERAGE',   // 👈 НЭМСЭН (Caramel Macchiato танигдана)
+  caffe: 'HOT_BEVERAGE',       // 👈 НЭМСЭН
+  frappuccino: 'COLD_BEVERAGE',// 👈 НЭМСЭН (Frappuccino танигдана)
+  frappe: 'COLD_BEVERAGE',     // 👈 НЭМСЭН
+  lemonade: 'COLD_BEVERAGE',   // 👈 НЭМСЭН
+  ade: 'COLD_BEVERAGE',        // 👈 НЭМСЭН (Fruit Ade танигдана)
+  shake: 'COLD_BEVERAGE',      // 👈 НЭМСЭН
+  coldbrew: 'COLD_BEVERAGE',   // 👈 НЭМСЭН
+  hotmilk: 'HOT_BEVERAGE',     // 👈 НЭМСЭН (Hot Milk with Honey танигдана)
   bean: 'HOT_BEVERAGE',
   beans: 'HOT_BEVERAGE',
   coffee: 'HOT_BEVERAGE',
@@ -417,9 +475,12 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   green: 'HOT_BEVERAGE',
   bulbous: 'HOT_BEVERAGE',
   water: 'COLD_BEVERAGE',
+  bonaqua: 'RETAIL_FMCG',
   bonaque: 'RETAIL_FMCG',
   soda: 'COLD_BEVERAGE',
   cola: 'RETAIL_FMCG',
+  tymbark: 'RETAIL_FMCG',      // 👈 НЭМСЭН
+  redbull: 'RETAIL_FMCG',      // 👈 НЭМСЭН
   laaztai: 'RETAIL_FMCG',
   craft: 'COLD_BEVERAGE',
   soft: 'COLD_BEVERAGE',
@@ -433,7 +494,7 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   // =========================================================
   // Сироп, Чихэрлэг
   // =========================================================
-  syrup: 'COLD_BEVERAGE',
+  syrup: 'GENERAL',
   sugar: 'GENERAL',
   sweetener: 'GENERAL',
   honey: 'GENERAL',
@@ -444,16 +505,25 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   pistachio: 'GENERAL',
   cinnamon: 'GENERAL',
   chocolate: 'GENERAL',
-  choco: 'HOT_BEVERAGE',
+  choco: 'GENERAL',
   cocoa: 'HOT_BEVERAGE',
   mocha: 'HOT_BEVERAGE',
-  mint: 'COLD_BEVERAGE',
+  mint: 'GENERAL', // 👈 Mint Chocolate Latte-г хүйтэн болгохгүйн тулд GENERAL
   curasao: 'COLD_BEVERAGE',
   grenade: 'COLD_BEVERAGE',
 
   // =========================================================
-  // Мах, Уураг
+  // Мах, Уураг, Хоол
   // =========================================================
+  salad: 'FOOD_PREP', // 👈 НЭМСЭН (Chicken Breast Salad танигдана!)
+  soup: 'FOOD_PREP',
+  sandwich: 'FOOD_PREP',
+  burger: 'FOOD_PREP',
+  pizza: 'FOOD_PREP',
+  pasta: 'FOOD_PREP',
+  steak: 'FOOD_PREP',
+  tsuiwan: 'FOOD_PREP',
+  meal: 'FOOD_PREP',
   beef: 'GENERAL',
   pork: 'FOOD_PREP',
   chicken: 'GENERAL',
@@ -466,7 +536,7 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   ground: 'FOOD_PREP',
 
   // =========================================================
-  // Жимс
+  // Жимс (Бүгд GENERAL - Ундааны үндсэн суурийг эвдэхгүй)
   // =========================================================
   apple: 'GENERAL',
   banana: 'GENERAL',
@@ -510,15 +580,27 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   plant: 'HOT_BEVERAGE',
 
   // =========================================================
-  // Гурил, Сүмс, Нарийн боов
+  // Гурил, Сүмс, Нарийн боов & Бэйкэри
   // =========================================================
+  cupcake: 'BAKERY_DESSERT',    // 👈 НЭМСЭН (Choco chips / Sea buckthorn cupcake танигдана!)
+  cake: 'BAKERY_DESSERT',       // 👈 НЭМСЭН
+  tiramisu: 'BAKERY_DESSERT',   // 👈 НЭМСЭН
+  croissant: 'BAKERY_DESSERT',  // 👈 НЭМСЭН
+  cheesecake: 'BAKERY_DESSERT', // 👈 НЭМСЭН
+  muffin: 'BAKERY_DESSERT',     // 👈 НЭМСЭН
+  cookie: 'BAKERY_DESSERT',     // 👈 НЭМСЭН
+  donut: 'BAKERY_DESSERT',      // 👈 НЭМСЭН
+  medovik: 'BAKERY_DESSERT',    // 👈 НЭМСЭН (Трюфель/Медовик танигдана!)
+  truffle: 'BAKERY_DESSERT',    // 👈 НЭМСЭН
+  pie: 'BAKERY_DESSERT',        // 👈 НЭМСЭН
+  tart: 'BAKERY_DESSERT',       // 👈 НЭМСЭН
+  dessert: 'BAKERY_DESSERT',    // 👈 НЭМСЭН
   bread: 'GENERAL',
   bun: 'GENERAL',
   flour: 'BAKERY_DESSERT',
   powder: 'BAKERY_DESSERT',
   power: 'BAKERY_DESSERT',
   sauce: 'FOOD_PREP',
-  burger: 'FOOD_PREP',
   ketchup: 'FOOD_PREP',
   mayo: 'FOOD_PREP',
   mustard: 'FOOD_PREP',
@@ -531,16 +613,14 @@ export const FNB_DICT_CATEGORY_MAP: Record<
   seasonings: 'FOOD_PREP',
   chips: 'RETAIL_FMCG',
   stick: 'BAKERY_DESSERT',
-  velvet: 'BAKERY_DESSERT',
   ladies: 'BAKERY_DESSERT',
   finger: 'BAKERY_DESSERT',
   baking: 'BAKERY_DESSERT',
   hot: 'HOT_BEVERAGE',
-  black: 'HOT_BEVERAGE',
-  blue: 'COLD_BEVERAGE',
-  red: 'BAKERY_DESSERT',
-  soup: 'FOOD_PREP',
-  sandwich: 'FOOD_PREP',
+  black: 'GENERAL',
+  blue: 'GENERAL',
+  red: 'GENERAL',       // 👈 Red Velvet Latte-г бэйкэри болгохгүйн тулд GENERAL
+  velvet: 'GENERAL',    // 👈 Red Velvet Latte-г бэйкэри болгохгүйн тулд GENERAL
 
   // =========================================================
   // Тэмдэг нэрүүд / EXTRA WORDS

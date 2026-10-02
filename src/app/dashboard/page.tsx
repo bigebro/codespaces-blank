@@ -606,15 +606,26 @@ function Home() {
     price: "",
     par: "0",
   });
-  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ
-  const UNIVERSAL_CATEGORIES = [
-    { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', margin: 82 },
-    { id: 'COLD_BEVERAGE', name: '🍹 Хүйтэн ундаа', margin: 78 },
-    { id: 'FOOD_PREP', name: '🍳 Гал тогоо (Хоол)', margin: 68 },
-    { id: 'BAKERY_DESSERT', name: '🥐 Бэйкэри & Десерт', margin: 75 },
-    { id: 'RETAIL_FMCG', name: '🥤 Бэлэн бараа (Лааз/Сав)', margin: 50 },
-    { id: 'GENERAL', name: '📦 Бусад (Сав баглаа г.м)', margin: 70 }
-  ];
+// 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
+const UNIVERSAL_CATEGORIES = [
+  { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', icon: '☕', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
+  { id: 'COLD_BEVERAGE', name: '🍹 Хүйтэн ундаа', icon: '🍹', color: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/30' },
+  { id: 'FOOD_PREP', name: '🍳 Хоол & Зууш', icon: '🍳', color: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' },
+  { id: 'BAKERY_DESSERT', name: '🥐 Бэйкэри & Десерт', icon: '🥐', color: 'text-purple-300 bg-purple-500/10 border-purple-500/30' },
+  { id: 'RETAIL_FMCG', name: '🥤 Бэлэн бараа (Лааз/Сав)', icon: '🥤', color: 'text-blue-300 bg-blue-500/10 border-blue-500/30' },
+  { id: 'GENERAL', name: '📦 Бусад', icon: '📦', color: 'text-slate-300 bg-slate-800 border-slate-700' }
+];
+
+// 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
+const renderCategoryBadge = (catId: string) => {
+  const found = UNIVERSAL_CATEGORIES.find(c => c.id === catId) || UNIVERSAL_CATEGORIES[5];
+  return (
+    <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 shadow-sm ${found.color}`}>
+      <span>{found.icon}</span>
+      <span>{found.name.replace(/^[^\s]+\s/, '')}</span>
+    </span>
+  );
+};
 
 
   const [showAddProdModal, setShowAddProdModal] = useState(false);
@@ -2542,9 +2553,11 @@ const commitFinalSales = async (
     }
   };
 
+
+// =========================================================================
+  // 5. МЕНЮНИЙ ЗАРАХ ҮНЭ ИМПОРТЛОХ (СИСТЕМ ӨӨРӨӨ АВТОМАТААР АНГИЛНА)
   // =========================================================================
-  // 5. МЕНЮНИЙ ЗАРАХ ҮНЭ ИМПОРТЛОХ (Огноо хэрэггүй)
-  // =========================================================================
+
   const handleBulkProductsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productsPasteText.trim()) return;
@@ -2558,12 +2571,11 @@ const commitFinalSales = async (
         if (!row.trim()) return;
         const cols = row.split("\t");
         if (cols.length >= 2) {
-          let category = "General";
           let name = "";
           let price = 0;
 
-          if (cols.length >= 3) {
-            category = cols[0]?.trim() || "General";
+          // Хэрэглэгч 2 багана эсвэл 3 багана хуулсан аль ч тохиолдолд нэр ба үнийг зөв олно:
+          if (cols.length >= 3 && isNaN(Number(cols[0]))) {
             name = cols[1]?.trim() || "";
             price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, "")) || 0;
           } else {
@@ -2571,16 +2583,17 @@ const commitFinalSales = async (
             price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, "")) || 0;
           }
 
-          if (
-            name &&
-            price > 0 &&
-            !name.toLowerCase().includes("item") &&
-            !name.toLowerCase().includes("нэр")
-          ) {
+          if (name && price > 0 && !name.toLowerCase().includes("item") && !name.toLowerCase().includes("нэр")) {
+            // 🧠 СИСТЕМ ӨӨРӨӨ СУРСАН САНАХ ОЙ БА ТОЛЬ БИЧГЭЭРЭЭ 6 АНГИЛАЛД ОНООНО:
+            const learned = (learnedCategories || []).find(
+              (lc: any) => sanitizeName(lc.product_name) === sanitizeName(name)
+            );
+            const smartCategory = learned?.category || autoCategorizeProduct(name) || 'GENERAL';
+
             productsToUpsert.push({
               client_id: activeClient,
-              category: category,
               name: name,
+              category: smartCategory, // 👈 100% автомат ангилал!
               selling_price: price,
             });
           }
@@ -2597,9 +2610,7 @@ const commitFinalSales = async (
       setProductsImportSuccess(true);
       setProductsPasteText("");
       await fetchDatabaseData(activeClient);
-      alert(
-        `✅ Амжилттай! ${productsToUpsert.length} цэсний зарах үнэ хадгалагдлаа.`,
-      );
+      alert(`✅ Амжилттай! Нийт ${productsToUpsert.length} цэсийг систем автоматаар ухаалгаар ангилж хадгаллаа.`);
       setTimeout(() => setProductsImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Меню оруулахад алдаа гарлаа: ${err.message}`);
@@ -2607,7 +2618,6 @@ const commitFinalSales = async (
       setLoading(false);
     }
   };
-
   // =========================================================================
   // 🗑️ ГАЛ ТОГООНЫ ХАЯГДАЛ ХУУЛАХ (ОГНООГҮЙ Ч СОНГОСОН САРД ЗӨВ ОРНО)
   // =========================================================================
@@ -6723,15 +6733,19 @@ const commitFinalSales = async (
                         {isAddingProdRow && (
                           <tr className="bg-blue-950/40 border-b-2 border-blue-500/60 animate-in fade-in duration-150">
                             <td className="py-2 px-3 text-blue-400 font-bold">New</td>
-                            <td className="py-2 px-3">
-                              <input
-                                type="text"
-                                value={newProdDraft.category}
-                                onChange={e => setNewProdDraft({ ...newProdDraft, category: e.target.value })}
-                                placeholder="COFFEE, FOOD..."
-                                className="w-24 bg-[#060b17] border border-blue-500 rounded-lg px-2 py-1 text-sm text-white outline-none"
-                              />
-                            </td>
+                           <td className="py-2 px-3">
+                            <select
+                              value={newProdDraft.category}
+                              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewProdDraft({ ...newProdDraft, category: e.target.value })}
+                              className="bg-[#060b17] border border-blue-500 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none cursor-pointer"
+                            >
+                              {UNIVERSAL_CATEGORIES.map(cat => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                             <td className="py-2 px-3">
                               <input
                                 type="text"
@@ -6804,13 +6818,18 @@ const commitFinalSales = async (
                                 <tr key={`edit-${prod.id}-${idx}`} className="bg-blue-950/40 border-b-2 border-blue-500/60"> 
                                   <td className="py-2 px-3"></td>
                                   <td className="py-2 px-3">
-                                    <input
-                                      type="text"
-                                      value={editingProdDraft.category}
-                                      onChange={e => setEditingProdDraft({ ...editingProdDraft, category: e.target.value })}
-                                      className="w-24 bg-[#060b17] border border-blue-500 rounded-lg px-2 py-1 text-sm text-white outline-none"
-                                    />
-                                  </td>
+                                  <select
+                                    value={editingProdDraft.category}
+                                    onChange={e => setEditingProdDraft({ ...editingProdDraft, category: e.target.value })}
+                                    className="bg-[#060b17] border border-blue-500 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none cursor-pointer"
+                                  >
+                                    {UNIVERSAL_CATEGORIES.map(cat => (
+                                      <option key={cat.id} value={cat.id}>
+                                        {cat.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
                                   <td className="py-2 px-3">
                                     <input
                                       type="text"
@@ -6848,6 +6867,12 @@ const commitFinalSales = async (
                                             selling_price: newPrice
                                           }).eq('id', prod.id);
 
+                                         // 🧠 ⚡ ЭЗЭН МЕНЮ ДЭЭР АНГИЛЛЫГ ЗАСМАГЦ LEARNED_CATEGORIES БААЗ ДАВХАР ЗАСАГДАНА:
+                                      await supabase.from('learned_categories').upsert([{
+                                        client_id: activeClient,
+                                        product_name: newName,
+                                        category: newCat
+                                      }], { onConflict: 'client_id,product_name' }); 
                                           if (oldName && oldName !== newName) {
                                             setRecipes(prev => prev.map(r => r.product_name === oldName ? { ...r, product_name: newName } : r));
                                             await supabase.from('recipes').update({ product_name: newName }).eq('client_id', activeClient).eq('product_name', oldName);
@@ -6890,7 +6915,7 @@ const commitFinalSales = async (
                                 </td>
                                 <td className="py-2.5 px-3">
                                   <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-xs font-bold">
-                                    {prod.category || 'General'}
+                                    {renderCategoryBadge(prod.category)}
                                   </span>
                                 </td>
                                 <td className="py-2.5 px-3 font-bold text-white">{prod.name}</td>
