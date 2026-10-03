@@ -745,18 +745,42 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     start_evidence_image: s.start_evidence_image || null
   }));
 
+  // ---------------------------------------------------------------------------
+  // 🧠 УХААЛАГ ӨРТӨГ & ТӨЛӨВ ТОДОРХОЙЛОХ (REALISTIC COGS RESOLVER)
+  // ---------------------------------------------------------------------------
+  const hasMassCount = rawActualCogs > 0;
+  
+  // Хэрэв тооллого хийгдээгүй бол 0₮ гэж хуурахгүй, Жорын онол + Бүртгэлтэй хаягдлаар авна:
+  const effectiveActualCogs = hasMassCount 
+    ? adjustedCogs 
+    : (totalTheoCogs + totalLoggedSpoilage);
+
+  const effectiveNetRevenue = netRevenue;
+  const effectiveGrossProfit = Math.max(0, effectiveNetRevenue - effectiveActualCogs);
+  const effectiveEbit = effectiveNetRevenue - effectiveActualCogs - adjustedOpex;
+  const effectiveNetProfit = Math.round(effectiveEbit - activeTaxAmount);
+
+  // Борлуулсан боловч жоргүй үлдсэн цэсүүдийг тоолох
+  const soldProductNames = Object.keys(productSales).filter(k => productSales[k] > 0);
+  const unmappedCount = soldProductNames.filter(name => {
+    return !allKnownProducts.some(p => cleanString(p).toLowerCase() === name && (allRecipesMap[cleanString(p).toLowerCase()] || Object.keys(allRecipesMap[name] || {}).length > 0));
+  }).length;
+
   return {
     financial_ladder: {
       revenue: totalRevenue,
       net_revenue: netRevenue,
-      actual_cogs: adjustedCogs,
+      actual_cogs: effectiveActualCogs, // 👈 0₮ биш бодит/онолын зөв дүн
       theo_cogs: totalTheoCogs,
-      gross_margin: netRevenue > 0 ? ((netRevenue - adjustedCogs) / netRevenue * 100).toFixed(2) + "%" : "0%",
+      is_theoretical_mode: !hasMassCount, // 👈 Тооллого хүлээгдэж буй эсэх
+      has_unmapped_recipes: unmappedCount > 0,
+      unmapped_recipes_count: unmappedCount,
+      gross_margin: effectiveNetRevenue > 0 ? ((effectiveGrossProfit / effectiveNetRevenue) * 100).toFixed(2) + "%" : "0%",
       opex: adjustedOpex,
       depreciation: totalMonthlyDepreciation,
-      ebit: finalEbit,
-      net_profit: Math.round(finalEbit - activeTaxAmount) || 0,
-      net_margin: netRevenue > 0 ? (((finalEbit - activeTaxAmount) / netRevenue) * 100).toFixed(2) + "%" : "0%"
+      ebit: effectiveEbit,
+      net_profit: effectiveNetProfit,
+      net_margin: effectiveNetRevenue > 0 ? ((effectiveNetProfit / effectiveNetRevenue) * 100).toFixed(2) + "%" : "0%"
     },
     tax_summary: {
       is_above_300m: isAbove300M,

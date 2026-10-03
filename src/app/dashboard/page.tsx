@@ -3400,60 +3400,92 @@ const commitFinalSales = async (
               </div>
             </div>
 
-            {/* ========================================================================= */}
-            {/* БҮС 2: 4 ТОМ КАРТ (FINANCIAL PULSE - САНХҮҮГИЙН ЦОХИЛТ)                   */}
-            {/* ========================================================================= */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* 1. НИЙТ ОРЛОГО */}
-              <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Нийт Орлого (Revenue)</p>
-                <p className="text-2xl sm:text-3xl font-black text-white font-mono">
-                  <LiveMetric isLive={isLive} isReady={!!liveAnalytics} liveValue={liveAnalytics?.financial_ladder?.revenue} demoValue={currentDemoStats.revenue} />
-                </p>
-                <span className="text-xs text-slate-400 mt-2 block">ПОС-ын баталгаажсан орлого</span>
-              </div>
+       {/* 🚨 ТОХИОЛДОЛ 1: ХЭРЭВ БОРЛУУЛСАН ЦЭС ДҮНД ЖОРГҮЙ БАРАА БАЙВАЛ ШУУД ТҮГЖИНЭ */}
+{liveAnalytics?.financial_ladder?.has_unmapped_recipes ? (
+  <div className="bg-amber-500/10 border-2 border-amber-500/30 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">🔒</span>
+        <h4 className="text-base font-black text-amber-300">
+          Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн
+        </h4>
+      </div>
+      <p className="text-xs text-slate-300">
+        Борлуулалт хийгдсэн <strong>{liveAnalytics.financial_ladder.unmapped_recipes_count}</strong> цэс жоргүй (технологийн картгүй) байна. 
+        Хуурамч 100% ашиг харуулахаас сэргийлж өртөг ба ашгийн тооцоог түр түгжив.
+      </p>
+    </div>
+    <button
+      onClick={() => {
+        setActiveTab("settings");
+        setCatalogTab("recipes");
+      }}
+      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow-md cursor-pointer"
+    >
+      🔗 Жоргүй цэсийг холбох ➔
+    </button>
+  </div>
+) : (
+  /* 🟢 ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    
+    {/* 1. НИЙТ ОРЛОГО (Байнгын нээлттэй, үнэн бодит дүн) */}
+    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Нийт Орлого (Revenue)</p>
+      <p className="text-2xl sm:text-3xl font-black text-white font-mono">
+        {liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder?.revenue || 0).toLocaleString()} ₮` : "-"}
+      </p>
+      <span className="text-xs text-emerald-400 mt-2 block font-semibold">✓ ПОС-оор баталгаажсан бодит дүн</span>
+    </div>
 
-              {/* 2. ӨРТӨГ (COGS) */}
-              <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Өртөг (Food Cost)</p>
-                <p className="text-2xl sm:text-3xl font-black text-white font-mono">
-                  <LiveMetric isLive={isLive} isReady={!!liveAnalytics} liveValue={liveAnalytics?.financial_ladder?.actual_cogs} demoValue={currentDemoStats.actualCogs} />
-                </p>
-                <div className="text-xs text-slate-400 mt-2 flex items-center justify-between">
-                  <span>Онол: <strong className="text-slate-300 font-mono"><LiveMetric isLive={isLive} isReady={!!liveAnalytics} liveValue={liveAnalytics?.financial_ladder?.theo_cogs} demoValue={currentDemoStats.theoCogs} skeletonClass="h-3 w-14" /></strong></span>
-                  <span className="text-emerald-400 font-bold font-mono">
-                    {liveAnalytics?.financial_ladder?.gross_margin ? `${(100 - parseFloat(liveAnalytics.financial_ladder.gross_margin)).toFixed(1)}%` : "-"}
-                  </span>
-                </div>
-              </div>
+    {/* 2. ӨРТӨГ (FOOD COST) */}
+    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+      <div className="flex justify-between items-center mb-1">
+        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Өртөг (Food Cost)</p>
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+          liveAnalytics?.financial_ladder?.is_theoretical_mode 
+            ? "bg-amber-500/10 text-amber-300 border-amber-500/30"
+            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+        }`}>
+          {liveAnalytics?.financial_ladder?.is_theoretical_mode ? "📐 Жорын онолоор" : "✓ Бодит тооллогоор"}
+        </span>
+      </div>
+      <p className="text-2xl sm:text-3xl font-black text-white font-mono">
+        {liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder?.actual_cogs || 0).toLocaleString()} ₮` : "-"}
+      </p>
+      <span className="text-xs text-slate-400 mt-2 block">
+        {liveAnalytics?.financial_ladder?.is_theoretical_mode 
+          ? "Тооллого хийгдээгүй тул жороор бодов" 
+          : `Онолын өртөг: ${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮`}
+      </span>
+    </div>
 
-              {/* 3. БОХИР АШИГ */}
-              <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Бохир Ашиг (Gross)</p>
-                <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
-                  <LiveMetric isLive={isLive} isReady={!!liveAnalytics} type="text" liveValue={liveAnalytics?.financial_ladder?.gross_margin} demoValue={currentDemoStats.grossMargin} />
-                </p>
-                <span className="text-xs text-slate-400 mt-2 block">
-                  Дүн: <strong className="text-slate-300 font-mono">{liveAnalytics ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()}₮` : "-"}</strong>
-                </span>
-              </div>
+    {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
+    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Бохир Ашиг (Gross Margin)</p>
+      <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
+        {liveAnalytics?.financial_ladder?.gross_margin || "0%"}
+      </p>
+      <span className="text-xs text-slate-400 mt-2 block">
+        Дүн: <strong className="text-slate-200 font-mono">{liveAnalytics ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()}₮` : "-"}</strong>
+      </span>
+    </div>
 
-              {/* 4. ЦЭВЭР АШИГ (BOTTOM LINE - ЭЗНИЙ ГОЛ ХАЛААС) */}
-              <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Цэвэр Ашиг (Net Profit)</p>
-                <p className={`text-2xl sm:text-3xl font-black font-mono ${
-                  liveAnalytics && liveAnalytics.financial_ladder?.net_profit < 0 ? "text-rose-400" : "text-emerald-400"
-                }`}>
-                  <LiveMetric isLive={isLive} isReady={!!liveAnalytics} liveValue={liveAnalytics?.financial_ladder?.net_profit} demoValue={currentDemoStats.netProfit} />
-                </p>
-                <span className="text-xs text-slate-400 mt-2 block flex items-center justify-between">
-                  <span>Цэвэр Маржин:</span>
-                  <strong className="text-white font-mono"><LiveMetric isLive={isLive} isReady={!!liveAnalytics} type="text" liveValue={liveAnalytics?.financial_ladder?.net_margin} demoValue={currentDemoStats.netMargin} skeletonClass="h-3 w-10" /></strong>
-                </span>
-              </div>
-            </div>
+    {/* 4. ЦЭВЭР АШИГ (NET PROFIT) */}
+    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Цэвэр Ашиг (Net Profit)</p>
+      <p className={`text-2xl sm:text-3xl font-black font-mono ${
+        (liveAnalytics?.financial_ladder?.net_profit || 0) < 0 ? "text-rose-400" : "text-emerald-400"
+      }`}>
+        {liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder?.net_profit || 0).toLocaleString()} ₮` : "-"}
+      </p>
+      <span className="text-xs text-slate-400 mt-2 block">
+        Цэвэр маржин: <strong className="text-white font-mono">{liveAnalytics?.financial_ladder?.net_margin || "0%"}</strong>
+      </span>
+    </div>
 
+  </div>
+)}
             {/* ========================================================================= */}
             {/* БҮС 3: ДЭЛГЭРЭНГҮЙ ДҮН ШИНЖИЛГЭЭ (P&L LADDER + LIVE FEED БҮТЭЦ)             */}
             {/* ========================================================================= */}
