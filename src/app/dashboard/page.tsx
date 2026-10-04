@@ -6626,12 +6626,27 @@ const commitFinalSales = async (
                                     const existingProd = productsList.find(p => p.name.toLowerCase().trim() === selectedOldName.toLowerCase().trim());
                                     const preservedCategory = existingProd?.category || 'General';
 
-                                    // 1. Recipes хүснэгт дэх жорын нэрийг ПОС-ын шинэ нэрээр солих:
-                                    await supabase
-                                      .from('recipes')
-                                      .update({ product_name: posName })
-                                      .eq('client_id', activeClient)
-                                      .eq('product_name', selectedOldName);
+                            
+                                  // 1. Хуучин бүтээгдэхүүний орцуудыг татаж авах
+                                const { data: existingRecipeRows } = await supabase
+                                  .from('recipes')
+                                  .select('ingredient_id, amount')
+                                  .eq('client_id', activeClient)
+                                  .eq('product_name', selectedOldName);
+
+                                if (existingRecipeRows && existingRecipeRows.length > 0) {
+                                  // 2. ⚡ Шинэ цэс дээр уг жорыг ХУУЛБАРЛАЖ (COPY) өгнө (Хуучин жор нь хэвээрээ үлдэнэ!):
+                                  const rowsToClone = existingRecipeRows.map((r: any) => ({
+                                    client_id: activeClient,
+                                    product_name: posName, // "Нэрийн цай" дээр шинэ жор үүснэ
+                                    ingredient_id: r.ingredient_id,
+                                    amount: r.amount
+                                  }));
+
+                                  await supabase.from('recipes').upsert(rowsToClone, {
+                                    onConflict: 'client_id,product_name,ingredient_id'
+                                  });
+                                }
 
                                     // 2. Products хүснэгт дэх нэрийг шинэчлэх:
                                     if (existingProd) {
@@ -6656,11 +6671,14 @@ const commitFinalSales = async (
                                     await createSnapshotFromDb(posName, 'updated');
                                       // 4. "🔗 СОЛЬЖ НЭГТГЭХ" ТОВЧ (Шар туузан дээр) ДАРАХАД СУРАХ
                                     
-                                  await supabase.from('learned_menus').upsert([{
-                                    client_id: activeClient,
-                                    pos_name: posName,
-                                    official_product_name: selectedOldName
-                                  }], { onConflict: 'client_id,pos_name' });
+                                // Зөвхөн ПОС-ын нэр ба Жорын нэр өөр байвал л цээжилнэ (Ижил нэрийг дэмий хадгалахгүй):
+                                    if (cleanString(posName).toLowerCase() !== cleanString(selectedOldName).toLowerCase()) {
+                                      await supabase.from('learned_menus').upsert([{
+                                        client_id: activeClient,
+                                        pos_name: posName,
+                                        official_product_name: selectedOldName
+                                      }], { onConflict: 'client_id,pos_name' });
+}
 
     
                                     setLoading(false);
