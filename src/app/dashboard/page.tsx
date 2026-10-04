@@ -1994,11 +1994,20 @@ const commitFinalSales = async (
         }
       }
 
-      if (updates && updates.length > 0) {
+     if (updates && updates.length > 0) {
         await Promise.all(
-          updates.map((p: any) =>
-            supabase.from("products").update({ name: p.name, selling_price: p.selling_price }).eq("id", p.id)
-          )
+          updates.map(async (p: any) => {
+            // 1. Менюний нэрийг шинэчлэх
+            await supabase.from("products").update({ name: p.name, selling_price: p.selling_price }).eq("id", p.id);
+            
+            // 2. ⚡ ЖОРЫН НЭРИЙГ ХАМТ ШИНЭЧЛЭХ (Жор өнчирч үлдэхээс сэргийлнэ!):
+            const targetChange = existingChanges.find((c: any) => c.productId === p.id);
+            if (targetChange && targetChange.oldName && targetChange.oldName !== p.name) {
+              await supabase.from("recipes").update({ product_name: p.name })
+                .eq("client_id", activeClient)
+                .ilike("product_name", targetChange.oldName);
+            }
+          })
         );
       }
 

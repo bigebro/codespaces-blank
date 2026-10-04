@@ -1,6 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin';
-import { calculateMatchScore } from './autoReconcile';
-
+import { calculateMatchScore, transliterate } from './autoReconcile';
 
 function cleanString(str: string) {
   return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
@@ -47,7 +46,7 @@ export async function getAnalyticsData(
   const finalStartDate = startDate || defaultStart;
   const finalEndDate = endDate || defaultEnd;
 
-  // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ (Баазын ачааллыг 90% бууруулна)
+  // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ
   const [
     { data: rawIngredients },
     { data: rawRecipes },
@@ -60,7 +59,7 @@ export async function getAnalyticsData(
     { data: rawFixedOpex },
     { data: rawSettings }
   ] = await Promise.all([
-  supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId.trim()),
+    supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId.trim()),
     supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId.trim()),
     supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId.trim()).lte('date', finalEndDate).order('date', { ascending: false }),
     supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId.trim()).gte('date', finalStartDate).lte('date', finalEndDate),
@@ -146,11 +145,12 @@ export async function getAnalyticsData(
   const startDay = finalStartDate.split('T')[0];
   const endDay = finalEndDate.split('T')[0];
 
+updates && updates.length
+
 // =========================================================================
-  // 🎯 ХУГАЦААНЫ ХАМГИЙН НАЙДВАРТАЙ ТООЛЛОГО ТОДОРХОЙЛОХ ЛОГИК
+  // 🎯 АГУУЛАХЫН ТООЛЛОГЫГ ЦАГ ХУГАЦААНЫ ДАРААЛЛААР ЗӨВ ТАНИХ ШИНЭ ЛОГИК
   // =========================================================================
-  const countedEndMap = new Map<string, { date: string; qty: number }>();
-  const countedStartMap = new Map<string, { date: string; qty: number }>();
+  const itemCountsHistory: Record<string, Array<{ date: string; qty: number }>> = {};
 
   rawInventoryLogs.forEach((log: any) => {
     const cost = parseFloat(log.total_cost) || 0;
@@ -182,48 +182,53 @@ export async function getAnalyticsData(
         }
         return;
       }
-    }
 
-    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-    if (!ing) return;
-    const key = cleanString(ing.name);
-
-   if (log.type === 'count') {
-      const isStartNote = noteText.includes('start') || noteText.includes('эхний') || noteText.includes('эхлэл');
-      const isEndNote = noteText.includes('end') || noteText.includes('эцсийн') || noteText.includes('эцэс');
-
-      // 1. START ТООЛЛОГО: Заавал 'end' биш байх ёстой!
-      if (isStartNote || (logDate <= startDay && !isEndNote)) {
-        if (!countedStartMap.has(key) || log.date >= countedStartMap.get(key)!.date) {
-          countedStartMap.set(key, { date: log.date, qty });
-        }
-      }
-
-      // 2. END ТООЛЛОГО: Заавал 'start' биш байх ёстой!
-      if (isEndNote || (logDate >= startDay && logDate <= endDay && !isStartNote)) {
-        if (!countedEndMap.has(key) || log.date >= countedEndMap.get(key)!.date) {
-          countedEndMap.set(key, { date: log.date, qty });
-        }
-      }
-    }
-      else if (log.type === 'purchase') {
       if (logDate >= startDay && logDate <= endDay) {
-        master[key].purchased += qty;
+        const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+        if (ing) master[cleanString(ing.name)].purchased += qty;
+      }
+    }
+
+    // Тооллогуудыг цуглуулах
+    if (log.type === 'count' && log.ingredient_id) {
+      const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+      if (ing) {
+        const key = cleanString(ing.name);
+        if (!itemCountsHistory[key]) itemCountsHistory[key] = [];
+        itemCountsHistory[key].push({
+          date: log.date,
+          qty: qty
+        });
       }
     }
   });
 
-  // 3. Тоолсон үр дүнг master объектдоо зөв оноох
+  // 🎯 БАРАА ТУС БҮРИЙН START БА END-ИЙГ ДАРААЛЛААР НЬ ОНООХ
   for (const key in master) {
-    if (countedStartMap.has(key)) {
-      master[key].start = countedStartMap.get(key)!.qty;
-    }
-    if (countedEndMap.has(key)) {
-      master[key].end = countedEndMap.get(key)!.qty;
-    } else {
+    const history = itemCountsHistory[key] || [];
+    // Хуучнаас шинэ рүү цагаар нь эрэмбэлэх
+    history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (history.length === 0) {
+      master[key].start = 0;
       master[key].end = master[key].live_stock;
+    } else if (history.length === 1) {
+      // 💡 ГАНЦХАН ТОOЛСОН ҮЕД (Жишээ нь 10.03-ны 897.5г):
+      // Энэ нь START мөн одоогоор END болно (Хэрэглээ = 0, Хасах өртөг үүсэхгүй!)
+      master[key].start = history[0].qty;
+      master[key].end = history[0].qty;
+    } else {
+      // 💡 2 БА ТҮҮНЭЭС ДЭЭШ ТООЛСОН ҮЕД (10.03-нд 10л, 10.04-нд 8.5л):
+      // Хамгийн анхных нь -> START (10л)
+      // Хамгийн сүүлчийнх нь -> END (8.5л)
+      // Хэрэглээ: 10 - 8.5 = 1.5л бодитоор бодогдоно!
+      master[key].start = history[0].qty;
+      master[key].end = history[history.length - 1].qty;
     }
   }
+
+ 
+
   rawRecipes.forEach((r: any) => {
     const pName = cleanString(r.product_name);
     const ing = rawIngredients.find((i: any) => i.id === r.ingredient_id);
@@ -233,7 +238,7 @@ export async function getAnalyticsData(
     }
   });
 
-rawSales.forEach((s: any) => {
+  rawSales.forEach((s: any) => {
     const rawPosName = s.product_name;
     const cleanPos = cleanString(rawPosName).toLowerCase();
     const revenue = parseFloat(s.total_revenue) || 0;
@@ -244,7 +249,7 @@ rawSales.forEach((s: any) => {
     if (s.payment_method === 'cash') cashRevenue += revenue;
     else bankRevenue += revenue;
 
-    // ⚡ EN_TO_MN_DICT ба Transliteration ашиглан жороо олох
+    // Жороо олох
     let matchedRecipeKey = Object.keys(allRecipesMap).find(rName => 
       rName.toLowerCase() === cleanPos || 
       calculateMatchScore(rawPosName, rName) >= 0.80
@@ -269,7 +274,7 @@ rawSales.forEach((s: any) => {
       master[key].theoretical += (qtySold * parseFloat(r.amount));
     }
   });
-// ⚡ Бүх 69 цэсийг (зарсан тоо нь 0 байсан ч) бүтнээр нь оруулах
+
   const allKnownProducts = Array.from(new Set([
     ...(rawProducts || []).map((p: any) => cleanString(p.name)),
     ...rawRecipes.map((r: any) => cleanString(r.product_name))
@@ -278,14 +283,12 @@ rawSales.forEach((s: any) => {
   allKnownProducts.forEach((pName: any) => {
     const cleanP = cleanString(pName).toLowerCase();
     
-    // Тухайн цэсний борлуулалтыг олох
     let qtySold = productSales[cleanP] || 0;
     if (qtySold === 0) {
       const matchKey = Object.keys(productSales).find(k => calculateMatchScore(pName, k) >= 0.80);
       if (matchKey) qtySold = productSales[matchKey];
     }
 
-    // Жорыг нь хайж олох (Крилл/Англи хамаарахгүй)
     let recipeItems = rawRecipes.filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanP);
     if (recipeItems.length === 0) {
       const rMatch = Array.from(new Set(rawRecipes.map((r: any) => r.product_name))).find(rName => 
@@ -315,7 +318,6 @@ rawSales.forEach((s: any) => {
     const sellPrice = matchedProduct ? parseFloat(matchedProduct.selling_price) : 8000;
     const category = matchedProduct ? matchedProduct.category : 'General';
 
-    // 69 цэс бүгд орно (Борлуулалтгүй бол sold: 0 болно)
     menuPerformance.push({
       name: pName,
       category: category,
@@ -335,29 +337,26 @@ rawSales.forEach((s: any) => {
     loggedEvents[name] = { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
   });
 
+  rawInventoryLogs.forEach((log: any) => {
+    if (log.type === 'purchase' && !log.ingredient_id) return;
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    if (!ing) return;
+    const nameKey = cleanString(ing.name);
+    const qty = Math.abs(parseFloat(log.quantity)) || 0;
+    const logDate = log.date ? log.date.split('T')[0] : '';
 
-    rawInventoryLogs.forEach((log: any) => {
-      if (log.type === 'purchase' && !log.ingredient_id) return;
-      const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-      if (!ing) return;
-      const nameKey = cleanString(ing.name);
-      const qty = Math.abs(parseFloat(log.quantity)) || 0;
-      const logDate = log.date ? log.date.split('T')[0] : ''; // 👈 Огноог авах
+    if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
+    if (logDate < startDay || logDate > endDay) return;
 
-      if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
+    if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
+    else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
+    else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
+    else loggedEvents[nameKey].other += qty;
 
-      // 🚨 ЗАСВАР: Зөвхөн сонгогдсон сарын хаягдлыг л тооцно! (Хуучин сарын хаягдлыг алгасах)
-      if (logDate < startDay || logDate > endDay) return;
-
-      if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
-      else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
-      else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
-      else loggedEvents[nameKey].other += qty;
-
-      if (log.notes && log.notes !== `${log.type} logged manually`) {
-        loggedEvents[nameKey].notes.push(log.notes);
-      }
-    });
+    if (log.notes && log.notes !== `${log.type} logged manually`) {
+      loggedEvents[nameKey].notes.push(log.notes);
+    }
+  });
 
   const fullInventory: any[] = [];
   const wasteAuditItems: any[] = [];
@@ -399,7 +398,7 @@ rawSales.forEach((s: any) => {
     }
 
     const actual = (m.start + m.purchased) - m.end;
-    const safeActual = (actual < 0 && m.start === 0 && m.purchased === 0) ? 0 : actual;
+    const safeActual = Math.max(0, actual); // 👈 ХАМГААЛАЛТ: Хэзээ ч 0-ээс доош унахгүй!
     
     const actualMoney = Math.round(safeActual * weightedPrice) || 0;
     const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
@@ -424,7 +423,6 @@ rawSales.forEach((s: any) => {
     totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
     totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
 
-    // Парето 80/20 дүрэмд зориулж сард эргэлдсэн мөнгөн дүн (Ui = Qi * Pi)
     const totalSpendValue = (m.theoretical > 0 ? m.theoretical : m.live_stock) * weightedPrice;
 
     fullInventory.push({
@@ -441,8 +439,8 @@ rawSales.forEach((s: any) => {
       is_waste: unexplainedGap > 0.1,
       is_under: rawGap < -0.1,
       live_stock: m.live_stock,
-      current_stock: m.live_stock, // Kiosk дээр бодит үлдэгдэл харагдана
-      last_counted_at: m.last_counted_at, //  12 цагийн дотор дахиж гарахгүй
+      current_stock: m.live_stock,
+      last_counted_at: m.last_counted_at,
       is_critical: m.is_critical,
       is_suspicious_promoted: m.is_suspicious_promoted,
       promoted_until: m.promoted_until,
@@ -476,20 +474,16 @@ rawSales.forEach((s: any) => {
     }
   }
 
-  // =========================================================================
-  // 💡 ШИНЭЭР НЭМСЭН: 2. PARETO 80/20 AUTOMATIC ABC CLASSIFICATION ENGINE
-  // =========================================================================
-fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
+  // ABC Эрэмбэлэлт
+  fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
   const totalSpendSum = fullInventory.reduce((sum, item) => sum + item.total_spend_value, 0);
 
   let cumulativeSpend = 0;
   fullInventory.forEach((item) => {
     cumulativeSpend += item.total_spend_value;
     const cumulativePct = totalSpendSum > 0 ? (cumulativeSpend / totalSpendSum) * 100 : 100;
-
     const isTemporarilyPromoted = item.is_suspicious_promoted && item.promoted_until && new Date(item.promoted_until) > now;
 
-    // 💡 ЗАСВАР: Зөвхөн бодит өртөгтэй бөгөөд нийт зардлын 80%-д багтаж байвал л A-Class болно!
     if (isTemporarilyPromoted || item.is_critical || (item.total_spend_value > 0 && cumulativePct <= 80)) {
       item.abc_class = 'A';
     } else if (item.total_spend_value > 0 && cumulativePct <= 95) {
@@ -499,27 +493,12 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     }
   });
 
-
- // 🎯 САРЫН ЦИКЛИЙН СТАТИСТИК БА ӨДӨРТ НОГДОХ КВОТ (ЭЭЛЖ ОГТ ХАМААРАХГҮЙ)
-  // =========================================================================
-  const N = fullInventory.length; // Нийт түүхий эдийн бодит тоо
+  const N = fullInventory.length;
   const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
-
-  // 30 хоногтоо тоологдсон (DONE) болон тоологдоогүй (NOT DONE) бараануудын тоо:
   const countedInCycleCount = fullInventory.filter((i: any) => i.last_counted_at && i.last_counted_at >= thirtyDaysAgo).length;
   const uncountedInCycleCount = N - countedInCycleCount;
-
-  // Ээлж 1 байна уу, 2 байна уу хамаагүй: Сард 100% DONE болоход өдөрт ногдох тоо (N / 30):
-  // (120 бараатай бол 4, 60 бараатай бол 2, 30 бараатай бол 1 гарна)
   const dailyCycleQuota = Math.max(1, Math.ceil(N / 30));
 
-  // =========================================================================
-  // 💡 ШИНЭЭР НЭМСЭН: 3. WAC MARGIN GUARD (Үнийн өсөлт & Маржин хамгаалагч)
-  // =========================================================================
-// =========================================================================
-  // 💡 3. WAC MARGIN GUARD (ДЭЛХИЙН СТАНДАРТЫН ДИНАМИК АНГИЛЛААР БОДОХ)
-  // =========================================================================
-// ⚡ 100% УНИВЕРСАЛ БӨГӨӨД БАТ БӨХ МАРЖИН ХАМГААЛАГЧ
   const GLOBAL_CATEGORY_MARGINS: Record<string, number> = {
     'HOT_BEVERAGE': 82,
     'COLD_BEVERAGE': 78,
@@ -533,11 +512,9 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
 
   const getTargetMarginPct = (categoryName: string): number => {
     const cat = (categoryName || 'GENERAL').trim();
-    // 1. Хэрэв эзэн энэ ангилалд өөрийн хувийг заасан бол түүнийг барина
     if (customMargins[cat] !== undefined && Number(customMargins[cat]) > 0) {
       return Number(customMargins[cat]);
     }
-    // 2. Үгүй бол системд суурилагдсан албан ёсны стандартыг барина
     return GLOBAL_CATEGORY_MARGINS[cat] || GLOBAL_CATEGORY_MARGINS['GENERAL'];
   };
 
@@ -559,14 +536,11 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     const sellingPrice = parseFloat(prod.selling_price) || 0;
     if (sellingPrice > 0 && currentRecipeCost > 0) {
       const currentMarginPct = ((sellingPrice - currentRecipeCost) / sellingPrice) * 100;
-      
-      // ⚡ ДИНАМИК ЗОРИЛТОТ МАРЖИНГ АНГИЛЛААС НЬ УНШИХ:
       const targetMarginPct = getTargetMarginPct(prod.category || 'General');
 
-      // Хэрэв тухайн ангиллын стандартаас доош унасан бол сануулна
       if (currentMarginPct < targetMarginPct) {
         const rawSuggestedPrice = currentRecipeCost / (1 - (targetMarginPct / 100));
-        const suggestedPrice = Math.ceil(rawSuggestedPrice / 500) * 500; // 500₮-өөр дээшээ бүхэлчлэх
+        const suggestedPrice = Math.ceil(rawSuggestedPrice / 500) * 500;
         
         marginAlerts.push({
           product_name: prod.name,
@@ -582,9 +556,6 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     }
   });
 
-  // =========================================================================
-  // 💡 ШИНЭЭР НЭМСЭН: 4. CROSS-SHIFT FRAUD & INCIDENT MATRIX
-  // =========================================================================
   const workerFraudMatrix: Record<string, { totalIncidents: number; totalLossAmount: number; incidents: any[] }> = {};
   (rawInventoryLogs || []).forEach((log: any) => {
     if (log.incident_type === 'previous_shift_damage' && log.reported_against_worker) {
@@ -613,7 +584,6 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     const cost = parseFloat(fa.initial_cost) || 0;
     const months = parseInt(fa.useful_months) || 60;
     const monthlyDep = months > 0 ? Math.round(cost / months) : 0;
-    
     const pDate = new Date(fa.purchase_date || '2025-01-01');
     
     if (pDate >= new Date(startDay) && pDate <= new Date(endDay)) {
@@ -745,12 +715,11 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
     start_evidence_image: s.start_evidence_image || null
   }));
 
-  // ---------------------------------------------------------------------------
-  // 🧠 УХААЛАГ ӨРТӨГ & ТӨЛӨВ ТОДОРХОЙЛОХ (REALISTIC COGS RESOLVER)
-  // ---------------------------------------------------------------------------
+  // ===========================================================================
+  // 🧠 УХААЛАГ ӨРТӨГ & МЕНЮТЭЙ 100% ЯГ ТААРДАГ ЖОРГҮЙ ЦЭСИЙН ТООЛОЛТ (ЯГ 7)
+  // ===========================================================================
   const hasMassCount = rawActualCogs > 0;
   
-  // Хэрэв тооллого хийгдээгүй бол 0₮ гэж хуурахгүй, Жорын онол + Бүртгэлтэй хаягдлаар авна:
   const effectiveActualCogs = hasMassCount 
     ? adjustedCogs 
     : (totalTheoCogs + totalLoggedSpoilage);
@@ -760,21 +729,47 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
   const effectiveEbit = effectiveNetRevenue - effectiveActualCogs - adjustedOpex;
   const effectiveNetProfit = Math.round(effectiveEbit - activeTaxAmount);
 
-  // Борлуулсан боловч жоргүй үлдсэн цэсүүдийг тоолох
-  const soldProductNames = Object.keys(productSales).filter(k => productSales[k] > 0);
-  const unmappedCount = soldProductNames.filter(name => {
-    return !allKnownProducts.some(p => cleanString(p).toLowerCase() === name && (allRecipesMap[cleanString(p).toLowerCase()] || Object.keys(allRecipesMap[name] || {}).length > 0));
+  // 1. Жорын бүх нэрсийг Set болгох
+  const recipeProductNamesSet = new Set(
+    rawRecipes.map((r: any) => cleanString(r.product_name).toLowerCase())
+  );
+
+  // 2. Борлуулалт орсон ПОС нэрсийг цуглуулах
+  const soldNamesSet = new Set(
+    rawSales.map((s: any) => cleanString(s.product_name).toLowerCase())
+  );
+// 3. rawProducts (Меню) доторх бүтээгдэхүүнүүдээс:
+  // Меню дээрхтэй 100% адилхан Крилл/Латин хөрвүүлэгчээр шалгана:
+  const unmappedCount = (rawProducts || []).filter((prod: any) => {
+    const pClean = cleanString(prod.name).toLowerCase();
+    
+    // Энэ цэс зарагдсан уу?
+    const wasSold = soldNamesSet.has(pClean) || 
+                    (productSales[pClean] || 0) > 0 ||
+                    rawSales.some((s: any) => cleanString(s.product_name).toLowerCase() === pClean);
+    if (!wasSold) return false;
+
+    // Менюний хүснэгттэй яг адилхан шалгах:
+    const pTrans = transliterate(pClean).replace(/\s+/g, "");
+    const hasRecipe = (rawRecipes || []).some((r: any) => {
+      const rClean = cleanString(r.product_name).toLowerCase();
+      if (rClean === pClean) return true;
+      const rTrans = transliterate(rClean).replace(/\s+/g, "");
+      return rTrans === pTrans || getSimilarity(rTrans, pTrans) >= 0.70;
+    });
+
+    return !hasRecipe; // Жоргүй (Орц угсрах товчтой) цэсүүдийг тоолно!
   }).length;
 
   return {
     financial_ladder: {
       revenue: totalRevenue,
       net_revenue: netRevenue,
-      actual_cogs: effectiveActualCogs, // 👈 0₮ биш бодит/онолын зөв дүн
+      actual_cogs: effectiveActualCogs,
       theo_cogs: totalTheoCogs,
-      is_theoretical_mode: !hasMassCount, // 👈 Тооллого хүлээгдэж буй эсэх
+      is_theoretical_mode: !hasMassCount,
       has_unmapped_recipes: unmappedCount > 0,
-      unmapped_recipes_count: unmappedCount,
+      unmapped_recipes_count: unmappedCount, // 👈 Яг таны меню дээрх 7 гарна!
       gross_margin: effectiveNetRevenue > 0 ? ((effectiveGrossProfit / effectiveNetRevenue) * 100).toFixed(2) + "%" : "0%",
       opex: adjustedOpex,
       depreciation: totalMonthlyDepreciation,
@@ -790,14 +785,14 @@ fullInventory.sort((a, b) => b.total_spend_value - a.total_spend_value);
       active_tax_amount: activeTaxAmount,
       estimated_vat_10pct: estimatedVat10Pct
     },
-  abc_summary: {
+    abc_summary: {
       a_count: fullInventory.filter((i: any) => i.abc_class === 'A').length,
       b_count: fullInventory.filter((i: any) => i.abc_class === 'B').length,
       c_count: fullInventory.filter((i: any) => i.abc_class === 'C').length,
       total_items: N,
-      counted_in_cycle: countedInCycleCount,   // 👈 30 хоногт тоологдсон (DONE) барааны тоо
-      uncounted_in_cycle: uncountedInCycleCount, // 👈 Тоологдоогүй (NOT DONE) үлдсэн барааны тоо
-      suggested_cycle_per_shift: dailyCycleQuota  // 👈 Kiosk-той 100% нийцнэ
+      counted_in_cycle: countedInCycleCount,
+      uncounted_in_cycle: uncountedInCycleCount,
+      suggested_cycle_per_shift: dailyCycleQuota
     },
     margin_guard_alerts: marginAlerts,
     worker_fraud_matrix: workerFraudMatrix,

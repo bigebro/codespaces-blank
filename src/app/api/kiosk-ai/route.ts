@@ -744,6 +744,8 @@ Final Balances: CashInHand:${cf.end_cash_balance || 0}₮, BankAccount:${cf.end_
 === BUSINESS: ${clientId} ===
 FINANCIALS (P&L & TAX):
 Revenue: ${fin.revenue}₮ | NetRevenue(No VAT): ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
+TheoreticalMode: ${fin.is_theoretical_mode ? "YES (Waiting for physical inventory count)" : "NO (Reconciled with actual count)"}
+LockedDueToMissingRecipes: ${fin.has_unmapped_recipes ? `YES (${fin.unmapped_recipes_count} sold items have NO recipes!)` : "NO (All recipes complete)"}
 OPEX: ${fin.opex}₮ | Depreciation: ${fin.depreciation}₮ | EBIT: ${fin.ebit}₮ | NetProfit: ${fin.net_profit}₮ (${fin.net_margin})
 TAX SUMMARY: Mode:${analyticsData.tax_summary?.tax_mode} | ActiveTaxAmount:${analyticsData.tax_summary?.active_tax_amount}₮ | VAT(10%):${analyticsData.tax_summary?.estimated_vat_10pct}₮ | Above300M:${analyticsData.tax_summary?.is_above_300m}
 
