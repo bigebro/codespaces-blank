@@ -145,7 +145,7 @@ export async function getAnalyticsData(
   const startDay = finalStartDate.split('T')[0];
   const endDay = finalEndDate.split('T')[0];
 
-updates && updates.length
+//fixed
 
 // =========================================================================
   // 🎯 АГУУЛАХЫН ТООЛЛОГЫГ ЦАГ ХУГАЦААНЫ ДАРААЛЛААР ЗӨВ ТАНИХ ШИНЭ ЛОГИК
