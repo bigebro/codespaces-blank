@@ -798,15 +798,23 @@ export function evaluateSaleItem(
     };
   }
 
- return {
-    decision: 'NEW_PRODUCT',
-    canonicalName: rawPosName,
-    posPrice,
-    shouldUpdateMenuPrice: false,
-    shouldUpdatePrice: false,
-    isVariant: false,
-    reason: `Менюд байхгүй шинэ бараа`
-  };
+  // Д. Өндөр оноотой таарсан үед
+  if (top && top.score == 1) {
+    const isSafe = isPriceChangeSafe(Number(top.prod.selling_price), posPrice);
+    const menuModifier = getVariantModifier(sanitizeName(top.prod.name));
+    const isVariant = posModifier !== menuModifier;
+    return {
+      decision: 'AUTO_MERGE',
+      matchedProduct: top.prod,
+      targetProduct: top.prod,
+      canonicalName: top.prod.name,
+      posPrice,
+      shouldUpdateMenuPrice: isSafe,
+      shouldUpdatePrice: isSafe,
+      isVariant: isVariant,
+      reason: isVariant ? `${top.prod.name}-ийн хувилбар (${posModifier})` : `Ижил бараа олдсон (${top.prod.name})`
+    };
+  }
 
   // Е. Цоо шинэ бараа
   return {

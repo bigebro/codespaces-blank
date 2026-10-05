@@ -1037,7 +1037,7 @@ function KioskPage() {
   const router = useRouter(); 
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'shift_handover' | 'menu' | 'ai_chat' | 'tasks' | 'incident_report' | 'close_shift'>('select_worker');
   
-  const [tenantClientId, setTenantClientId] = useState<string>('SF Coffee');
+  const [tenantClientId, setTenantClientId] = useState<string>('SF');
   const [workers, setWorkers] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [learnedAliases, setLearnedAliases] = useState<any[]>([]);
@@ -1069,7 +1069,6 @@ function KioskPage() {
   const [quickQty, setQuickQty] = useState<string>('');
   const [purchaseCost, setPurchaseCost] = useState<string>('');
   const [kioskSearch, setKioskSearch] = useState<string>('');
-  const [recentToast, setRecentToast] = useState<{ id: string; text: string } | null>(null);
   // 💵 Бэлэн мөнгө гаргах (Cash Out) & Хаалтын касс тоолох State-үүд
   const [cashOutModal, setCashOutModal] = useState(false);
   const [cashOutType, setCashOutType] = useState<'owner_draw' | 'petty_cash'>('owner_draw');
@@ -1085,7 +1084,10 @@ function KioskPage() {
   const [noEbarimtFile, setNoEbarimtFile] = useState<File | null>(null);
   const [purchasePayMethod, setPurchasePayMethod] = useState<'bank' | 'cash'>('bank');
   const [isScanningReceipt, setIsScanningReceipt] = useState(false);
-
+// 📋 Өнөөдрийн бүх үйлдлүүдийн гүйдэг жагсаалт:
+  const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [showLogsDrawer, setShowLogsDrawer] = useState(false);
+  const [previewLogImage, setPreviewLogImage] = useState<string | null>(null);
    // ➕ ШИНЭ БАРАА НЭМЭХЭД ДУТАГДАЖ БАЙСАН STATE-ҮҮД:
   const [showAddNewItemModal, setShowAddNewItemModal] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -1129,8 +1131,23 @@ function KioskPage() {
     return () => window.removeEventListener('online', syncOfflineLogs);
   }, []);
 
+  const fetchTodayLogs = async (client: string) => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0); // Өнөөдөр өглөөний 00:00 цагаас хойш
+
+    const { data } = await supabase
+      .from('inventory_logs')
+      .select('id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)')
+      .ilike('client_id', client)
+      .gte('date', todayStart.toISOString())
+      .order('date', { ascending: false })
+      .limit(30);
+
+    if (data) setTodayLogs(data);
+  };
+
   const initKioskContext = async () => {
-    let detectedClient = 'SF Coffee';
+    let detectedClient = 'SF';
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const urlClient = urlParams.get('clientId');
@@ -1499,7 +1516,7 @@ const handleCloseShift = () => {
     <div className="h-[100dvh] w-full bg-[#070b14] text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       
       {/* 🔝 HEADER */}
-      <header className="w-full max-w-md flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
+      <header className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
         <div className="flex items-center gap-2">
           <div className="bg-emerald-500/10 p-1.5 rounded-xl border border-emerald-500/20">
             <Coffee className="h-5 w-5 text-emerald-400" />
@@ -1513,7 +1530,7 @@ const handleCloseShift = () => {
     <div className="flex items-center gap-2">
        <Link 
         href="/login?from=kiosk"
-        className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
+        className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
       >
         🔒 Dashboard
       </Link>
@@ -1532,7 +1549,7 @@ const handleCloseShift = () => {
       </header>
 
       {/* 🚀 MAIN CONTENT */}
-      <main className="w-full max-w-md flex-1 min-h-0 flex flex-col overflow-hidden">
+      <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
         
         {msg && (
           <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
@@ -1798,74 +1815,61 @@ const handleCloseShift = () => {
         {step === 'menu' && (
           <div className="w-full h-full bg-[#0d1527] p-3 sm:p-4 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
             
-       {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
-            {recentToast && (
-              <div className="absolute top-2 left-3 right-3 z-30 bg-emerald-500 text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="flex items-center gap-2 truncate pr-2">
-                  <span className="bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">Сүүлийнх:</span>
-                  <span className="truncate font-black">{recentToast.text}</span>
-                </div>
-                
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {/* ↩️ БУЦААХ ТОВЧ (Баазаас шууд устгана) */}
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const idToUndo = recentToast.id;
-                      setRecentToast(null);
-                      await supabase.from('inventory_logs').delete().eq('id', idToUndo);
-                      await fetchKioskData(tenantClientId);
-                      setMsg('↩️ Бүртгэл цуцлагдаж, агуулахын үлдэгдэл сэргэлээ.');
-                      setTimeout(() => setMsg(''), 4000);
-                    }}
-                    className="bg-slate-950 text-emerald-400 hover:text-white px-2.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 shadow"
-                  >
-                    ↩️ Буцаах 
-                  </button>
-
-                  {/* ✕ Карт хаах товч */}
-                  <button
-                    type="button"
-                    onClick={() => setRecentToast(null)}
-                    className="text-slate-900 hover:text-black font-bold p-1 text-sm"
-                    title="Мэдэгдлийг хаах"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            )}
+  
 
             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <div>
-                  <span className="text-xs text-slate-400 font-medium">Ажилтан:</span>
-                  <h2 className="text-sm sm:text-base font-black text-white uppercase leading-tight">
-                    {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
-                  </h2>
-                </div>
+        {/* 🔝 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
+              <div className="flex justify-between items-center pb-3 border-b border-slate-800/80 mb-3 px-1">
+                
+                {/* 👤 Ажилтан тусдаа тод статус пайзтай */}
+             
+                  
+                  <div className="flex items-center gap-2 bg-slate-900  rounded-xl shadow-inner">
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-white uppercase tracking-tight truncate max-w-[100px] sm:max-w-[150px]">
+                      {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
+                    </span>
+                  </div>
+                
 
-                <div className="flex items-center gap-1.5">
-                  {/* 📖 ДИЖИТАЛ ЖОР (SOP) ХАРАХ ТОВЧ */}
+                {/* Авсаархан 3 товч (Үгсийг богиносгосон) */}
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchTodayLogs(tenantClientId);
+                      setShowLogsDrawer(true);
+                    }}
+                    className="bg-slate-900 hover:bg-slate-800 text-blue-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                  >
+                    <ListOrdered className="h-3.5 w-3.5" />
+                    <span className="hidden min-[360px]:inline">Түүх</span>
+                    <span>({todayLogs.length})</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
                       setShowRecipeModal(true);
                       setSelectedProductRecipe(null);
                     }}
-                    className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95"
+                    className="bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
-                    <span>Жор (SOP)</span>
+                    <span className="hidden min-[360px]:inline">Жор</span>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => setStep('ai_chat')}
-                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95"
+                    className="bg-slate-900 hover:bg-slate-800 text-purple-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <Mic className="h-3.5 w-3.5" />
-                    <span>Чат/Дуу</span>
+                    <span className="hidden min-[360px]:inline">Чат</span>
                   </button>
                 </div>
               </div>
@@ -1918,7 +1922,7 @@ const handleCloseShift = () => {
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
                     <span>🧾 Олон бараатай E-Barimt уншуулах</span>
                   </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Батлахын өмнө танд шалгуулна</p>
+              
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -2345,12 +2349,7 @@ const handleCloseShift = () => {
                         setCashOutNote('');
                         setCashOutFile(null);
 
-                        // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
-                        setRecentToast({
-                          id: 'temp-' + Date.now(),
-                          text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
-                        });
-
+                  
                         // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
                         (async () => {
                           try {
@@ -2375,12 +2374,6 @@ const handleCloseShift = () => {
                               date: new Date().toISOString()
                             }]).select().single();
 
-                            if (newLog) {
-                              setRecentToast({
-                                id: newLog.id,
-                                text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
-                              });
-                            }
                           } catch (e) {
                             console.error("Cash out background error:", e);
                           }
@@ -2558,14 +2551,7 @@ const handleCloseShift = () => {
                     setQuickQty('');
                     setPurchaseCost('');
                     setNoEbarimtFile(null);
-
-                      // ⚡ 2. БАРИСТАД ШУУД БҮРТГЭГДСЭН МЭДЭЭ БАЙНГА ХАРАГДАНА
-                      const modeLabel = kioskMode === 'spoilage' ? 'Хаягдал' : kioskMode === 'staff_meal' ? 'Хоол' : kioskMode === 'testing' ? 'Туршилт' : 'Орлого';
-                      setRecentToast({
-                        id: 'temp-' + Date.now(),
-                        text: `⚡ ${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${modeLabel})`
-                      });
-
+              
                       // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background Worker)
                       (async () => {
                         try {
@@ -2590,10 +2576,7 @@ const handleCloseShift = () => {
 
                           if (!error && newLog) {
                             // Баазаас жинхэнэ ID ирмэгц Undo товчийг жинхэнэ болгож шинэчлэх
-                            setRecentToast({
-                              id: newLog.id,
-                              text: `✅ ${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${modeLabel})`
-                            });
+                          
                             fetchKioskData(tenantClientId); // Баазыг ард нь сэргээнэ
                           }
                         } catch (err) {
@@ -2751,12 +2734,6 @@ const handleCloseShift = () => {
                       // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
                       setEbarimtReview(null);
 
-                      // ⚡ 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
-                      setRecentToast({
-                        id: 'temp-' + Date.now(),
-                        text: `⚡ ${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`
-                      });
-
                       // ⚡ 3. ЗУРАГ БА ЛОГИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ
                       (async () => {
                         try {
@@ -2791,10 +2768,6 @@ const handleCloseShift = () => {
                             .select('id');
 
                           const insertedIds = (insertedData || []).map((d: any) => d.id);
-                          setRecentToast({
-                            id: insertedIds[0] || 'bulk',
-                            text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`
-                          });
 
                           fetchKioskData(tenantClientId);
                               } catch (e) {
@@ -2940,12 +2913,6 @@ const handleCloseShift = () => {
                   setNewItemFile(null);
                   setKioskSearch('');
 
-                  // ⚡ 2. БАРИСТАД МЭДЭЭЛЭЛ ШУУД ХАРАГДАНА
-                  setRecentToast({
-                    id: 'temp-' + Date.now(),
-                    text: `⚡ Шинэ бараа: ${nameToSave} (${qty} ${unitToSave}) бүртгэж байна...`
-                  });
-
                   // ⚡ 3. ЗУРАГ БА ШИНЭ БАРААГ ЦААНА НЬ ЧИМЭЭГҮЙ ҮҮСГЭХ (Background)
                   (async () => {
                     try {
@@ -2980,10 +2947,7 @@ const handleCloseShift = () => {
                         }]).select().single();
 
                         if (newLog) {
-                          setRecentToast({
-                            id: newLog.id,
-                            text: `✅ Шинэ бараа амжилттай бүртгэгдлээ: ${nameToSave} (${qty} ${unitToSave})`
-                          });
+                  
                           fetchKioskData(tenantClientId); // Таблетын датаг цаана нь шинэчилнэ
                         }
                       }
@@ -3026,7 +2990,138 @@ const handleCloseShift = () => {
                 </div>
               </div>
             )}
+        {/* ========================================================================= */}
+      {/* 📋 ӨНӨӨДРИЙН БҮХ БҮРТГЭЛИЙГ ДЭЛГЭРЭНГҮЙ ХАРУУЛАХ ТУХТАЙ ЦОНХ (DRAWER)        */}
+      {/* ========================================================================= */}
+      {showLogsDrawer && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
+          onClick={() => setShowLogsDrawer(false)}
+        >
+          <div 
+            className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[85vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <span>📋 Өнөөдрийн бүх бүртгэлүүд</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Нийт {todayLogs.length} үйлдэл хийгдсэн байна. Буруу бичсэн бол буцаана уу.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLogsDrawer(false)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                ✕ Хаах
+              </button>
+            </div>
 
+            {/* ГҮЙДЭГ КАРТУУДЫН ЖАГСААЛТ */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
+                {todayLogs.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic text-center py-8">
+                    Өнөөдөр хараахан ямар нэг бүртгэл хийгдээгүй байна.
+                  </p>
+                ) : (
+                  todayLogs.map((log) => {
+                    const isPurchase = log.type === 'purchase';
+                    const isSpoilage = log.type === 'spoilage';
+                    const isStaffMeal = log.type === 'staff_meal';
+                    const isTesting = log.type === 'testing';
+                    const isCashOut = log.type === 'count' && log.non_food_item?.includes('Касс');
+                    
+                    const itemName = log.ingredients?.name || log.non_food_item || "Тодорхойгүй";
+                    const unit = log.ingredients?.unit || "ш";
+                    const cost = parseFloat(log.total_cost) || 0;
+                    const qty = Math.abs(parseFloat(log.quantity) || 0);
+                    const timeStr = log.date ? new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                    return (
+                      <div key={log.id} className="pt-2 flex justify-between items-center gap-2 text-xs">
+                        {/* Зүүн тал: Барааны нэр, төрөл, зураг */}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {log.image_url ? (
+                            <img 
+                              src={log.image_url} 
+                              alt="receipt" 
+                              onClick={() => setPreviewLogImage(log.image_url)}
+                              className="h-10 w-10 object-cover rounded-xl border border-slate-700 cursor-pointer shrink-0 hover:scale-105 transition"
+                              title="Томруулж харах"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sm shrink-0">
+                              {isPurchase ? '📦' : isSpoilage ? '🗑️' : isStaffMeal ? '🍽️' : isTesting ? '🧪' : '💵'}
+                            </div>
+                          )}
+
+                          <div className="truncate">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-white text-sm truncate">{itemName}</span>
+                              <span className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase ${
+                                isPurchase ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                isSpoilage ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                isStaffMeal ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                              }`}>
+                                {isPurchase ? 'Орлого' : isSpoilage ? 'Хаягдал' : isStaffMeal ? 'Хоол' : isTesting ? 'Туршилт' : 'Зардал'}
+                              </span>
+                            </div>
+
+                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-slate-400 font-mono text-xs sm:text-xs mt-0.5">
+                        <span className="whitespace-nowrap">{qty} {unit}</span>
+                        
+                        {cost > 0 && (
+                          <>
+                            <span className="text-slate-600">•</span>
+                            <span className="text-emerald-400 font-bold whitespace-nowrap">{cost.toLocaleString()} ₮</span>
+                          </>
+                        )}
+                        
+                        <span className="text-slate-600 hidden min-[360px]:inline">•</span>
+                        <span className="text-slate-500 font-sans whitespace-nowrap">{timeStr}</span>
+                      </div>
+                          </div>
+                        </div>
+
+                        {/* Баруун тал: Буцаах (Устгах) товч */}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`"${itemName}" бүртгэлийг устгаж буцаах уу?`)) return;
+                            setTodayLogs(prev => prev.filter(l => l.id !== log.id));
+                            await supabase.from('inventory_logs').delete().eq('id', log.id);
+                            await fetchKioskData(tenantClientId);
+                          }}
+                          className="bg-slate-900 hover:bg-rose-500/20 hover:text-rose-300 text-slate-400 border border-slate-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
+                          title="Бүртгэлийг цуцлах"
+                        >
+                          ↩️ Буцаах
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+            {/* 🖼️ Зургийг томоор харах цонх */}
+            {previewLogImage && (
+              <div 
+                className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+                onClick={() => setPreviewLogImage(null)}
+              >
+                <div className="max-w-md w-full max-h-[80vh] flex flex-col items-center">
+                  <img src={previewLogImage} alt="preview" className="max-h-[75vh] w-auto rounded-2xl object-contain shadow-2xl" />
+                  <span className="text-xs text-slate-400 mt-2 font-bold">Дэлгэц дээр дарж хаана</span>
+                </div>
+              </div>
+            )}
 
           </div>
         )}
