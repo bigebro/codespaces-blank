@@ -1070,6 +1070,16 @@ function KioskPage() {
   const [purchaseCost, setPurchaseCost] = useState<string>('');
   const [kioskSearch, setKioskSearch] = useState<string>('');
   const [recentToast, setRecentToast] = useState<{ id: string; text: string } | null>(null);
+  // 🛒 САГСНЫ STATE (Олон барааг бөөнд нь зураг дарахад зориулав)
+  const [purchaseCart, setPurchaseCart] = useState<Array<{
+    ing_id: string;
+    name: string;
+    unit: string;
+    qty: number;
+    cost: number;
+  }>>([]);
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [cartFile, setCartFile] = useState<File | null>(null);
   // 💵 Бэлэн мөнгө гаргах (Cash Out) & Хаалтын касс тоолох State-үүд
   const [cashOutModal, setCashOutModal] = useState(false);
   const [cashOutType, setCashOutType] = useState<'owner_draw' | 'petty_cash'>('owner_draw');
@@ -1141,6 +1151,7 @@ function KioskPage() {
 
   return () => clearTimeout(timer);
 }, [recentToast]);
+
   const fetchTodayLogs = async (client: string) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0); // Өнөөдөр өглөөний 00:00 цагаас хойш
@@ -2665,6 +2676,30 @@ const handleCloseShift = () => {
                           ? 'БАТЛАХ (Зураггүй оруулах)' 
                           : 'БАТЛАХ (OK)'}
                   </button>
+                     {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
+                  {kioskMode === 'purchase' && (
+                    <button
+                      type="button"
+                      disabled={!quickQty || parseFloat(quickQty) <= 0 || !purchaseCost || parseFloat(purchaseCost) <= 0}
+                      onClick={() => {
+                        setPurchaseCart(prev => [...prev, {
+                          ing_id: quickItemModal.id,
+                          name: quickItemModal.name,
+                          unit: quickItemModal.unit,
+                          qty: parseFloat(quickQty),
+                          cost: parseFloat(purchaseCost)
+                        }]);
+                        setQuickItemModal(null);
+                        setQuickQty('');
+                        setPurchaseCost('');
+                        setNoEbarimtFile(null);
+                      }}
+                      className="w-full bg-blue-500/10 hover:bg-blue-500/20 disabled:opacity-40 text-blue-400 border border-blue-500/30 font-black py-3 rounded-2xl text-[13px] sm:text-sm transition active:scale-95 mt-2"
+                    >
+                      🛒 САГСАНД ХАДГАЛАХ (Бөөнд нь зураг дарах)
+                    </button>
+                  )}
+
                 </div>
               </div>
             )}
@@ -3535,6 +3570,189 @@ const handleCloseShift = () => {
                   ? '💵 КАССЫН МӨНГӨӨ БИЧНЭ ҮҮ' 
                   : 'Хаах & Илгээх'}
               </button>
+            </div>
+          </div>
+        )}
+        {/* ========================================================================= */}
+        {/* 🛒 ХӨВӨГЧ САГСНЫ ТОВЧЛУУР (Бараа нэмэгдсэн үед л гарч ирнэ) */}
+        {/* ========================================================================= */}
+        {purchaseCart.length > 0 && !showCartModal && !quickItemModal && (
+          <div 
+            onClick={() => setShowCartModal(true)}
+            className="absolute bottom-20 left-4 right-4 z-40 bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex justify-between items-center border border-blue-400 cursor-pointer animate-bounce transition-all active:scale-95"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl drop-shadow-md">🛒</span>
+              <div>
+                <p className="text-sm font-black">{purchaseCart.length} бараа сагсанд байна</p>
+                <p className="text-xs text-blue-200 font-mono font-bold">Нийт: {purchaseCart.reduce((s, i) => s + i.cost, 0).toLocaleString()} ₮</p>
+              </div>
+            </div>
+            <span className="bg-slate-950/40 px-3.5 py-2 rounded-xl text-xs font-black uppercase">Батлах ➔</span>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* 🛒 САГСНЫ ДЭЛГЭРЭНГҮЙ ЦОНХ (Бөөнд нь зураг дарж батлах) */}
+        {/* ========================================================================= */}
+        {showCartModal && (
+          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+            <div className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
+              
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3 shrink-0">
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <span>🛒 Олон барааны сагс</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Гаднаас бөөндөж авсан барааг 1 зургаар батлах</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCartModal(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs font-bold"
+                >
+                  ✕ Хаах
+                </button>
+              </div>
+
+              {/* Сагсан дахь бараанууд */}
+              <div className="flex-1 overflow-y-auto space-y-2 py-3 pr-1 divide-y divide-slate-800/50">
+                {purchaseCart.map((item, idx) => (
+                  <div key={idx} className="pt-2 flex justify-between items-center text-sm">
+                    <div>
+                      <p className="font-bold text-slate-200">{item.name}</p>
+                      <p className="text-xs text-slate-500 font-mono">{item.qty} {item.unit}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-emerald-400 font-black font-mono">{item.cost.toLocaleString()} ₮</span>
+                      <button
+                        type="button"
+                        onClick={() => setPurchaseCart(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-rose-400 hover:text-rose-300 bg-rose-500/10 h-7 w-7 rounded-lg font-bold flex items-center justify-center"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Нийт дүн ба Зураг дарах хэсэг */}
+              {(() => {
+                const totalCartCost = purchaseCart.reduce((s, i) => s + i.cost, 0);
+                return (
+                  <div className="shrink-0 space-y-3 pt-3 border-t border-slate-800">
+                    <div className="flex justify-between items-center bg-[#060b17] p-3 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Нийт төлсөн дүн:</span>
+                      <span className="font-mono font-black text-emerald-400 text-lg">{totalCartCost.toLocaleString()} ₮</span>
+                    </div>
+
+                    {/* Зураг дарах (10,000₮-өөс дээш бол заавал) */}
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        id="cart-cam"
+                        className="hidden"
+                        onChange={(e) => { if (e.target.files?.[0]) setCartFile(e.target.files[0]); }}
+                      />
+                      <label
+                        htmlFor="cart-cam"
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-blue-500 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
+                      >
+                        <Camera className="h-4 w-4 text-blue-400" />
+                        <span>Камер</span>
+                      </label>
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="cart-gallery"
+                        className="hidden"
+                        onChange={(e) => { if (e.target.files?.[0]) setCartFile(e.target.files[0]); }}
+                      />
+                      <label
+                        htmlFor="cart-gallery"
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-blue-500 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
+                      >
+                        <span>🖼️ Цомог</span>
+                      </label>
+                    </div>
+
+                    <p className={`text-xs font-bold text-center ${cartFile ? 'text-emerald-400' : (totalCartCost >= 10000 ? 'text-rose-400 animate-pulse' : 'text-slate-500')}`}>
+                      {cartFile ? `✅ Зураг бэлэн: ${cartFile.name.substring(0, 15)}...` : (totalCartCost >= 10000 ? '⚠️ баримт/барааны зураг заавал дарна уу!' : 'Зураг хавсаргах нь сайн дурынх')}
+                    </p>
+
+                <button
+                      type="button"
+                      // ✅ 1. ЗӨВХӨН УНШИЖ БАЙХАД Л ТҮГЖИНЭ (Камер нээгдэхэд саад болохгүй)
+                      disabled={purchaseCart.length === 0 || isAiLoading}
+                      onClick={() => {
+                        // 💡 2. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
+                        if (totalCartCost >= 10000 && !cartFile) {
+                          document.getElementById('cart-cam')?.click();
+                          return;
+                        }
+
+                        const itemsToProcess = [...purchaseCart];
+                        const fileToUpload = cartFile;
+
+                        setShowCartModal(false);
+                        setPurchaseCart([]);
+                        setCartFile(null);
+
+                        setRecentToast({
+                          id: 'temp-' + Date.now(),
+                          text: `🛒 Сагсан дахь ${itemsToProcess.length} бараа хадгалагдаж байна...`
+                        });
+
+                        (async () => {
+                          try {
+                            let uploadedUrl = null;
+                            if (fileToUpload) {
+                              uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'purchases_proofs');
+                            }
+
+                            const logsToInsert = itemsToProcess.map(it => ({
+                              client_id: tenantClientId,
+                              ingredient_id: it.ing_id,
+                              quantity: Math.abs(it.qty),
+                              total_cost: it.cost,
+                              type: 'purchase',
+                              payment_method: purchasePayMethod,
+                              image_url: uploadedUrl,
+                              is_ebarimt: false,
+                              notes: `🛒 Бөөний сагсаар (Нийт зурагтай)`,
+                              worker_name: activeShift?.character_role || selectedWorker?.full_name,
+                              date: new Date().toISOString()
+                            }));
+
+                            const { data: insertedData } = await supabase.from('inventory_logs').insert(logsToInsert).select('id');
+                            
+                            if (insertedData && insertedData.length > 0) {
+                              setRecentToast({
+                                id: insertedData[0].id,
+                                text: `✅ Сагсан дахь ${itemsToProcess.length} бараа амжилттай бүртгэгдлээ!`
+                              });
+                              fetchKioskData(tenantClientId);
+                            }
+                          } catch (err) {
+                            console.error("Cart save failed:", err);
+                          }
+                        })();
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
+                    >
+                      {isAiLoading 
+                        ? 'Хадгалж байна...' 
+                        : (totalCartCost >= 10000 && !cartFile) 
+                          ? '📸 ЗУРАГ ДАРЖ БАТЛАХ' 
+                          : `САГСЫГ БАТЛАХ (${totalCartCost.toLocaleString()}₮)`}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
