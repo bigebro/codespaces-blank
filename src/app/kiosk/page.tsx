@@ -1069,6 +1069,7 @@ function KioskPage() {
   const [quickQty, setQuickQty] = useState<string>('');
   const [purchaseCost, setPurchaseCost] = useState<string>('');
   const [kioskSearch, setKioskSearch] = useState<string>('');
+  const [recentToast, setRecentToast] = useState<{ id: string; text: string } | null>(null);
   // 💵 Бэлэн мөнгө гаргах (Cash Out) & Хаалтын касс тоолох State-үүд
   const [cashOutModal, setCashOutModal] = useState(false);
   const [cashOutType, setCashOutType] = useState<'owner_draw' | 'petty_cash'>('owner_draw');
@@ -1131,6 +1132,15 @@ function KioskPage() {
     return () => window.removeEventListener('online', syncOfflineLogs);
   }, []);
 
+  useEffect(() => {
+  if (!recentToast) return;
+
+  const timer = setTimeout(() => {
+    setRecentToast(null);
+  }, 4000); // 4 seconds
+
+  return () => clearTimeout(timer);
+}, [recentToast]);
   const fetchTodayLogs = async (client: string) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0); // Өнөөдөр өглөөний 00:00 цагаас хойш
@@ -1815,7 +1825,46 @@ const handleCloseShift = () => {
         {step === 'menu' && (
           <div className="w-full h-full bg-[#0d1527] p-3 sm:p-4 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
             
-  
+       {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
+       
+            {recentToast && (
+              <div className="absolute bottom-20 left-3 right-3 z-30 bg-emerald-500 text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in duration-150">
+                
+                {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
+                <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
+                  <span className="bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                    Бүртгэгдсэн:
+                  </span>
+                  <span className="font-black text-[11px] sm:text-xs leading-snug whitespace-normal break-words">
+                    {recentToast.text}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const idToUndo = recentToast.id;
+                      setRecentToast(null);
+                      await supabase.from('inventory_logs').delete().eq('id', idToUndo);
+                      await fetchKioskData(tenantClientId);
+                      setMsg('↩️ Бүртгэл цуцлагдлаа.');
+                      setTimeout(() => setMsg(''), 3000);
+                    }}
+                    className="bg-slate-950 text-emerald-400 hover:text-white px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
+                  >
+                    ↩️ Буцаах
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecentToast(null)}
+                    className="text-slate-900 hover:text-black font-bold p-1 text-sm hidden sm:block"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
@@ -2349,7 +2398,12 @@ const handleCloseShift = () => {
                         setCashOutNote('');
                         setCashOutFile(null);
 
-                  
+                        // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
+                        setRecentToast({
+                          id: 'temp-' + Date.now(),
+                          text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
+                        });
+
                         // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
                         (async () => {
                           try {
@@ -2374,6 +2428,12 @@ const handleCloseShift = () => {
                               date: new Date().toISOString()
                             }]).select().single();
 
+                            if (newLog) {
+                              setRecentToast({
+                                id: newLog.id,
+                                text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
+                              });
+                            }
                           } catch (e) {
                             console.error("Cash out background error:", e);
                           }
@@ -2530,29 +2590,38 @@ const handleCloseShift = () => {
                       ← Засах
                     </button>
                   </div>
+              {/* ✅ УХААЛАГ БАТЛАХ ТОВЧ (Дарахад автоматаар камер нээгдэнэ) */}
                   <button
                     type="button"
-                    disabled={
+                     disabled={
                       !quickQty || 
                       parseFloat(quickQty) <= 0 || 
-                      (kioskMode === 'purchase' && !noEbarimtFile) || // 🔒 Зураггүй бол дарагдахгүй!
+                      (kioskMode === 'purchase' && (!purchaseCost || parseFloat(purchaseCost) <= 0)) || 
                       isAiLoading
                     }
-               onClick={() => {
-                    const qtyNum = parseFloat(quickQty);
-                    const finalQty = kioskMode === 'purchase' ? Math.abs(qtyNum) : -Math.abs(qtyNum);
-                    const costVal = parseFloat(purchaseCost) || 0;
-                    const itemToSave = quickItemModal;
-                    const fileToUpload = noEbarimtFile;
-                    const payMethod = purchasePayMethod;
+                    onClick={() => {
+                      const costVal = parseFloat(purchaseCost) || 0;
+                      
+                      // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
+                      if (kioskMode === 'purchase' && costVal >= 10000 && !noEbarimtFile) {
+                        document.getElementById('single-pur-cam')?.click();
+                        return; // Зураг дартал хадгалахгүй түр хүлээнэ
+                      }
 
-                    // ⚡ 1. ЦОНХ ТЭР ДОРОО ХААГДАНА (0 миллисекунд!)
-                    setQuickItemModal(null);
-                    setQuickQty('');
-                    setPurchaseCost('');
-                    setNoEbarimtFile(null);
-              
-                      // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background Worker)
+                      // ... (Цаашаа хуучин хадгалах ложик хэвээрээ үргэлжилнэ)
+                      const qtyNum = parseFloat(quickQty);
+                      const finalQty = kioskMode === 'purchase' ? Math.abs(qtyNum) : -Math.abs(qtyNum);
+                      const itemToSave = quickItemModal;
+                      const fileToUpload = noEbarimtFile;
+                      const payMethod = purchasePayMethod;
+
+                      setQuickItemModal(null);
+                      setQuickQty('');
+                      setPurchaseCost('');
+                      setNoEbarimtFile(null);
+
+                      const modeLabel = kioskMode === 'spoilage' ? 'Хаягдал' : kioskMode === 'staff_meal' ? 'Хоол' : kioskMode === 'testing' ? 'Туршилт' : 'Орлого';
+                      
                       (async () => {
                         try {
                           let uploadedUrl = null;
@@ -2575,18 +2644,26 @@ const handleCloseShift = () => {
                           }]).select().single();
 
                           if (!error && newLog) {
-                            // Баазаас жинхэнэ ID ирмэгц Undo товчийг жинхэнэ болгож шинэчлэх
-                          
-                            fetchKioskData(tenantClientId); // Баазыг ард нь сэргээнэ
+                            setRecentToast({
+                              id: newLog.id,
+                              text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + '₮' : modeLabel})`
+                            });
+                            fetchKioskData(tenantClientId);
                           }
                         } catch (err) {
                           console.error("Background save failed:", err);
                         }
                       })();
                     }}
-                            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-sm transition shadow-lg active:scale-95"
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
                   >
-                    {isAiLoading ? 'Хадгалж байна...' : (kioskMode === 'purchase' && !noEbarimtFile) ? '📸 ЗУРГАА ДАРЖ БАТАЛГААЖУУЛНА УУ' : 'БАТЛАХ (OK)'}
+                    {isAiLoading 
+                      ? 'Хадгалж байна...' 
+                      : (kioskMode === 'purchase' && (parseFloat(purchaseCost) || 0) >= 10000 && !noEbarimtFile)
+                        ? '📸 ЗУРАГ ДАРЖ БАТЛАХ' 
+                        : (kioskMode === 'purchase' && !noEbarimtFile)
+                          ? 'БАТЛАХ (Зураггүй оруулах)' 
+                          : 'БАТЛАХ (OK)'}
                   </button>
                 </div>
               </div>
@@ -2734,6 +2811,12 @@ const handleCloseShift = () => {
                       // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
                       setEbarimtReview(null);
 
+                      // ⚡ 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
+                      setRecentToast({
+                        id: 'temp-' + Date.now(),
+                        text: `⚡ ${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`
+                      });
+
                       // ⚡ 3. ЗУРАГ БА ЛОГИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ
                       (async () => {
                         try {
@@ -2768,6 +2851,10 @@ const handleCloseShift = () => {
                             .select('id');
 
                           const insertedIds = (insertedData || []).map((d: any) => d.id);
+                          setRecentToast({
+                            id: insertedIds[0] || 'bulk',
+                            text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`
+                          });
 
                           fetchKioskData(tenantClientId);
                               } catch (e) {
@@ -2893,72 +2980,91 @@ const handleCloseShift = () => {
             </p>
           </div>
 
-          {/* Батлах товч */}
+      {/* ✅ ШИНЭ БАРААНЫ УХААЛАГ БАТЛАХ ТОВЧ (Камер автоматаар нээгдэнэ) */}
           <button
             type="button"
-            disabled={!newItemQty || !newItemCost || !newItemFile || isAiLoading}
-                 onClick={() => {
-                  const nameToSave = newItemName;
-                  const qty = parseFloat(newItemQty);
-                  const cost = parseFloat(newItemCost);
-                  const unitToSave = newItemUnit;
-                  const fileToUpload = newItemFile;
-                  const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
+               disabled={
+              !newItemQty || 
+              parseFloat(newItemQty) <= 0 || 
+              !newItemCost || 
+              parseFloat(newItemCost) <= 0 || 
+              isAiLoading
+            }
+            onClick={() => {
+              const cost = parseFloat(newItemCost) || 0;
+              
+              // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
+              if (cost >= 10000 && !newItemFile) {
+                document.getElementById('new-item-cam')?.click();
+                return;
+              }
 
-                  // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
-                  setShowAddNewItemModal(false);
-                  setNewItemName('');
-                  setNewItemQty('');
-                  setNewItemCost('');
-                  setNewItemFile(null);
-                  setKioskSearch('');
+              // ... (Цаашаа хуучин хадгалах ложик хэвээрээ үргэлжилнэ)
+              const nameToSave = newItemName;
+              const qty = parseFloat(newItemQty);
+              const unitToSave = newItemUnit;
+              const fileToUpload = newItemFile;
+              const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
 
-                  // ⚡ 3. ЗУРАГ БА ШИНЭ БАРААГ ЦААНА НЬ ЧИМЭЭГҮЙ ҮҮСГЭХ (Background)
-                  (async () => {
-                    try {
-                      let uploadedUrl = null;
-                      if (fileToUpload) {
-                        uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'new_items');
-                      }
+              setShowAddNewItemModal(false);
+              setNewItemName('');
+              setNewItemQty('');
+              setNewItemCost('');
+              setNewItemFile(null);
+              setKioskSearch('');
 
-                      // Ingredients хүснэгтэд шинээр нэмэх
-                      const { data: createdIng } = await supabase.from('ingredients').insert([{
-                        client_id: tenantClientId,
-                        name: nameToSave,
-                        unit: unitToSave,
-                        unit_price: unitPrice,
-                        current_stock: qty
-                      }]).select().single();
+              (async () => {
+                try {
+                  let uploadedUrl = null;
+                  if (fileToUpload) {
+                    uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'new_items');
+                  }
 
-                      if (createdIng) {
-                        // Орлогын логийг зурагтай нь хадгалах
-                        const { data: newLog } = await supabase.from('inventory_logs').insert([{
-                          client_id: tenantClientId,
-                          ingredient_id: createdIng.id,
-                          quantity: qty,
-                          total_cost: cost,
-                          type: 'purchase',
-                          payment_method: 'bank',
-                          image_url: uploadedUrl,
-                          is_ebarimt: false,
-                          notes: 'Kiosk дээр шинээр үүсгэж орлого авсан',
-                          worker_name: activeShift?.character_role || selectedWorker?.full_name,
-                          date: new Date().toISOString()
-                        }]).select().single();
+                  const { data: createdIng } = await supabase.from('ingredients').insert([{
+                    client_id: tenantClientId,
+                    name: nameToSave,
+                    unit: unitToSave,
+                    unit_price: unitPrice,
+                    current_stock: qty
+                  }]).select().single();
 
-                        if (newLog) {
-                  
-                          fetchKioskData(tenantClientId); // Таблетын датаг цаана нь шинэчилнэ
-                        }
-                      }
-                    } catch (err) {
-                      console.error("New item background save error:", err);
+                  if (createdIng) {
+                    const { data: newLog } = await supabase.from('inventory_logs').insert([{
+                      client_id: tenantClientId,
+                      ingredient_id: createdIng.id,
+                      quantity: qty,
+                      total_cost: cost,
+                      type: 'purchase',
+                      payment_method: 'bank',
+                      image_url: uploadedUrl,
+                      is_ebarimt: false,
+                      notes: 'Kiosk дээр шинээр үүсгэж орлого авсан',
+                      worker_name: activeShift?.character_role || selectedWorker?.full_name,
+                      date: new Date().toISOString()
+                    }]).select().single();
+
+                    if (newLog) {
+                      setRecentToast({
+                        id: newLog.id,
+                        text: `Шинэ бараа: ${nameToSave} (${qty} ${unitToSave})`
+                      });
+                      fetchKioskData(tenantClientId); 
                     }
-                  })();
-                        }}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs transition shadow-lg active:scale-95"
+                  }
+                } catch (err) {
+                  console.error("New item background save error:", err);
+                }
+              })();
+            }}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-[13px] sm:text-xs transition shadow-lg active:scale-95"
           >
-            {isAiLoading ? 'Үүсгэж байна...' : !newItemFile ? '📸 ЗУРАГ ОРУУЛНА УУ' : 'ШИНЭ БАРААГ БАТЛАХ'}
+            {isAiLoading 
+              ? 'Үүсгэж байна...' 
+              : ((parseFloat(newItemCost) || 0) >= 10000 && !newItemFile)
+                ? '📸 ЗУРАГ ДАРЖ ҮҮСГЭХ' 
+                : !newItemFile 
+                  ? 'БАТЛАХ (Зураггүй үүсгэх)' 
+                  : 'ШИНЭ БАРААГ БАТЛАХ'}
           </button>
         </div>
       </div>
@@ -3071,19 +3177,17 @@ const handleCloseShift = () => {
                               </span>
                             </div>
 
-                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-slate-400 font-mono text-xs sm:text-xs mt-0.5">
-                        <span className="whitespace-nowrap">{qty} {unit}</span>
-                        
-                        {cost > 0 && (
-                          <>
-                            <span className="text-slate-600">•</span>
-                            <span className="text-emerald-400 font-bold whitespace-nowrap">{cost.toLocaleString()} ₮</span>
-                          </>
-                        )}
-                        
-                        <span className="text-slate-600 hidden min-[360px]:inline">•</span>
-                        <span className="text-slate-500 font-sans whitespace-nowrap">{timeStr}</span>
-                      </div>
+                            <div className="flex items-center gap-2 text-slate-400 font-mono text-xs mt-0.5">
+                              <span>{qty} {unit}</span>
+                              {cost > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-emerald-400 font-bold">{cost.toLocaleString()} ₮</span>
+                                </>
+                              )}
+                              <span>•</span>
+                              <span className="text-slate-500 font-sans">{timeStr}</span>
+                            </div>
                           </div>
                         </div>
 

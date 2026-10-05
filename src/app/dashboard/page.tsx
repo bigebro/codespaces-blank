@@ -6973,7 +6973,7 @@ const commitFinalSales = async (
                                   />
                                 </td>
                                 <td className="py-2.5 px-3">
-                                  <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded text-xs font-bold">
+                                  <span className="   ">
                                     {renderCategoryBadge(prod.category)}
                                   </span>
                                 </td>
