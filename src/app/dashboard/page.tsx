@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
+// @ts-ignore
+import * as XLSX from 'xlsx'; 
+
 import {
   TrendingUp, Trash2, DollarSign, Activity, AlertTriangle, Database, Coffee, 
   Layers3, Save, Check, FileSpreadsheet, UploadCloud, Bot, 
@@ -974,6 +977,46 @@ const aliasMap: Record<string, string> = {};
     a.click();
     URL.revokeObjectURL(url);
   };
+
+// 📥 EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
+const handleExportToExcel = () => {
+  // 1. Меню (Products) өгөгдлийг бэлтгэх
+  const menuData = productsList
+    .filter((p: any) => p.client_id === activeClient)
+    .map((p: any) => ({
+      'Ангилал (Category)': p.category || 'General',
+      'Бүтээгдэхүүний нэр (Product Name)': p.name,
+      'Зарах үнэ ₮ (Selling Price)': parseFloat(p.selling_price) || 0
+    }));
+
+  // 2. Жор (Recipes) өгөгдлийг бэлтгэх
+  const recipeData = recipes
+    .filter((r: any) => r.client_id === activeClient)
+    .map((r: any) => {
+      const ing = ingredients.find((i: any) => i.id === r.ingredient_id);
+      return {
+        'Бүтээгдэхүүний нэр (Product Name)': r.product_name,
+        'Орцын нэр (Ingredient)': ing?.name || 'Unknown',
+        'Хэмжээ (Amount)': parseFloat(r.amount) || 0,
+        'Нэгж (Unit)': ing?.unit || ''
+      };
+    });
+
+  // 3. Excel Workbook үүсгэх
+  const wb = XLSX.utils.book_new();
+
+  // 4. Меню хуудсыг үүсгэж хавсаргах
+  const wsMenu = XLSX.utils.json_to_sheet(menuData);
+  XLSX.utils.book_append_sheet(wb, wsMenu, "Меню_Үнэ");
+
+  // 5. Жор хуудсыг үүсгэж хавсаргах
+  const wsRecipes = XLSX.utils.json_to_sheet(recipeData);
+  XLSX.utils.book_append_sheet(wb, wsRecipes, "Технологийн_Карт");
+
+  // 6. Файлыг татаж авах
+  const fileName = `Menu_Recipes_${activeClient.replace(/\s+/g, '_')}_${getLocalDateStr()}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+};
   // 📥 JSON НӨӨЦ ФАЙЛЫГ УНШИХ & СОНГОЖ СЭРГЭЭХ СТЭЙТҮҮД
   const [jsonBackupModal, setJsonBackupModal] = useState<{
     fileData: any;
@@ -2498,6 +2541,12 @@ const commitFinalSales = async (
   // =========================================================================
   // 4. ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ (Огноо хэрэггүй)
   // =========================================================================
+// =========================================================================
+  // 🎯 ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ УХААЛАГ ФУНКЦ (SMART HEADER)
+  // =========================================================================
+// =========================================================================
+  // 🎯 ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ БҮРЭН АВТОМАТ УХААЛАГ ФУНКЦ
+  // =========================================================================
   const handleBulkRecipesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipesPasteText.trim()) return;
@@ -2505,55 +2554,135 @@ const commitFinalSales = async (
     setLoading(true);
     try {
       const rows = recipesPasteText.replace(/\r/g, "").trim().split("\n");
+      if (rows.length === 0) return;
+
+      // 1. Баазад байгаа түүхий эдүүдийн санах ой бэлтгэх (Англи ба Монголоор нь хоёулангаар нь танина)
       const { data: currentIngs } = await supabase
         .from("ingredients")
         .select("id, name")
-        .eq("client_id", activeClient);
-      const ingMap = new Map();
-      currentIngs?.forEach((i) => ingMap.set(cleanNameForMatch(i.name), i.id));
+        .ilike("client_id", activeClient.trim());
 
+      const ingMap = new Map<string, string>();
+      currentIngs?.forEach((i) => {
+        // Бүтэн нэр: "milk (сүү)"
+        ingMap.set(cleanNameForMatch(i.name), i.id);
+        // Англи суурь нэр: "milk"
+        const enPart = cleanNameForMatch(i.name.split('(')[0]);
+        if (enPart) ingMap.set(enPart, i.id);
+        // Монгол хэсэг: "сүү"
+        const mnMatch = i.name.match(/\((.*?)\)/);
+        if (mnMatch && mnMatch[1]) {
+          ingMap.set(cleanNameForMatch(mnMatch[1]), i.id);
+        }
+      });
+
+      // 2. ⚡ ТОЛГОЙ МӨР (HEADER)-ИЙГ ШАЛГАХ
+      const splitCols = (line: string) => line.includes("\t") ? line.split("\t") : line.split(/\s{2,}/);
+      const firstRowCols = splitCols(rows[0]).map(cleanHeader);
+
+      let prodIdx = firstRowCols.findIndex(c => c.includes("бүтээгдэхүүн") || c.includes("product") || c.includes("цэс") || c.includes("хоол") || c.includes("menu"));
+      let ingIdx = firstRowCols.findIndex(c => c.includes("орц") || c.includes("түүхий") || c.includes("ingredient") || c.includes("item") || c.includes("материал"));
+      let amtIdx = firstRowCols.findIndex(c => c.includes("хэмжээ") || c.includes("тоо") || c.includes("amount") || c.includes("qty") || c.includes("грамм") || c.includes("мл"));
+
+      const hasHeader = prodIdx !== -1 || ingIdx !== -1 || amtIdx !== -1;
+      const startIdx = hasHeader ? 1 : 0;
+
+      // Анхдагч дараалал: 0=Бүтээгдэхүүн, 1=Орц, 2=Тоо хэмжээ
+      if (prodIdx === -1) prodIdx = 0;
+      if (ingIdx === -1) ingIdx = 1;
+      if (amtIdx === -1) amtIdx = 2;
+
+      const newIngsToCreate = new Map<string, { name: string; unit: string }>();
+      const parsedRecipeRows: Array<{ prodName: string; rawIng: string; amount: number }> = [];
+
+      // 3. МӨР БҮРИЙГ УХААЛГААР ТАНИХ
+      for (let r = startIdx; r < rows.length; r++) {
+        const row = rows[r].trim();
+        if (!row) continue;
+
+        const cols = splitCols(row);
+        if (cols.length < 2) continue;
+
+        let prodName = cleanCell(cols[prodIdx] || "");
+        let rawIng = cleanCell(cols[ingIdx] || "");
+        let rawAmt = cols[amtIdx] !== undefined ? cleanCell(cols[amtIdx]) : "";
+
+        // 💡 АВТОМАТ ШАЛГАЛТ: Хэрэв тоо нь 1-р баганад, орц нь 2-р баганад байвал байрыг нь солих!
+        const isIngNumeric = !isNaN(parseFloat(rawIng.replace(/[^0-9.-]/g, ""))) && !isNaN(Number(rawIng.trim()[0]));
+        const isAmtText = isNaN(parseFloat(rawAmt.replace(/[^0-9.-]/g, "")));
+
+        if (isIngNumeric && isAmtText) {
+          const temp = rawIng;
+          rawIng = rawAmt;
+          rawAmt = temp;
+        }
+
+        // Хэрэв 3 дахь багана байхгүй ч 2 баганатай (Бараа, Тоо) байвал
+        if (!rawAmt && cols.length === 2) {
+          rawAmt = rawIng;
+          rawIng = prodName;
+        }
+
+        const amount = parseFloat(rawAmt.replace(/[^0-9.-]/g, "")) || 0;
+        if (!prodName || !rawIng || amount <= 0) continue;
+        if (prodName.toLowerCase().includes("product") || prodName.toLowerCase().includes("бүтээгдэхүүн")) continue;
+
+        parsedRecipeRows.push({ prodName, rawIng, amount });
+
+        // Баазад байхгүй түүхий эд байвал өөрөө автоматаар үүсгэх жагсаалтад оруулах
+        const cleanKey = cleanNameForMatch(rawIng);
+        const enKey = cleanNameForMatch(rawIng.split('(')[0]);
+        if (!ingMap.has(cleanKey) && !ingMap.has(enKey) && !newIngsToCreate.has(cleanKey)) {
+          newIngsToCreate.set(cleanKey, { name: rawIng, unit: "гр" });
+        }
+      }
+
+      // 4. ⚡ БААЗАД БАЙХГҮЙ ТҮҮХИЙ ЭДИЙГ ӨӨРӨӨ ШУУД ҮҮСГЭХ (Жор хэзээ ч гацахгүй!)
+      if (newIngsToCreate.size > 0) {
+        const toInsert = Array.from(newIngsToCreate.values()).map(it => ({
+          client_id: activeClient,
+          name: it.name,
+          unit: "гр",
+          unit_price: 0,
+          current_stock: 0
+        }));
+        const { data: createdIngs } = await supabase.from("ingredients").insert(toInsert).select();
+        if (createdIngs) {
+          createdIngs.forEach(ci => {
+            ingMap.set(cleanNameForMatch(ci.name), ci.id);
+            ingMap.set(cleanNameForMatch(ci.name.split('(')[0]), ci.id);
+          });
+        }
+      }
+
+      // 5. Жорыг баазад оруулах
       const recipesToUpsert: any[] = [];
+      parsedRecipeRows.forEach(rowItem => {
+        const cleanKey = cleanNameForMatch(rowItem.rawIng);
+        const enKey = cleanNameForMatch(rowItem.rawIng.split('(')[0]);
+        const ingId = ingMap.get(cleanKey) || ingMap.get(enKey);
 
-      rows.forEach((row) => {
-        if (!row.trim()) return;
-        const cols = row.split("\t");
-        if (cols.length >= 3) {
-          const productName = cols[0]?.trim() || "";
-          const ingredientName = cleanNameForMatch(cols[1] || "");
-          const amount = parseFloat(cols[2]?.replace(/[^0-9.-]/g, "")) || 0;
-          const ingredientId = ingMap.get(ingredientName);
-
-          if (
-            productName &&
-            ingredientId &&
-            amount > 0 &&
-            !productName.toLowerCase().includes("product")
-          ) {
-            recipesToUpsert.push({
-              client_id: activeClient,
-              product_name: productName,
-              ingredient_id: ingredientId,
-              amount: amount,
-            });
-          }
+        if (ingId) {
+          recipesToUpsert.push({
+            client_id: activeClient,
+            product_name: rowItem.prodName,
+            ingredient_id: ingId,
+            amount: rowItem.amount
+          });
         }
       });
 
       if (recipesToUpsert.length > 0) {
         const { error } = await supabase
           .from("recipes")
-          .upsert(recipesToUpsert, {
-            onConflict: "client_id,product_name,ingredient_id",
-          });
+          .upsert(recipesToUpsert, { onConflict: "client_id,product_name,ingredient_id" });
         if (error) throw error;
       }
 
       setRecipesImportSuccess(true);
       setRecipesPasteText("");
       await fetchDatabaseData(activeClient);
-      alert(
-        `✅ Амжилттай! ${recipesToUpsert.length} бүтээгдэхүүний жор хадгалагдлаа.`,
-      );
+      alert(`✅ Амжилттай! Нийт ${recipesToUpsert.length} технологийн карт (жор) хадгалагдлаа.`);
       setTimeout(() => setRecipesImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Жор оруулахад алдаа гарлаа: ${err.message}`);
@@ -7144,6 +7273,15 @@ const commitFinalSales = async (
                       >
                         <span>💾 Жор татах</span>
                       </button>
+                      {/* 📊 EXCEL (Google Sheets) РҮҮ ТАТАХ ТОВЧ */}
+                  <button
+                    type="button"
+                    onClick={handleExportToExcel}
+                    className="bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-400 border border-emerald-500/40 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                    title="Меню болон Жороо хүн унших боломжтой Excel файлаар татаж авах"
+                  >
+                    <span>📊 Меню & Жор (Excel)</span>
+                  </button>
 
                       {/* 📥 1-CLICK НӨӨЦ СЭРГЭЭХ (ШИНЭ) */}
                       <input
