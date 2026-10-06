@@ -1151,16 +1151,19 @@ function KioskPage() {
 
   return () => clearTimeout(timer);
 }, [recentToast]);
-
-  const fetchTodayLogs = async (client: string) => {
+const fetchTodayLogs = async (client: string) => {
     const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0); // Өнөөдөр өглөөний 00:00 цагаас хойш
+    todayStart.setHours(0, 0, 0, 0);
+
+    // 💡 ТҮГЖЭЭ: Яг одоо нэвтэрч орсон байгаа ажилтны нэрийг авах
+    const currentWorkerName = activeShift?.character_role || selectedWorker?.full_name || selectedWorker?.email.split('@')[0];
 
     const { data } = await supabase
       .from('inventory_logs')
       .select('id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)')
       .ilike('client_id', client)
       .gte('date', todayStart.toISOString())
+      .eq('worker_name', currentWorkerName) // 👈 АЛТАН ДҮРЭМ: Зөвхөн энэ хүний үйлдлийг л татна!
       .order('date', { ascending: false })
       .limit(30);
 
