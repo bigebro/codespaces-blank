@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation'; 
 import Link from 'next/link'; 
+import { EN_TO_MN_DICT } from '../../lib/autoReconcile';
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -41,184 +42,6 @@ const MN_NUMBERS = [
   { w: "хагас", v: 0.5 }, { w: "тал", v: 0.5 }
 ];
 
-// =========================================================================
-// 🇲🇳 2. ТАНЫ ЖАГСААЛТЫН БҮХ БАРАА БАГТСАН АВАРГА ТОЛЬ БИЧИГ (100% COMPLETE)
-// =========================================================================
-const EN_TO_MN_DICT: Record<string, string[]> = {
-  // Товчлолууд
-  "syr": ["сироп", "шүүс", "бурам"],
-  "fr": ["жимс", "жимсний", "жимстэй"],
-  "cr": ["крем", "цөцгий", "хөөс"],
-  "bl": ["хар", "үхрийн нүд", "хөх"],
-  "veg": ["ногоо", "ургамлын"],
-  "vegg": ["ногоо", "хүнсний ногоо"],
-  "veggies": ["ногоо", "хүнсний ногоо"],
-  "c": ["цуу", "алимны цуу"],
-  "can": ["лаазтай", "нөөшилсөн", "лааз"],
-  "canned": ["лаазтай", "нөөшилсөн"],
-  "chick": ["тахиа", "тахианы"],
-  "pickl": ["дарсан", "даршилсан"],
-  "mascarp": ["маскарпоне"],
-  "boulillon": ["бульон", "шөл"],
-
-  // Сүү, Өндөг, Цөцгий, Бяслаг
-  "milk": ["сүү", "сү", "милк"],
-  "egg": ["өндөг", "өндөгний"],
-  "eggs": ["өндөг", "өндөгний"],
-  "butter": ["масло", "цөцгийн тос"],
-  "cheese": ["бяслаг", "сыр", "чеддер", "зүссэн бяслаг"],
-  "cream": ["өрөм", "крем", "балун", "цөцгий", "вип", "зөөхий"],
-  "creamy": ["цөцгийтэй", "кремтэй"],
-  "sauer": ["зөөхий", "исгэлэн"],
-  "sour": ["зөөхий"],
-  "balloon": ["балун", "бөмбөлөг"],
-  "yogurt": ["тараг", "иогурт"],
-  "moloko": ["молоко", "өтгөрүүлсэн сүү"],
-  "whipped": ["хөөсрүүлсэн", "вип", "хутгасан"],
-
-  // Кофе, Цай, Ундаанууд
-  "bean": ["үр", "үрэл", "кофе", "шош"],
-  "beans": ["үр", "үрэл", "кофе", "шош"],
-  "coffee": ["кофе", "эспрессо"],
-  "espresso": ["эспрессо", "кофе"],
-  "kick": ["кик", "хүчтэй кофе"],
-  "tea": ["цай", "байхуу", "хөндмөл", "ханд"],
-  "teas": ["цай", "цайнууд"],
-  "brew": ["ханд", "хандалсан", "чанасан"],
-  "matcha": ["матча", "ногоон цай"],
-  "chai": ["чай", "цай", "масала"],
-  "rooibos": ["ройбос", "улаан цай"],
-  "hibis": ["хибискус", "сарнай"],
-  "butterfl": ["эрвээхэй", "цэнхэр цай"],
-  "green": ["ногоон", "ногоон цай"],
-  "bulbous": ["булцуут", "ургамал"],
-  "water": ["ус", "цэвэр ус", "рашаан"],
-  "bonaque": ["ус", "бонакуа"],
-  "soda": ["сода", "хийжүүлсэн", "хийтэй"],
-  "cola": ["кола", "ундаа"],
-  "laaztai": ["лаазтай", "лааз"],
-  "craft": ["крафт"],
-  "soft": ["ундаа", "хийжүүлсэн"],
-  "drink": ["ундаа", "жүүс"],
-  "juice": ["шүүс", "жүүс", "цэвэр шүүс"],
-  "calpis": ["калпис"],
-  "tonic": ["тоник"],
-  "orice": ["орис", "будааны"],
-
-  // Сироп, Чихэрлэг
-  "syrup": ["сироп", "шүүс", "бурам"],
-  "sugar": ["сахар", "элсэн чихэр"],
-  "sweetener": ["сахар орлуулагч", "чихэрлэг"],
-  "honey": ["зөгийн бал", "бал"],
-  "caramel": ["карамель", "чихэр"],
-  "vanilla": ["ваниль", "ваниллийн"],
-  "hazelnut": ["самар", "самрын", "хазелнат"],
-  "pistacchio": ["пистачио", "фисташка"],
-  "pistachio": ["пистачио", "фисташка"],
-  "cinnamon": ["шанц", "синнамон", "савхан шанц"],
-  "chocolate": ["шоколад", "шоко", "какао", "халуун шоколад"],
-  "choco": ["шоко", "шоколад"],
-  "cocoa": ["какао"],
-  "mocha": ["мока"],
-  "mint": ["гаа", "гааны", "минт"],
-  "curasao": ["кюрасао", "курасао"],
-  "grenade": ["анар", "гренадин"],
-
-  // Мах, Уураг
-  "beef": ["үхэр", "үхрийн мах", "үхрийн"],
-  "pork": ["гахай", "гахайн мах"],
-  "chicken": ["тахиа", "тахианы мах", "цээж мах"],
-  "sheep": ["хонь", "хонины мах", "хонины"],
-  "lamb": ["хурга", "хурганы мах"],
-  "bacon": ["бекон", "гахайн мах"],
-  "salami": ["салями", "хиам", "зайдас"],
-  "patty": ["таташ", "махан таташ", "бургерын мах"],
-  "tuna": ["туна", "загас", "загасны мах"],
-  "ground": ["татсан", "татсан мах"],
-
-  // Жимс
-  "apple": ["алим", "алимны"],
-  "banana": ["гадил", "банан"],
-  "lemon": ["нимбэг", "лимон", "нимбэгний"],
-  "orange": ["жүрж", "апельсин"],
-  "grapefruit": ["бэрсүүт жүрж", "грейпфрут"],
-  "kiwi": ["киви"],
-  "peach": ["тоор", "тоорын"],
-  "mango": ["манго", "мангоны"],
-  "passion": ["пашн", "маркуяа"],
-  "cherry": ["интоор", "интоорын"],
-  "berry": ["жимс", "жимсгэнэ"],
-  "strawberry": ["гүзээлзгэнэ", "гүзээлзгэний"],
-  "raspberry": ["бөөрөлзгөнө", "бөөрөлзгөний"],
-  "blueberry": ["нэрс", "нэрсний"],
-  "currant": ["үхрийн нүд", "үхрийн нүдний"],
-  "buckthorn": ["чацаргана", "чацарганы"],
-  "fruits": ["жимс", "жимснүүд"],
-  "wildberry": ["зэрлэг жимс", "ойн жимс"],
-  "sea": ["чацаргана", "далайн"],
-
-  // Ногоо, Ургамал
-  "tomato": ["улаан лооль", "помидор", "лооль"],
-  "tomatoes": ["улаан лооль", "помидор"],
-  "cucumber": ["өргөст хэмх", "огурцы"],
-  "carrot": ["лууван", "луувангийн"],
-  "onion": ["сонгино", "сонгинын"],
-  "garlic": ["сармис", "сармисны"],
-  "lettuce": ["салат", "салатны навч", "байцаа"],
-  "celery": ["селерей", "яншуй"],
-  "selleries": ["селерей", "яншуй"],
-  "parsley": ["яншуй", "яншуйны"],
-  "pepper": ["чинжүү", "перец", "чинжүүний"],
-  "sweet": ["амтат", "чихэрлэг"],
-  "corn": ["эрдэнэ шиш", "кукуруз"],
-  "pumpkin": ["хулуу", "хулууны"],
-  "ginger": ["цагаан гаа", "гаа"],
-  "herbs": ["өвс", "ургамал", "хатаасан ногоо"],
-  "farm": ["фермийн", "ногооны"],
-  "plant": ["ургамал", "булцуут"],
-
-  // Гурил, Сүмс, Нарийн боов
-  "bread": ["талх", "хэрчсэн", "зүссэн"],
-  "bun": ["талх", "булочка", "бургерын талх"],
-  "flour": ["гурил", "гурилан"],
-  "powder": ["нунтаг", "паудэр", "пудр", "хөөлгөгч"],
-  "power": ["нунтаг", "паудэр"],
-  "sauce": ["соус", "сүмс", "амтлагч"],
-  "burger": ["бургер", "бургерын"],
-  "ketchup": ["кетчуп"],
-  "mayo": ["майонез"],
-  "mustard": ["гич", "мустард"],
-  "oil": ["тос", "ургамлын тос", "олив", "чидун"],
-  "olive": ["олив", "чидун"],
-  "vinegar": ["уксус", "цуу"],
-  "salt": ["давс"],
-  "tabasco": ["табаско"],
-  "worchest": ["ворчестер"],
-  "seasonings": ["амтлагч", "хольц"],
-  "various": ["төрөл бүрийн", "холимог"],
-  "chips": ["үртэс", "чипс"],
-  "slice": ["хэрчим", "зүсэм"],
-  "piece": ["хэсэг", "хэрчим"],
-  "stick": ["савх", "мод"],
-  "velvet": ["велвет", "хамба"],
-  "ladies": ["савоярди", "хуруу", "жигнэмэг"],
-  "finger": ["хуруу", "савоярди"],
-  "baking": ["жигнэх", "хөөлгөгч"],
-  "dried": ["хатаасан"],
-  "fresh": ["шинэ", "шинэхэн"],
-  "sliced": ["зүссэн", "хэрчсэн"],
-  "hot": ["халуун"],
-  "black": ["хар", "үхрийн нүд"],
-  "blue": ["хөх", "цэнхэр"],
-  "red": ["улаан"],
-
-  // Сав баглаа
-  "cup": ["аяга", "стакан"],
-  "lid": ["таг", "бөглөө"],
-  "straw": ["соруул", "гуурс"],
-  "napkin": ["сальфетка", "арчуур", "цаас"],
-  "bag": ["уут", "тор", "хүүдий"]
-};
 
 // =========================================================================
 // 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
@@ -1036,7 +859,10 @@ function KioskAiChatSection({
 function KioskPage() {
   const router = useRouter(); 
   const [step, setStep] = useState<'select_worker' | 'pin_code' | 'shift_handover' | 'menu' | 'ai_chat' | 'tasks' | 'incident_report' | 'close_shift'>('select_worker');
-  
+// 🌐 ХОС ХЭЛ БА БААЗААС СУРСАН ОРЧУУЛГУУД
+
+
+
   const [tenantClientId, setTenantClientId] = useState<string>('SF');
   const [workers, setWorkers] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
@@ -1046,7 +872,97 @@ function KioskPage() {
   const [activeShift, setActiveShift] = useState<any>(null);
   const [msg, setMsg] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  // 🌐 ХОС ХЭЛНИЙ ТОХИРГОО (tenantClientId-ийн дараа байрлана)
+  const [lang, setLang] = useState<'mn' | 'en'>('mn');
+  const [translationsCache, setTranslationsCache] = useState<Record<string, string>>({});
+  // 1. Системийн 4 горимын текстүүд
+  const UI_TEXT = {
+    mn: {
+      spoilage: "Хаягдал",
+      meal: "Хоол",
+      test: "Туршилт",
+      purchase: "Орлого"
+    },
+    en: {
+      spoilage: "Waste",
+      meal: "Meal",
+      test: "Test",
+      purchase: "Purchase"
+    }
+  };
 
+  // 2. Баазад хадгалагдсан орчуулгыг татах
+  useEffect(() => {
+    if (tenantClientId) {
+      supabase
+        .from('learned_translations')
+        .select('original_text, translated_text')
+        .ilike('client_id', tenantClientId)
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, string> = {};
+            data.forEach((row: any) => {
+              map[row.original_text.toLowerCase()] = row.translated_text;
+            });
+            setTranslationsCache(map);
+          }
+        });
+    }
+  }, [tenantClientId]);
+
+// 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Толинд байхгүй бол AI-аар шууд орчуулж баазад цээжилнэ)
+  const tName = (rawName: string) => {
+    if (!rawName) return "";
+    
+    // Англи горим бол цэвэр англиар гарна
+    if (lang === 'en') {
+      const m = rawName.match(/^(.*?)\s*\(/);
+      return m ? m[1].trim() : rawName;
+    }
+
+    // 🇲🇳 Монгол горим:
+    // 1. Хаалтад монгол нэр байвал тэрийг нь шууд авна (Veggies (Хүнсний ногоо) ➔ Хүнсний ногоо)
+    const bracketMatch = rawName.match(/\((.*?)\)/);
+    if (bracketMatch && bracketMatch[1]) return bracketMatch[1].trim();
+
+    const clean = rawName.toLowerCase().trim();
+
+    // 2. Баазад өмнө нь цээжилсэн үгсээс хайна
+    if (translationsCache[clean]) return translationsCache[clean];
+
+    // 3. Бэлэн EN_TO_MN_DICT толь бичгээс хайна
+    if (typeof EN_TO_MN_DICT !== 'undefined') {
+      if (EN_TO_MN_DICT[clean]?.[0]) return EN_TO_MN_DICT[clean][0];
+      const baseWord = clean.split(' ')[0];
+      if (EN_TO_MN_DICT[baseWord]?.[0]) return EN_TO_MN_DICT[baseWord][0];
+    }
+
+    // 4. ⚡ ТОЛИНД БАЙХГҮЙ ШИНЭ ҮГ БОЛ AI РУУ АРЫН СУВГААР ИЛГЭЭЖ ОРЧУУЛУУЛНА!
+    if (!translationsCache[clean]) {
+      fetch('/api/kiosk-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'translate', text: rawName, clientId: tenantClientId })
+      })
+      .then(res => res.json())
+      .then(d => {
+        if (d.success && d.translation) {
+          // Орчуулга ирмэгц дэлгэцийг тэр дор нь шинэчилнэ (lobster ➔ Хавч)
+          setTranslationsCache(prev => ({ ...prev, [clean]: d.translation }));
+        }
+      })
+      .catch(() => {});
+    }
+
+    // AI хариу ирэх хүртэл түр англиар нь харуулна
+    return rawName;
+  };
+
+  const tUnit = (u: string) => {
+    if (!u) return "";
+    if (lang === 'en') return (u === 'ш' ? 'pc' : u === 'мл' ? 'ml' : u === 'гр' ? 'g' : u);
+    return (u.includes('ml') ? 'мл' : u.includes('gram') || u === 'g' ? 'гр' : u.includes('pc') || u.includes('item') ? 'ш' : u);
+  };
   // Shift Handover Start States
   const [handoverNote, setHandoverNote] = useState('');
   const [handoverFile, setHandoverFile] = useState<File | null>(null);
@@ -1552,6 +1468,14 @@ const handleCloseShift = () => {
         </div>
 
     <div className="flex items-center gap-2">
+      {/* 🌐 ХЭЛ СОЛИХ ТОВЧ */}
+      <button 
+        type="button"
+        onClick={() => setLang(lang === 'mn' ? 'en' : 'mn')}
+        className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
+      >
+        {lang === 'mn' ? '🇲🇳 MN' : '🇺🇸 EN'}
+      </button>
        <Link 
         href="/login?from=kiosk"
         className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
@@ -1946,7 +1870,7 @@ const handleCloseShift = () => {
                     kioskMode === 'spoilage' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <span>🗑️ Хаягдал</span>
+                  <span>🗑️ {UI_TEXT[lang].spoilage}</span>
                 </button>
                 <button
                   type="button"
@@ -1955,7 +1879,7 @@ const handleCloseShift = () => {
                     kioskMode === 'staff_meal' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <span>🍽️ Хоол</span>
+                  <span>🍽️ {UI_TEXT[lang].meal}</span>
                 </button>
                 <button
                   type="button"
@@ -1964,7 +1888,7 @@ const handleCloseShift = () => {
                     kioskMode === 'testing' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <span>🧪 Туршилт</span>
+                  <span>🧪 {UI_TEXT[lang].test}</span>
                 </button>
                 <button
                   type="button"
@@ -1973,7 +1897,7 @@ const handleCloseShift = () => {
                     kioskMode === 'purchase' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <span>📦 Орлого</span>
+                  <span>📦 {UI_TEXT[lang].purchase}</span>
                 </button>
               </div>
             </div>
@@ -2146,7 +2070,7 @@ const handleCloseShift = () => {
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span className="font-bold text-sm sm:text-base text-white line-clamp-2 leading-snug">
-                          {ing.name}
+                       {tName(ing.name)}
                         </span>
                         {ing.is_critical && (
                           <span className="text-[8px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.2 rounded shrink-0">
@@ -2156,7 +2080,7 @@ const handleCloseShift = () => {
                       </div>
                       
                       <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs text-slate-400 font-medium">{ing.unit}</span>
+                        <span className="text-xs text-slate-400 font-medium">{tUnit(ing.unit)}</span>
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                           kioskMode === 'spoilage' ? 'bg-rose-500/10 text-rose-400' : kioskMode === 'staff_meal' ? 'bg-blue-500/10 text-blue-400' : kioskMode === 'testing' ? 'bg-purple-500/10 text-purple-400' : 'bg-emerald-500/10 text-emerald-400'
                         }`}>
@@ -2277,10 +2201,10 @@ const handleCloseShift = () => {
                             .map((item: any, idx: number) => (
                               <div key={idx} className="flex justify-between items-center p-3 text-xs">
                                 <span className="font-bold text-slate-200">
-                                  {item.ingredients?.name || "Орц"}
+                                  {tName(item.ingredients?.name || "Орц")}
                                 </span>
                                 <span className="font-mono font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                                  {item.amount} {item.ingredients?.unit || "гр/мл"}
+                                 {item.amount} {tUnit(item.ingredients?.unit || "гр/мл")}
                                 </span>
                               </div>
                             ))}

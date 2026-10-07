@@ -256,6 +256,71 @@ const prompt = `
   return NextResponse.json({ success: false, message: "AI ангилал хийж чадсангүй." });
 }
 
+// 🌐 ШИНЭ ҮГИЙГ AI-ААР 1 УДАА ОРЧУУЛЖ БААЗАД ЦЭЭЖЛЭХ (0 ТОКЕН ЛООП)
+if (action === "translate" && body.text) {
+  const original = String(body.text).trim();
+  const lowerOriginal = original.toLowerCase();
+
+  // 1. Баазад өмнө нь цээжилсэн эсэхийг түрүүлж шалгах (AI дуудахгүй)
+  const { data: cached } = await supabaseAdmin
+    .from("learned_translations")
+    .select("translated_text")
+    .eq("client_id", clientId)
+    .ilike("original_text", lowerOriginal)
+    .maybeSingle();
+
+  if (cached) {
+    return NextResponse.json({ success: true, translation: cached.translated_text });
+  }
+
+
+
+  // 2. Баазад байхгүй бол AI-аас ганц удаа асуух
+  let translated = "";
+  // AI-аар орчуулах
+  // 🚨 ЗАСВАР: AI-д өгөх маш хатуу тушаал (Cyrillic & Nominative case ONLY)
+  const prompt = `You are a professional Mongolian translator for a restaurant POS system.
+Translate the following food/beverage ingredient or menu item name into clean Mongolian.
+CRITICAL RULES:
+1. Output ONLY the translated name. Nothing else.
+2. Use ONLY the official Mongolian Cyrillic alphabet (а-я, ө, ү, А-Я, Ө, Ү). NEVER use Latin letters like v, w, x, etc.
+3. Keep it in the Nominative case (Нэрлэхийн тийн ялгал). E.g. "Lobster salad" -> "Хавчтай салат" (DO NOT write "салатын").
+Text to translate: "${original}"`;
+
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+  if (key) {
+    try {
+      const ai = new GoogleGenerativeAI(key);
+      const model = ai.getGenerativeModel({
+        model: "gemini-3.5-flash-lite",
+        generationConfig: { temperature: 0.1 }
+      });
+      const res = await model.generateContent(prompt);
+      translated = res.response.text().trim();
+    } catch (e) {}
+  }
+
+  // Gemini ажиллаагүй бол Groq нөөц рүү үсрэх
+  if (!translated) {
+    try {
+      translated = (await callGroqFallback("Translate to Mongolian Cyrillic F&B term only.", prompt)).trim();
+    } catch (e) {}
+  }
+
+  // 3. AI-ийн орчуулгыг баазад ХАДГАЛАХ (Дараагийн удаа дахиж AI ажиллахгүй)
+  if (translated) {
+    await supabaseAdmin.from("learned_translations").upsert([{
+      client_id: clientId,
+      original_text: lowerOriginal,
+      translated_text: translated
+    }], { onConflict: "client_id,original_text" });
+
+    return NextResponse.json({ success: true, translation: translated });
+  }
+
+  return NextResponse.json({ success: false, translation: original });
+}
+
     // 1. UNDO
     if (action === "undo" && logId) {
       const { error } = await supabaseAdmin

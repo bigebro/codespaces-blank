@@ -599,6 +599,9 @@ function Home() {
   // 🚨 Үнийн өсөлтийг хумих/дэлгэх & Маржин хайх стэйтүүд:
   const [isSpikesExpanded, setIsSpikesExpanded] = useState(false); 
   const [marginSearch, setMarginSearch] = useState("");
+  // 🌐 ОРЧУУЛГЫН ХЯНАЛТЫН СТЭЙТҮҮД (Dashboard)
+  const [translationsCache, setTranslationsCache] = useState<Record<string, string>>({});
+  const [editingTranslation, setEditingTranslation] = useState<{ original: string; text: string } | null>(null);
   // ➕ Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
   const [showAddIngModal, setShowAddIngModal] = useState(false);
   const [learnedMenus, setLearnedMenus] = useState<any[]>([]);
@@ -1719,7 +1722,8 @@ function SearchableSelect({
         { data: settData },
         { data: prodData },
         { data: lmData },
-        { data: lcData }
+        { data: lcData },
+        { data: transData } 
       ] = await Promise.all([
         supabase.from("ingredients").select("*").ilike("client_id", targetClient).order("name", { ascending: true }),
         supabase.from("recipes").select("*").ilike("client_id", targetClient),
@@ -1734,10 +1738,18 @@ function SearchableSelect({
         supabase.from("client_settings").select("*").ilike("client_id", targetClient).maybeSingle(),
         supabase.from("products").select("*").ilike("client_id", targetClient),
         supabase.from("learned_menus").select("*").ilike("client_id", targetClient),
-        supabase.from("learned_categories").select("*").ilike("client_id", targetClient)
+        supabase.from("learned_categories").select("*").ilike("client_id", targetClient),
+        supabase.from("learned_translations").select("*").ilike("client_id", targetClient)
       ]);
       if (lmData) setLearnedMenus(lmData);
       if (lcData) setLearnedCategories(lcData);
+         if (transData) {
+        const tMap: Record<string, string> = {};
+        transData.forEach((t: any) => {
+          tMap[t.original_text.toLowerCase()] = t.translated_text;
+        });
+        setTranslationsCache(tMap);
+      }
       if (faData) setFixedAssets(faData);
       if (opexData) setFixedOpexList(opexData);
       if (settData) {
@@ -4090,6 +4102,8 @@ const commitFinalSales = async (
                         <span className="text-slate-600 hover:text-slate-400 text-2xl leading-none">☆</span>
                       )}
                     </button>
+
+
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold text-white text-sm sm:text-sm">{ing.name}</span>
@@ -4105,11 +4119,65 @@ const commitFinalSales = async (
                             {abc}-Class
                           </span>
                         </div>
+                        
                         <span className="text-xs text-slate-400 font-mono">
                           Нэгж: {ing.unit}
                         </span>
                       </div>
-                    </div>
+
+
+                         {/* 🌐 ОРЧУУЛГЫГ ХАРУУЛАХ БА ЗАСАХ ХЭСЭГ */}
+      <div className="flex items-center gap-1.5 mt-0.5">
+        {editingTranslation?.original === ing.name.toLowerCase() ? (
+         <div className="flex items-center gap-1">
+            <input
+              type="text"
+              value={editingTranslation?.text || ""} // 👈 1. ?.text || "" нэмсэн
+              onChange={(e) => setEditingTranslation(prev => prev ? { ...prev, text: e.target.value } : null)}
+              className="bg-slate-900 border border-purple-500 rounded px-1.5 py-0.5 text-xs text-purple-300 font-bold outline-none"
+            />
+            <button
+              onClick={async () => {
+                if (!editingTranslation) return; // 👈 2. null биш гэдгийг баталгаажуулах хамгаалалт
+
+                const cleanOrig = ing.name.toLowerCase().trim();
+                const newTrans = editingTranslation.text.trim();
+
+                // State шинэчлэх
+                setTranslationsCache(prev => ({ ...prev, [cleanOrig]: newTrans }));
+                setEditingTranslation(null);
+
+                // Баазад хадгалах
+                await supabase.from("learned_translations").upsert([{
+                  client_id: activeClient,
+                  original_text: cleanOrig,
+                  translated_text: newTrans
+                }], { onConflict: "client_id,original_text" });
+              }}
+              className="text-emerald-400 font-bold text-xl"
+            >✓</button>
+            <button onClick={() => setEditingTranslation(null)} className="text-slate-500 font-bold text-xl">✕</button>
+          </div>
+        ) : (
+          <>
+            <span className="text-xs font-medium text-purple-400/80 font-mono flex items-center gap-1">
+              🇲🇳 {translationsCache[ing.name.toLowerCase().trim()] || <span className="text-slate-500 italic">Орчуулгагүй</span>}
+            </span>
+            <button
+              onClick={() => setEditingTranslation({ 
+                original: ing.name.toLowerCase().trim(), 
+                text: translationsCache[ing.name.toLowerCase().trim()] || '' 
+              })}
+              className="text-slate-500 hover:text-purple-400 transition"
+              title="Орчуулгыг засах"
+            >
+              ✏️
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  
                   </td>
 
                         {/* 2. НЭГЖИЙН ӨРТӨГ */}
