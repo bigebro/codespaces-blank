@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useRouter } from 'next/navigation'; 
 import Link from 'next/link'; 
-import { EN_TO_MN_DICT } from '../../lib/autoReconcile';
+import { EN_TO_MN_DICT, STATIC_DICT } from '../../lib/autoReconcile';
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -911,33 +911,32 @@ function KioskPage() {
   }, [tenantClientId]);
 
 // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Толинд байхгүй бол AI-аар шууд орчуулж баазад цээжилнэ)
+
+ // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Эхний үгээр тасдаж алдаа гаргахгүй хувилбар)
   const tName = (rawName: string) => {
     if (!rawName) return "";
     
-    // Англи горим бол цэвэр англиар гарна
+    // Англи горим: Хаалтыг арилгаж цэвэр англи нэр гаргана
     if (lang === 'en') {
       const m = rawName.match(/^(.*?)\s*\(/);
       return m ? m[1].trim() : rawName;
     }
 
     // 🇲🇳 Монгол горим:
-    // 1. Хаалтад монгол нэр байвал тэрийг нь шууд авна (Veggies (Хүнсний ногоо) ➔ Хүнсний ногоо)
+    // 1. Хаалтад монгол нэр байвал ХААЛТАН ДОТОРХЫГ ШУУД АВНА (Хамгийн зөв хувилбар)
     const bracketMatch = rawName.match(/\((.*?)\)/);
     if (bracketMatch && bracketMatch[1]) return bracketMatch[1].trim();
 
     const clean = rawName.toLowerCase().trim();
 
-    // 2. Баазад өмнө нь цээжилсэн үгсээс хайна
+    // 2. Баазад өмнө нь зөв хадгалсан орчуулга байвал тэрийг авна
     if (translationsCache[clean]) return translationsCache[clean];
 
-    // 3. Бэлэн EN_TO_MN_DICT толь бичгээс хайна
-    if (typeof EN_TO_MN_DICT !== 'undefined') {
-      if (EN_TO_MN_DICT[clean]?.[0]) return EN_TO_MN_DICT[clean][0];
-      const baseWord = clean.split(' ')[0];
-      if (EN_TO_MN_DICT[baseWord]?.[0]) return EN_TO_MN_DICT[baseWord][0];
+ // 3. ЗӨВХӨН БҮХЭЛ НЭРЭЭРЭЭ толь бичигт байвал авна
+    if (typeof STATIC_DICT !== 'undefined' && STATIC_DICT[clean]) {
+      return STATIC_DICT[clean]; // 
     }
-
-    // 4. ⚡ ТОЛИНД БАЙХГҮЙ ШИНЭ ҮГ БОЛ AI РУУ АРЫН СУВГААР ИЛГЭЭЖ ОРЧУУЛУУЛНА!
+    // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
     if (!translationsCache[clean]) {
       fetch('/api/kiosk-ai', {
         method: 'POST',
@@ -947,14 +946,12 @@ function KioskPage() {
       .then(res => res.json())
       .then(d => {
         if (d.success && d.translation) {
-          // Орчуулга ирмэгц дэлгэцийг тэр дор нь шинэчилнэ (lobster ➔ Хавч)
           setTranslationsCache(prev => ({ ...prev, [clean]: d.translation }));
         }
       })
       .catch(() => {});
     }
 
-    // AI хариу ирэх хүртэл түр англиар нь харуулна
     return rawName;
   };
 
@@ -2027,7 +2024,10 @@ const handleCloseShift = () => {
                   className="w-full bg-[#060b17] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-500"
                 />
                    {/* ➕ ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
-                {kioskSearch.trim() && !ingredients.some(i => i.name.toLowerCase().trim() === kioskSearch.toLowerCase().trim()) && (
+             {kioskSearch.trim() && !ingredients.some(i => {
+                  const q = kioskSearch.toLowerCase().trim();
+                  return tName(i.name).toLowerCase().trim() === q; // 👈 Зөвхөн идэвхтэй хэлээрээ шалгана
+                }) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2046,11 +2046,16 @@ const handleCloseShift = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
-                {ingredients
+             {ingredients
                   .filter((ing) => {
-                    if (kioskSearch.trim()) return ing.name.toLowerCase().includes(kioskSearch.toLowerCase().trim());
+                    if (kioskSearch.trim()) {
+                      const q = kioskSearch.toLowerCase().trim();
+                      // 💡 Зөвхөн тухайн сонгосон хэлнийхээ (MN эсвэл EN) нэрээр л хайна!
+                      return tName(ing.name).toLowerCase().includes(q);
+                    }
                     return true;
                   })
+
                   .sort((a, b) => {
                     if (a.is_critical && !b.is_critical) return -1;
                     if (!a.is_critical && b.is_critical) return 1;

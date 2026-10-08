@@ -730,7 +730,18 @@ const aliasMap: Record<string, string> = {};
       if (typeof transliterate === 'function') knownSet.add(transliterate(clean));
     });
 
-    // Санах ойн алиасуудыг нэмэх
+ // 🧠 САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
+    (learnedMenus || []).forEach((lm: any) => {
+      if (lm.pos_name) {
+        const cleanPos = cleanString(lm.pos_name).toLowerCase();
+        knownSet.add(cleanPos);
+        knownSet.add(sanitizeName(cleanPos));
+        if (typeof transliterate === 'function') {
+          knownSet.add(transliterate(cleanPos).replace(/\s+/g, ''));
+        }
+      }
+    });
+
     Object.entries(aliasMap).forEach(([k, v]) => {
       knownSet.add(k.toLowerCase());
       knownSet.add(v.toLowerCase());
@@ -762,7 +773,7 @@ const aliasMap: Record<string, string> = {};
       });
 
     return missingItems;
-  }, [salesLogs, productsList, activeClient]);
+  }, [salesLogs, productsList, activeClient, learnedMenus]);
   // 🔗 ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
   const [mergeSelections, setMergeSelections] = useState<Record<string, string>>({});
 // ⚡ БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
@@ -2049,41 +2060,46 @@ const commitFinalSales = async (
         }
       }
 
-     if (updates && updates.length > 0) {
-        await Promise.all(
-          updates.map(async (p: any) => {
-            // 1. Менюний нэрийг шинэчлэх
-            await supabase.from("products").update({ name: p.name, selling_price: p.selling_price }).eq("id", p.id);
-            
-            // 2. ⚡ ЖОРЫН НЭРИЙГ ХАМТ ШИНЭЧЛЭХ (Жор өнчирч үлдэхээс сэргийлнэ!):
-            const targetChange = existingChanges.find((c: any) => c.productId === p.id);
-            if (targetChange && targetChange.oldName && targetChange.oldName !== p.name) {
-              await supabase.from("recipes").update({ product_name: p.name })
-                .eq("client_id", activeClient)
-                .ilike("product_name", targetChange.oldName);
-            }
-          })
-        );
-      }
+ if (updates && updates.length > 0) {
+          await Promise.all(
+            updates.map(async (p: any) => {
+              // 1. Зөвхөн зарах үнийг шууд шинэчлэх (Нэрний алдаа гарахгүй)
+              const { error } = await supabase
+                .from("products")
+                .update({ selling_price: p.selling_price })
+                .eq("id", p.id);
+              if (error) console.error("Price update error:", error);
+            })
+          );
 
-      // Auto-Pilot шинэчлэх:
-      if (insertedNewProds.length > 0) {
-        const newProductChanges: AutoPilotChange[] = insertedNewProds.map((p: any) => ({
-          id: `new-${p.id}-${Date.now()}`,
-          productId: p.id,
-          productName: p.name,
-          type: 'NEW_PRODUCT',
-          oldName: 'Байхгүй',
-          newName: `${p.name} (${Number(p.selling_price).toLocaleString()} ₮) [${p.category}]`,
-          oldPrice: 0,
-          newPrice: Number(p.selling_price),
-          oldCategory: p.category || 'General',
-          reverted: false
-        }));
+          // 2. Дэлгэц дээрх цэсний үнийг refresh хийлгүй шууд 0ms-д шинэчлэх
+          setProductsList(prev => prev.map(prod => {
+            const up = updates.find((u: any) => u.id === prod.id);
+            return up ? { ...prod, selling_price: up.selling_price } : prod;
+          }));
+        }
 
+  // ⚡ АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
+      const newProductChanges: AutoPilotChange[] = insertedNewProds.map((p: any) => ({
+        id: `new-${p.id}-${Date.now()}`,
+        productId: p.id,
+        productName: p.name,
+        type: 'NEW_PRODUCT',
+        oldName: 'Байхгүй',
+        newName: `${p.name} (${Number(p.selling_price).toLocaleString()} ₮) [${p.category}]`,
+        oldPrice: 0,
+        newPrice: Number(p.selling_price),
+        oldCategory: p.category || 'General',
+        reverted: false
+      }));
+
+      const allAutoPilotChanges = [...existingChanges, ...newProductChanges];
+
+      // Хэрэв үнэ өөрчлөгдсөн ЭСВЭЛ шинэ бараа нэмэгдсэн л бол Поп-ап цонхыг асаана!
+      if (allAutoPilotChanges.length > 0) {
         setAutoPilotActivity({
-          totalSales: sales.length || insertedNewProds.length,
-          changes: [...existingChanges, ...newProductChanges]
+          totalSales: sales.length,
+          changes: allAutoPilotChanges
         });
       }
 
@@ -2102,6 +2118,8 @@ const commitFinalSales = async (
   // 📈 БОРЛУУЛАЛТ ИМПОРТЛОХ ЦӨМ ФУНКЦ (Дараалал нь 100% зөв)
   // =========================================================================
   const handleBulkSalesPaste = async (e: React.FormEvent) => {
+      // 🧠 AI ЦЭС ТААГЧ: Танигдаагүй ПОС нэрсийг 20 жишээ харуулан таалгах
+    
     e.preventDefault();
     if (!salesPasteText.trim()) return;
 
@@ -2114,7 +2132,14 @@ const commitFinalSales = async (
         return;
       }
 
-      const headerCols = rows[0].split("\t").map(cleanHeader);
+        const splitRow = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.includes("\t")) return trimmed.split("\t").map(c => c.trim());
+        if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim());
+        return [trimmed];
+      };
+
+       const headerCols = splitRow(rows[0]).map(cleanHeader);
       const nameIdx = headerCols.findIndex(c => c.includes("бүтээгдэхүүн") || c.includes("product") || c.includes("item") || c.includes("нэр"));
       const qtyIdx = headerCols.findIndex(c => c.includes("тоо") || c.includes("хэмжээ") || c.includes("qty") || c.includes("count") || c.includes("ширхэг"));
       const revIdx = headerCols.findIndex(c => c.includes("орлого") || c.includes("revenue") || c.includes("total") || c.includes("дүн"));
@@ -2132,7 +2157,12 @@ const commitFinalSales = async (
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i].trim();
         if (!row) continue;
-        const cols = row.split("\t");
+        const cols = splitRow(row);
+          if (cols.length < 2) {
+            alert(`⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`);
+            setLoading(false);
+            return;
+          }
         const pName = cleanCell(cols[nameIdx] || "");
         const qty = parseInt((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
         const revenue = parseFloat((cols[revIdx >= 0 ? revIdx : 2] || "0").replace(/[^0-9.-]/g, "")) || 0;
@@ -2173,7 +2203,7 @@ const commitFinalSales = async (
         if (!rawPosName || seenInBatch.has(rawPosName.toLowerCase())) continue;
         seenInBatch.add(rawPosName.toLowerCase());
 
-        const result = evaluateSaleItem(rawPosName, posPrice, productsList, dynamicAliasMap);
+        const result = evaluateSaleItem(rawPosName, posPrice, productsList, dynamicAliasMap, learnedMenus);
 
         if (result.decision === 'AUTO_MERGE' && result.targetProduct) {
           const target = result.targetProduct;
@@ -2181,31 +2211,106 @@ const commitFinalSales = async (
           const nameChanged = cleanString(rawPosName).toLowerCase() !== cleanString(target.name).toLowerCase();
           const priceChanged = posPrice > 0 && oldPrice !== posPrice;
 
-          if (nameChanged || priceChanged) {
-            productsToUpdateBatch.push({
-              id: target.id,
-              name: rawPosName,
-              selling_price: posPrice > 0 ? posPrice : oldPrice
-            });
+        if (priceChanged) {
+        productsToUpdateBatch.push({
+          id: target.id,
+          name: target.name, // Албан ёсны нэр хэвээрээ үлдэнэ
+          selling_price: posPrice
+        });
 
-            existingAutoPilotChanges.push({
-              id: `merge-${target.id}-${Date.now()}`,
-              productId: target.id,
-              productName: rawPosName,
-              type: nameChanged ? 'NAME_MERGE' : 'PRICE_UPDATE',
-              oldName: target.name,
-              newName: rawPosName,
-              oldPrice: oldPrice,
-              newPrice: posPrice > 0 ? posPrice : oldPrice,
-              oldCategory: target.category || 'General',
-              reverted: false
-            });
-          }
+        existingAutoPilotChanges.push({
+          id: `price-${target.id}-${Date.now()}`,
+          productId: target.id,
+          productName: target.name,
+          type: 'PRICE_UPDATE', // 👈 Үргэлж ЦЭВЭР ҮНИЙН ӨӨРЧЛӨЛТ гэж бүртгэнэ
+          oldName: target.name,
+          newName: rawPosName !== target.name ? `${target.name} (ПОС: ${rawPosName})` : target.name,
+          oldPrice: oldPrice,
+          newPrice: posPrice,
+          oldCategory: target.category || 'General',
+          reverted: false
+        });
+      }
         } else {
           rawNewProducts.push({ name: rawPosName, price: posPrice });
         }
       }
+        // =========================================================================
+      // 🧠 AI ЦЭС ТААГЧ: 20 жишээ харуулан таалгаж, Auto-Pilot Pop-up цонхонд бүртгэх
+      // =========================================================================
+      if (rawNewProducts.length > 0) {
+        try {
+          const aiResolveRes = await fetch('/api/kiosk-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'resolve_pos_menu',
+              unmatchedPosNames: rawNewProducts.map(p => p.name),
+              officialMenuNames: productsList.map(p => p.name),
+              clientId: activeClient
+            })
+          });
+          const aiResolveData = await aiResolveRes.json();
+          if (aiResolveData.success && aiResolveData.matches) {
+            const resolvedMatches = aiResolveData.matches;
+            const learnedBatch: any[] = [];
 
+            // Бараа бүрийг араас нь урагш шалгах
+            for (let i = rawNewProducts.length - 1; i >= 0; i--) {
+              const posItem = rawNewProducts[i];
+              const matchedOfficial = resolvedMatches[posItem.name];
+
+              if (matchedOfficial) {
+                const targetProd = productsList.find(p => cleanString(p.name).toLowerCase() === cleanString(matchedOfficial).toLowerCase());
+                if (targetProd) {
+                  // 1. learned_menus-д цээжлэх жагсаалтад нэмэх
+                  learnedBatch.push({
+                    client_id: activeClient,
+                    pos_name: posItem.name,
+                    official_product_name: targetProd.name
+                  });
+
+                  const oldPrice = Number(targetProd.selling_price) || 0;
+                  const newPrice = posItem.price > 0 ? posItem.price : oldPrice;
+
+                  // 2. Хэрэв үнэ нь өөрчлөгдсөн бол үнийг шинэчлэх жагсаалтад оруулах
+                  if (posItem.price > 0 && oldPrice !== posItem.price) {
+                    productsToUpdateBatch.push({
+                      id: targetProd.id,
+                      name: targetProd.name,
+                      selling_price: posItem.price
+                    });
+                  }
+
+                  // 3. ⚡ AUTO-PILOT POP-UP ЦОНХОНД ХАРУУЛАХ МЭДЭЭЛЭЛ НЭМЭХ (Буцаах товчтойгоо гарна)
+                  existingAutoPilotChanges.push({
+                    id: `ai-resolve-${targetProd.id}-${Date.now()}`,
+                    productId: targetProd.id,
+                    productName: posItem.name,
+                    type: 'NAME_MERGE',
+                    oldName: posItem.name, // ПОС дээрх нэр: "americo"
+                    newName: `${targetProd.name} (AI таасан 🤖)`, // Үндсэн цэс: "Americano"
+                    oldPrice: oldPrice,
+                    newPrice: newPrice,
+                    oldCategory: targetProd.category || 'General',
+                    reverted: false
+                  });
+
+                  // 4. Энэ нь шинэ цэс биш тул шинэ цэс үүсгэх жагсаалтаас хасах
+                  rawNewProducts.splice(i, 1);
+                }
+              }
+            }
+
+            // 5. learned_menus хүснэгтэд баталгаажуулж хадгалах
+            if (learnedBatch.length > 0) {
+              await supabase.from('learned_menus').upsert(learnedBatch, { onConflict: 'client_id,pos_name' });
+            }
+          }
+        } catch (err) {
+          console.warn("AI menu resolve error:", err);
+        }
+      }
       // =========================================================================
       // ⚡ 1. ЭХЛЭЭД productsToReview ХУВЬСАГЧАА ЗАРЛАЖ БЭЛТГЭНЭ
       // =========================================================================
@@ -2335,8 +2440,14 @@ const commitFinalSales = async (
         setLoading(false);
         return;
       }
-
-      const headerCols = rows[0].split("\t").map(cleanHeader);
+      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      const splitRow = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.includes("\t")) return trimmed.split("\t").map(c => c.trim());
+        if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim());
+        return [trimmed];
+      };
+      const headerCols = splitRow(rows[0]).map(cleanHeader);
       const nameIdx = headerCols.findIndex(c => c.includes("бараа") || c.includes("түүхий") || c.includes("нэр") || c.includes("item") || c.includes("ingredient") || c.includes("product"));
       const qtyIdx = headerCols.findIndex(c => c.includes("тоо") || c.includes("хэмжээ") || c.includes("qty") || c.includes("count") || c.includes("ширхэг"));
       const costIdx = headerCols.findIndex(c => c.includes("өртөг") || c.includes("нийт") || c.includes("дүн") || c.includes("cost") || c.includes("total") || c.includes("үнэ") || c.includes("price"));
@@ -2364,7 +2475,14 @@ const commitFinalSales = async (
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i].trim();
         if (!row) continue;
-        const cols = row.split("\t");
+        const cols = splitRow(row);
+
+          // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
+          if (cols.length < 2) {
+            alert(`⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`);
+            setLoading(false);
+            return;
+          }
 
         const ingName = cleanCell(cols[nameIdx] || "");
         if (!ingName || !isNaN(Number(ingName)) || ingName.length < 2) continue;
@@ -2480,10 +2598,22 @@ const commitFinalSales = async (
     try {
       const rows = ingredientsPasteText.replace(/\r/g, "").trim().split("\n");
       const itemsMap = new Map<string, any>();
-
+      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      const splitRow = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.includes("\t")) return trimmed.split("\t").map(c => c.trim());
+        if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim());
+        return [trimmed];
+      };
       rows.forEach((row) => {
         if (!row.trim()) return;
-        const cols = row.split("\t");
+        const cols = splitRow(row);
+          // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
+          if (cols.length < 2) {
+            alert(`⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`);
+            setLoading(false);
+            return;
+          }
         if (cols.length >= 2) {
           const rawName = cols[0]?.trim() || "";
           if (
@@ -2716,10 +2846,21 @@ const commitFinalSales = async (
     try {
       const rows = productsPasteText.replace(/\r/g, "").trim().split("\n");
       const productsToUpsert: any[] = [];
-
+      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      const splitRow = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.includes("\t")) return trimmed.split("\t").map(c => c.trim());
+        if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim());
+        return [trimmed];
+      };
       rows.forEach((row) => {
         if (!row.trim()) return;
-        const cols = row.split("\t");
+        const cols = splitRow(row);
+         if (cols.length < 2) {
+            alert(`⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`);
+            setLoading(false);
+            return;
+          }
         if (cols.length >= 2) {
           let name = "";
           let price = 0;
@@ -2800,10 +2941,24 @@ const commitFinalSales = async (
         firstRowLower.includes("item");
       const startIndex = hasHeader ? 1 : 0;
 
+        const splitRow = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.includes("\t")) return trimmed.split("\t").map(c => c.trim());
+        if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim());
+        return [trimmed];
+      };
+
       for (let i = startIndex; i < rows.length; i++) {
         const row = rows[i].trim();
         if (!row) continue;
-        const cols = row.split("\t").map((c) => c.trim());
+        const cols = splitRow(row).map((c) => c.trim());
+
+            // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
+           if (cols.length < 2) {
+            alert(`⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`);
+            setLoading(false);
+            return;
+          }
 
         let dateVal = activeMonthFallback;
         let rawType = "spoilage";
@@ -2918,9 +3073,16 @@ const commitFinalSales = async (
         ? `${auditDate}T00:00:00.000Z`
         : `${startDate}T00:00:00.000Z`;
       const cleanType = auditType === "start" ? "start" : "end";
+// ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      const splitRow = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.includes("\t")) return trimmed.split("\t").map(c => c.trim());
+        if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim());
+        return [trimmed];
+      };
 
       // 🧠 1. SMART HEADER ШАЛГАХ (Баганын дараалал хамаарахгүй)
-      const headerCols = rows[0].split("\t").map(cleanHeader);
+        const headerCols = splitRow(rows[0]).map(cleanHeader);
       let nameIdx = headerCols.findIndex(
         (c) =>
           c.includes("бараа") ||
@@ -2948,8 +3110,15 @@ const commitFinalSales = async (
       for (let r = startRowIdx; r < rows.length; r++) {
         const row = rows[r].trim();
         if (!row) continue;
-        const cols = row.split("\t").map((c) => c.trim());
+        const cols = splitRow(row).map((c) => c.trim());
 
+         // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
+          if (cols.length < 2) {
+            alert(`⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`);
+            setLoading(false);
+            return;
+          }
+          
         let itemName = "";
         let qty = 0;
         let rowDate = defaultDate;
@@ -6692,42 +6861,28 @@ const commitFinalSales = async (
                             </thead>
                             <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
                               {autoPilotActivity.changes.map((ch) => (
-                                <tr key={ch.id} className={ch.reverted ? "opacity-40 line-through bg-slate-900/20" : "hover:bg-slate-900/40"}>
+                               <tr key={ch.id} className={ch.reverted ? "opacity-40 line-through bg-slate-900/20" : "hover:bg-slate-900/40"}>
                                   <td className="py-2.5 px-3 font-bold text-white">
-                                    {ch.productName}
+                                    <div>
+                                      <span>{ch.oldName}</span>
+                                      {ch.newName && ch.newName !== ch.oldName && (
+                                        <span className="block text-xs text-slate-400 font-normal">{ch.newName}</span>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="py-2.5 px-3">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-black uppercase ${
-                                      ch.type === 'NAME_MERGE' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                                      ch.type === 'PRICE_UPDATE' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                    }`}>
-                                      {ch.type === 'NAME_MERGE' ? 'Нэр нэгтгэгдсэн' :
-                                      ch.type === 'PRICE_UPDATE' ? 'Үнэ шинэчлэгдсэн' : 'Шинэ цэс'}
+                                    <span className="px-2 py-0.5 rounded text-xs font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                      Үнэ шинэчлэгдсэн
                                     </span>
                                   </td>
-                                  {/* ХУУЧИН МЭДЭЭЛЭЛ (Меню дээр байсан) */}
                                   <td className="py-2.5 px-3 text-right text-slate-400 font-mono">
-                                    {ch.type === 'NAME_MERGE' ? (
-                                      <div>
-                                        <span>{ch.oldName}</span>
-                                        <span className="block text-xs text-slate-500">{ch.oldPrice.toLocaleString()} ₮</span>
-                                      </div>
-                                    ) : ch.type === 'PRICE_UPDATE' ? (
-                                      `${ch.oldPrice.toLocaleString()} ₮`
-                                    ) : '-'}
+                                    {ch.oldPrice.toLocaleString()} ₮
                                   </td>
-                                  {/* ШИНЭ МЭДЭЭЛЭЛ (ПОС-оос орж ирсэн) */}
                                   <td className="py-2.5 px-3 text-right text-emerald-400 font-mono font-black">
-                                    {ch.type === 'NAME_MERGE' ? (
-                                      <div>
-                                        <span>{ch.newName}</span>
-                                        <span className="block text-xs text-emerald-300">{ch.newPrice.toLocaleString()} ₮</span>
-                                      </div>
-                                    ) : (
-                                      `${ch.newPrice.toLocaleString()} ₮`
-                                    )}
+                                    {ch.newPrice.toLocaleString()} ₮
                                   </td>
+
+
                                   <td className="py-2.5 px-3 text-center">
                                     {ch.reverted ? (
                                       <span className="text-xs text-slate-500 font-bold">Буцаагдсан ↩️</span>

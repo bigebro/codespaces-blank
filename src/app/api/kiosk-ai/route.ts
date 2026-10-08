@@ -275,16 +275,34 @@ if (action === "translate" && body.text) {
 
 
 
-  // 2. Баазад байхгүй бол AI-аас ганц удаа асуух
+// 2. Баазад байхгүй бол AI-аас ганц удаа асуух
   let translated = "";
-  // AI-аар орчуулах
-  // 🚨 ЗАСВАР: AI-д өгөх маш хатуу тушаал (Cyrillic & Nominative case ONLY)
+
+  // 🧠 FEW-SHOT LEARNING: Хамгийн сүүлд амжилттай сурсан 20 үгийг баазаас татах
+  const { data: recentLearnings } = await supabaseAdmin
+    .from("learned_translations")
+    .select("original_text, translated_text")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  // AI-д зориулсан жишээнүүдийн жагсаалтыг угсрах
+  let examplesContext = "";
+  if (recentLearnings && recentLearnings.length > 0) {
+    examplesContext = "Examples of past translations in our cafe (Match this exact style!):\n" +
+      recentLearnings.map(ex => `- "${ex.original_text}" -> "${ex.translated_text}"`).join("\n") +
+      "\n";
+  }
+  
+  // 🚨 AI-д өгөх ТӨГС тушаал (Дүрэм + Өмнөх жишээнүүд хамт явна)
   const prompt = `You are a professional Mongolian translator for a restaurant POS system.
 Translate the following food/beverage ingredient or menu item name into clean Mongolian.
 CRITICAL RULES:
 1. Output ONLY the translated name. Nothing else.
 2. Use ONLY the official Mongolian Cyrillic alphabet (а-я, ө, ү, А-Я, Ө, Ү). NEVER use Latin letters like v, w, x, etc.
 3. Keep it in the Nominative case (Нэрлэхийн тийн ялгал). E.g. "Lobster salad" -> "Хавчтай салат" (DO NOT write "салатын").
+
+${examplesContext}
 Text to translate: "${original}"`;
 
   const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
@@ -319,6 +337,66 @@ Text to translate: "${original}"`;
   }
 
   return NextResponse.json({ success: false, translation: original });
+}
+
+// 🧠 ПОС-ЫН НЭРИЙГ СУУРЬ ЦЭСТЭЙ ТААРУУЛАХ AI (20 жишээн дээр суралцана)
+if (action === "resolve_pos_menu" && body.unmatchedPosNames && Array.isArray(body.unmatchedPosNames)) {
+  const unmatched = body.unmatchedPosNames;
+  const officialMenu = body.officialMenuNames || [];
+
+  // 1. learned_menus-ээс өмнө нь сурсан сүүлийн 20 жишээг татах
+  const { data: pastLearnings } = await supabaseAdmin
+    .from("learned_menus")
+    .select("pos_name, official_product_name")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  let fewShotContext = "";
+  if (pastLearnings && pastLearnings.length > 0) {
+    fewShotContext = "Examples of how this cafe previously mapped POS abbreviations to official menu items:\n" +
+      pastLearnings.map(l => `- "${l.pos_name}" -> "${l.official_product_name}"`).join("\n") + "\n";
+  }
+
+  const prompt = `You are an expert F&B menu resolver for a POS system.
+Match each unfamiliar POS line item name to the EXACT corresponding item from the Official Menu list.
+
+RULES:
+1. If confident (>=85% certainty) that the POS item is a typo, variant, or abbreviation of an official item (e.g. "americo" -> "Americano"), return the exact official name.
+2. If it is a completely new drink or food item not present in the official menu list, map it to null.
+3. Return STRICTLY a valid JSON object mapping POS name to official name or null.
+
+${fewShotContext}
+Official Menu List:
+${JSON.stringify(officialMenu)}
+
+POS items to resolve:
+${JSON.stringify(unmatched)}`;
+
+  let matchesJson: Record<string, string | null> = {};
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+
+  if (key) {
+    try {
+      const ai = new GoogleGenerativeAI(key);
+      const model = ai.getGenerativeModel({
+        model: "gemini-3.5-flash-lite",
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
+      });
+      const res = await model.generateContent(prompt);
+      matchesJson = JSON.parse(res.response.text().trim());
+    } catch (e) {}
+  }
+
+  // Fallback Groq
+  if (Object.keys(matchesJson).length === 0) {
+    try {
+      const groqRes = await callGroqFallback("You are an F&B menu resolver. Output ONLY valid JSON mapping.", prompt);
+      matchesJson = JSON.parse(groqRes.trim());
+    } catch (e) {}
+  }
+
+  return NextResponse.json({ success: true, matches: matchesJson });
 }
 
     // 1. UNDO
