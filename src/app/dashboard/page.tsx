@@ -482,6 +482,7 @@ function Home() {
   //  add session checking state
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [userClient, setUserClient] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   // Navigation State
@@ -1654,11 +1655,13 @@ function SearchableSelect({
       data: { session },
     } = await supabase.auth.getSession();
 
-    if (!session) {
+    if (!session) { 
       router.push("/login");
+       
     } else {
+       
       setUser(session.user);
-
+      
       // ✍️ ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
       const { data: profile } = await supabase
         .from("profiles")
@@ -1698,7 +1701,9 @@ function SearchableSelect({
 
         fetchDatabaseData(realBranch);
       }
+      setIsAuthChecking(false); 
     }
+    
   };
 
   useEffect(() => {
@@ -1711,81 +1716,90 @@ function SearchableSelect({
     clientId?: string,
     start?: string,
     end?: string,
-    includeAnalytics: boolean = false // 👈 Байнга хүнд аналитик дуудахгүй!
+    includeAnalytics: boolean = false, // 👈 Байнга хүнд аналитик дуудахгүй!
+    targetTab?: string 
   ) => {
     const targetClient = (clientId || activeClient || userClient || "").trim();
       if (!targetClient) {
     setWorkersList([]);
     return;
   }
+  const tabToLoad = targetTab || activeTab;
 
     try {
       // 1. Зөвхөн үндсэн өгөгдлийг татах (Маш хурдан 0.1s)
       const [
-        { data: ingData },
-        { data: recData },
-        { data: logData },
-        { data: saleData },
-        { data: taskData },
-        { data: shiftData },
-        { data: staffData },
-        { data: rolesData },
-        { data: faData },
-        { data: opexData },
-        { data: settData },
-        { data: prodData },
-        { data: lmData },
-        { data: lcData },
-        { data: transData } 
+      { data: ingData },
+      { data: recData },
+      { data: logData },
+      { data: saleData },
+      { data: staffData },
+      { data: settData },
+      { data: prodData },
+      { data: lmData }
       ] = await Promise.all([
         supabase.from("ingredients").select("*").ilike("client_id", targetClient).order("name", { ascending: true }),
         supabase.from("recipes").select("*").ilike("client_id", targetClient),
         supabase.from("inventory_logs").select("*").ilike("client_id", targetClient),
         supabase.from("sales_logs").select("*").ilike("client_id", targetClient),
-        supabase.from("tasks").select("*").ilike("client_id", targetClient),
-        supabase.from("shifts").select("*").ilike("client_id", targetClient).order("start_time", { ascending: false }),
         supabase.from("profiles").select("*").ilike("client_id", targetClient).neq("role", "owner"),
-        supabase.from("company_roles").select("*").ilike("client_id", targetClient),
-        supabase.from("fixed_assets").select("*").ilike("client_id", targetClient),
-        supabase.from("fixed_opex").select("*").ilike("client_id", targetClient).eq("is_active", true),
         supabase.from("client_settings").select("*").ilike("client_id", targetClient).maybeSingle(),
         supabase.from("products").select("*").ilike("client_id", targetClient),
         supabase.from("learned_menus").select("*").ilike("client_id", targetClient),
-        supabase.from("learned_categories").select("*").ilike("client_id", targetClient),
-        supabase.from("learned_translations").select("*").ilike("client_id", targetClient)
       ]);
-      if (lmData) setLearnedMenus(lmData);
-      if (lcData) setLearnedCategories(lcData);
-         if (transData) {
-        const tMap: Record<string, string> = {};
-        transData.forEach((t: any) => {
-          tMap[t.original_text.toLowerCase()] = t.translated_text;
-        });
-        setTranslationsCache(tMap);
+
+      if (ingData) setIngredients(ingData);
+      if (recData) {
+        setRecipes(recData);
       }
-      if (faData) setFixedAssets(faData);
-      if (opexData) setFixedOpexList(opexData);
+      if (logData) setInventoryLogs(logData);
+      if (saleData) setSalesLogs(saleData);
+      if (staffData) setWorkersList(staffData);
       if (settData) {
         setInitialCash(settData.initial_cash?.toString() || "0");
         setInitialBank(settData.initial_bank?.toString() || "0");
         setTaxMode(settData.tax_mode || "auto");
         setKioskLogoUrl(settData.logo_url || null); 
       }
-
-      if (ingData) setIngredients(ingData);
-      if (logData) setInventoryLogs(logData);
-      if (saleData) setSalesLogs(saleData);
-      if (recData) {
-        setRecipes(recData);
-      }
-      if (taskData) setTasks(taskData);
-      if (shiftData) setShifts(shiftData);
-      if (staffData) setWorkersList(staffData);
-      if (rolesData) setCompanyRoles(rolesData);
       if (prodData) setProductsList(prodData);
-
+      if (lmData) setLearnedMenus(lmData);
+       
+        // 🚀 2. LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
+    if (tabToLoad === "settings" || tabToLoad === "tasks") {
+      const [
+        { data: taskData },
+        { data: shiftData },
+        { data: rolesData },
+        { data: faData },
+        { data: opexData },
+        { data: lcData },
+        { data: transData }
+      ] = await Promise.all([
+        supabase.from("tasks").select("*").ilike("client_id", targetClient),
+        supabase.from("shifts").select("*").ilike("client_id", targetClient).order("start_time", { ascending: false }),
+        supabase.from("company_roles").select("*").ilike("client_id", targetClient),
+        supabase.from("fixed_assets").select("*").ilike("client_id", targetClient),
+        supabase.from("fixed_opex").select("*").ilike("client_id", targetClient).eq("is_active", true),
+        supabase.from("learned_categories").select("*").ilike("client_id", targetClient),
+        supabase.from("learned_translations").select("*").ilike("client_id", targetClient)
+      ]);
+        if (taskData) setTasks(taskData);
+        if (shiftData) setShifts(shiftData);
+        if (rolesData) setCompanyRoles(rolesData);
+        if (faData) setFixedAssets(faData);
+        if (opexData) setFixedOpexList(opexData);
+        if (lcData) setLearnedCategories(lcData);
+        if (transData) {
+            const tMap: Record<string, string> = {};
+            transData.forEach((t: any) => {
+              tMap[t.original_text.toLowerCase()] = t.translated_text;
+            });
+            setTranslationsCache(tMap);
+           }
+         }
+    
       // 2. Хүнд аналитикийг ЗӨВХӨН эзэн Санхүүгийн таб дээр байгаа үед л дуудна!
-      if (includeAnalytics || activeTab === "dashboard") {
+      if (includeAnalytics || tabToLoad === "dashboard") {
         const activeStart = start || startDate;
         const activeEnd = end || endDate;
         const res = await fetch(
@@ -3405,18 +3419,35 @@ const commitFinalSales = async (
         {/* Menu Items */}
         <div className="flex-1 overflow-y-auto py-6 flex flex-col gap-1 px-3">
           
-          <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mb-2">Үйл ажиллагаа</div>
-          
-          {isOwner && (
-            <>
-              <button onClick={() => setActiveTab("dashboard")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "dashboard" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-                <LayoutDashboard className="h-4 w-4" /> Санхүүгийн Самбар
-              </button>
-              <button onClick={() => setActiveTab("ai_cfo")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-                <Bot className="h-4 w-4" /> AI CFO Зөвлөх
-              </button>
-            </>
-          )}
+        {isAuthChecking ? (
+    /* ⚡ Ачаалж байх үед харагдах зүүн талын Скелетон (Гялсхийхээс хамгаална) */
+    <div className="space-y-3 animate-pulse px-2 pt-4">
+      <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+      <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+      <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+    </div>
+  ) : (
+    <>
+      <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mb-2">Үйл ажиллагаа</div>
+      
+      {/* 🚀 AI CFO ЗӨВЛӨХ (LAZY LOAD НЭМСЭН) */}
+      {isOwner && (
+        <>
+          <button onClick={() => { setActiveTab("dashboard"); fetchDatabaseData(activeClient, startDate, endDate, true, "dashboard"); }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "dashboard" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
+            <LayoutDashboard className="h-4 w-4" /> Санхүүгийн Самбар
+          </button>
+          <button onClick={() => { 
+            startTransition(() => {
+              setActiveTab("ai_cfo");
+              setLoading(true);
+              fetchDatabaseData(activeClient, startDate, endDate, true, "ai_cfo"); // 👈 CFO нь аналитик шаардана
+            });
+          }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
+            <Bot className="h-4 w-4" /> AI CFO Зөвлөх
+          </button>
+        </>
+      )}
+
 
           {!isOwner && (
             <button onClick={() => setActiveTab("operations")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "operations" || (userRole === "barista" && activeTab === "dashboard") ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
@@ -3432,27 +3463,56 @@ const commitFinalSales = async (
 
           <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">Агуулах & Бүртгэл</div>
           
-          <button onClick={() => setActiveTab("inventory")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-            <Database className="h-4 w-4" /> Агуулахын Тооллого
-          </button>
+           <button onClick={() => {
+        startTransition(() => {
+          setActiveTab("inventory");
+          setLoading(true);
+          fetchDatabaseData(activeClient, startDate, endDate, false, "inventory"); // 👈 Аналитик татахгүй хурдан онгойно
+        });
+      }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
+        <Database className="h-4 w-4" /> Агуулахын Тооллого
+      </button>
           
-          <button onClick={() => setActiveTab("import")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-            <UploadCloud className="h-4 w-4" /> Бөөнөөр Импортлох
-          </button>
+         <button onClick={() => {
+        startTransition(() => {
+          setActiveTab("import");
+          setLoading(true);
+          fetchDatabaseData(activeClient, startDate, endDate, false, "import"); // 👈 Аналитик татахгүй хурдан онгойно
+        });
+      }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
+        <UploadCloud className="h-4 w-4" /> Бөөнөөр Импортлох
+      </button>
 
           {isOwner && (
             <>
               <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">Тохиргоо</div>
-              <button onClick={() => setActiveTab("tasks")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-                <CheckSquare className="h-4 w-4" /> Ажлын Даалгавар
-              </button>
-              <button onClick={() => setActiveTab("settings")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-                <Settings className="h-4 w-4" /> Системийн Тохиргоо
-              </button>
+            <button 
+            onClick={() => {
+              setActiveTab("tasks");
+              setLoading(true); // Татах хооронд loading харуулна
+              fetchDatabaseData(activeClient, startDate, endDate, false, "tasks"); // 👈 Зөвхөн Tasks-ийн хүнд датаг татна
+            }} 
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+          >
+            <CheckSquare className="h-4 w-4" /> Ажлын Даалгавар
+          </button>
+              <button 
+            onClick={() => {
+              setActiveTab("settings");
+              setLoading(true); // Татах хооронд loading харуулна
+              fetchDatabaseData(activeClient, startDate, endDate, false, "settings"); // 👈 Тохиргооны 10 хүснэгтийг дөнгөж одоо л татна
+            }} 
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+          >
+            <Settings className="h-4 w-4" /> Системийн Тохиргоо
+          </button>
             </>
           )}
-        </div>
-
+      </>
+      )
+        }
+ 
+</div>   
         {/* User Profile Footer */}
         {user && (
           <div className="p-4 border-t border-slate-800/80 bg-slate-900/30">
@@ -3502,8 +3562,13 @@ const commitFinalSales = async (
               {/* Хэрэв олон салбартай бол энд map хийж болно */}
             </select>
           </div>
+                 
+    
+    {/* ⚡ Ачаалж байх үед Header дээр гарч ирэх гоёмсог ногоон цагираг */}
+  
 
           <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+           
             <button onClick={() => setIsLive(false)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>
               Demo
             </button>
@@ -3511,10 +3576,44 @@ const commitFinalSales = async (
               <Database className="h-3 w-3" /> Live DB
             </button>
           </div>
+   
+
         </header>
    {/* SCROLLABLE BODY (Tab Contents go here) */}
     <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 relative w-full">
     <div className="max-w-7xl mx-auto w-full max-w-full">
+
+
+{isAuthChecking ? (
+      <div className="animate-pulse space-y-6">
+        
+     {/* 1. Толгой хэсгийн скелетон - Голд нь томорсон цагираг тасралтгүй эргэлдэнэ */}
+    <div className="relative h-24 w-full rounded-2xl border border-slate-700/50 overflow-hidden flex items-center justify-center">
+      {/* Арын дэвсгэр нь л лугшина (Pulse) */}
+      <div className="absolute inset-0 bg-slate-800/40 animate-pulse" />
+      
+      {/* Урд талын ногоон цагираг хэзээ ч бүдгэрэхгүй (Relative & Set Middle) */}
+      <div className="relative z-10 flex items-center justify-center">
+        <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
+        {/* Арай томруулсан цагираг: h-10 w-10 */}
+        <div className="h-10 w-10 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
+      </div>
+    </div>
+
+    {/* 2. Доод талын 4 картын скелетон (Эдгээр нь хэвийн лугшина) */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
+      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
+      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
+      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
+    </div>
+
+    {/* 3. Том графикийн скелетон */}
+    <div className="h-96 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
+    
+  </div>
+    ) : (   <>
+    
   {/* ========================================================================= */}
         {/* 1. САНХҮҮГИЙН ХЯНАЛТ (COGS ALIGNMENT & LIVE FEED БҮХИЙ ШИНЭ ИНТЕРФЕЙС)      */}
         {/* ========================================================================= */}
@@ -4222,12 +4321,13 @@ const commitFinalSales = async (
           ⭐ A-Class
         </button>
       </div>
-    </div>
+    </div>  
 
             {loading ? (
-              <p className="text-center text-slate-500 py-8 text-sm animate-pulse">
-                Уншиж байна...
-              </p>
+               <div className="relative flex items-center gap-2 text-emerald-400 text-xs font-bold animate-in fade-in duration-200 justify-center">
+        <div className="translate-y-2.5 h-4 w-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+        <span className="hidden sm:inline-block tracking-wide"></span>
+      </div>
             ) : (
                 <div className="w-full max-h-[600px] overflow-y-auto">
             <table className="w-full text-left border-collapse table-auto">
@@ -7702,10 +7802,10 @@ const commitFinalSales = async (
                         
                         <input
                           type="number"
-                          placeholder="Хэмжээ (гр/мл)"
+                          placeholder="Хэмжээ"
                           value={draftRecipeIngAmt}
                           onChange={(e) => setDraftRecipeIngAmt(e.target.value)}
-                          className="w-32 bg-[#0B1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-purple-500"
+                          className="w-24 bg-[#0B1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-purple-500"
                         />
 
                         <button
@@ -9717,6 +9817,11 @@ const commitFinalSales = async (
             </div>
           </div>
         )}
+    
+      </>
+    )}
+
+
            </div>
         </main>
       </div>
