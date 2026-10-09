@@ -862,8 +862,9 @@ function KioskPage() {
 // 🌐 ХОС ХЭЛ БА БААЗААС СУРСАН ОРЧУУЛГУУД
 
 
-
-  const [tenantClientId, setTenantClientId] = useState<string>('SF');
+const [tenantClientId, setTenantClientId] = useState<string>('');
+const [clientLogo, setClientLogo] = useState<string | null>(null);
+const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [workers, setWorkers] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [learnedAliases, setLearnedAliases] = useState<any[]>([]);
@@ -1083,60 +1084,88 @@ const fetchTodayLogs = async (client: string) => {
     if (data) setTodayLogs(data);
   };
 
-  const initKioskContext = async () => {
-    let detectedClient = 'SF';
+const initKioskContext = async () => {
+  setIsLoadingKiosk(true);
+  try {
+    let resolvedClient: string = '';
+
+    // 1. URL дээрээс шалгах (/kiosk?clientId=...)
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
-      const urlClient = urlParams.get('clientId');
-      const savedClient = localStorage.getItem('kiosk_client_id');
-      if (urlClient) {
-        detectedClient = urlClient;
-        localStorage.setItem('kiosk_client_id', urlClient);
-      } else if (savedClient) {
-        detectedClient = savedClient;
+      resolvedClient = urlParams.get('clientId') || '';
+    }
+
+    // 2. Хэрэв URL-д байхгүй бол нэвтэрсэн session-оос авах
+    if (!resolvedClient) {
+      const { data: { session } } = await supabase.auth.getSession();
+      resolvedClient = session?.user?.user_metadata?.client_id || '';
+    }
+
+    // 3. Хэрэв олдохгүй бол localStorage-аас авах
+    if (!resolvedClient && typeof window !== 'undefined') {
+      resolvedClient = localStorage.getItem('kiosk_client_id') || '';
+    }
+
+    // Хэрэв салбар тодорхойлогдсон бол
+    if (resolvedClient.trim()) {
+      const cleanName = resolvedClient.trim();
+      setTenantClientId(cleanName);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kiosk_client_id', cleanName);
       }
+      await fetchKioskData(cleanName);
+    } else {
+      setTenantClientId('');
     }
+  } finally {
+    setIsLoadingKiosk(false);
+  }
+};
+const fetchKioskData = async (client: string) => {
+  const target = client.trim();
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user?.user_metadata?.client_id) {
-      detectedClient = session.user.user_metadata.client_id;
-      localStorage.setItem('kiosk_client_id', detectedClient);
-    }
+  // 1. 👥 Ажилтнуудыг татах
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .ilike('client_id', target)
+    .neq('role', 'owner');
+  
+  if (profiles) setWorkers(profiles);
 
-    setTenantClientId(detectedClient);
-    fetchKioskData(detectedClient);
-  };
+  // 2. 🛡️ Аюулгүй RPC функцээр Логог татах (Яг бидний бэкэндэд хийснээр):
+  const { data: branding } = await supabase
+    .rpc('get_kiosk_branding', { target_client_id: target });
 
-  const fetchKioskData = async (client: string) => {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .ilike('client_id', client)
-      .neq('role', 'owner');
-    
-    if (profiles) setWorkers(profiles);
+  if (branding?.logo_url) {
+    setClientLogo(branding.logo_url);
+  } else {
+    setClientLogo(null);
+  }
 
-    const { data: ingData } = await supabase
-      .from('ingredients')
-      .select('id, name, unit, current_stock, is_critical, last_counted_at, client_id, is_suspicious_promoted, promoted_until')
-      .ilike('client_id', client)
-      .order('name', { ascending: true });
+  // 3. Түүхий эд, жор татах хэсэг хэвээрээ байна...
+  const { data: ingData } = await supabase
+    .from('ingredients')
+    .select('id, name, unit, current_stock, is_critical, last_counted_at, client_id, is_suspicious_promoted, promoted_until')
+    .ilike('client_id', target)
+    .order('name', { ascending: true });
 
-    if (ingData) setIngredients(ingData);
+  if (ingData) setIngredients(ingData);
 
-    const { data: aliasesData } = await supabase
+  const { data: aliasesData } = await supabase
     .from('learned_aliases')
     .select('phrase, ingredient_id')
-    .ilike('client_id', client);
+    .ilike('client_id', target);
 
-    if (aliasesData) setLearnedAliases(aliasesData);
-    // 📖 Жоруудыг түүхий эдийн нэртэй нь хамт татах
-    const { data: recData } = await supabase
-      .from('recipes')
-      .select('product_name, amount, ingredient_id, ingredients(name, unit)')
-      .ilike('client_id', client);
-    if (recData) setRecipesList(recData);
-  };
+  if (aliasesData) setLearnedAliases(aliasesData);
+
+  const { data: recData } = await supabase
+    .from('recipes')
+    .select('product_name, amount, ingredient_id, ingredients(name, unit)')
+    .ilike('client_id', target);
+
+  if (recData) setRecipesList(recData);
+};
 
   const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
     const { data: allTasks } = await supabase
@@ -1449,20 +1478,40 @@ const handleCloseShift = () => {
     })();
   };
 
+
   return (
     <div className="h-[100dvh] w-full bg-[#070b14] text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       
       {/* 🔝 HEADER */}
       <header className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
-        <div className="flex items-center gap-2">
-          <div className="bg-emerald-500/10 p-1.5 rounded-xl border border-emerald-500/20">
-            <Coffee className="h-5 w-5 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase">{tenantClientId} KIOSK</h1>
-            <p className="text-xs text-emerald-400 font-bold uppercase">Smart Operations</p>
-          </div>
-        </div>
+      <div className="flex items-center gap-2.5">
+    {isLoadingKiosk ? (
+      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-slate-800/80 animate-pulse shrink-0" />
+    ) : clientLogo ? (
+      /* 2. Зөвхөн эзэн лого оруулсан үед л зургийг харуулна */
+      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center shrink-0">
+        <img 
+          src={clientLogo} 
+          alt={`${tenantClientId} Logo`} 
+          className="h-full w-full object-cover"
+        />
+      </div>
+    ) : null /* 3. Хэрэв лого оруулаагүй бол ямар ч дүрс гарахгүй, хоосон байна */}
+
+    <div>
+      {/* Салбарын нэр */}
+      {tenantClientId ? (
+        <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none">
+          {tenantClientId} KIOSK
+        </h1>
+      ) : (
+        <div className="h-4 w-28 bg-slate-800 animate-pulse rounded" />
+      )}
+      <p className="text-[10px] sm:text-xs text-emerald-400 font-bold uppercase mt-1">
+        Smart Operations
+      </p>
+    </div>
+  </div>
 
     <div className="flex items-center gap-2">
       {/* 🌐 ХЭЛ СОЛИХ ТОВЧ */}
@@ -1514,33 +1563,41 @@ const handleCloseShift = () => {
               <p className="text-xs text-slate-400 mt-0.5">Өөрийн нэр дээр дарж ээлжиндээ нэвтэрнэ үү</p>
             </div>
 
-            <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
-              {workers.length === 0 ? (
-                <div className="text-center text-slate-500 text-xs py-8">
-                  Энэ салбарт ажилтан бүртгэгдээгүй байна.<br />(Dashboard-аас ажилтан нэмнэ үү)
-                </div>
-              ) : (
-                workers.map(w => (
-                  <button 
-                    key={w.id} 
-                    onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
-                    className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full"
-                  >
-                    <div>
-                      <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-emerald-400 transition">
-                        {w.full_name || w.email.split('@')[0]}
-                      </span>
-                      <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
-                        🏷️ {w.role}
-                      </span>
-                    </div>
-                    <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-xs">
-                      ➔
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
+                    <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
+                    {/* ⚡ 1. Хэрэв дата ачаалж байгаа бол түр зуур 2 саарал товчлуур лугшина (Гацалтгүй шууд онгойно) */}
+                    {isLoadingKiosk ? (
+                      <div className="space-y-3 animate-pulse">
+                        <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
+                        <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
+                      </div>
+                    ) : workers.length === 0 ? (
+                      /* 2. Ажилтан байхгүй бол */
+                      <div className="text-center text-slate-500 text-xs py-8">
+                        Энэ салбарт ажилтан бүртгэгдээгүй байна.<br />(Dashboard-аас ажилтан нэмнэ үү)
+                      </div>
+                    ) : (
+                      /* 3. Ажилтнууд бэлэн болмогц товчлуурууд гарна */
+                      workers.map(w => (
+                        <button 
+                          key={w.id} 
+                          onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
+                          className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full cursor-pointer"
+                        >
+                          <div>
+                            <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-emerald-400 transition">
+                              {w.full_name || w.email.split('@')[0]}
+                            </span>
+                            <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
+                              🏷️ {w.role}
+                            </span>
+                          </div>
+                          <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-xs">
+                            ➔
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
 
             <div className="text-center text-xs text-slate-500 pb-1 shrink-0">
               {tenantClientId} Kitchen Kiosk • Voice & AI Powered

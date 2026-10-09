@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
+import Script from "next/script";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -58,17 +58,19 @@ export default function RootLayout({
         {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#070b14" />
-         <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
-          }}
-        />
+     <Script
+      id="sw-register"
+      strategy="afterInteractive"
+      dangerouslySetInnerHTML={{
+        __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js');
+            });
+          }
+        `,
+      }}
+    />
         {/* <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, startTransition } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 // @ts-ignore
@@ -482,7 +482,7 @@ function Home() {
   //  add session checking state
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [userClient, setUserClient] = useState<string>("SF Coffee");
+  const [userClient, setUserClient] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   // Navigation State
   const [activeTab, setActiveTab] = useState<
@@ -516,9 +516,7 @@ function Home() {
   const [userRole, setUserRole] = useState<string>("Ажилтан");
   const [isOwner, setIsOwner] = useState(false);
   const [shifts, setShifts] = useState<any[]>([]);
-  const [activeClient, setActiveClient] = useState<string | "Cafe B">(
-    userClient,
-  );
+  const [activeClient, setActiveClient] = useState<string>("");
   const [tasks, setTasks] = useState<any[]>([]);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -553,7 +551,7 @@ function Home() {
   const [salesImportSuccess, setSalesImportSuccess] = useState(false);
   const [purchaseImportSuccess, setPurchaseImportSuccess] = useState(false);
   const [inventoryImportSuccess, setInventoryImportSuccess] = useState(false);
-
+  const [kioskLogoUrl, setKioskLogoUrl] = useState<string | null>(null);
   // Form States
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [logType, setLogType] = useState("spoilage");
@@ -612,6 +610,7 @@ function Home() {
     price: "",
     par: "0",
   });
+  
 // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
 const UNIVERSAL_CATEGORIES = [
   { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', icon: '☕', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
@@ -1714,8 +1713,11 @@ function SearchableSelect({
     end?: string,
     includeAnalytics: boolean = false // 👈 Байнга хүнд аналитик дуудахгүй!
   ) => {
-    const targetClient = clientId || activeClient || userClient;
-    if (!targetClient) return;
+    const targetClient = (clientId || activeClient || userClient || "").trim();
+      if (!targetClient) {
+    setWorkersList([]);
+    return;
+  }
 
     try {
       // 1. Зөвхөн үндсэн өгөгдлийг татах (Маш хурдан 0.1s)
@@ -1742,7 +1744,7 @@ function SearchableSelect({
         supabase.from("sales_logs").select("*").ilike("client_id", targetClient),
         supabase.from("tasks").select("*").ilike("client_id", targetClient),
         supabase.from("shifts").select("*").ilike("client_id", targetClient).order("start_time", { ascending: false }),
-        supabase.from("profiles").select("*").ilike("client_id", targetClient.trim()).neq("role", "owner"),
+        supabase.from("profiles").select("*").ilike("client_id", targetClient).neq("role", "owner"),
         supabase.from("company_roles").select("*").ilike("client_id", targetClient),
         supabase.from("fixed_assets").select("*").ilike("client_id", targetClient),
         supabase.from("fixed_opex").select("*").ilike("client_id", targetClient).eq("is_active", true),
@@ -1767,6 +1769,7 @@ function SearchableSelect({
         setInitialCash(settData.initial_cash?.toString() || "0");
         setInitialBank(settData.initial_bank?.toString() || "0");
         setTaxMode(settData.tax_mode || "auto");
+        setKioskLogoUrl(settData.logo_url || null); 
       }
 
       if (ingData) setIngredients(ingData);
@@ -3353,16 +3356,16 @@ const commitFinalSales = async (
     );
   }
 // ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй 
-    if (loading && userRole !=="owner") {
-    return (
-      <div className="min-h-screen bg-[#0B1120] flex flex-col items-center justify-center select-none">
-        <div className="relative w-12 h-12 flex items-center justify-center mb-4">
-          <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
-          <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    );
-  }
+  //   if (loading && userRole !=="owner") {
+  //   return (
+  //     <div className="min-h-screen bg-[#0B1120] flex flex-col items-center justify-center select-none">
+  //       <div className="relative w-12 h-12 flex items-center justify-center mb-4">
+  //         <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
+  //         <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+  //       </div>
+  //     </div>
+  //   );
+  // }
  
   return (
     <div className="flex h-screen bg-[#0B1120] overflow-hidden text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
@@ -3747,62 +3750,76 @@ const commitFinalSales = async (
 ) : (
   /* 🟢 ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    
-    {/* 1. НИЙТ ОРЛОГО (Байнгын нээлттэй, үнэн бодит дүн) */}
-    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Нийт Орлого (Revenue)</p>
-      <p className="text-2xl sm:text-3xl font-black text-white font-mono">
-        {liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder?.revenue || 0).toLocaleString()} ₮` : "-"}
+     {/* 1. НИЙТ ОРЛОГО */}
+  <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Нийт Орлого (Revenue)</p>
+    {loading || !liveAnalytics ? (
+      <div className="h-8 w-32 bg-slate-800 animate-pulse rounded-xl my-1" />
+    ) : (
+      <p className="text-2xl sm:text-3xl font-black text-white font-mono animate-in fade-in duration-150">
+        {Math.round(liveAnalytics.financial_ladder?.revenue || 0).toLocaleString()} ₮
       </p>
-      <span className="text-xs text-emerald-400 mt-2 block font-semibold">✓ ПОС-оор баталгаажсан бодит дүн</span>
-    </div>
+    )}
+    <span className="text-xs text-emerald-400 mt-2 block font-semibold">✓ ПОС-оор баталгаажсан бодит дүн</span>
+  </div>
 
-    {/* 2. ӨРТӨГ (FOOD COST) */}
-    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-      <div className="flex justify-between items-center mb-1">
-        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Өртөг (Food Cost)</p>
-        <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
-          liveAnalytics?.financial_ladder?.is_theoretical_mode 
-            ? "bg-amber-500/10 text-amber-300 border-amber-500/30"
-            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-        }`}>
-          {liveAnalytics?.financial_ladder?.is_theoretical_mode ? "📐 Жорын онолоор" : "✓ Бодит тооллогоор"}
-        </span>
-      </div>
-      <p className="text-2xl sm:text-3xl font-black text-white font-mono">
-        {liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder?.actual_cogs || 0).toLocaleString()} ₮` : "-"}
-      </p>
-      <span className="text-xs text-slate-400 mt-2 block">
-        {liveAnalytics?.financial_ladder?.is_theoretical_mode 
-          ? "Тооллого хийгдээгүй тул жороор бодов" 
-          : `Онолын өртөг: ${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮`}
+  {/* 2. ӨРТӨГ (FOOD COST) */}
+  <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+    <div className="flex justify-between items-center mb-1">
+      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Өртөг (Food Cost)</p>
+      <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+        liveAnalytics?.financial_ladder?.is_theoretical_mode 
+          ? "bg-amber-500/10 text-amber-300 border-amber-500/30"
+          : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+      }`}>
+        {liveAnalytics?.financial_ladder?.is_theoretical_mode ? "📐 Жорын онолоор" : "✓ Бодит тооллогоор"}
       </span>
     </div>
-
-    {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
-    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Бохир Ашиг (Gross Margin)</p>
-      <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
-        {liveAnalytics?.financial_ladder?.gross_margin || "0%"}
+    {loading || !liveAnalytics ? (
+      <div className="h-8 w-32 bg-slate-800 animate-pulse rounded-xl my-1" />
+    ) : (
+      <p className="text-2xl sm:text-3xl font-black text-white font-mono animate-in fade-in duration-150">
+        {Math.round(liveAnalytics.financial_ladder?.actual_cogs || 0).toLocaleString()} ₮
       </p>
-      <span className="text-xs text-slate-400 mt-2 block">
-        Дүн: <strong className="text-slate-200 font-mono">{liveAnalytics ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()}₮` : "-"}</strong>
-      </span>
-    </div>
+    )}
+    <span className="text-xs text-slate-400 mt-2 block">
+      {liveAnalytics?.financial_ladder?.is_theoretical_mode 
+        ? "Тооллого хийгдээгүй тул жороор бодов" 
+        : `Онолын өртөг: ${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮`}
+    </span>
+  </div>
 
-    {/* 4. ЦЭВЭР АШИГ (NET PROFIT) */}
-    <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-      <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Цэвэр Ашиг (Net Profit)</p>
-      <p className={`text-2xl sm:text-3xl font-black font-mono ${
+  {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
+  <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Бохир Ашиг (Gross Margin)</p>
+    {loading || !liveAnalytics ? (
+      <div className="h-8 w-20 bg-slate-800 animate-pulse rounded-xl my-1" />
+    ) : (
+      <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono animate-in fade-in duration-150">
+        {liveAnalytics.financial_ladder?.gross_margin || "0%"}
+      </p>
+    )}
+    <span className="text-xs text-slate-400 mt-2 block">
+      Дүн: <strong className="text-slate-200 font-mono">{liveAnalytics ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()}₮` : "-"}</strong>
+    </span>
+  </div>
+
+  {/* 4. ЦЭВЭР АШИГ (NET PROFIT) */}
+  <div className="bg-[#1E293B] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Цэвэр Ашиг (Net Profit)</p>
+    {loading || !liveAnalytics ? (
+      <div className="h-8 w-32 bg-slate-800 animate-pulse rounded-xl my-1" />
+    ) : (
+      <p className={`text-2xl sm:text-3xl font-black font-mono animate-in fade-in duration-150 ${
         (liveAnalytics?.financial_ladder?.net_profit || 0) < 0 ? "text-rose-400" : "text-emerald-400"
       }`}>
-        {liveAnalytics ? `${Math.round(liveAnalytics.financial_ladder?.net_profit || 0).toLocaleString()} ₮` : "-"}
+        {Math.round(liveAnalytics.financial_ladder?.net_profit || 0).toLocaleString()} ₮
       </p>
-      <span className="text-xs text-slate-400 mt-2 block">
-        Цэвэр маржин: <strong className="text-white font-mono">{liveAnalytics?.financial_ladder?.net_margin || "0%"}</strong>
-      </span>
-    </div>
-
+    )}
+    <span className="text-xs text-slate-400 mt-2 block">
+      Цэвэр маржин: <strong className="text-white font-mono">{liveAnalytics?.financial_ladder?.net_margin || "0%"}</strong>
+    </span>
+  </div>
   </div>
 )}
             {/* ========================================================================= */}
@@ -6274,10 +6291,12 @@ const commitFinalSales = async (
                   <button
                     type="button"
                     onClick={() => {
-                      setCatalogTab("ingredients");
-                      setSelectedIngIds([]);
-                      setIsAddingIngRow(false);
-                      setEditingIngId(null);
+                       startTransition(() => {
+                    setCatalogTab("ingredients");
+                    setSelectedIngIds([]);
+                    setIsAddingIngRow(false);
+                    setEditingIngId(null);
+                  });
                     }}
                     className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                       catalogTab === "ingredients"
@@ -6290,10 +6309,12 @@ const commitFinalSales = async (
                   <button
                     type="button"
                     onClick={() => {
-                      setCatalogTab("products");
-                      setSelectedProdIds([]);
-                      setIsAddingProdRow(false);
-                      setEditingProdId(null);
+                       startTransition(() => {
+                    setCatalogTab("products");
+                    setSelectedProdIds([]);
+                    setIsAddingProdRow(false);
+                    setEditingProdId(null);
+                  });
                     }}
                     className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                       catalogTab === "products"
@@ -6306,9 +6327,11 @@ const commitFinalSales = async (
                   <button
                     type="button"
                     onClick={() => {
+                        startTransition(() => {
                       setCatalogTab("recipes");
                       setSelectedRecipeProducts([]);
                       setInlineAddRecipeProduct(null);
+                    });
                     }}
                     className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                       catalogTab === "recipes"
@@ -8859,14 +8882,92 @@ const commitFinalSales = async (
       </button>
     </div>
   </div>
-)}
+)}      
+
+            
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+            
               {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
               <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+                  
                 <h3 className="text-base font-bold mb-4 text-emerald-400 flex items-center gap-2">
                   🏦 1. Мөнгөн Данс & Татварын Горим
                 </h3>
+
+                  {/* 🖼️ KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                      Kiosk таблетын лого
+                    </label>
+                    <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800 mb-1.5">
+                      {kioskLogoUrl ? (
+                        <img 
+                          src={kioskLogoUrl} 
+                          alt="Kiosk Logo" 
+                          className="h-10 w-10 rounded-xl object-cover border border-slate-700 shrink-0" 
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
+                          <Coffee className="h-5 w-5" />
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                   <input 
+  type="file" 
+  accept="image/*" 
+  id="kiosk-logo-upload"
+  className="hidden"
+          onChange={async (e) => {
+            if (!e.target.files?.[0]) return;
+            const file = e.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `logos/${activeClient}_${Date.now()}.${fileExt}`;
+
+            // 1. Storage руу зургийг хуулах
+            const { error: upErr } = await supabase.storage
+              .from('receipts_evidence')
+              .upload(fileName, file, { upsert: true });
+
+            if (upErr) {
+              alert("Зураг оруулахад алдаа: " + upErr.message);
+              return;
+            }
+
+            // 2. Storage-аас нийтэд харагдах URL (Public URL) авах
+            const { data: publicUrlData } = supabase.storage
+              .from('receipts_evidence')
+              .getPublicUrl(fileName);
+
+            const newLogoUrl = publicUrlData.publicUrl;
+
+            // 3. ⚡ ШУУД БААЗАД ХАДГАЛАХ (Үлдэгдэл товч дарахыг хүлээхгүй!)
+            const { error: dbErr } = await supabase
+              .from('client_settings')
+              .update({ logo_url: newLogoUrl, updated_at: new Date().toISOString() })
+              .eq('client_id', activeClient);
+
+            if (dbErr) {
+              alert("Баазад хадгалахад алдаа гарлаа: " + dbErr.message);
+            } else {
+              setKioskLogoUrl(newLogoUrl); // Дэлгэц дээрх зургийг тэр дор нь солих
+              alert("✅ Лого амжилттай солигдлоо! Kiosk дээр шууд харагдана.");
+              fetchDatabaseData(activeClient);
+            }
+          }}
+        />
+                        <label 
+                          htmlFor="kiosk-logo-upload"
+                          className="inline-block bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-1 px-2.5 rounded-lg cursor-pointer transition border border-slate-700"
+                        >
+                          Зураг солих
+                        </label>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate">Зөвхөн Kiosk таблет дээр харагдана</p>
+                      </div>
+                    </div>
+                  </div>
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
@@ -8878,6 +8979,7 @@ const commitFinalSales = async (
                         initial_cash: parseFloat(initialCash) || 0,
                         initial_bank: parseFloat(initialBank) || 0,
                         tax_mode: taxMode,
+                        logo_url: kioskLogoUrl,
                         updated_at: new Date().toISOString(),
                       });
                     if (error) alert(`Алдаа: ${error.message}`);
@@ -8944,7 +9046,7 @@ const commitFinalSales = async (
                   </button>
                 </form>
               </div>
-
+                
               {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
               <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 lg:col-span-2">
                 <h3 className="text-base font-bold mb-4 text-blue-400 flex items-center gap-2">
