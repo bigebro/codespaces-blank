@@ -622,6 +622,19 @@ const UNIVERSAL_CATEGORIES = [
   { id: 'GENERAL', name: '📦 Бусад', icon: '📦', color: 'text-slate-300 bg-slate-800 border-slate-700' }
 ];
 
+// 🎯 6 АНГИЛЛЫН АНХДАГЧ ГЛОБАЛ МАРЖИН
+const DEFAULT_GLOBAL_MARGINS: Record<string, number> = {
+  'HOT_BEVERAGE': 82,
+  'COLD_BEVERAGE': 78,
+  'FOOD_PREP': 68,
+  'BAKERY_DESSERT': 75,
+  'RETAIL_FMCG': 50,
+  'GENERAL': 70
+};
+
+const [categoryMargins, setCategoryMargins] = useState<Record<string, number>>(DEFAULT_GLOBAL_MARGINS);
+const [customMarginPrices, setCustomMarginPrices] = useState<Record<string, number>>({});
+
 // 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
 const renderCategoryBadge = (catId: string) => {
   const found = UNIVERSAL_CATEGORIES.find(c => c.id === catId) || UNIVERSAL_CATEGORIES[5];
@@ -1727,7 +1740,7 @@ function SearchableSelect({
   const tabToLoad = targetTab || activeTab;
 
     try {
-      // 1. Зөвхөн үндсэн өгөгдлийг татах (Маш хурдан 0.1s)
+      //  Зөвхөн үндсэн өгөгдлийг татах (Маш хурдан 0.1s)
       const [
       { data: ingData },
       { data: recData },
@@ -1759,12 +1772,19 @@ function SearchableSelect({
         setInitialCash(settData.initial_cash?.toString() || "0");
         setInitialBank(settData.initial_bank?.toString() || "0");
         setTaxMode(settData.tax_mode || "auto");
-        setKioskLogoUrl(settData.logo_url || null); 
+        setKioskLogoUrl(settData.logo_url || null);
+        
+                // 🎯 Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
+        if (settData.category_margins && Object.keys(settData.category_margins).length > 0) {
+          setCategoryMargins({ ...DEFAULT_GLOBAL_MARGINS, ...settData.category_margins });
+        } else {
+          setCategoryMargins(DEFAULT_GLOBAL_MARGINS);
+        }
       }
       if (prodData) setProductsList(prodData);
       if (lmData) setLearnedMenus(lmData);
        
-        // 🚀 2. LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
+        // 🚀 LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
     if (tabToLoad === "settings" || tabToLoad === "tasks") {
       const [
         { data: taskData },
@@ -1798,7 +1818,7 @@ function SearchableSelect({
            }
          }
     
-      // 2. Хүнд аналитикийг ЗӨВХӨН эзэн Санхүүгийн таб дээр байгаа үед л дуудна!
+      // Хүнд аналитикийг ЗӨВХӨН эзэн Санхүүгийн таб дээр байгаа үед л дуудна!
       if (includeAnalytics || tabToLoad === "dashboard") {
         const activeStart = start || startDate;
         const activeEnd = end || endDate;
@@ -1817,6 +1837,28 @@ function SearchableSelect({
       setLoading(false);
     }
   };
+
+  const handleSaveCategoryMargins = async () => {
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from("client_settings")
+      .upsert({
+        client_id: activeClient,
+        category_margins: categoryMargins,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "client_id" });
+
+    if (error) throw error;
+    alert("✅ Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!");
+    // Аналитикийг шинэчлэн бодох
+    await fetchDatabaseData(activeClient, startDate, endDate, true);
+  } catch (err: any) {
+    alert("Маржин хадгалахад алдаа гарлаа: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     if (!activeClient) return;
@@ -4086,103 +4128,170 @@ const commitFinalSales = async (
               </div>
 
             </div>
-{/* 🛡️ МАРЖИН ХАМГААЛАГЧ (ХАЙЛТТАЙ & ЗӨВЛӨМЖИЙН ХАЙРЦАГ) */}
-            {liveAnalytics?.margin_guard_alerts?.length > 0 && (() => {
-              // 🔍 Маржин зөвлөмжийг цэсний нэрээр хайж шүүх
-              const filteredMargins = liveAnalytics.margin_guard_alerts.filter((item: any) =>
-                item.product_name.toLowerCase().includes(marginSearch.toLowerCase().trim())
-              );
+                {/* 🛡️ МАРЖИН ХАМГААЛАГЧ (УЯН ХАТАН ТОХИРУУЛГАТАЙ) */}
+                {liveAnalytics?.margin_guard_alerts?.length > 0 && (() => {
+                  const filteredMargins = liveAnalytics.margin_guard_alerts.filter((item: any) =>
+                    item.product_name.toLowerCase().includes(marginSearch.toLowerCase().trim())
+                  );
 
-              return (
-                <div className="bg-[#1E293B] p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
-                  
-                  {/* ТОЛГОЙ: Гарчиг + 🔍 Хайлтын талбар + Тоо */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 shrink-0">
-                        <AlertTriangle className="h-5 w-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-amber-300">
-                          Маржин Хамгаалагч: Үнээ нэмэх шаардлагатай бүтээгдэхүүнүүд
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Түүхий эдийн өртөг өссөнөөс болж ашиг нь 75%-иас доош орсон цэсүүд.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-                      {/* 🔍 ШУУРХАЙ ЦЭС ХАЙХ ТАЛБАР */}
-                      <input
-                        type="text"
-                        value={marginSearch}
-                        onChange={(e) => setMarginSearch(e.target.value)}
-                        placeholder="🔍 Цэс хайх..."
-                        className="bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-36 sm:w-48 font-bold"
-                      />
-
-                      <span className="text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shrink-0 font-mono">
-                        Нийт {liveAnalytics.margin_guard_alerts.length} цэс
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 📋 ГҮЙДЭГ КАРТУУД */}
-                  <div className="max-h-60 overflow-y-auto pr-1">
-                    {filteredMargins.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic py-4 text-center">
-                        "{marginSearch}" нэртэй цэс олдсонгүй.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                        {filteredMargins.map((alert: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="bg-[#0B1120] p-4 rounded-xl border border-amber-500/20 space-y-2 shadow-sm hover:border-amber-500/40 transition"
-                          >
-                            <div className="flex justify-between items-start gap-1">
-                              <span className="text-sm font-bold text-white truncate" title={alert.product_name}>
-                                {alert.product_name}
-                              </span>
-                              <span className="text-xs font-black text-rose-400 font-mono shrink-0 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                                Маржин: {alert.current_margin_pct}
-                              </span>
-                            </div>
-
-                            <div className="text-xs text-slate-400 space-y-1 font-mono">
-                              <div className="flex justify-between">
-                                <span>Одоогийн өртөг:</span>
-                                <strong className="text-slate-200">{alert.cost_price.toLocaleString()} ₮</strong>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>ПОС Зарах үнэ:</span>
-                                <span className="text-slate-300">{alert.selling_price.toLocaleString()} ₮</span>
-                              </div>
-                            </div>
-
-                            {/* ЗӨВЛӨХ ЗАРАХ ҮНЭ */}
-                            <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center text-xs">
-                              <span className="text-slate-400 font-bold">Зөвлөх зарах үнэ:</span>
-                              <div className="text-right">
-                                <strong className="text-emerald-400 font-black font-mono text-sm block">
-                                  {alert.suggested_price.toLocaleString()} ₮
-                                </strong>
-                                <span className="text-emerald-500 font-bold font-mono text-xs">
-                                  (+{alert.price_gap.toLocaleString()} ₮ нэмэх)
-                                </span>
-                              </div>
-                            </div>
-
+                  return (
+                    <div className="bg-[#1E293B] p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
+                      
+                      {/* ТОЛГОЙ ХЭСЭГ */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 shrink-0">
+                            <AlertTriangle className="h-5 w-5 text-amber-400" />
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                          <div>
+                            <h3 className="text-base font-black text-amber-300">
+                              Маржин Хамгаалагч (Үнэ шинэчлэх шаардлагатай)
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Түүхий эдийн өртөг өссөнөөс болж ашиг буурсан цэсүүд. Та өөрийн хүссэн үнээр тохируулж батална уу.
+                            </p>
+                          </div>
+                        </div>
 
-                </div>
-              );
-            })()}
+                        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                          <input
+                            type="text"
+                            value={marginSearch}
+                            onChange={(e) => setMarginSearch(e.target.value)}
+                            placeholder="🔍 Цэс хайх..."
+                            className="bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-36 sm:w-48 font-bold"
+                          />
+                          <span className="text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shrink-0 font-mono">
+                            {liveAnalytics.margin_guard_alerts.length} цэс
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* КАРТУУДЫН ХЭСЭГ */}
+                      <div className="max-h-80 overflow-y-auto pr-1">
+                        {filteredMargins.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic py-4 text-center">"{marginSearch}" нэртэй цэс олдсонгүй.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {filteredMargins.map((marginItem: any, idx: number) => {
+                              
+                              // ⚡ 1. Эзэн гараар үнэ бичсэн бол тэрийг авна, үгүй бол Системийн зөвлөсөн үнийг харуулна
+                              const currentEditingPrice = customMarginPrices[marginItem.product_name] !== undefined 
+                                ? customMarginPrices[marginItem.product_name] 
+                                : marginItem.suggested_price;
+
+                              // ⚡ 2. Тухайн бичиж байгаа үнээс хамаарч Бохир ашиг хэдэн % болохыг ШУУД бодож харуулна
+                              const dynamicMarginPct = currentEditingPrice > 0 
+                                ? ((currentEditingPrice - marginItem.cost_price) / currentEditingPrice) * 100 
+                                : 0;
+
+                              // ⚡ 3. Зорилтот %-даа хүрсэн үү үгүй юу гэдгийг шалгах
+                              const targetPct = parseFloat(marginItem.target_margin_pct);
+                              const isMarginHealthy = dynamicMarginPct >= targetPct;
+
+                              return (
+                                <div key={idx} className="bg-[#0B1120] p-4 rounded-xl border border-amber-500/20 shadow-sm flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex justify-between items-start gap-1 mb-2">
+                                      <span className="text-sm font-bold text-white truncate" title={marginItem.product_name}>
+                                        {marginItem.product_name}
+                                      </span>
+                                      <span className="text-[10px] font-black text-rose-400 font-mono shrink-0 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                                        Одоогийн маржин: {marginItem.current_margin_pct}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-xs text-slate-400 space-y-1 font-mono flex justify-between">
+                                      <div>
+                                        <span className="block text-[10px] text-slate-500">Орцын өртөг:</span>
+                                        <strong className="text-slate-200">{marginItem.cost_price.toLocaleString()} ₮</strong>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="block text-[10px] text-slate-500">Одоогийн үнэ:</span>
+                                        <span className="text-slate-300 line-through">{marginItem.selling_price.toLocaleString()} ₮</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* 🎛️ ИНТЕРАКТИВ ҮНЭ ӨӨРЧЛӨХ ХЭСЭГ */}
+                                  <div className="mt-3 pt-3 border-t border-slate-800/80">
+                                    <label className="flex justify-between text-[10px] text-slate-400 font-bold mb-1.5 uppercase">
+                                      <span>Шинэ зарах үнэ (Тохируулах):</span>
+                                      <span className="text-amber-400">Систем {marginItem.suggested_price.toLocaleString()} ₮ зөвлөв</span>
+                                    </label>
+                                    
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {/* Үнэ бичих талбар */}
+                                      <div className="flex items-center bg-slate-900 border border-slate-700 focus-within:border-emerald-500 rounded-lg overflow-hidden w-28 shrink-0">
+                                        <input
+                                          type="number"
+                                          value={currentEditingPrice || ''}
+                                          onChange={(e) => setCustomMarginPrices(prev => ({
+                                            ...prev, 
+                                            [marginItem.product_name]: parseFloat(e.target.value) || 0
+                                          }))}
+                                          className="w-full bg-transparent px-2.5 py-1.5 text-sm text-emerald-400 font-mono font-black outline-none text-right"
+                                        />
+                                      </div>
+                                      
+                                      {/* Шууд бодогдох Маржин */}
+                                      <span className={`text-xs font-black px-2.5 py-1.5 rounded-lg border flex-1 text-center font-mono ${
+                                        isMarginHealthy 
+                                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                                          : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                                      }`}>
+                                        {dynamicMarginPct.toFixed(1)}% ашиг
+                                      </span>
+
+                                      {/* БАТЛАХ ТОВЧ */}
+                                      <button
+                                        type="button"
+                                        disabled={currentEditingPrice <= marginItem.cost_price}
+                                        onClick={async () => {
+                                          const targetProd = productsList.find(p => cleanString(p.name).toLowerCase() === cleanString(marginItem.product_name).toLowerCase());
+                                          if (!targetProd) return;
+                                          
+                                          if (!confirm(`"${targetProd.name}"-ийн зарах үнийг ${currentEditingPrice.toLocaleString()} ₮ болгож батлах уу?\n(Шинэ маржин: ${dynamicMarginPct.toFixed(1)}%)`)) return;
+
+                                          setLoading(true);
+                                          const { error } = await supabase
+                                            .from("products")
+                                            .update({ selling_price: currentEditingPrice })
+                                            .eq("id", targetProd.id);
+
+                                          if (error) {
+                                            alert("Үнэ шинэчлэхэд алдаа: " + error.message);
+                                          } else {
+                                            alert(`✅ "${targetProd.name}"-ийн зарах үнэ ${currentEditingPrice.toLocaleString()} ₮ болж шинэчлэгдлээ!`);
+                                            
+                                            // Санах ойноос устгах
+                                            setCustomMarginPrices(prev => {
+                                              const newObj = { ...prev };
+                                              delete newObj[marginItem.product_name];
+                                              return newObj;
+                                            });
+
+                                            await fetchDatabaseData(activeClient, startDate, endDate, true);
+                                          }
+                                          setLoading(false);
+                                        }}
+                                        className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black px-3 py-1.5 rounded-lg text-xs transition shadow shrink-0"
+                                      >
+                                        ✓ Батлах
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })()}
           </div>
         )}
         {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
@@ -9373,6 +9482,81 @@ const commitFinalSales = async (
                 </table>
               </div>
             </div>
+            {/* 🎯 4. АНГИЛЛЫН АШГИЙН МАРЖИНГИЙН БОДЛОГО (TARGET MARGINS) */}
+                <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 shadow-xl mt-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
+                    <div>
+                      <h3 className="text-base font-black text-amber-400 flex items-center gap-2">
+                        <span>🎯 4. Ангиллын Ашгийн Маржингийн Бодлого (Target Margins)</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        Ангилал тус бүрийн хүрэх ёстой зорилтот бохир ашгийн % (Gross Margin). Түүхий эд өсөхөд систем энэ хувиар автоматаар зөвлөх зарах үнийг бодно.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleSaveCategoryMargins}
+                      className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
+                    >
+                      💾 Маржингийн Бодлого Хадгалах
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                    {UNIVERSAL_CATEGORIES.map((cat) => {
+                      const currentVal = categoryMargins[cat.id] ?? DEFAULT_GLOBAL_MARGINS[cat.id] ?? 70;
+                      const isCustomized = categoryMargins[cat.id] !== undefined && categoryMargins[cat.id] !== DEFAULT_GLOBAL_MARGINS[cat.id];
+
+                      return (
+                        <div key={cat.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span>{cat.icon}</span>
+                              <span>{cat.name.replace(/^[^\s]+\s/, '')}</span>
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Стандарт: {DEFAULT_GLOBAL_MARGINS[cat.id]}%
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="relative flex-1">
+                              <input
+                                type="number"
+                                min={20}
+                                max={95}
+                                value={currentVal}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  setCategoryMargins(prev => ({ ...prev, [cat.id]: val }));
+                                }}
+                                className="w-full bg-[#0B1120] border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-amber-400 font-mono">%</span>
+                            </div>
+
+                            {isCustomized && (
+                              <button
+                                type="button"
+                                onClick={() => setCategoryMargins(prev => ({ ...prev, [cat.id]: DEFAULT_GLOBAL_MARGINS[cat.id] }))}
+                                className="text-[10px] text-slate-400 hover:text-white bg-slate-800 px-2 py-2 rounded-xl border border-slate-700"
+                                title="Стандарт руу буцаах"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                          
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            Зорилтот өртөг (Food Cost): <strong>{(100 - currentVal).toFixed(0)}%</strong>
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
           </div>
         )}
 
