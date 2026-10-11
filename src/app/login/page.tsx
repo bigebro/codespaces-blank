@@ -226,8 +226,25 @@ useEffect(() => {
     setSuccessMsg(null);
 
     try {
-      if (isSignUp) {
+     if (isSignUp) {
         const cleanBranch = companyName.trim();
+
+        // ⚡ 1. БИЗНЕСИЙН НЭР ДАВХАРДСАН ЭСЭХИЙГ ШУУД ШАЛГАХ:
+        if (signupRole === 'owner') {
+          const { data: existingShop } = await supabase
+            .from('tenants')
+            .select('client_id')
+            .ilike('client_id', cleanBranch)
+            .maybeSingle();
+
+          if (existingShop) {
+            setErrorMsg(`⚠️ "${cleanBranch}" нэртэй бизнес аль хэдийнэ бүртгэлтэй байна. Та өөр нэр сонгоно уу.`);
+            setLoading(false);
+            return;
+          }
+        }
+
+      
 
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -259,7 +276,22 @@ useEffect(() => {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Үйлдэл амжилтгүй боллоо.");
+
+      const rawMsg = String(err?.message || "").trim();
+
+      // 🚨 Хэрэв Supabase-ээс "{}" эсвэл Database error ирвэл нэр давхардсаныг шууд танина:
+      if (
+        rawMsg === "{}" || 
+        rawMsg.includes("Database error") || 
+        rawMsg.includes("unexpected_failure") ||
+        rawMsg.includes("registered")
+      ) {
+         setErrorMsg("⚠️ Энэ бизнесийн нэр аль хэдийнэ бүртгэгдсэн байна! Та өөр нэр сонгоно уу.");
+      }
+      else {
+        setErrorMsg(err.message || "Үйлдэл амжилтгүй боллоо.");
+      }
+     
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
 import { getAnalyticsData } from "../../../lib/analytics";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { createClient } from "@supabase/supabase-js";
 
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
@@ -179,19 +180,43 @@ async function callGeminiStreamWithFailover(
 
   return { stream: combinedStream() };
 }
+
 export async function POST(request: Request) {
   try {
+    // 🔒 1. Токенийг авах
+    const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    // 🔒 2. createClient үүсгэхгүйгээр шууд supabaseAdmin-аар шалгах (Хамгийн хурдан, цэвэрхэн)
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    // 🔒 3. Хэрэглэгчийн жинхэнэ салбар, үүргийг татах
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("client_id, role, full_name")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.client_id) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
+    // 🔒 4. Body-г зөвхөн ганц удаа унших
     const body = await request.json();
+    const clientId = profile.client_id;
+    const isOwner = profile.role === "owner";
+    const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
+
+    const workerName = body.workerName || profile.full_name || "Ажилтан";
     const text = (body.text || body.payloadText || body.input || "").trim();
-    const tenantClientId = body.tenantClientId || body.clientId || "SF Coffee";
-    const workerName = body.workerName || "Ажилтан";
-    const userRole = body.userRole || "owner";
     const imageBase64 = body.imageBase64 || null;
     const action = body.action || null;
     const logId = body.logId || null;
-    const isOwner = userRole === "owner";
-    const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
-    const clientId = tenantClientId;
 
 // src/app/api/kiosk-ai/route.ts доторх categorize хэсэг:
 if (action === "categorize" && body.names && Array.isArray(body.names)) {

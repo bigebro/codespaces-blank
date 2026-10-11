@@ -587,18 +587,24 @@ function KioskAiChatSection({
         abortControllerRef.current = new AbortController();
       }
 
+      
+
+       const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+
       const res = await fetch('/api/kiosk-ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 👈 НЭМСЭН
+        },
         body: JSON.stringify({
-          tenantClientId: selectedWorker.client_id,
           workerName: activeShift?.character_role || selectedWorker.full_name || "Ажилтан",
           text: textToProcess,
           imageBase64: base64Data,
-          imageUrl: uploadedImageUrl,
-          userRole: 'staff'
+          imageUrl: uploadedImageUrl
         }),
-        signal: abortControllerRef.current.signal // ⚡ CONNECTS THE KILL SWITCH!
+        signal: abortControllerRef.current.signal
       });
       if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
 
@@ -937,20 +943,26 @@ const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
     if (typeof STATIC_DICT !== 'undefined' && STATIC_DICT[clean]) {
       return STATIC_DICT[clean]; // 
     }
-    // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
+ 
+  // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
     if (!translationsCache[clean]) {
-      fetch('/api/kiosk-ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'translate', text: rawName, clientId: tenantClientId })
-      })
-      .then(res => res.json())
-      .then(d => {
-        if (d.success && d.translation) {
-          setTranslationsCache(prev => ({ ...prev, [clean]: d.translation }));
-        }
-      })
-      .catch(() => {});
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        fetch('/api/kiosk-ai', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}` // 👈 Токен дамжуулна
+          },
+          body: JSON.stringify({ action: 'translate', text: rawName })
+        })
+        .then(res => res.json())
+        .then(d => {
+          if (d.success && d.translation) {
+            setTranslationsCache(prev => ({ ...prev, [clean]: d.translation }));
+          }
+        })
+        .catch(() => {});
+      });
     }
 
     return rawName;
@@ -1983,11 +1995,17 @@ const handleCloseShift = () => {
                               const { file: compressedFile, base64 } = await compressImageForUpload(rawFile);
 
                               try {
-                                const res = await fetch('/api/kiosk-ai', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ imageBase64: base64, tenantClientId, userRole: 'staff' })
-                                });
+                            const { data: { session } } = await supabase.auth.getSession();
+                          const token = session?.access_token || '';
+
+                          const res = await fetch('/api/kiosk-ai', {
+                            method: 'POST',
+                            headers: { 
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${token}` // 👈 НЭМСЭН
+                            },
+                            body: JSON.stringify({ imageBase64: base64 })
+                          });
                                 const data = await res.json();
                                 setIsScanningReceipt(false);
 
@@ -2033,11 +2051,17 @@ const handleCloseShift = () => {
                 reader.onload = async () => {
                   const base64 = (reader.result as string).split(',')[1];
                   try {
-                    const res = await fetch('/api/kiosk-ai', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ imageBase64: base64, tenantClientId, userRole: 'staff' })
-                    });
+                 const { data: { session } } = await supabase.auth.getSession();
+                  const token = session?.access_token || '';
+
+                  const res = await fetch('/api/kiosk-ai', {
+                    method: 'POST',
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}` // 👈 НЭМСЭН
+                    },
+                    body: JSON.stringify({ imageBase64: base64 })
+                  });
                     const data = await res.json();
                     setIsScanningReceipt(false); // 👈 Уншиж дуусмагц сканнерыг хаах
 

@@ -483,6 +483,7 @@ function Home() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [tenantInfo, setTenantInfo] = useState<{ isExpired: boolean; endDate: string | null } | null>(null);
   const [userClient, setUserClient] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   // Navigation State
@@ -1817,6 +1818,45 @@ function SearchableSelect({
             setTranslationsCache(tMap);
            }
          }
+
+         // ... бусад хүснэгтүүдийг татдаг Promise.all хэсгийн дараа:
+
+// 💳 1. Эрх сунгагдсан эсэхийг шалгах
+const { data: tenantData } = await supabase
+  .from('tenants')
+  .select('status, subscription_end_date')
+  .ilike('client_id', targetClient)
+  .maybeSingle();
+
+if (tenantData) {
+  // Өнөөдрийн огноог эрх дуусах огноотой харьцуулах
+  const isExpired = new Date(tenantData.subscription_end_date) < new Date();
+  setTenantInfo({ isExpired, endDate: tenantData.subscription_end_date });
+}
+
+if (includeAnalytics || tabToLoad === "dashboard") {
+  const activeStart = start || startDate;
+  const activeEnd = end || endDate;
+  
+  // 🔒 1. Session-оос токен авах
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || '';
+
+  // 🔒 2. URL дээрээс clientId-г ХАССАН, Header-т токен нэмсэн:
+  const res = await fetch(
+    `/api/analytics?startDate=${encodeURIComponent(activeStart)}T00:00:00.000Z&endDate=${encodeURIComponent(activeEnd)}T23:59:59.999Z`,
+    { 
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      cache: "no-store" 
+    }
+  );
+  if (res.ok) {
+    const analData = await res.json();
+    setLiveAnalytics(analData);
+  }
+}
     
       // Хүнд аналитикийг ЗӨВХӨН эзэн Санхүүгийн таб дээр байгаа үед л дуудна!
       if (includeAnalytics || tabToLoad === "dashboard") {
@@ -3661,7 +3701,27 @@ const commitFinalSales = async (
         {/* ========================================================================= */}
    {activeTab === "dashboard" && userRole === "owner" && (
           <div className="space-y-6">
-            
+             {/* 💳 ТӨЛБӨРИЙН САНУУЛГА / БАНКНЫ ДАНСНЫ БАННЕР */}
+              {tenantInfo?.isExpired && (
+                <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-900 border-2 border-amber-500/50 p-5 rounded-2xl shadow-2xl animate-pulse">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                      <h4 className="text-base font-black text-amber-400 flex items-center gap-2">
+                        ⚠️ Үйлчилгээний эрхийн хугацаа дууссан байна
+                      </h4>
+                      <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Та системээ тасралтгүй ашиглахын тулд сарын төлбөрөө доорх дансанд шилжүүлнэ үү. Шилжүүлснээс хойш 15-30 минутад эрх сунгагдана.
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-left lg:text-right shrink-0">
+                      <p className="text-slate-400">Хаан банк: <strong className="text-white text-sm">5000 000 000</strong></p>
+                      <p className="text-slate-400">Хүлээн авагч: <strong className="text-white">Оперлинк ХХК</strong></p>
+                      <p className="text-amber-400 font-bold">Утга: <strong className="text-emerald-400">{activeClient} утасны дугаар</strong></p>
+                    </div>
+                  </div>
+                </div>
+              )}
     {/* 🚨 ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТ (АНХНААСАА ХУМИГДСАН, ДАРАХАД ДЭЛГЭГДДЭГ) */}
             {priceSpikeAlerts.length > 0 && (() => {
               const filteredSpikes = priceSpikeAlerts.filter((item: any) =>
