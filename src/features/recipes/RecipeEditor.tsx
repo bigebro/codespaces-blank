@@ -1,6 +1,6 @@
 // src/features/recipes/RecipeEditor.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect} from "react";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { supabase } from "@/lib/supabase";
 import  {useRecipes}  from "./useRecipes";
@@ -11,6 +11,8 @@ interface RecipeEditorProps {
   ingredients: any[];   // Орцын сонголт харуулахад
   productsList: any[];  // Зарах үнийг олоход
   aliasMap?: Record<string, string>;
+  initialDraft?: { name: string; price: string } | null; 
+  onDraftCleared?: () => void;  
 }
  function cleanString(str: string) {
             return String(str || "")
@@ -25,10 +27,8 @@ function getLocalDateStr(d: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-
-
 export default function RecipeEditor({
-activeClient, ingredients, productsList, aliasMap = {}
+activeClient, ingredients, productsList, aliasMap = {}, initialDraft, onDraftCleared 
 }: RecipeEditorProps) {
   
   const [recipeSearch, setRecipeSearch] = useState("");
@@ -71,6 +71,18 @@ activeClient, ingredients, productsList, aliasMap = {}
 
             const [quickIngId, setQuickIngId] = useState("");
             const [quickIngAmount, setQuickIngAmount] = useState("");
+
+
+            
+useEffect(() => {
+  if (initialDraft) {
+    setIsCreatingRecipeCard(true); // 👈 Ягаан хайрцгаа нээнэ
+    setNewRecipeNameDraft(initialDraft.name); // 👈 Нэрийг нь автоматаар бичнэ
+    setNewRecipePriceDraft(initialDraft.price); // 👈 Үнийг нь автоматаар бичнэ
+    onDraftCleared?.();
+  }
+}, [initialDraft]);
+
     // 💾 ЗӨВХӨН ТУХАЙН ХАРИЛЦАГЧИЙН (activeClient) ЖОРЫГ ТАТАХ
   const handleExportRecipeBackup = () => {
     // 🔒 Өөр салбарын жор хутгалдахаас хамгаалж activeClient-ээр нарийн шүүнэ

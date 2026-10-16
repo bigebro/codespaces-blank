@@ -431,7 +431,7 @@ export function getSimilarity(s1: string, s2: string): number {
 }
 
 // Нэрэн дотор хэмжээ, хямдралын үг байгаа эсэхийг ялгах
-export function getVariantModifier(cleanName: string): string | null {
+export function getVariantModifier(Name: string): string | null {
   const words = cleanName.split(' ');
   for (const w of words) {
     if (VARIANT_WORDS.has(w)) return w;
