@@ -250,6 +250,50 @@ export default function ProductsPanel({
       return map;
     }, [recipes, productsList, activeClient]);
 
+        const handleSaveNewProd = async () => {
+            if (!newProdDraft.name.trim()) return;
+            const { data } = await supabase
+              .from("products")
+              .insert([
+                {
+                  client_id: activeClient,
+                  name: newProdDraft.name.trim(),
+                  category: newProdDraft.category || "General",
+                  selling_price: parseFloat(newProdDraft.price) || 0,
+                },
+              ])
+              .select()
+              .single();
+
+            if (data) setProductsList((prev: any[]) => [data, ...prev]);
+            setIsAddingProdRow(false);
+            setNewProdDraft({ name: "", category: "COFFEE", price: "" });
+          };
+
+          const handleSaveEditedProd = async (prod: any) => {
+            const oldName = prod.name;
+            const newName = editingProdDraft.name.trim() || prod.name;
+            const newPrice = parseFloat(editingProdDraft.price) || 0;
+            const newCat = editingProdDraft.category || "General";
+
+            setProductsList((prev: any[]) =>
+              prev.map((p) => (p.id === prod.id ? { ...p, name: newName, category: newCat, selling_price: newPrice } : p))
+            );
+            setEditingProdId(null);
+
+            await supabase.from("products").update({
+              name: newName,
+              category: newCat,
+              selling_price: newPrice,
+            }).eq("id", prod.id);
+
+            if (oldName && oldName !== newName) {
+              await supabase.from("recipes").update({ product_name: newName }).eq("client_id", activeClient).eq("product_name", oldName);
+            }
+            fetchProducts();
+          };
+
+
   return (
     <div className="pt-4 space-y-3">
          {/* ⚡ АВТО-ПИЛОТ ТУУЗ: ЯГ ТАНЫ ХҮССЭН ТЕКСТ & ТОВЧ */}
@@ -636,6 +680,7 @@ export default function ProductsPanel({
                                 autoFocus
                                 value={newProdDraft.name}
                                 onChange={e => setNewProdDraft({ ...newProdDraft, name: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleSaveNewProd(); }}
                                 placeholder="Бүтээгдэхүүний нэр..."
                                 className="w-full bg-[#060b17] border border-blue-500 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none"
                               />
@@ -645,6 +690,7 @@ export default function ProductsPanel({
                                 type="number"
                                 value={newProdDraft.price}
                                 onChange={e => setNewProdDraft({ ...newProdDraft, price: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleSaveNewProd(); }}
                                 placeholder="Зарах үнэ ₮..."
                                 className="w-24 bg-[#060b17] border border-blue-500 rounded-lg px-2 py-1 text-right text-sm text-emerald-400 font-mono font-bold outline-none"
                               />
@@ -720,6 +766,7 @@ export default function ProductsPanel({
                                       autoFocus
                                       value={editingProdDraft.name}
                                       onChange={e => setEditingProdDraft({ ...editingProdDraft, name: e.target.value })}
+                                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveEditedProd(prod); }}
                                       className="w-full bg-[#060b17] border border-blue-500 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none"
                                     />
                                   </td>
@@ -728,6 +775,7 @@ export default function ProductsPanel({
                                       type="number"
                                       value={editingProdDraft.price}
                                       onChange={e => setEditingProdDraft({ ...editingProdDraft, price: e.target.value })}
+                                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveEditedProd(prod); }}
                                       className="w-24 bg-[#060b17] border border-blue-500 rounded-lg px-2 py-1 text-right text-sm text-emerald-400 font-mono font-bold outline-none"
                                     />
                                   </td>

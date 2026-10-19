@@ -13,6 +13,7 @@ interface RecipeEditorProps {
   aliasMap?: Record<string, string>;
   initialDraft?: { name: string; price: string } | null; 
   onDraftCleared?: () => void;  
+  setProductsList?: React.Dispatch<React.SetStateAction<any[]>>
 }
  function cleanString(str: string) {
             return String(str || "")
@@ -28,7 +29,7 @@ function getLocalDateStr(d: Date = new Date()): string {
 }
 
 export default function RecipeEditor({
-activeClient, ingredients, productsList, aliasMap = {}, initialDraft, onDraftCleared 
+activeClient, ingredients, productsList, aliasMap = {}, initialDraft, onDraftCleared, setProductsList
 }: RecipeEditorProps) {
   
   const [recipeSearch, setRecipeSearch] = useState("");
@@ -494,8 +495,21 @@ useEffect(() => {
     
                                   const { data } = await supabase.from("recipes").insert(recipeRows).select();
                                   if (data) setRecipes((prev) => [...prev, ...data]);
-    
-                                  await recordRecipeSnapshot(pName, 'created');
+
+                        // ⚡ Шинэ цэсийг шууд жагсаалт руу 0ms-д нэмнэ:
+                          if (setProductsList && newRecipePriceDraft) {
+                            setProductsList((prev: any[]) => [
+                              {
+                                id: "prod-" + Date.now(),
+                                client_id: activeClient,
+                                name: pName,
+                                category: "General",
+                                selling_price: parseFloat(newRecipePriceDraft) || 0
+                              },
+                              ...prev
+                            ]);
+                          }
+                              await recordRecipeSnapshot(pName, 'created');
                                   setIsCreatingRecipeCard(false);
                                   setNewRecipeNameDraft("");
                                   setNewRecipePriceDraft("");
@@ -531,13 +545,25 @@ useEffect(() => {
                               />
                             </div>
                             
-                            <input
-                              type="number"
-                              placeholder="Хэмжээ"
-                              value={draftRecipeIngAmt}
-                              onChange={(e) => setDraftRecipeIngAmt(e.target.value)}
-                              className="w-24 bg-[#0B1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-purple-500"
-                            />
+                      <input
+                  type="number"
+                  placeholder="Хэмжээ"
+                  value={draftRecipeIngAmt}
+                  onChange={(e) => setDraftRecipeIngAmt(e.target.value)}
+                  onKeyDown={(e) => {
+                    // ⚡ Хэмжээгээ бичээд Enter дармагц + Нэмэх товчийг дарсан мэт шууд орно!
+                    if (e.key === "Enter" && draftRecipeIngId && draftRecipeIngAmt) {
+                      e.preventDefault();
+                      setNewRecipeItemsDraft((prev) => [
+                        ...prev,
+                        { ingredient_id: draftRecipeIngId, amount: draftRecipeIngAmt }
+                      ]);
+                      setDraftRecipeIngId("");
+                      setDraftRecipeIngAmt("");
+                    }
+                  }}
+                  className="w-24 bg-[#0B1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-purple-500"
+                />
     
                             <button
                               type="button"

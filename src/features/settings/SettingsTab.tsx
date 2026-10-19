@@ -264,6 +264,7 @@ export default function SettingsTab({
               productsList={productsList}
               initialDraft={targetRecipeDraft} // 👈 Тэр цээжилсэн нэр, үнээ RecipeEditor руу өгнө
               onDraftCleared={() => setTargetRecipeDraft(null)}
+              setProductsList = {setProductsList}
             />
                 );
              

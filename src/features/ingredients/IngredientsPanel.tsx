@@ -35,6 +35,47 @@ const [newIngForm, setNewIngForm] = useState({
     // Түүхий эд: Хүснэгт дотор шинэ мөр нэмэх & мөр засах
         const [isAddingIngRow, setIsAddingIngRow] = useState(false);
          const [selectedIngIds, setSelectedIngIds] = useState<string[]>([]);
+
+ const handleSaveNewIng = async () => {
+  if (!newIngDraft.name.trim()) return;
+  const { data } = await supabase
+    .from("ingredients")
+    .insert([
+      {
+        client_id: activeClient,
+        name: newIngDraft.name.trim(),
+        unit: newIngDraft.unit || "гр",
+        unit_price: parseFloat(newIngDraft.price) || 0,
+        par_level: parseFloat(newIngDraft.par) || 0,
+        current_stock: 0,
+      },
+    ])
+    .select()
+    .single();
+
+  if (data) setIngredients((prev: any[]) => [data, ...prev]);
+  setIsAddingIngRow(false);
+  setNewIngDraft({ name: "", unit: "гр", price: "", par: "0" });
+};
+
+const handleSaveEditedIng = async (ing: any) => {
+  const updatedObj = {
+    ...ing,
+    name: editingIngDraft.name.trim() || ing.name,
+    unit: editingIngDraft.unit,
+    unit_price: parseFloat(editingIngDraft.price) || 0,
+    par_level: parseFloat(editingIngDraft.par) || 0,
+  };
+  setIngredients((prev: any[]) => prev.map((i) => (i.id === ing.id ? updatedObj : i)));
+  setEditingIngId(null);
+  await supabase.from("ingredients").update({
+    name: updatedObj.name,
+    unit: updatedObj.unit,
+    unit_price: updatedObj.unit_price,
+    par_level: updatedObj.par_level,
+  }).eq("id", ing.id);
+  fetchIngredients();
+};
               
   return (
     <div className="pt-4 space-y-3">
@@ -154,6 +195,7 @@ const [newIngForm, setNewIngForm] = useState({
                                        name: e.target.value,
                                      })
                                    }
+                                   onKeyDown={(e) => { if (e.key === "Enter") handleSaveNewIng(); }}
                                    placeholder="Түүхий эдийн нэр..."
                                    className="w-full bg-[#060b17] border border-emerald-500/60 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none focus:border-emerald-400"
                                  />
@@ -187,23 +229,20 @@ const [newIngForm, setNewIngForm] = useState({
                                        price: e.target.value,
                                      })
                                    }
+                                   onKeyDown={(e) => { if (e.key === "Enter") handleSaveNewIng(); }}
                                    placeholder="Өртөг ₮..."
                                    className="w-24 bg-[#060b17] border border-emerald-500/60 rounded-lg px-2 py-1 text-right text-sm text-emerald-400 font-mono font-bold outline-none"
                                  />
                                </td>
                                <td className="py-2 px-3 text-right">
-                                 <input
-                                   type="number"
-                                   value={newIngDraft.par}
-                                   onChange={(e) =>
-                                     setNewIngDraft({
-                                       ...newIngDraft,
-                                       par: e.target.value,
-                                     })
-                                   }
-                                   placeholder="PAR..."
-                                   className="w-20 bg-[#060b17] border border-emerald-500/60 rounded-lg px-2 py-1 text-right text-sm text-white font-mono outline-none"
-                                 />
+                               <input
+                              type="number"
+                              value={newIngDraft.par}
+                              onChange={(e) => setNewIngDraft({ ...newIngDraft, par: e.target.value })}
+                              onKeyDown={(e) => { if (e.key === "Enter") handleSaveNewIng(); }}
+                              placeholder="PAR..."
+                              className="w-20 bg-[#060b17] border border-emerald-500/60 rounded-lg px-2.5 py-1 text-right text-sm text-white font-mono outline-none"
+                            />
                                </td>
                                <td className="py-2 px-3 text-right">
                                  <div className="flex items-center justify-end gap-1">
@@ -285,7 +324,10 @@ const [newIngForm, setNewIngForm] = useState({
                                              ...editingIngDraft,
                                              name: e.target.value,
                                            })
+                                           
                                          }
+
+                                         onKeyDown={(e) => { if (e.key === "Enter") handleSaveEditedIng(ing); }}
                                          className="w-full bg-[#060b17] border border-blue-500 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none"
                                        />
                                      </td>
@@ -318,6 +360,7 @@ const [newIngForm, setNewIngForm] = useState({
                                              price: e.target.value,
                                            })
                                          }
+                                         onKeyDown={(e) => { if (e.key === "Enter") handleSaveEditedIng(ing); }}
                                          className="w-24 bg-[#060b17] border border-blue-500 rounded-lg px-2 py-1 text-right text-sm text-emerald-400 font-mono font-bold outline-none"
                                        />
                                      </td>
@@ -331,6 +374,7 @@ const [newIngForm, setNewIngForm] = useState({
                                              par: e.target.value,
                                            })
                                          }
+                                         onKeyDown={(e) => { if (e.key === "Enter") handleSaveEditedIng(ing); }}
                                          className="w-20 bg-[#060b17] border border-blue-500 rounded-lg px-2 py-1 text-right text-sm text-white font-mono outline-none"
                                        />
                                      </td>
