@@ -21,19 +21,24 @@ const UNIVERSAL_CATEGORIES = [
                 .trim();
             }
 export default function ProductsPanel({
+  productsList,
+  setProductsList,
   activeClient,
   recipes = [],
   salesLogs = [],
   learnedMenus = [],
   onStartRecipe
+  
 }: {
+    productsList: any[];
+    setProductsList: React.Dispatch<React.SetStateAction<any[]>>;
   activeClient: string;
   recipes?: any[];
   salesLogs?: any[];
   learnedMenus?: any[];
   onStartRecipe?: (name: string, price: string) => void;
 }) {
-  const { productsList, setProductsList, fetchProducts } = useProducts(activeClient);
+  const {  fetchProducts } = useProducts(activeClient);
 
   const [selectedProdIds, setSelectedProdIds] = useState<string[]>([]);
 

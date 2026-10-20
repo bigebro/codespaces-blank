@@ -2667,6 +2667,12 @@ const handleCloseShift = () => {
                             date: new Date().toISOString()
                           }]).select().single();
 
+                          // ⚡ 100мл Apple syrup-ийн нэгжийн үнийг (13₮) баазад шууд шинэчлэх:
+                      if (kioskMode === 'purchase' && costVal > 0 && qtyNum > 0) {
+                        const latestUnitPrice = Math.round(costVal / qtyNum); // 1300₮ / 100мл = 13₮
+                        await supabase.from('ingredients').update({ unit_price: latestUnitPrice }).eq('id', itemToSave.id);
+                      }
+
                           if (!error && newLog) {
                             setRecentToast({
                               id: newLog.id,
@@ -2897,6 +2903,17 @@ const handleCloseShift = () => {
                             .from('inventory_logs')
                             .insert(logsToInsert)
                             .select('id');
+
+                            // ⚡ Баримтаар орж ирсэн хүнсний түүхий эдүүдийн нэгжийн үнийг каталогид шинэчлэх:
+                              for (const it of reviewData.items) {
+                                if (it.is_food && it.quantity > 0 && it.total_cost > 0) {
+                                  const matchedIng = ingredients.find((ing: any) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim());
+                                  if (matchedIng) {
+                                    const latestUnitPrice = Math.round(it.total_cost / it.quantity);
+                                    await supabase.from('ingredients').update({ unit_price: latestUnitPrice }).eq('id', matchedIng.id);
+                                  }
+                                }
+                              }
 
                           const insertedIds = (insertedData || []).map((d: any) => d.id);
                           setRecentToast({
@@ -3742,6 +3759,14 @@ const handleCloseShift = () => {
                             }));
 
                             const { data: insertedData } = await supabase.from('inventory_logs').insert(logsToInsert).select('id');
+
+                            // ⚡ Сагсан дахь бүх барааны нэгжийн шинэ үнийг каталогид шинэчлэх:
+                      for (const it of itemsToProcess) {
+                        if (it.cost > 0 && it.qty > 0) {
+                          const latestUnitPrice = Math.round(it.cost / it.qty);
+                          await supabase.from('ingredients').update({ unit_price: latestUnitPrice }).eq('id', it.ing_id);
+                        }
+                      }
                             
                             if (insertedData && insertedData.length > 0) {
                               setRecentToast({

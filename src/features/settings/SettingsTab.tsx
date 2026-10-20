@@ -9,6 +9,8 @@ import RecipeEditor from "../recipes/RecipeEditor";
 import GeneralSettings from "./GeneralSettings";
 import IngredientsPanel from "../ingredients/IngredientsPanel";
 import ProductsPanel from "../products/ProductsPanel";
+import { useIngredients } from "../ingredients/useIngredients";
+import { useProducts } from "../products/useProducts";
  function cleanString(str: string) {
             return String(str || "")
                 .replace(/[\u00a0\s]+/g, " ")
@@ -20,10 +22,7 @@ interface SettingsTabProps {
   endDate: string;  
   activeClient: string;
   user: any;
-  ingredients: any[];
-  setIngredients: React.Dispatch<React.SetStateAction<any[]>>;
-  productsList: any[];
-  setProductsList: React.Dispatch<React.SetStateAction<any[]>>;
+
   recipes: any[];
   setRecipes: React.Dispatch<React.SetStateAction<any[]>>;
   salesLogs?: any[];       
@@ -61,12 +60,8 @@ export default function SettingsTab({
   endDate,
   activeClient,
   user,
-  ingredients,
-  setIngredients,
-  productsList,
-    salesLogs = [],   
+  salesLogs = [],   
   learnedMenus = [],
-  setProductsList,
   recipes,
   setRecipes,
   fixedAssets,
@@ -99,7 +94,8 @@ export default function SettingsTab({
   const [catalogTab, setCatalogTab] = useState<"ingredients" | "products" | "recipes">("ingredients");
   // 🎯 Мастер Каталог: Checkbox олноор сонгох & Шинээр нэмэх State-үүд
 
-
+    const { ingredients, setIngredients } = useIngredients(activeClient);
+    const {productsList, setProductsList } = useProducts(activeClient);
               const [targetRecipeDraft, setTargetRecipeDraft] = useState<{ name: string; price: string } | null>(null);
         
                     // 📖 Шинэ жор инлайнаар үүсгэх төлөвүүд
@@ -234,7 +230,11 @@ export default function SettingsTab({
               {/* 1. 📦 ТҮҮХИЙ ЭД (ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ & ШУУД ЗАСАХ)                   */}
               {/* ========================================================================= */}
               {catalogTab === "ingredients" && (
-                 <IngredientsPanel activeClient={activeClient} />
+                 <IngredientsPanel activeClient={activeClient} 
+                  ingredients={ingredients}       
+                   setIngredients={setIngredients}  
+                 />
+                    
               )}
 
               {/* ========================================================================= */}
@@ -242,14 +242,18 @@ export default function SettingsTab({
               {/* ========================================================================= */}
               {catalogTab === "products" && (
               <ProductsPanel
-            activeClient={activeClient}
-            recipes={recipes}
-            salesLogs={salesLogs}
-            learnedMenus={learnedMenus}
-            onStartRecipe={(name: string, price: string) => {
+              activeClient={activeClient}
+              recipes={recipes}
+              salesLogs={salesLogs}
+              learnedMenus={learnedMenus}
+              onStartRecipe={(name: string, price: string) => {
               setTargetRecipeDraft({ name, price }); 
-              setCatalogTab("recipes");              
+              setCatalogTab("recipes");   
+               
             }}
+              productsList = {productsList}
+              setProductsList = {setProductsList}     
+         
   />
               )}
 

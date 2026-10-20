@@ -4,7 +4,10 @@ import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useIngredients } from "./useIngredients";
 
-export default function IngredientsPanel({ activeClient }: { activeClient: string }) {
+export default function IngredientsPanel({ activeClient,ingredients, 
+  setIngredients  }: { activeClient: string;
+  ingredients: any[];
+  setIngredients: React.Dispatch<React.SetStateAction<any[]>>; }) {
 
  const [newIngDraft, setNewIngDraft] = useState({
         name: "",
@@ -28,7 +31,7 @@ const [newIngForm, setNewIngForm] = useState({
                  par: "0",
              });
   // 1. Hook-оор датагаа татна
-  const { ingredients, setIngredients, fetchIngredients } = useIngredients(activeClient);
+  const { fetchIngredients } = useIngredients(activeClient);
      const [editingIngredient, setEditingIngredient] = useState<any | null>(null);
 
 
