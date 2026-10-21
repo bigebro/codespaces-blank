@@ -164,6 +164,7 @@ export default function PremiumLandingPage() {
   const router = useRouter();
   const [dailyRevenue, setDailyRevenue] = useState(2500000); 
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [isYearly, setIsYearly] = useState(false);
 
   // Бодит цэвэр ашгийн тооцоо
   const monthlyRevenue = dailyRevenue * 30;
@@ -393,69 +394,166 @@ export default function PremiumLandingPage() {
         </div>
       </section>
 
-      {/* 6. PRICING TIERS */}
-      <section className="max-w-6xl mx-auto px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">Шударга үнэ. Орлогоос хувь авахгүй.</h2>
-          <p className="text-slate-400 text-sm max-w-xl mx-auto">Танай борлуулалт хэдэн зуун сая хүрсэн ч бид хувь авахгүй. Зөвхөн сарын тогтмол төлбөр.</p>
+  {/* 6. PRICING TIERS */}
+      <section className="max-w-6xl mx-auto px-6 py-24" id="pricing">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
+            Шударга үнэ. Орлогоос хувь авахгүй.
+          </h2>
+          <p className="text-slate-400 text-sm max-w-xl mx-auto mb-8">
+            Танай борлуулалт хэдэн зуун сая хүрсэн ч бид хувь авахгүй. Зөвхөн тогтмол төлбөр.
+          </p>
+
+          {/* 🔘 САР БҮР / ЖИЛЭЭР (2 САР ҮНЭГҮЙ) СОНГОГЧ */}
+          <div className="inline-flex items-center bg-[#07131d] p-1.5 rounded-2xl border border-slate-800 shadow-xl">
+            <button
+              type="button"
+              onClick={() => setIsYearly(false)}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                !isYearly ? 'bg-emerald-500 text-slate-950 font-black shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Сар бүр төлөх
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsYearly(true)}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                isYearly ? 'bg-emerald-500 text-slate-950 font-black shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>Жилээр төлөх</span>
+              <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30 font-black">
+                🎁 2 САР ҮНЭГҮЙ
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           
-          {/* Starter */}
-          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Starter (Жижиг цэг)</p>
-            <div className="mb-4">
-              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 500,000₮ (Нэг удаа)</span>
-              <span className="text-3xl font-black text-white font-mono">149,000₮</span>
-              <span className="text-xs text-slate-400 block mt-2">Сар бүр</span>
+          {/* 1. Starter */}
+          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Starter (Жижиг цэг)</p>
+              <div className="mb-4">
+                <span className="text-xs text-slate-400 font-bold block mb-1">
+                  ⚙️ Нэвтрүүлэлт: Бэлэн жортой бол 0₮
+                </span>
+                <span className="text-4xl font-black text-white font-mono">
+                  {isYearly ? "124,000₮" : "149,000₮"}
+                </span>
+                <span className="text-xs text-slate-400 block mt-1.5">
+                  {isYearly ? "Сарын дүйцэх үнэ (Жилд 1,490,000₮)" : "Сар бүр"}
+                </span>
+              </div>
+              <ul className="space-y-4 mb-8 text-sm text-slate-300">
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх төхөөрөмж дээр ажиллана</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Агуулахын тооллого & Хаягдал</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бодит ашгийн өдөр тутмын хяналт</li>
+              </ul>
             </div>
-            <ul className="space-y-4 mb-8 text-sm text-slate-300">
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх төхөөрөмж дээр ажиллана</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> 100% бэлдэж тохируулж өгнө</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бодит ашгийн өдөр тутмын хяналт</li>
-            </ul>
+
+            <div className="space-y-2 pt-4 border-t border-slate-800">
+              <Link 
+                href={`/login?plan=starter&cycle=${isYearly ? 'yearly' : 'monthly'}&action=pay`}
+                className="w-full bg-white hover:bg-slate-200 text-slate-950 font-black py-3 rounded-xl text-xs transition flex justify-center items-center gap-1.5 shadow"
+              >
+                Сонгож Төлөх <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link 
+                href={`/login?plan=starter&cycle=${isYearly ? 'yearly' : 'monthly'}&action=trial`}
+                className="w-full text-slate-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
+              >
+                14 хоног үнэгүй эхлэх
+              </Link>
+            </div>
           </div>
 
-          {/* Professional (Highlighted) */}
-          <div className="bg-[#07131d] p-10 rounded-[2rem] border-2 border-emerald-500 relative shadow-[0_0_50px_rgba(16,185,129,0.15)] transform md:scale-105 z-10">
+        {/* 2. Professional (Highlighted) */}
+          <div className="bg-[#07131d] p-8 sm:p-10 rounded-[2rem] border-2 border-emerald-500 relative shadow-[0_0_50px_rgba(16,185,129,0.15)] flex flex-col justify-between transform md:scale-105 z-10">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full whitespace-nowrap">
               Хамгийн их сонгогддог
             </div>
-            <p className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">Professional (Стандарт)</p>
-            <div className="mb-6">
-              <span className="text-xs text-emerald-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: 1.5x (Өдрийн дундаж орлого)</span>
-              <span className="text-5xl font-black text-white font-mono">299,000₮</span>
-              <span className="text-xs text-slate-400 block mt-2">Сар бүр (Жилээр төлвөл 17% хөнгөлөлттэй)</span>
+            <div>
+              <p className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-2">Professional (Стандарт)</p>
+              <div className="mb-6">
+                <span className="text-xs text-emerald-400 font-bold block mb-1">
+                  ⚙️ Нэвтрүүлэлт: Бэлэн жортой бол 0₮ / Жор гаргах: Тохиролцоно
+                </span>
+                <span className="text-5xl font-black text-white font-mono">
+                  {isYearly ? "249,000₮" : "299,000₮"}
+                </span>
+                <span className="text-xs text-slate-400 block mt-1.5">
+                  {isYearly ? "Сарын дүйцэх үнэ (Жилд 2,990,000₮)" : "Сар бүр"}
+                </span>
+              </div>
+              <ul className="space-y-4 mb-8 text-sm text-slate-200 font-medium">
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 3 хүртэлх төхөөрөмж холболт</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 📈 Санхүүгийн гүнзгийрүүлсэн шинжилгээ</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 📊 E-Tax СТ-2 тайлан экспорт</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 🛡️ Өртөг, ашгийн автомат хяналт</li>
+              </ul>
             </div>
-            <ul className="space-y-4 mb-8 text-sm text-slate-200 font-medium">
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> 3 хүртэлх төхөөрөмж холболт</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Үйл ажиллагааны бүрэн удирдлага</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Ашгийн хөшүүрэг & Ухаалаг шийдэл</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0"/> Бүрэн санхүүгийн бэлэн тайлан</li>
-            </ul>
-            <Link 
-              href="/login" 
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
-            >
-              14 хоног үнэгүй эхлэх <ArrowRight className="h-4 w-4" />
-            </Link>
+
+            <div className="space-y-2 pt-4 border-t border-slate-800">
+              <Link 
+                href={`/login?plan=professional&cycle=${isYearly ? 'yearly' : 'monthly'}&action=pay`}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2"
+              >
+                Сонгож Төлөх <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link 
+                href={`/login?plan=professional&cycle=${isYearly ? 'yearly' : 'monthly'}&action=trial`}
+                className="w-full text-slate-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
+              >
+                14 хоног үнэгүй эхлэх
+              </Link>
+            </div>
           </div>
 
-          {/* Enterprise */}
-          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Enterprise (Сүлжээ & Корпорац)</p>
-            <div className="mb-4">
-              <span className="text-xs text-slate-400 font-bold block mb-1">НЭВТРҮҮЛЭХ ХУРААМЖ: Гэрээгээр тохиролцоно</span>
-              <span className="text-3xl font-black text-white font-mono">599,000₮</span>
-              <span className="text-xs text-slate-400 block mt-2">Сар бүр</span>
-            </div>
-            <ul className="space-y-4 mb-8 text-sm text-slate-300">
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх Pro боломжууд</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Олон салбарын нэгдсэн удирдлага</li>
-              <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> <strong>Custom Development (Хүссэн тусгай функц хөгжүүлэлт)</strong></li>
-            </ul>
+          {/* 3. Enterprise */}
+          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Enterprise (Сүлжээ)</p>
+     
+          <div className="mb-4">
+            <span className="text-xs text-slate-400 font-bold block mb-1">
+              ⚙️ Нэвтрүүлэлт: Гэрээгээр 
+            </span>
+            <span className="text-4xl font-black text-white font-mono">
+              Тохиролцоно
+            </span>
+            <span className="text-xs text-slate-400 block mt-1.5">
+              Байгууллагын хэрэгцээнд тулгуурлана
+            </span>
           </div>
+
+
+              <ul className="space-y-4 mb-8 text-sm text-slate-300">
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Бүх Pro боломжууд</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Олон салбарын нэгдсэн удирдлага</li>
+                <li className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0"/> Захиалгалт хөгжүүлэлт</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-slate-800">
+                    <Link
+            href="tel:99112233" // 👈 Өөрийн утасны дугаараа бичээрэй
+            className="w-full bg-white hover:bg-slate-200 text-slate-950 font-black py-3 rounded-xl text-xs flex justify-center items-center gap-1.5 shadow"
+          >
+            Уулзалт товлох (Холбогдох) ➔
+          </Link>
+       
+              <Link 
+                href={`/login?plan=enterprise&cycle=${isYearly ? 'yearly' : 'monthly'}&action=trial`}
+                className="w-full text-slate-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
+              >
+                14 хоног үнэгүй эхлэх
+              </Link>
+            </div>
+          </div>
+
         </div>
       </section>
 

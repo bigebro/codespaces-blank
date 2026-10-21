@@ -153,10 +153,25 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fromKiosk, setFromKiosk] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [chosenPlan, setChosenPlan] = useState('professional');
+  const [chosenCycle, setChosenCycle] = useState('monthly');
+  const [actionIntent, setActionIntent] = useState<'pay' | 'trial'>('trial');
 
 useEffect(() => {
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
+      const planParam = params.get('plan');
+    const cycleParam = params.get('cycle');
+    const actionParam = params.get('action');
+
+    if (planParam) setChosenPlan(planParam);
+    if (cycleParam) setChosenCycle(cycleParam);
+    if (actionParam === 'pay') {
+      setActionIntent('pay');
+      setIsSignUp(true); // Хэрэв нүүрнээс "Төлөх" гэж ирсэн бол шууд бүртгэлийг онгойлгоно
+    }
+
     if (params.get('from') === 'kiosk') {
       setFromKiosk(true); // 👈 Зөвхөн Kiosk-оос дарж ирсэн үед л идэвхжинэ
     }
@@ -253,11 +268,20 @@ useEffect(() => {
             data: {
               client_id: cleanBranch, 
               role: signupRole === 'owner' ? 'owner' : 'Ажилтан',
-              full_name: fullName.trim() 
+              full_name: fullName.trim(),
+               phone: phoneNumber.trim()
             }
           }
         });
-        if (error) throw error;
+
+
+        // 2. signInWithPassword эсвэл нэвтрэх хэсэгт redirect хийх:
+              if (actionIntent === 'pay') {
+                router.push(`/dashboard?checkout=open&plan=${chosenPlan}&cycle=${chosenCycle}&phone=${phoneNumber}`);
+              } else {
+                router.push('/dashboard');
+              }
+               if (error) throw error;
         
         if (data.user && data.user.identities?.length === 0) {
           setErrorMsg("Бүртгэлтэй имэйл хаяг байна. Нэвтэрч орно уу.");
@@ -378,6 +402,22 @@ useEffect(() => {
                   />
                 </div>
               )}
+            {isSignUp && signupRole === 'owner' && (
+            <div>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)
+              </label>
+              <input 
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                required
+                maxLength={8}
+                placeholder="Жишээ: 99112233"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-sm font-semibold transition"
+              />
+            </div>
+          )}
 
               <div>
                 <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">

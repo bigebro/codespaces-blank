@@ -7,6 +7,8 @@ import  {useRecipes}  from "./useRecipes";
 import RecipeHistoryModal from "./RecipeHistoryModal";
 import * as XLSX from "xlsx";
 interface RecipeEditorProps {
+  recipes: any[];
+  setRecipes: React.Dispatch<React.SetStateAction<any[]>>;
   activeClient: string;
   ingredients: any[];   // Орцын сонголт харуулахад
   productsList: any[];  // Зарах үнийг олоход
@@ -28,7 +30,7 @@ function getLocalDateStr(d: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-export default function RecipeEditor({
+export default function RecipeEditor({recipes, setRecipes,
 activeClient, ingredients, productsList, aliasMap = {}, initialDraft, onDraftCleared, setProductsList
 }: RecipeEditorProps) {
   
@@ -266,7 +268,7 @@ useEffect(() => {
         }
       };
 
-    const { recipes, setRecipes, fetchRecipes, recordRecipeSnapshot } = useRecipes(activeClient, ingredients);
+    const { fetchRecipes, recordRecipeSnapshot } = useRecipes(activeClient, ingredients);
    const allRecipeProductNames = Array.from(new Set(recipes.map((r: any) => r.product_name)));
   return (
              <div className="pt-4 space-y-3">

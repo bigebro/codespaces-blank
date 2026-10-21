@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, startTransition } from "react";
+import React, { useState, useEffect, useRef, startTransition  } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 // @ts-ignore
@@ -23,6 +23,7 @@ import ImportTab from "@/features/imports/ImportTab";
 import TasksTab from "@/features/tasks/TasksTab";
 import SettingsTab from "@/features/settings/SettingsTab";
 import AiCfoChat from "@/features/ai-cfo/AiCfoChat";
+import CheckoutModal from "@/components/shared/CheckoutModal";
 
 function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -264,7 +265,14 @@ function Home() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const [tenantInfo, setTenantInfo] = useState<{ isExpired: boolean; endDate: string | null } | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<{
+  isExpired: boolean;
+  isTrial: boolean;
+  plan: string;
+  daysLeft: number;
+  endDate: string | null; 
+  formattedEndDate: string; 
+} | null>(null);
   const [userClient, setUserClient] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   // Navigation State
@@ -393,6 +401,12 @@ function Home() {
     price: "",
     par: "0",
   });
+
+  // Төлбөрийн цонхны State-үүд:
+const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+const [checkoutInitialPlan, setCheckoutInitialPlan] = useState('professional');
+const [checkoutInitialCycle, setCheckoutInitialCycle] = useState('monthly');
+const [userPhone, setUserPhone] = useState('');
   
 // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
 const UNIVERSAL_CATEGORIES = [
@@ -1390,6 +1404,8 @@ function SearchableSelect({
     const {
       data: { session },
     } = await supabase.auth.getSession();
+  
+    
 
     if (!session) { 
       router.push("/login");
@@ -1401,9 +1417,15 @@ function SearchableSelect({
       // ✍️ ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, client_id, pin_code")
+        .select("role, client_id, pin_code, phone")
         .eq("id", session.user.id)
         .single();
+
+            if (profile?.phone) {
+        setUserPhone(profile.phone);
+      } else if (session.user.user_metadata?.phone) {
+        setUserPhone(session.user.user_metadata.phone);
+      }
 
       if (profile?.pin_code) {
         setMyPin(profile.pin_code);
@@ -1445,6 +1467,19 @@ function SearchableSelect({
   useEffect(() => {
     checkUserSession();
   }, []);
+
+  // Хэрэв нүүр хуудаснаас "Сонгож төлөх" гэж орж ирсэн бол цонхыг шууд нээх:
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'open') {
+      setShowCheckoutModal(true);
+      if (params.get('plan')) setCheckoutInitialPlan(params.get('plan')!);
+      if (params.get('cycle')) setCheckoutInitialCycle(params.get('cycle')!);
+      if (params.get('phone')) setUserPhone(params.get('phone')!);
+    }
+  }
+}, []);
 
   // 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг анхнаасаа зөв татах
 // ⚡ БҮХ ТОВЧЛУУРЫГ 0ms ХУРДТАЙ БОЛГОХ ХӨНГӨН ФУНКЦ
@@ -1541,20 +1576,32 @@ function SearchableSelect({
            }
          }
 
-         // ... бусад хүснэгтүүдийг татдаг Promise.all хэсгийн дараа:
-
 // 💳 1. Эрх сунгагдсан эсэхийг шалгах
-const { data: tenantData } = await supabase
-  .from('tenants')
-  .select('status, subscription_end_date')
-  .ilike('client_id', targetClient)
-  .maybeSingle();
 
-if (tenantData) {
-  // Өнөөдрийн огноог эрх дуусах огноотой харьцуулах
-  const isExpired = new Date(tenantData.subscription_end_date) < new Date();
-  setTenantInfo({ isExpired, endDate: tenantData.subscription_end_date });
-}
+  const { data: tenantData } = await supabase
+    .from('tenants')
+    .select('status, plan, subscription_end_date')
+    .ilike('client_id', targetClient)
+    .maybeSingle();
+
+  if (tenantData && tenantData.subscription_end_date) {
+    const end = new Date(tenantData.subscription_end_date);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
+    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const isExpired = diffTime <= 0;
+    const isTrial = tenantData.status === 'trial' || tenantData.plan === 'trial';
+     const formattedEndDate = `${end.getFullYear()} оны ${end.getMonth() + 1}-р сарын ${end.getDate()}`;
+
+    setTenantInfo({
+      isExpired,
+      isTrial,
+      plan: tenantData.plan || 'professional',
+      daysLeft,
+      endDate: tenantData.subscription_end_date, // 👈 Энд endDate хэвээрээ байна!
+      formattedEndDate
+    });
+  }
 
 if (includeAnalytics || tabToLoad === "dashboard") {
   const activeStart = start || startDate;
@@ -2039,18 +2086,31 @@ const commitFinalSales = async (
  
   return (
     <div className="flex h-screen bg-[#0B1120] overflow-hidden text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
-      
-      {/* ========================================== */}
-      {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
-      {/* ========================================== */}
+   
      {/* ========================================== */}
       {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
       {/* ========================================== */}
+ {/* 📱 УТСАН ДЭЭР: Цэс нээлттэй үед арын дэвсгэрийг бүдгэрүүлэх (Backdrop) */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* 🖥️ БОСОО ЦЭС (Sidebar) */}
       <aside 
-        className={`${
-          isSidebarOpen ? "w-64" : "w-0 border-none"
-        } bg-[#0F172A] border-r border-slate-800/80 flex flex-col flex-shrink-0 z-20 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap`}
+        className={`
+          fixed md:relative inset-y-0 left-0 z-40 h-full
+          flex flex-col flex-shrink-0 bg-[#0F172A] border-slate-800/80
+          transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap
+          ${isSidebarOpen 
+            ? "translate-x-0 w-64 border-r" 
+            : "-translate-x-full w-64 md:translate-x-0 md:w-0 border-r-0"
+          }
+        `}
       >
+
         {/* Logo & Close Button Area */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80">
           <div className="flex items-center gap-2">
@@ -2062,10 +2122,10 @@ const commitFinalSales = async (
             </span>
           </div>
           
-          {/* 👈 ХУРААХ ТОВЧ (Google AI Studio шиг логоны баруун талд) */}
+          {/* 👈 ХУРААХ ТОВЧ */}
           <button 
             onClick={() => setIsSidebarOpen(false)}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors md:block"
             title="Цэс хураах"
           >
             <PanelLeftClose className="h-5 w-5" />
@@ -2169,6 +2229,22 @@ const commitFinalSales = async (
         }
  
 </div>   
+{/* ⚡ CHATGPT ЗАГВАРЫН UPGRADE ТОBЧ (Зөвхөн туршилттай үед зүүн цэсэнд ил харагдана) */}
+{tenantInfo?.isTrial && (
+  <div className="px-3 pb-2">
+    <button
+      type="button"
+      onClick={() => setShowCheckoutModal(true)}
+      className="w-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
+    >
+      <span className="flex items-center gap-1.5">
+        <span>⚡</span>
+        <span>Бүрэн эрх нээх</span>
+      </span>
+      <span className="text-xs bg-slate-950/20 px-1.5 py-0.5 rounded">Pro ➔</span>
+    </button>
+  </div>
+)}
         {/* User Profile Footer */}
         {user && (
           <div className="p-4 border-t border-slate-800/80 bg-slate-900/30">
@@ -2232,11 +2308,52 @@ const commitFinalSales = async (
               <Database className="h-3 w-3" /> Live DB
             </button>
           </div>
-   
+
 
         </header>
    {/* SCROLLABLE BODY (Tab Contents go here) */}
     <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 relative w-full">
+
+  <div className="max-w-7xl mx-auto w-full max-w-full relative">
+    
+{/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
+{tenantInfo?.isExpired && (
+  <div className="fixed inset-0 z-50 bg-[#0B1120]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+    <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 animate-pulse" />
+    <h2 className="text-2xl font-black text-white mb-2">Үйлчилгээний эрх зогссон байна</h2>
+    <p className="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
+      Таны {tenantInfo.isTrial ? 'үнэгүй туршилтын' : 'үйлчилгээний'} хугацаа <strong>{tenantInfo.formattedEndDate}</strong>-нд дууссан байна. Системээ үргэлжлүүлэн ашиглахын тулд эрхээ сунгана уу.
+    </p>
+    <button
+      onClick={() => setShowCheckoutModal(true)}
+      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-8 py-3.5 rounded-2xl font-black transition shadow-lg active:scale-95 cursor-pointer"
+    >
+      💳 ЭРХ СУНГАХ (БАТАЛГААЖУУЛАХ)
+    </button>
+  </div>
+)}
+ 
+
+
+{/* 🟡 3 ХОНОГ ҮЛДСЭН ҮЕД ХАРАГДАХ ДАРУУХАН ШАР ТУУЗ (Vercel, ChatGPT загвар) */}
+{tenantInfo && tenantInfo.daysLeft <= 3 && !tenantInfo.isExpired && (
+  <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+    <div className="flex items-center gap-2.5">
+      <span className="text-amber-400 text-base">⚠️</span>
+      <p className="text-xs text-slate-300">
+        Таны {tenantInfo.isTrial ? "14 хоногийн туршилт" : `${tenantInfo.plan.toUpperCase()} эрх`} <strong>{tenantInfo.formattedEndDate}</strong>-нд дуусна. Үйл ажиллагаагаа тасалдуулахгүйн тулд сунгана уу.
+      </p>
+    </div>
+    <button
+      type="button"
+      onClick={() => setShowCheckoutModal(true)}
+      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
+    >
+      {tenantInfo.isTrial ? "Албан ёсны эрх авах ➔" : "Эрх сунгах ➔"}
+    </button>
+  </div>
+)}
+
     <div className="max-w-7xl mx-auto w-full max-w-full">
 
 
@@ -2637,19 +2754,43 @@ const commitFinalSales = async (
 
         {/* 8. ⚙️ 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
         {activeTab === "settings" && userRole === "owner" && (
+           <div className="space-y-6">
+            
+            {/* 🟢 ХЭРЭГЛЭГЧИЙН ИДЭВХТЭЙ БАГЦЫН МЭДЭЭЛЭЛ (SETTINGS) */}
+            <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+                  <h3 className="font-black text-white text-sm uppercase">
+                    Идэвхтэй багц: <span className="text-emerald-400">{tenantInfo?.plan || "Professional"}</span>
+                  </h3>
+                  {tenantInfo?.isTrial && (
+                    <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-black">
+                      Туршилт
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">
+                  📅 Дараагийн сунгалт: <strong className="text-slate-200">{tenantInfo?.formattedEndDate || "2026.11.20"} хүртэл</strong>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCheckoutModal(true)}
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition border border-slate-700 active:scale-95 cursor-pointer"
+              >
+                Багц солих / Сунгах
+              </button>
+            </div>
+           
         <SettingsTab
         user={user}            
-        setRecipes={setRecipes} 
         startDate = {startDate}
         endDate = {endDate}
         activeClient = {activeClient}
-        ingredients = {ingredients}
-        setIngredients = {setIngredients}
-        productsList = {productsList}
-        setProductsList = {setProductsList}
         salesLogs = {salesLogs}
         learnedMenus={learnedMenus}
-        recipes = {recipes}
         fixedAssets = {fixedAssets}
         fixedOpexList = {fixedOpexList}
         initialCash = {initialCash}
@@ -2674,6 +2815,7 @@ const commitFinalSales = async (
         updatePendingReview={updatePendingReview}
         commitFinalSales={commitFinalSales}
          />
+          </div>
         )}
 
         {/* 📸 FULL-SCREEN EVIDENCE IMAGE VIEWER MODAL */}
@@ -2967,6 +3109,16 @@ const commitFinalSales = async (
 
 
            </div>
+           {/* 💳 ТӨЛБӨРИЙН БЭЛЭН ЦОНХ (CHECKOUT MODAL) */}
+      <CheckoutModal
+        isOpen={showCheckoutModal}
+        onClose={() => setShowCheckoutModal(false)}
+        clientId={activeClient}
+        userPhone={userPhone}
+        initialPlan={checkoutInitialPlan}
+        initialCycle={checkoutInitialCycle}
+      />
+         </div>
         </main>
       </div>
     </div>
