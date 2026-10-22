@@ -14,6 +14,13 @@ interface CheckoutModalProps {
   currentPlan?: string; // Dashboard-аас одоогийн багцыг шууд авна
 }
 
+// 🏛️ Үнийн нэгдсэн толь (Жилээр төлбөл 2 сар үнэгүй буюу 10 сараар бодогдоно)
+const PLANS_CATALOG: Record<string, { monthly: number; yearly: number }> = {
+  starter: { monthly: 149000, yearly: 1490000 },
+  professional: { monthly: 299000, yearly: 2990000 },
+  enterprise: { monthly: 0, yearly: 0 },
+};
+
 export default function CheckoutModal({
   isOpen,
   onClose,
@@ -32,15 +39,16 @@ export default function CheckoutModal({
   const [checkingPending, setCheckingPending] = useState(true);
   const [ndaAccepted, setNdaAccepted] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState<any | null>(null);
-
+  const [daysRemaining, setDaysRemaining] = useState<number>(0);
   // 1. Одоогийн идэвхтэй багц болон Pending хүсэлт байгаа эсэхийг баталгаажуулах
   useEffect(() => {
     if (isOpen && clientId) {
+      setIsSubmitted(false);
       setCheckingPending(true);
       Promise.all([
         supabase
           .from("tenants")
-          .select("plan")
+          .select("plan, subscription_end_date")
           .ilike("client_id", clientId.trim())
           .maybeSingle(),
         supabase
@@ -53,6 +61,11 @@ export default function CheckoutModal({
           .maybeSingle(),
       ]).then(([{ data: tenantData }, { data: reqData }]) => {
         if (tenantData?.plan) setActivePlan(tenantData.plan);
+        // ⚡ Үлдсэн хоногийг динамикаар бодох:
+        if (tenantData?.subscription_end_date) {
+          const diffTime = new Date(tenantData.subscription_end_date).getTime() - Date.now();
+          setDaysRemaining(Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))));
+        }
         if (reqData) setHasPendingRequest(reqData);
         else setHasPendingRequest(null);
         setCheckingPending(false);
@@ -62,17 +75,27 @@ export default function CheckoutModal({
 
   if (!isOpen) return null;
 
-  // ⚡ 2. БАГЦ АХИУЛАХ ЭСВЭЛ ЭНГИЙН СУНГАЛТЫН ДҮНГ БОДОХ:
-  // Хэрэв одоо Starter багцтай бөгөөд Pro руу сараар шилжих гэж байгаа бол 150,000₮ зөрүү бодно
-  const isUpgradingStarterToPro =
-    activePlan === "starter" && plan === "professional" && cycle === "monthly";
+// ⚡ 2. ДИНАМИК ҮНЭ БА ЗӨРҮҮ БОДОХ (PRORATION ENGINE):
+  const targetConfig = PLANS_CATALOG[plan] || PLANS_CATALOG.professional;
+  // Сар эсвэл Жилийн (2 сар үнэгүй) үнийг авах
+  const baseTargetAmount = cycle === "yearly" ? targetConfig.yearly : targetConfig.monthly;
 
-  let totalAmount = 0;
-  if (isUpgradingStarterToPro) {
-    totalAmount = 150000; // Багцын зөрүү (299k - 149k)
-  } else {
-    const baseMonthly = plan === "starter" ? 149000 : 299000;
-    totalAmount = cycle === "yearly" ? baseMonthly * 10 : baseMonthly;
+  // Starter-аас Pro руу шилжих үед (хоног үлдсэн байвал):
+  const isUpgrading = activePlan === "starter" && plan === "professional" && daysRemaining > 0;
+
+  let totalAmount = baseTargetAmount;
+  let creditAmount = 0;
+
+  if (plan === "enterprise") {
+    totalAmount = 0;
+  } else if (isUpgrading) {
+    // Starter-ийн 1 өдрийн үнэ: 149k / 30 хоног = ~4,966₮
+    const starterDailyRate = 149000 / 30;
+    creditAmount = Math.min(Math.round(daysRemaining * starterDailyRate), 149000);
+
+    // Шинэ үнээс үлдсэн хоногийн мөнгийг хасаж, 1,000₮-өөр тэгшитгэх
+    const diff = Math.max(0, baseTargetAmount - creditAmount);
+    totalAmount = Math.ceil(diff / 1000) * 1000;
   }
 
   // ⚡ Автомат Гүйлгээний утга:
@@ -96,13 +119,13 @@ export default function CheckoutModal({
         {
           client_id: clientId,
           plan: plan,
-          billing_cycle: isUpgradingStarterToPro ? "upgrade" : cycle,
+          billing_cycle: isUpgrading ? "upgrade" : cycle,
           amount: totalAmount,
           phone_number: userPhone || "Бүртгэлтэй утас",
           status: "pending",
-          notes: isUpgradingStarterToPro
-            ? "Starter -> Pro багц ахиулах зөрүү"
-            : `${plan} (${cycle})`,
+          notes: isUpgrading
+          ? `Starter -> Pro ахиулалт (${daysRemaining} хоног тооцсон: -${creditAmount.toLocaleString()}₮)`
+          : `${plan} (${cycle})`,
         },
       ]);
 
@@ -143,21 +166,21 @@ export default function CheckoutModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
       {/* 📱 УТАС БА КОМПЬЮТЕРТ 100% ТОХИРСОН БҮТЭЦ: max-h-[92dvh] flex flex-col */}
-      <div className="bg-zinc-950 border border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
         {/* Толгой хэсэг */}
-        <div className="flex justify-between items-center border-b border-slate-800 pb-2.5 shrink-0">
+        <div className="flex justify-between items-center border-b border-zinc-800 pb-2.5 shrink-0">
           <div>
             <h3 className="text-base font-black text-white">
               Үйлчилгээний эрх баталгаажуулах
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-zinc-400">
               Одоогийн багц:{" "}
               <strong className="text-zinc-200 uppercase">{activePlan}</strong>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 text-sm font-bold cursor-pointer"
+            className="text-zinc-400 hover:text-white p-1 text-sm font-bold cursor-pointer"
           >
             ✕
           </button>
@@ -165,7 +188,7 @@ export default function CheckoutModal({
 
         {/* Шалгаж байх үед */}
         {checkingPending ? (
-          <div className="py-12 text-center text-slate-500 text-xs">
+          <div className="py-12 text-center text-zinc-500 text-xs">
             <div className="h-6 w-6 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
             <span>Төлөв шалгаж байна...</span>
           </div>
@@ -179,7 +202,7 @@ export default function CheckoutModal({
               <h4 className="text-base font-black text-white">
                 Төлбөрийн хүсэлт хянагдаж байна
               </h4>
-              <p className="text-xs text-slate-400 mt-2 leading-relaxed max-w-xs mx-auto">
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed max-w-xs mx-auto">
                 Та{" "}
                 <strong className="text-zinc-200">
                   {hasPendingRequest.plan?.toUpperCase()}
@@ -190,9 +213,9 @@ export default function CheckoutModal({
             </div>
             <button
               onClick={onClose}
-              className="bg-slate-900 border border-slate-800 text-slate-300 px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
+              className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-zinc-800 transition cursor-pointer"
             >
-              Ойлголоо, Хаах
+              Хаах
             </button>
           </div>
         ) : !isSubmitted ? (
@@ -200,25 +223,25 @@ export default function CheckoutModal({
             {/* 📜 ДУНД ТАЛЫН ГҮЙДЭГ ХЭСЭГ */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 my-2 overscroll-contain">
               {/* 💡 БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
-              {isUpgradingStarterToPro ? (
-                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
-                  <div>
-                    <span className="font-bold block text-white">
-                      Starter ➔ Pro багц ахиулах:
-                    </span>
-                    Та бүтэн 299,000₮ биш, зөвхөн багцын зөрүү{" "}
-                    <strong>150,000 ₮</strong> шилжүүлээд Pro эрхээ нээнэ.
-                  </div>
-                </div>
+              {isUpgrading ? (
+            <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
+              <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
+              <div>
+                <span className="font-bold block text-white">
+                  Starter ➔ Pro ахиулах ({daysRemaining} хоног үлдсэн):
+                </span>
+                Starter-аас ашиглаагүй үлдсэн {creditAmount.toLocaleString()}₮ хасагдаж, зөрүү{" "}
+                <strong>{totalAmount.toLocaleString()} ₮</strong> боллоо.
+              </div>
+            </div>
               ) : (
                 plan !== "enterprise" && (
-                  <div className="bg-slate-950/80 border border-slate-800 p-2.5 rounded-2xl text-xs text-slate-300 space-y-0.5">
+                  <div className="bg-zinc-950/80 border border-zinc-800 p-2.5 rounded-2xl text-xs text-zinc-300 space-y-0.5">
                     <p>1. Дүн болон Дансны дугаарыг хуулж шилжүүлнэ.</p>
                     <p>
                       2. Гүйлгээний утгаа{" "}
                       <strong className="text-zinc-300">
-                        заавал хуулж бичнэ
+                        заавал хуулж илгээнэ үү
                       </strong>{" "}
                       үү.
                     </p>
@@ -232,17 +255,17 @@ export default function CheckoutModal({
 
               {/* 1. БАГЦ СОНГОГЧ */}
               <div className="space-y-1">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block px-1">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block px-1">
                   Багц сонгох:
                 </span>
-                <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs font-bold shrink-0">
+                <div className="grid grid-cols-3 gap-1.5 bg-zinc-950 p-1 rounded-2xl border border-zinc-800 text-xs font-bold shrink-0">
                   <button
                     type="button"
                     onClick={() => setPlan("starter")}
                     className={`py-2 rounded-xl transition cursor-pointer flex flex-col items-center ${
                       plan === "starter"
-                        ? "bg-white text-slate-950 font-black shadow"
-                        : "text-slate-400 hover:text-white"
+                        ? "bg-white text-zinc-950 font-black shadow"
+                        : "text-zinc-400 hover:text-white"
                     }`}
                   >
                     <span>Starter</span>
@@ -254,8 +277,8 @@ export default function CheckoutModal({
                     onClick={() => setPlan("professional")}
                     className={`py-2 rounded-xl transition cursor-pointer flex flex-col items-center ${
                       plan === "professional"
-                        ? "bg-white text-slate-950 font-black shadow"
-                        : "text-slate-400 hover:text-white"
+                        ? "bg-white text-zinc-950 font-black shadow"
+                        : "text-zinc-400 hover:text-white"
                     }`}
                   >
                     <span>Pro</span>
@@ -267,8 +290,8 @@ export default function CheckoutModal({
                     onClick={() => setPlan("enterprise")}
                     className={`py-2 rounded-xl transition cursor-pointer flex flex-col items-center ${
                       plan === "enterprise"
-                        ? "bg-white text-white font-black shadow"
-                        : "text-slate-400 hover:text-white"
+                        ? "bg-white text-zinc-950 font-black shadow"
+                        : "text-zinc-400 hover:text-white"
                     }`}
                   >
                     <span>Enterprise</span>
@@ -281,7 +304,7 @@ export default function CheckoutModal({
               {/* А. ХЭРЭВ ENTERPRISE БОЛ: БАНК ГАРАХГҮЙ, ЗӨВХӨН УУЛЗАЛТ ГАРНА */}
               {/* ========================================================= */}
               {plan === "enterprise" ? (
-                <div className="bg-slate-950 p-4 rounded-2xl border border-zinc-700/40 space-y-3 text-xs leading-relaxed">
+                <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-700/40 space-y-3 text-xs leading-relaxed">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🏢</span>
                     <h4 className="font-black text-white text-sm">
@@ -289,18 +312,18 @@ export default function CheckoutModal({
                     </h4>
                   </div>
 
-                  <p className="text-slate-300">
+                  <p className="text-zinc-300">
                     Сүлжээ салбар болон тусгай ERP хөгжүүлэлтийн багц нь
                     байгууллагын салбарын тоо, бодит хэрэгцээнээс хамаарч{" "}
                     <strong>албан ёсны гэрээгээр</strong> шийдэгддэг.
                   </p>
 
-                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 text-xs space-y-1 font-mono">
-                    <p className="text-slate-400">
+                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 text-xs space-y-1 font-mono">
+                    <p className="text-zinc-400">
                       Байгууллага:{" "}
                       <strong className="text-white">{clientId}</strong>
                     </p>
-                    <p className="text-slate-400">
+                    <p className="text-zinc-400">
                       Холбогдох утас:{" "}
                       <strong className="text-zinc-200">
                         {userPhone || "Бүртгэлтэй утас"}
@@ -308,7 +331,7 @@ export default function CheckoutModal({
                     </p>
                   </div>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-zinc-500">
                     Та доорх товчийг дармагц манай удирдлагын багт мэдэгдэл
                     очиж, 15-30 минутад эргэж холбогдон уулзалт товлох болно.
                   </p>
@@ -318,20 +341,21 @@ export default function CheckoutModal({
                 /* Б. ХЭРЭВ STARTER ЭСВЭЛ PRO БОЛ: БАНКНЫ ДАНС БА NDA ГАРНА   */
                 /* ========================================================= */
                 <>
-                  {/* Сар / Жил сонгогч (Starter-аас Pro руу сараар шилжих үед харагдахгүй) */}
-                  {!isUpgradingStarterToPro && (
-                    <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs font-bold shrink-0">
+                {/* ЗАССАН ХУВИЛБАР: Сар ба Жилийн сонголт үргэлж ил харагдана */}
+                
+                 
+                    <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800 text-xs font-bold shrink-0">
                       <button
                         type="button"
                         onClick={() => setCycle("monthly")}
-                        className={`py-2 rounded-xl transition cursor-pointer ${cycle === "monthly" ? "bg-slate-800 text-white font-black shadow" : "text-slate-400"}`}
+                        className={`py-2 rounded-xl transition cursor-pointer ${cycle === "monthly" ? "bg-zinc-800 text-white font-black shadow" : "text-zinc-400"}`}
                       >
                         Сар бүр төлөх
                       </button>
                       <button
                         type="button"
                         onClick={() => setCycle("yearly")}
-                        className={`py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer ${cycle === "yearly" ? "bg-slate-800 text-zinc-200 font-black shadow" : "text-slate-400"}`}
+                        className={`py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer ${cycle === "yearly" ? "bg-zinc-800 text-zinc-200 font-black shadow" : "text-zinc-400"}`}
                       >
                         <span>Жилээр</span>
                         <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-zinc-700/30 font-black">
@@ -339,17 +363,17 @@ export default function CheckoutModal({
                         </span>
                       </button>
                     </div>
-                  )}
+               
 
                   {/* Дансны мэдээлэл */}
-                  <div className="space-y-2.5 bg-slate-950 p-3.5 rounded-2xl border border-slate-800 text-xs">
+                  <div className="space-y-2.5 bg-zinc-950 p-3.5 rounded-2xl border border-zinc-800 text-xs">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Хүлээн авах банк:</span>
+                      <span className="text-zinc-400">Хүлээн авах банк:</span>
                       <span className="font-bold text-white">Хаан Банк</span>
                     </div>
 
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Дансны дугаар:</span>
+                      <span className="text-zinc-400">Дансны дугаар:</span>
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-black text-white text-sm">
                           5000 123 456
@@ -357,7 +381,7 @@ export default function CheckoutModal({
                         <button
                           type="button"
                           onClick={() => handleCopy("5000123456", "acc")}
-                          className="p-1 bg-slate-900 border border-slate-700 rounded text-slate-300 hover:text-white cursor-pointer"
+                          className="p-1 bg-zinc-900 border border-zinc-700 rounded text-zinc-300 hover:text-white cursor-pointer"
                         >
                           {copied === "acc" ? (
                             <Check className="h-3 w-3 text-zinc-200" />
@@ -369,17 +393,15 @@ export default function CheckoutModal({
                     </div>
 
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">
+                      <span className="text-zinc-400">
                         Хүлээн авагчийн нэр:
                       </span>
                       <span className="font-bold text-white">Оперлинк ХХК</span>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-900">
-                      <span className="text-slate-400 font-bold">
-                        {isUpgradingStarterToPro
-                          ? "Шилжүүлэх зөрүү дүн:"
-                          : "Шилжүүлэх дүн:"}
+                    <div className="flex justify-between items-center pt-2 border-t border-zinc-900">
+                      <span className="text-zinc-400 font-bold">
+                        {isUpgrading ? "Шилжүүлэх зөрүү дүн:" : "Шилжүүлэх дүн:"}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-black text-zinc-200 text-base">
@@ -390,7 +412,7 @@ export default function CheckoutModal({
                           onClick={() =>
                             handleCopy(totalAmount.toString(), "amount")
                           }
-                          className="p-1 bg-slate-900 border border-slate-700 rounded text-slate-300 hover:text-white cursor-pointer"
+                          className="p-1 bg-zinc-900 border border-zinc-700 rounded text-zinc-300 hover:text-white cursor-pointer"
                         >
                           {copied === "amount" ? (
                             <Check className="h-3 w-3 text-zinc-200" />
@@ -404,12 +426,12 @@ export default function CheckoutModal({
 
                   {/* ⚖️ ГЭРЭЭНИЙ ӨРГӨН ХАЙРЦАГ (БҮХ 3 ЗААЛТ БҮРЭН СЭРГЭЭГДСЭН) */}
                   <div className="space-y-1.5">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
                       Мэдээллийн Нууцлалын Баталгаа (NDA):
                     </span>
 
-                    <div className="max-h-36 overflow-y-auto bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-2.5 leading-relaxed font-sans shadow-inner">
-                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
+                    <div className="max-h-36 overflow-y-auto bg-zinc-950 p-3 rounded-2xl border border-zinc-800 text-xs text-zinc-300 space-y-2.5 leading-relaxed font-sans shadow-inner">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-zinc-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           1. Мэдээллийн өмчлөл:
                         </strong>
@@ -417,7 +439,7 @@ export default function CheckoutModal({
                         Борлуулалтын орлогын бүх мэдээлэл нь зөвхөн Харилцагчийн
                         хувийн өмч байна.
                       </div>
-                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-zinc-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           2. Нууцлал хамгаалалт:
                         </strong>
@@ -426,7 +448,7 @@ export default function CheckoutModal({
                         хатуу хориглоно. Бүх өгөгдөл Amazon Web Services (AWS)
                         шифрлэлтээр хамгаалагдана.
                       </div>
-                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-zinc-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           3. Устгах эрх:
                         </strong>
@@ -444,7 +466,7 @@ export default function CheckoutModal({
                         onChange={(e) => setNdaAccepted(e.target.checked)}
                         className="mt-0.5 w-4 h-4 accent-emerald-500 rounded cursor-pointer shrink-0"
                       />
-                      <span className="text-xs text-slate-300 font-bold leading-snug">
+                      <span className="text-xs text-zinc-300 font-bold leading-snug">
                         Бид шилжүүлэг хийсэн бөгөөд дээрх нууцлалын нөхцөлийг
                         зөвшөөрч байна.
                       </span>
@@ -470,7 +492,7 @@ export default function CheckoutModal({
                         <span>Хуулах</span>
                       </button>
                     </div>
-                    <div className="bg-slate-950 p-2.5 rounded-xl border border-amber-500/40 text-center font-mono font-black text-white text-sm select-all tracking-wider">
+                    <div className="bg-zinc-950 p-2.5 rounded-xl border border-amber-500/40 text-center font-mono font-black text-white text-sm select-all tracking-wider">
                       {transferNote}
                     </div>
                   </div>
@@ -479,7 +501,7 @@ export default function CheckoutModal({
             </div>
 
             {/* 🔒 4. ДООД ТОВЧ */}
-            <div className="shrink-0 pt-2 border-t border-slate-800">
+            <div className="shrink-0 pt-2 border-t border-zinc-800">
               {plan === "enterprise" ? (
                 <button
                   type="button"
@@ -496,7 +518,7 @@ export default function CheckoutModal({
                   type="button"
                   disabled={loading || !ndaAccepted}
                   onClick={handleConfirmTransfer}
-                  className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                 >
                   {loading ? "Илгээж байна..." : "✅ БИ ШИЛЖҮҮЛСЭН (Шалгуулах)"}
                 </button>
@@ -513,7 +535,7 @@ export default function CheckoutModal({
               <h4 className="text-base font-black text-white">
                 Хүсэлтийг хүлээн авлаа
               </h4>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
+              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
                 {plan === "enterprise"
                   ? "Таны Enterprise уулзалтын хүсэлтийг хүлээн авлаа. Манай зөвлөх тун удахгүй тантай утсаар холбогдох болно."
                   : "Бид дансны хуулгыг шалгаад 1-3 минутын дотор эрхийг тань нээнэ."}
@@ -521,7 +543,7 @@ export default function CheckoutModal({
             </div>
             <button
               onClick={onClose}
-              className="bg-slate-900 border border-slate-800 text-slate-300 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
+              className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-zinc-800 transition cursor-pointer"
             >
               Хаах
             </button>

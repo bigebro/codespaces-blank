@@ -4488,6 +4488,169 @@ export default function AiCfoChat({
 }
 </file>
 
+<file path="src/features/products/useProducts.ts">
+// src/features/products/useProducts.ts
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
+
+export function useProducts(activeClient: string) {
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    if (!activeClient) return;
+    setLoadingProducts(true);
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .ilike("client_id", activeClient);
+
+    if (data) setProductsList(data);
+    setLoadingProducts(false);
+  }, [activeClient]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  return { productsList, setProductsList, fetchProducts, loadingProducts };
+}
+</file>
+
+<file path="eslint.config.mjs">
+export default [];
+</file>
+
+<file path="src/app/master-login/page.tsx">
+"use client";
+
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ShieldCheck, Mail, Lock, ArrowRight } from "lucide-react";
+import { supabaseMaster } from "@/lib/supabaseMaster";
+
+export default function MasterLoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: authError } =
+        await supabaseMaster.auth.signInWithPassword({
+          email: email.trim(),
+          password: password,
+        });
+
+      if (authError || !data.user) {
+        throw new Error("Имэйл эсвэл нууц үг буруу байна!");
+      }
+
+      // Админ мөн эсэхийг шалгах
+      const { data: isAdmin } = await supabaseMaster.rpc("is_master_admin");
+
+      if (!isAdmin) {
+        await supabaseMaster.auth.signOut();
+        throw new Error(
+          "⛔ Хандалт хориотой: Зөвхөн платформ эзэмшигч нэвтрэх эрхтэй!",
+        );
+      }
+
+      router.push("/admin");
+    } catch (err: any) {
+      setError(err.message || "Нэвтрэхэд алдаа гарлаа.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-slate-900/60 p-8 rounded-3xl border border-slate-800 shadow-2xl text-center space-y-6">
+        <div className="bg-zinc-800/60 p-4 rounded-2xl border border-zinc-700/20 w-fit mx-auto ">
+          <ShieldCheck className="h-8 w-8 text-zinc-200" />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-black text-white">Master Admin Portal</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Зөвхөн платформын үүсгэн байгуулагчид зориулсан
+          </p>
+        </div>
+
+        {error && (
+          <div className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-left">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4 text-left">
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              Админ Имэйл
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="bigeservice@gmail.com"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-zinc-700 font-medium"
+              />
+              <Mail className="h-4 w-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              Нууц үг
+            </label>
+            <div className="relative">
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-zinc-700 font-medium"
+              />
+              <Lock className="h-4 w-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3 rounded-xl text-xs transition shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+          >
+            {loading ? "Шалгаж байна..." : "НЭВТРЭХ"}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </form>
+
+        <div className="pt-2 border-t border-slate-800/80">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="text-xs text-slate-500 hover:text-slate-300 font-bold"
+          >
+            ← Нүүр хуудас руу буцах
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
 <file path="src/features/finance/FinanceTab.tsx">
 // src/features/finance/FinanceTab.tsx
 "use client";
@@ -4690,7 +4853,7 @@ export default function FinanceTab({
                           {filteredSpikes.map((alert: any) => (
                             <div
                               key={alert.id}
-                              className="bg-[#0B1120] p-3 rounded-xl border border-rose-500/20 space-y-1 shadow-sm"
+                              className="bg-zinc-950 p-3 rounded-xl border border-rose-500/20 space-y-1 shadow-sm"
                             >
                               <div className="flex justify-between items-start gap-1">
                                 <span
@@ -4886,7 +5049,7 @@ export default function FinanceTab({
                 setActiveTab("settings");
                 setCatalogTab("recipes");
               }}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow-md cursor-pointer"
+              className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow-md cursor-pointer"
             >
               🔗 Жоргүй цэсийг холбох ➔
             </button>
@@ -5109,7 +5272,7 @@ export default function FinanceTab({
             </div>
 
             {/* 🔍 ШАЛТГААНГҮЙ АЛДАГДЛЫН ДҮГНЭЛТ (ЭЗЭНД ӨГӨХ AI ОНОШ) */}
-            <div className="bg-[#0B1120] p-4 rounded-xl border border-slate-800 space-y-2">
+            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-800 space-y-2">
               <div className="flex justify-between items-center text-xm">
                 <span className="text-slate-400 font-bold uppercase tracking-wider">
                   Шалтгаангүй Зөрүү (Бүртгэлгүй Зарлага):
@@ -5320,7 +5483,7 @@ export default function FinanceTab({
                         return (
                           <div
                             key={idx}
-                            className="bg-[#0B1120] p-4 rounded-xl border border-amber-500/20 shadow-sm flex flex-col justify-between"
+                            className="bg-zinc-950 p-4 rounded-xl border border-amber-500/20 shadow-sm flex flex-col justify-between"
                           >
                             <div>
                               <div className="flex justify-between items-start gap-1 mb-2">
@@ -5596,7 +5759,7 @@ export default function ImportTab({
       id: "COLD_BEVERAGE",
       name: "🍹 Хүйтэн ундаа",
       icon: "🍹",
-      color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
     },
     {
       id: "FOOD_PREP",
@@ -5608,13 +5771,13 @@ export default function ImportTab({
       id: "BAKERY_DESSERT",
       name: "🥐 Бэйкэри & Десерт",
       icon: "🥐",
-      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
     },
     {
       id: "RETAIL_FMCG",
       name: "🥤 Бэлэн бараа (Лааз/Сав)",
       icon: "🥤",
-      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
     },
     {
       id: "GENERAL",
@@ -7175,7 +7338,7 @@ export default function ImportTab({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-200" />
@@ -7273,7 +7436,7 @@ export default function ImportTab({
               disabled={loading}
               className={`w-full font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 ${
                 overwriteSales
-                  ? "bg-amber-500 hover:bg-amber-400 text-slate-950"
+                  ? "bg-white hover:bg-zinc-200 text-zinc-950"
                   : "bg-white hover:bg-zinc-200 text-zinc-950"
               }`}
             >
@@ -7285,7 +7448,7 @@ export default function ImportTab({
           </form>
         </div>
 
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
@@ -7379,7 +7542,7 @@ export default function ImportTab({
               disabled={loading}
               className={`w-full font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 ${
                 overwritePurchases
-                  ? "bg-amber-500 hover:bg-amber-400 text-slate-950"
+                  ? "bg-white hover:bg-zinc-200 text-zinc-950"
                   : "bg-zinc-200 hover:bg-blue-400 text-slate-950"
               }`}
             >
@@ -7392,10 +7555,10 @@ export default function ImportTab({
         </div>
 
         {/* 🗂️ БОСОО ТООЛЛОГО ИМПОРТЛОХ КАРТ */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 col-span-1 md:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 col-span-1 md:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-6 w-6 text-teal-400" />
+              <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
               <h3 className="text-lg font-bold">
                 Агуулахын Босоо Тооллого (Vertical Audit Paste)
               </h3>
@@ -7404,7 +7567,7 @@ export default function ImportTab({
             <button
               type="button"
               onClick={() => setActiveSampleModal("audit")}
-              className="text-xs font-bold text-teal-400 hover:text-teal-300 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-zinc-300 hover:text-teal-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
             >
               👁️ Загвар харах
             </button>
@@ -7448,7 +7611,7 @@ export default function ImportTab({
                 onChange={(e) =>
                   setAuditType(e.target.value as "start" | "end")
                 }
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-teal-400 font-bold outline-none focus:border-teal-500 cursor-pointer"
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-zinc-300 font-bold outline-none focus:border-teal-500 cursor-pointer"
               >
                 <option value="start">🟢 Эхний үлдэгдэл (Start Balance)</option>
                 <option value="end">🔴 Эцсийн тооллого (Ending Count)</option>
@@ -7482,7 +7645,7 @@ export default function ImportTab({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-black py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 active:scale-95"
+              className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 active:scale-95"
             >
               <UploadCloud className="h-4 w-4" />
               Босоо Тооллого Хадгалах (Import Vertical Audit)
@@ -7490,7 +7653,7 @@ export default function ImportTab({
           </form>
         </div>
 
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 col-span-1 md:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 col-span-1 md:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 mb-4">
               <Trash2 className="h-6 w-6 text-rose-400" />
@@ -7583,7 +7746,7 @@ export default function ImportTab({
 
         {userRole === "owner" && (
           <>
-            <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+            <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FileSpreadsheet className="h-6 w-6 text-zinc-200" />
@@ -7634,7 +7797,7 @@ export default function ImportTab({
             </div>
 
             {/* 2. RECIPE / ТЕХНОЛОГИЙН КАРТ SETUP BOX */}
-            <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+            <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
@@ -7682,7 +7845,7 @@ export default function ImportTab({
               </form>
             </div>
 
-            <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8">
+            <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Coffee className="h-6 w-6 text-zinc-200" />
@@ -7782,13 +7945,13 @@ export default function ImportTab({
                       <span>3. Нийт орлого (₮)</span>
                       <span>4. Огноо</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>Caffe Latte</span>
                       <span>30</span>
                       <span>285000</span>
                       <span>2026-09-15</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300">
                       <span>Americano</span>
                       <span>20</span>
                       <span>160000</span>
@@ -7840,13 +8003,13 @@ export default function ImportTab({
                       <span>3. Нийт өртөг (₮)</span>
                       <span>4. Огноо</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>Milk</span>
                       <span>5000</span>
                       <span>27500</span>
                       <span>2026-09-15</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300">
                       <span>Beans</span>
                       <span>1000</span>
                       <span>85000</span>
@@ -7892,19 +8055,19 @@ export default function ImportTab({
               {activeSampleModal === "audit" && (
                 <div className="space-y-3">
                   <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-2 bg-slate-950 p-2.5 font-black text-teal-400 border-b border-slate-800">
+                    <div className="grid grid-cols-2 bg-slate-950 p-2.5 font-black text-zinc-300 border-b border-slate-800">
                       <span>1. Барааны нэр (Item Name)</span>
                       <span>2. Тоо хэмжээ (Quantity)</span>
                     </div>
-                    <div className="grid grid-cols-2 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>Matcha powder</span>
                       <span>41.9</span>
                     </div>
-                    <div className="grid grid-cols-2 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>Eggs</span>
                       <span>5</span>
                     </div>
-                    <div className="grid grid-cols-2 p-2 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-slate-300">
                       <span>Hazelnut syrup</span>
                       <span>833.9</span>
                     </div>
@@ -7934,7 +8097,7 @@ export default function ImportTab({
                         "Босоо тооллогын загвар (Толгой мөртэй) хуулагдлаа! Ctrl+V дарж тавина уу.",
                       );
                     }}
-                    className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full bg-zinc-800/60 hover:bg-teal-500/30 text-zinc-300 border border-zinc-700/30 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     📋 Босоо тооллогын загвар хуулах (Copy Template with Header)
                   </button>
@@ -7953,14 +8116,14 @@ export default function ImportTab({
                       <span>4. Хэмжээ</span>
                       <span>5. Тайлбар</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>2026-09-15</span>
                       <span className="text-rose-400 font-bold">spoilage</span>
                       <span>Milk</span>
                       <span>1000</span>
                       <span>Өглөө асгарсан</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">
                         staff_meal
@@ -7969,14 +8132,14 @@ export default function ImportTab({
                       <span>2</span>
                       <span>Ажилтны хоолонд</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">testing</span>
                       <span>Beans</span>
                       <span>50</span>
                       <span>Кофены амталгаа</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">other</span>
                       <span>Bun</span>
@@ -8051,13 +8214,13 @@ export default function ImportTab({
                       <span>3. Нэгжийн үнэ (₮)</span>
                       <span>4. Хэвийн нөөц (Par)</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>Milk</span>
                       <span>ml</span>
                       <span>5.8</span>
                       <span>20000</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-slate-300">
                       <span>Beans</span>
                       <span>gram</span>
                       <span>85</span>
@@ -8090,12 +8253,12 @@ export default function ImportTab({
                       <span>2. Орцын нэр</span>
                       <span>3. Орцын хэмжээ</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>Caffe Latte</span>
                       <span>Milk</span>
                       <span>200</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300">
                       <span>Caffe Latte</span>
                       <span>Beans</span>
                       <span>16</span>
@@ -8111,7 +8274,7 @@ export default function ImportTab({
                         "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",
                       );
                     }}
-                    className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-zinc-300 border border-zinc-800/30 py-2 rounded-xl text-sm font-bold transition"
+                    className="w-full bg-zinc-800/60 hover:bg-purple-500/30 text-zinc-300 border border-zinc-800/30 py-2 rounded-xl text-sm font-bold transition"
                   >
                     📋 Жишээ хуулах (Copy Test Recipes)
                   </button>
@@ -8122,17 +8285,17 @@ export default function ImportTab({
               {activeSampleModal === "products" && (
                 <div className="space-y-3">
                   <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-teal-400 border-b border-slate-800">
+                    <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-zinc-300 border-b border-slate-800">
                       <span>1. Ангилал (Category)</span>
                       <span>2. Бүтээгдэхүүний нэр</span>
                       <span>3. Зарах үнэ (₮)</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-[#111827] text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
                       <span>COFFEE</span>
                       <span>Caffe Latte</span>
                       <span>9500</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-[#111827] text-slate-300">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300">
                       <span>SANDWICH</span>
                       <span>Chicken Sandwich</span>
                       <span>12500</span>
@@ -8148,7 +8311,7 @@ export default function ImportTab({
                         "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",
                       );
                     }}
-                    className="w-full bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 border border-teal-500/30 py-2 rounded-xl text-sm font-bold transition"
+                    className="w-full bg-zinc-800/60 hover:bg-teal-500/30 text-zinc-300 border border-zinc-700/30 py-2 rounded-xl text-sm font-bold transition"
                   >
                     📋 Жишээ хуулах (Copy Test Menu)
                   </button>
@@ -8354,7 +8517,7 @@ export default function InventoryTab({
 
         {loading ? (
           <div className="relative flex items-center gap-2 text-zinc-200 text-xs font-bold animate-in fade-in duration-200 justify-center">
-            <div className="translate-y-2.5 h-4 w-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <div className="translate-y-2.5 h-4 w-4 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin " />
             <span className="hidden sm:inline-block tracking-wide"></span>
           </div>
         ) : (
@@ -8659,36 +8822,6 @@ export default function InventoryTab({
 }
 </file>
 
-<file path="src/features/products/useProducts.ts">
-// src/features/products/useProducts.ts
-"use client";
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
-
-export function useProducts(activeClient: string) {
-  const [productsList, setProductsList] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-
-  const fetchProducts = useCallback(async () => {
-    if (!activeClient) return;
-    setLoadingProducts(true);
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .ilike("client_id", activeClient);
-
-    if (data) setProductsList(data);
-    setLoadingProducts(false);
-  }, [activeClient]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  return { productsList, setProductsList, fetchProducts, loadingProducts };
-}
-</file>
-
 <file path="src/features/recipes/RecipeHistoryModal.tsx">
 // src/features/recipes/RecipeHistoryModal.tsx
 "use client";
@@ -8925,7 +9058,7 @@ export default function RecipeHistoryModal({
                           className={`px-2 py-0.5 rounded text-xs font-black uppercase ${
                             isDeleted
                               ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                              : "bg-purple-500/20 text-zinc-300 border border-zinc-800/30"
+                              : "bg-zinc-800/60 text-zinc-300 border border-zinc-800/30"
                           }`}
                         >
                           {isDeleted
@@ -9179,7 +9312,7 @@ export default function GeneralSettings({
     <div className="space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
           <h3 className="text-base font-bold mb-4 text-zinc-200 flex items-center gap-2">
             🏦 1. Мөнгөн Данс & Татварын Горим
           </h3>
@@ -9340,7 +9473,7 @@ export default function GeneralSettings({
         </div>
 
         {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 lg:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 lg:col-span-2">
           <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
             🏢 2. Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
           </h3>
@@ -9442,7 +9575,7 @@ export default function GeneralSettings({
         </div>
       </div>
       {/* 3. ҮНДСЭН ХӨРӨНГӨ (ТОНОГ ТӨХӨӨРӨМЖ, ШАРАХ ШҮҮГЭЭ, КОФЕ МАШИН) */}
-      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
         <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
           🍳 3. Үндсэн Хөрөнгө & Тоног Төхөөрөмжийн Бүртгэл (Элэгдэл тооцоо)
         </h3>
@@ -9563,7 +9696,7 @@ export default function GeneralSettings({
       </div>
 
       {/* 🎯 4. АНГИЛЛЫН АШГИЙН МАРЖИНГИЙН БОДЛОГО (TARGET MARGINS) */}
-      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 shadow-xl mt-8">
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 shadow-xl mt-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
           <div>
             <h3 className="text-base font-black text-zinc-300 flex items-center gap-2">
@@ -9582,7 +9715,7 @@ export default function GeneralSettings({
             type="button"
             disabled={loading}
             onClick={handleSaveCategoryMargins}
-            className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
+            className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
           >
             💾 Маржингийн Бодлого Хадгалах
           </button>
@@ -9625,7 +9758,7 @@ export default function GeneralSettings({
                           [cat.id]: val,
                         }));
                       }}
-                      className="w-full bg-[#0B1120] border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
+                      className="w-full bg-zinc-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-300 font-mono">
                       %
@@ -9701,7 +9834,7 @@ export default function TasksTab({
         {" "}
         {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
         {/* 🚀 АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8 space-y-6">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8 space-y-6">
           {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
             <div>
@@ -9819,7 +9952,7 @@ export default function TasksTab({
         {/* SECTION 1: CREATE ROLES & ASSIGN ROLES TO WORKERS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Role Creator */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
               1. Албан тушаал / Үүрэг үүсгэх
             </h3>
@@ -9885,7 +10018,7 @@ export default function TasksTab({
           </div>
 
           {/* Assign Roles to Registered Workers */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-2">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
             <h3 className="text-base font-bold mb-4 text-zinc-300">
               {" "}
               Ажилтнуудад үүрэг оноох
@@ -9995,7 +10128,7 @@ export default function TasksTab({
         {/* SECTION 2: CREATE & VIEW TASKS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Task Form */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-1 h-fit">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-1 h-fit">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
               3. Шинэ даалгавар үүсгэх
             </h3>
@@ -10101,7 +10234,7 @@ export default function TasksTab({
           </div>
 
           {/* Tasks List */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-2">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
             <h3 className="text-base font-bold mb-4">Бүртгэлтэй Даалгаврууд</h3>
             <div className="overflow-x-auto max-h-[350px]">
               <table className="w-full text-left text-sm">
@@ -10177,7 +10310,7 @@ export default function TasksTab({
           </div>
 
           {/* Closed Shifts Report Table */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-3 mt-8">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-3 mt-8">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-zinc-300">
               <Activity className="h-5 w-5" /> Хаагдсан ээлжүүдийн түүх (Shift
               History)
@@ -10299,10 +10432,6 @@ export default function TasksTab({
     </>
   );
 }
-</file>
-
-<file path="eslint.config.mjs">
-export default [];
 </file>
 
 <file path="src/app/admin/page.tsx">
@@ -10500,7 +10629,7 @@ export default function MasterAdminPage() {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin" />
         <p className="text-xs font-bold tracking-wider uppercase">
           Админ эрхийг шалгаж байна...
         </p>
@@ -10661,132 +10790,118 @@ export default function MasterAdminPage() {
 }
 </file>
 
-<file path="src/app/master-login/page.tsx">
-"use client";
+<file path="src/app/api/transcribe/route.ts">
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { advancedMongolianVoiceParser } from '../../../lib/gemini';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, Mail, Lock, ArrowRight } from "lucide-react";
-import { supabaseMaster } from "@/lib/supabaseMaster";
 
-export default function MasterLoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as Blob;
+    const clientId = (formData.get('clientId') as string) || 'SF Coffee';
+    const mimeType = (formData.get('mimeType') as string) || (file.type ? file.type.split(';')[0] : 'audio/webm');
 
-    try {
-      const { data, error: authError } =
-        await supabaseMaster.auth.signInWithPassword({
-          email: email.trim(),
-          password: password,
+    if (!file) return NextResponse.json({ error: 'Дуут файл олдсонгүй' }, { status: 400 });
+
+    const [{ data: ingredients }, { data: learnedAliases }] = await Promise.all([
+      supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId),
+      supabaseAdmin.from('learned_aliases').select('phrase, ingredient_id').eq('client_id', clientId)
+    ]);
+
+    let groqText = '';
+
+    // =========================================================================
+    // ⚡ STAGE 1: Try Groq Whisper (150ms)
+    // =========================================================================
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      try {
+        const slangHints = (formData.get('slangHints') as string) || '';
+        const basePrompt = 'SF Coffee: 1 литр сүү, латте, эспрессо, американо, сироп, цөцгий, өндөг, талх, хаягдал, асгасан, авсан, муудсан';
+        const dynamicPrompt = slangHints ? `${basePrompt}, ${slangHints}` : basePrompt;
+
+        const groqData = new FormData();
+        groqData.append('file', file);
+        groqData.append('model', 'whisper-large-v3');
+        groqData.append('language', 'mn');
+        groqData.append('prompt', dynamicPrompt.substring(0, 300));
+
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${groqKey}` },
+          body: groqData,
         });
 
-      if (authError || !data.user) {
-        throw new Error("Имэйл эсвэл нууц үг буруу байна!");
-      }
-
-      // Админ мөн эсэхийг шалгах
-      const { data: isAdmin } = await supabaseMaster.rpc("is_master_admin");
-
-      if (!isAdmin) {
-        await supabaseMaster.auth.signOut();
-        throw new Error(
-          "⛔ Хандалт хориотой: Зөвхөн платформ эзэмшигч нэвтрэх эрхтэй!",
-        );
-      }
-
-      router.push("/admin");
-    } catch (err: any) {
-      setError(err.message || "Нэвтрэхэд алдаа гарлаа.");
-    } finally {
-      setLoading(false);
+        const data = await res.json();
+        if (data.text && data.text.trim()) {
+          groqText = data.text.trim();
+        }
+      } catch (err) {}
     }
-  };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-slate-900/60 p-8 rounded-3xl border border-slate-800 shadow-2xl text-center space-y-6">
-        <div className="bg-zinc-800/60 p-4 rounded-2xl border border-zinc-700/20 w-fit mx-auto ">
-          <ShieldCheck className="h-8 w-8 text-zinc-200" />
-        </div>
+    // Check if Groq's text is a valid transaction
+    let match = groqText ? advancedMongolianVoiceParser(groqText, ingredients || [], learnedAliases || []) : null;
 
-        <div>
-          <h2 className="text-xl font-black text-white">Master Admin Portal</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Зөвхөн платформын үүсгэн байгуулагчид зориулсан
-          </p>
-        </div>
+    // If Groq heard it cleanly, return immediately (0.15s)
+    if (match && match.success) {
+      return NextResponse.json({ text: groqText });
+    }
 
-        {error && (
-          <div className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-left">
-            {error}
-          </div>
-        )}
+    // =========================================================================
+    // 🚨 STAGE 2: Gemini Audio Listener (Runs if Groq hallucinated "мэллэйтэрс")
+    // =========================================================================
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const base64Audio = buffer.toString('base64');
 
-        <form onSubmit={handleLogin} className="space-y-4 text-left">
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              Админ Имэйл
-            </label>
-            <div className="relative">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="bigeservice@gmail.com"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-zinc-700 font-medium"
-              />
-              <Mail className="h-4 w-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            </div>
-          </div>
+    let geminiText = '';
 
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              Нууц үг
-            </label>
-            <div className="relative">
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-zinc-700 font-medium"
-              />
-              <Lock className="h-4 w-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            </div>
-          </div>
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3 rounded-xl text-xs transition shadow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-95"
-          >
-            {loading ? "Шалгаж байна..." : "НЭВТРЭХ"}
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </form>
+    if (key) {
+      try {
+        const ai = new GoogleGenerativeAI(key);
+        const model = ai.getGenerativeModel({
+          model: 'gemini-3.5-flash-lite',
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 100,
+            thinkingConfig: { thinkingLevel: 'MINIMAL' }
+          } as any
+        });
 
-        <div className="pt-2 border-t border-slate-800/80">
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="text-xs text-slate-500 hover:text-slate-300 font-bold"
-          >
-            ← Нүүр хуудас руу буцах
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+        const response = await model.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: 'Listen to this spoken Mongolian voice audio. Output ONLY the transcribed Mongolian Cyrillic words. Do not reply or converse.' },
+              { inlineData: { mimeType: mimeType, data: base64Audio } }
+            ]
+          }]
+        });
+
+        geminiText = response.response.text().trim();
+      } catch (e: any) {
+        console.error("Gemini Stage 2 Error:", e.message || e);
+      }
+    }
+
+    if (geminiText) {
+      return NextResponse.json({ text: geminiText }); // ⚡ Gemini fixed Groq's mistake!
+    }
+
+    if (groqText) {
+      return NextResponse.json({ text: groqText });
+    }
+
+    return NextResponse.json({ error: 'Дууг сонсож чадсангүй. Дахин тод ярина уу.' }, { status: 400 });
+
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
 </file>
 
@@ -10936,7 +11051,7 @@ export default function CheckoutModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
       {/* 📱 УТАС БА КОМПЬЮТЕРТ 100% ТОХИРСОН БҮТЭЦ: max-h-[92dvh] flex flex-col */}
-      <div className="bg-[#0B1120] border border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
+      <div className="bg-zinc-950 border border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
         {/* Толгой хэсэг */}
         <div className="flex justify-between items-center border-b border-slate-800 pb-2.5 shrink-0">
           <div>
@@ -10959,7 +11074,7 @@ export default function CheckoutModal({
         {/* Шалгаж байх үед */}
         {checkingPending ? (
           <div className="py-12 text-center text-slate-500 text-xs">
-            <div className="h-6 w-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <div className="h-6 w-6 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
             <span>Төлөв шалгаж байна...</span>
           </div>
         ) : hasPendingRequest && !isSubmitted ? (
@@ -10994,7 +11109,7 @@ export default function CheckoutModal({
             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 my-2 overscroll-contain">
               {/* 💡 БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
               {isUpgradingStarterToPro ? (
-                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-blue-300 flex items-center gap-2">
+                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
                   <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
                   <div>
                     <span className="font-bold block text-white">
@@ -11088,7 +11203,7 @@ export default function CheckoutModal({
                     <strong>албан ёсны гэрээгээр</strong> шийдэгддэг.
                   </p>
 
-                  <div className="bg-[#0B1120] p-2.5 rounded-xl border border-slate-800 text-xs space-y-1 font-mono">
+                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 text-xs space-y-1 font-mono">
                     <p className="text-slate-400">
                       Байгууллага:{" "}
                       <strong className="text-white">{clientId}</strong>
@@ -11127,7 +11242,7 @@ export default function CheckoutModal({
                         className={`py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer ${cycle === "yearly" ? "bg-slate-800 text-zinc-200 font-black shadow" : "text-slate-400"}`}
                       >
                         <span>Жилээр</span>
-                        <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-emerald-400/30 font-black">
+                        <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-zinc-700/30 font-black">
                           🎁 2 сар үнэгүй
                         </span>
                       </button>
@@ -11202,7 +11317,7 @@ export default function CheckoutModal({
                     </span>
 
                     <div className="max-h-36 overflow-y-auto bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-2.5 leading-relaxed font-sans shadow-inner">
-                      <div className="bg-[#0B1120] p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           1. Мэдээллийн өмчлөл:
                         </strong>
@@ -11210,7 +11325,7 @@ export default function CheckoutModal({
                         Борлуулалтын орлогын бүх мэдээлэл нь зөвхөн Харилцагчийн
                         хувийн өмч байна.
                       </div>
-                      <div className="bg-[#0B1120] p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           2. Нууцлал хамгаалалт:
                         </strong>
@@ -11219,7 +11334,7 @@ export default function CheckoutModal({
                         хатуу хориглоно. Бүх өгөгдөл Amazon Web Services (AWS)
                         шифрлэлтээр хамгаалагдана.
                       </div>
-                      <div className="bg-[#0B1120] p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           3. Устгах эрх:
                         </strong>
@@ -11480,7 +11595,7 @@ export default function SearchableSelect({
                   setIsOpen(false);
                   setSearch("");
                 }}
-                className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-purple-500/20 text-zinc-300 border border-zinc-700 hover:bg-purple-500/30 transition flex items-center justify-between cursor-pointer mb-1"
+                className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-zinc-800/60 text-zinc-300 border border-zinc-700 hover:bg-purple-500/30 transition flex items-center justify-between cursor-pointer mb-1"
               >
                 <span>➕ Шинээр үүсгэх: "{search.trim()}"</span>
                 <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded font-mono">
@@ -11510,16 +11625,16 @@ export default function SearchableSelect({
                     }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-between cursor-pointer ${
                       isHighlighted
-                        ? "bg-purple-600 text-white font-black shadow-md scale-[1.01]"
+                        ? "bg-zinc-200 text-white font-black shadow-md scale-[1.01]"
                         : isSelected
-                          ? "bg-purple-950/60 text-zinc-300 font-bold border border-zinc-700"
+                          ? "bg-zinc-900 text-zinc-300 font-bold border border-zinc-700"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
                     <span className="truncate">{opt.label}</span>
                     {opt.sublabel && (
                       <span
-                        className={`text-[11px] ml-2 font-mono shrink-0 ${isHighlighted ? "text-purple-200" : "text-slate-500"}`}
+                        className={`text-[11px] ml-2 font-mono shrink-0 ${isHighlighted ? "text-zinc-300" : "text-slate-500"}`}
                       >
                         {opt.sublabel}
                       </span>
@@ -11540,118 +11655,52 @@ export default function SearchableSelect({
 }
 </file>
 
-<file path="src/app/api/transcribe/route.ts">
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { advancedMongolianVoiceParser } from '../../../lib/gemini';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+<file path="next.config.ts">
+import type { NextConfig } from "next";
 
+const nextConfig: NextConfig = {
+  transpilePackages: [
+    "lucide-react",
+    "@supabase/supabase-js",
+    "react-markdown",
+    "remark-gfm",
+    "xlsx",
+    "@google/generative-ai",
+  ],
+  compiler: {
+    // Хуучин Safari хөтчүүдийн танихгүй RegExp, Lookbehind-ийг хуучин хэлбэр рүү хөрвүүлнэ
+    removeConsole: false,
+  },
+};
 
+export default nextConfig;
+</file>
 
-export async function POST(request: Request) {
-  try {
-    const formData = await request.formData();
-    const file = formData.get('file') as Blob;
-    const clientId = (formData.get('clientId') as string) || 'SF Coffee';
-    const mimeType = (formData.get('mimeType') as string) || (file.type ? file.type.split(';')[0] : 'audio/webm');
-
-    if (!file) return NextResponse.json({ error: 'Дуут файл олдсонгүй' }, { status: 400 });
-
-    const [{ data: ingredients }, { data: learnedAliases }] = await Promise.all([
-      supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId),
-      supabaseAdmin.from('learned_aliases').select('phrase, ingredient_id').eq('client_id', clientId)
-    ]);
-
-    let groqText = '';
-
-    // =========================================================================
-    // ⚡ STAGE 1: Try Groq Whisper (150ms)
-    // =========================================================================
-    const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey) {
-      try {
-        const slangHints = (formData.get('slangHints') as string) || '';
-        const basePrompt = 'SF Coffee: 1 литр сүү, латте, эспрессо, американо, сироп, цөцгий, өндөг, талх, хаягдал, асгасан, авсан, муудсан';
-        const dynamicPrompt = slangHints ? `${basePrompt}, ${slangHints}` : basePrompt;
-
-        const groqData = new FormData();
-        groqData.append('file', file);
-        groqData.append('model', 'whisper-large-v3');
-        groqData.append('language', 'mn');
-        groqData.append('prompt', dynamicPrompt.substring(0, 300));
-
-        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${groqKey}` },
-          body: groqData,
-        });
-
-        const data = await res.json();
-        if (data.text && data.text.trim()) {
-          groqText = data.text.trim();
-        }
-      } catch (err) {}
+<file path="public/manifest.json">
+{
+  "name": "Operlink Operations",
+  "short_name": "Operlink",
+  "description": "Operlink — The Universal AI Operating System",
+  "start_url": "/kiosk",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050a12",
+  "theme_color": "#050a12",
+  "icons": [
+    {
+      "src": "/operlink.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/operlink.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-
-    // Check if Groq's text is a valid transaction
-    let match = groqText ? advancedMongolianVoiceParser(groqText, ingredients || [], learnedAliases || []) : null;
-
-    // If Groq heard it cleanly, return immediately (0.15s)
-    if (match && match.success) {
-      return NextResponse.json({ text: groqText });
-    }
-
-    // =========================================================================
-    // 🚨 STAGE 2: Gemini Audio Listener (Runs if Groq hallucinated "мэллэйтэрс")
-    // =========================================================================
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const base64Audio = buffer.toString('base64');
-
-    let geminiText = '';
-
-  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
-
-    if (key) {
-      try {
-        const ai = new GoogleGenerativeAI(key);
-        const model = ai.getGenerativeModel({
-          model: 'gemini-3.5-flash-lite',
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 100,
-            thinkingConfig: { thinkingLevel: 'MINIMAL' }
-          } as any
-        });
-
-        const response = await model.generateContent({
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: 'Listen to this spoken Mongolian voice audio. Output ONLY the transcribed Mongolian Cyrillic words. Do not reply or converse.' },
-              { inlineData: { mimeType: mimeType, data: base64Audio } }
-            ]
-          }]
-        });
-
-        geminiText = response.response.text().trim();
-      } catch (e: any) {
-        console.error("Gemini Stage 2 Error:", e.message || e);
-      }
-    }
-
-    if (geminiText) {
-      return NextResponse.json({ text: geminiText }); // ⚡ Gemini fixed Groq's mistake!
-    }
-
-    if (groqText) {
-      return NextResponse.json({ text: groqText });
-    }
-
-    return NextResponse.json({ error: 'Дууг сонсож чадсангүй. Дахин тод ярина уу.' }, { status: 400 });
-
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+  ]
 }
 </file>
 
@@ -11746,27 +11795,25 @@ export default function PremiumLandingPage() {
   return (
     <div
       suppressHydrationWarning={true}
-      className="min-h-screen bg-[#050a12] text-slate-50 font-sans selection:bg-white/30 overflow-hidden relative"
+      className="min-h-screen bg-zinc-950 text-slate-50 font-sans selection:bg-white/30 overflow-hidden relative"
     >
       {/* BACKGROUND GLOW EFFECTS */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500 via-transparent to-transparent blur-3xl rounded-full mix-blend-screen"></div>
+        <div className="absolute inset-0 blur-3xl rounded-full mix-blend-screen"></div>
       </div>
 
       {/* 1. NAVBAR WITH THE NEW POWERFUL LOGO */}
-      <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-white/5 bg-[#050a12]/50 backdrop-blur-xl">
+      <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-white/5 bg-zinc-950/50 backdrop-blur-xl">
         <div
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => router.push("/")}
         >
-          <div className="bg-[#07131d] p-1.5 rounded-2xl border border-zinc-800 ">
+          <div className="bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 ">
             <OperlinkLogo className="h-7 w-7" />
           </div>
           <span className="text-2xl font-black tracking-tight text-white uppercase">
             OPER
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
-              LINK
-            </span>
+            <span className="text-white">LINK</span>
           </span>
         </div>
         <div className="flex items-center gap-6 z-50">
@@ -11796,9 +11843,7 @@ export default function PremiumLandingPage() {
 
         <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
           Operlink танай бизнесийг авч явна. <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
-            Таны бизнесийн ашгийн хөшүүрэг.
-          </span>
+          <span className="text-white">Таны бизнесийн ашгийн хөшүүрэг.</span>
         </h1>
 
         <p className="text-slate-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
@@ -11809,9 +11854,9 @@ export default function PremiumLandingPage() {
 
         {/* Video Placeholder */}
         <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
-          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-cyan-500/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="absolute inset-0 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
+            <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4  group-hover:scale-110 transition-transform duration-300">
               <Play className="h-8 w-8 text-slate-950 fill-current ml-1" />
             </div>
             <p className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
@@ -11835,7 +11880,7 @@ export default function PremiumLandingPage() {
       {/* 3. HORMOZI GRAND SLAM OFFER */}
       <section className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-cyan-900/40 p-1 rounded-3xl">
-          <div className="bg-[#07131d] rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
+          <div className="bg-zinc-900 rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
@@ -11887,8 +11932,8 @@ export default function PremiumLandingPage() {
           {/* Result 2 */}
           <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
             <div>
-              <div className="h-14 w-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6 border border-cyan-500/20 group-hover:scale-105 transition-transform">
-                <Zap className="h-7 w-7 text-cyan-400" />
+              <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
+                <Zap className="h-7 w-7 text-zinc-300" />
               </div>
               <h3 className="text-xl font-bold text-white mb-3">
                 2. Таны Бизнесийн Ашгийн Хөшүүрэг
@@ -11899,7 +11944,7 @@ export default function PremiumLandingPage() {
                 хүргэнэ.
               </p>
             </div>
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
               <span>Өндөр бүтээмж • Ухаалаг өсөлт</span>
             </div>
           </div>
@@ -11928,7 +11973,7 @@ export default function PremiumLandingPage() {
 
       {/* 5. PROFIT SIMULATOR */}
       <section className="max-w-4xl mx-auto px-6 py-16">
-        <div className="bg-[#07131d] p-8 sm:p-12 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="bg-zinc-900 p-8 sm:p-12 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/60 blur-3xl rounded-full pointer-events-none"></div>
 
           <div className="text-center mb-10 relative z-10">
@@ -12009,7 +12054,7 @@ export default function PremiumLandingPage() {
           </p>
 
           {/* 🔘 САР БҮР / ЖИЛЭЭР (2 САР ҮНЭГҮЙ) СОНГОГЧ */}
-          <div className="inline-flex items-center bg-[#07131d] p-1.5 rounded-2xl border border-slate-800 shadow-xl">
+          <div className="inline-flex items-center bg-zinc-900 p-1.5 rounded-2xl border border-slate-800 shadow-xl">
             <button
               type="button"
               onClick={() => setIsYearly(false)}
@@ -12031,7 +12076,7 @@ export default function PremiumLandingPage() {
               }`}
             >
               <span>Жилээр төлөх</span>
-              <span className="text-[10px] bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-emerald-400/30 font-black">
+              <span className="text-[10px] bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-zinc-700/30 font-black">
                 🎁 2 САР ҮНЭГҮЙ
               </span>
             </button>
@@ -12089,7 +12134,7 @@ export default function PremiumLandingPage() {
           </div>
 
           {/* 2. Professional (Highlighted) */}
-          <div className="bg-[#07131d] p-8 sm:p-10 rounded-[2rem] border-2 border-zinc-700 relative  flex flex-col justify-between transform md:scale-105 z-10">
+          <div className="bg-zinc-900 p-8 sm:p-10 rounded-[2rem] border-2 border-zinc-700 relative  flex flex-col justify-between transform md:scale-105 z-10">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full whitespace-nowrap">
               Хамгийн их сонгогддог
             </div>
@@ -12445,7 +12490,7 @@ export default function IngredientsPanel({
                       if (e.key === "Enter") handleSaveNewIng();
                     }}
                     placeholder="Түүхий эдийн нэр..."
-                    className="w-full bg-zinc-950 border border-zinc-700/60 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none focus:border-emerald-400"
+                    className="w-full bg-zinc-950 border border-zinc-700/60 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none focus:border-zinc-700"
                   />
                 </td>
                 <td className="py-2 px-3">
@@ -12560,7 +12605,7 @@ export default function IngredientsPanel({
                   return (
                     <tr
                       key={ing.id}
-                      className="bg-blue-950/40 border-b-2 border-zinc-700/60"
+                      className="bg-zinc-900/60 border-b-2 border-zinc-700/60"
                     >
                       <td className="py-2 px-3"></td>
                       <td className="py-2 px-3">
@@ -12722,7 +12767,7 @@ export default function IngredientsPanel({
                               par: (ing.par_level || 0).toString(),
                             });
                           }}
-                          className="h-7 w-7 rounded-xl bg-slate-950 border border-slate-800 hover:border-purple-400 hover:text-zinc-300 text-slate-400 flex items-center justify-center transition active:scale-95 shrink-0"
+                          className="h-7 w-7 rounded-xl bg-slate-950 border border-slate-800 hover:border-zinc-700 hover:text-zinc-300 text-slate-400 flex items-center justify-center transition active:scale-95 shrink-0"
                           title="Мөр дотор засах"
                         >
                           ✏️
@@ -12956,55 +13001,6 @@ export default function IngredientsPanel({
 }
 </file>
 
-<file path="next.config.ts">
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  transpilePackages: [
-    "lucide-react",
-    "@supabase/supabase-js",
-    "react-markdown",
-    "remark-gfm",
-    "xlsx",
-    "@google/generative-ai",
-  ],
-  compiler: {
-    // Хуучин Safari хөтчүүдийн танихгүй RegExp, Lookbehind-ийг хуучин хэлбэр рүү хөрвүүлнэ
-    removeConsole: false,
-  },
-};
-
-export default nextConfig;
-</file>
-
-<file path="public/manifest.json">
-{
-  "name": "Operlink Operations",
-  "short_name": "Operlink",
-  "description": "Operlink — The Universal AI Operating System",
-  "start_url": "/kiosk",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "any",
-  "background_color": "#050a12",
-  "theme_color": "#050a12",
-  "icons": [
-    {
-      "src": "/operlink.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/operlink.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
-}
-</file>
-
 <file path="src/features/products/ProductsPanel.tsx">
 // src/features/products/ProductsPanel.tsx
 "use client";
@@ -13030,7 +13026,7 @@ const UNIVERSAL_CATEGORIES = [
     id: "COLD_BEVERAGE",
     name: "🍹 Хүйтэн ундаа",
     icon: "🍹",
-    color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+    color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
   },
   {
     id: "FOOD_PREP",
@@ -13042,13 +13038,13 @@ const UNIVERSAL_CATEGORIES = [
     id: "BAKERY_DESSERT",
     name: "🥐 Бэйкэри & Десерт",
     icon: "🥐",
-    color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
   },
   {
     id: "RETAIL_FMCG",
     name: "🥤 Бэлэн бараа (Лааз/Сав)",
     icon: "🥤",
-    color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
   },
   {
     id: "GENERAL",
@@ -13710,7 +13706,7 @@ export default function ProductsPanel({
                           `✅ "${selectedOldName}"-ийн жорыг "${posName}"-тай амжилттай холболоо!`,
                         );
                       }}
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
+                      className="bg-white hover:bg-zinc-200 text-zinc-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
                     >
                       🔗 Сольж нэгтгэх
                     </button>
@@ -13841,7 +13837,7 @@ export default function ProductsPanel({
           <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-medium">
             {/* Шинэ цэс нэмэх инлайн мөр */}
             {isAddingProdRow && (
-              <tr className="bg-blue-950/40 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
+              <tr className="bg-zinc-900/60 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
                 <td className="py-2 px-3 text-zinc-300 font-bold">New</td>
                 <td className="py-2 px-3">
                   <select
@@ -13960,7 +13956,7 @@ export default function ProductsPanel({
                   return (
                     <tr
                       key={`edit-${prod.id}-${idx}`}
-                      className="bg-blue-950/40 border-b-2 border-zinc-700/60"
+                      className="bg-zinc-900/60 border-b-2 border-zinc-700/60"
                     >
                       <td className="py-2 px-3"></td>
                       <td className="py-2 px-3">
@@ -14151,7 +14147,7 @@ export default function ProductsPanel({
                                 );
                               }
                             }}
-                            className="bg-purple-600/20 hover:bg-purple-600/30 text-zinc-300 border border-zinc-800/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm cursor-pointer"
+                            className="bg-zinc-200/20 hover:bg-zinc-200/30 text-zinc-300 border border-zinc-800/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm cursor-pointer"
                           >
                             <span>📖 + Орц угсрах</span>
                           </button>
@@ -14827,7 +14823,7 @@ export default function RecipeEditor({
           />
           <label
             htmlFor="restore-json-upload"
-            className="bg-purple-950/40 hover:bg-purple-900/60 text-zinc-300 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Компьютер дээрх .json файлаас жор сэргээх"
           >
             <span>📥 Нөөцөөс сэргээх</span>
@@ -14845,7 +14841,7 @@ export default function RecipeEditor({
             className={`${
               isCreatingRecipeCard
                 ? "bg-slate-800 text-slate-300"
-                : "bg-purple-600 hover:bg-purple-500 text-white"
+                : "bg-white hover:bg-zinc-200 text-zinc-950"
             } px-3.5 py-2.5 rounded-xl text-sm font-black transition active:scale-95 flex items-center gap-1.5 shadow`}
           >
             <span>
@@ -14888,7 +14884,7 @@ export default function RecipeEditor({
           className="bg-slate-950 p-5 rounded-2xl border-2 border-zinc-800 space-y-4 shadow-xl"
         >
           {/* ЧИРЧ УНАГАХ ЗААВАР ТУУЗ */}
-          <div className="bg-purple-950/30 border border-dashed border-zinc-800/50 p-2.5 rounded-xl text-center">
+          <div className="bg-zinc-900 border border-dashed border-zinc-800/50 p-2.5 rounded-xl text-center">
             <p className="text-xs text-zinc-300 font-bold">
               💡 Зөвлөмж: Доорх бэлэн жорыг (эсвэл орцуудыг) хулганаараа чирж
               энэ хайрцаг руу унагавал шууд хуулагдана!
@@ -14925,7 +14921,7 @@ export default function RecipeEditor({
             </div>
 
             {/* Зарах үнэ */}
-            <div className="w-36 shrink-0 flex items-center bg-[#0B1120] border border-zinc-800 rounded-xl px-3 py-2">
+            <div className="w-36 shrink-0 flex items-center bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
               <input
                 type="number"
                 value={newRecipePriceDraft}
@@ -15045,7 +15041,7 @@ export default function RecipeEditor({
                   setDraftRecipeIngAmt("");
                 }
               }}
-              className="w-24 bg-[#0B1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-zinc-800"
+              className="w-24 bg-zinc-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-zinc-800"
             />
 
             <button
@@ -15062,7 +15058,7 @@ export default function RecipeEditor({
                 setDraftRecipeIngId("");
                 setDraftRecipeIngAmt("");
               }}
-              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black px-4 py-2 rounded-xl text-xs transition cursor-pointer shadow"
+              className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-4 py-2 rounded-xl text-xs transition cursor-pointer shadow"
             >
               + Нэмэх
             </button>
@@ -15078,7 +15074,7 @@ export default function RecipeEditor({
                 return (
                   <div
                     key={idx}
-                    className="bg-[#0B1120] border border-slate-700 hover:border-zinc-800/60 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
+                    className="bg-zinc-950 border border-slate-700 hover:border-zinc-800/60 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
                   >
                     <span>{ing?.name || "Орц"}</span>
 
@@ -15095,7 +15091,7 @@ export default function RecipeEditor({
                             ),
                           );
                         }}
-                        className="w-14 bg-transparent text-center text-purple-200 font-mono font-black text-xs outline-none"
+                        className="w-14 bg-transparent text-center text-zinc-300 font-mono font-black text-xs outline-none"
                       />
                       <span className="text-xs text-slate-400 font-normal">
                         {ing?.unit || "гр"}
@@ -15183,7 +15179,7 @@ export default function RecipeEditor({
                     <button
                       type="button"
                       onClick={() => openRecipeHistory(pName)}
-                      className="bg-purple-950/40 hover:bg-purple-900/60 text-zinc-300 border border-zinc-800/30 px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ml-1"
+                      className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800/30 px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ml-1"
                     >
                       <span>🕒 Түүх</span>
                     </button>
@@ -15258,16 +15254,16 @@ export default function RecipeEditor({
                               ];
                             });
                           }}
-                          className="bg-slate-900/90 hover:bg-purple-950/60 border border-slate-800 hover:border-zinc-800/70 px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2.5 transition shadow-sm cursor-pointer active:scale-95 select-none"
+                          className="bg-slate-900/90 hover:bg-zinc-900 border border-slate-800 hover:border-zinc-800/70 px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2.5 transition shadow-sm cursor-pointer active:scale-95 select-none"
                           title="Дарж дээд талын шинэ жор руу шууд нэмэх"
                         >
                           <span className="text-slate-200 font-bold">
                             {ing?.name || "Орц"}
                           </span>
-                          <span className="text-zinc-300 font-mono text-xs bg-purple-950/60 border border-zinc-800/30 px-2 py-0.5 rounded-lg">
+                          <span className="text-zinc-300 font-mono text-xs bg-zinc-900 border border-zinc-800/30 px-2 py-0.5 rounded-lg">
                             {r.amount} {ing?.unit || "гр"}
                           </span>
-                          <span className="h-5 w-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-black shrink-0">
+                          <span className="h-5 w-5 bg-zinc-200 text-white rounded-full flex items-center justify-center text-xs font-black shrink-0">
                             +
                           </span>
                         </div>
@@ -15319,7 +15315,7 @@ export default function RecipeEditor({
                                 }
                               }
                             }}
-                            className="w-14 bg-transparent text-center text-purple-200 font-mono font-black text-sm outline-none"
+                            className="w-14 bg-transparent text-center text-zinc-300 font-mono font-black text-sm outline-none"
                           />
                           <span className="text-xs text-slate-400 font-semibold">
                             {ing?.unit || "гр"}
@@ -15399,7 +15395,7 @@ export default function RecipeEditor({
 
                   {/* + Орц нэмэх товч */}
                   {inlineAddRecipeProduct === pName ? (
-                    <div className="flex items-center gap-1.5 bg-purple-950/60 border border-zinc-800/60 p-1 rounded-2xl">
+                    <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800/60 p-1 rounded-2xl">
                       <select
                         value={inlineRecipeDraft.ingredient_id}
                         onChange={(e) =>
@@ -15471,7 +15467,7 @@ export default function RecipeEditor({
                         setInlineAddRecipeProduct(pName);
                         setInlineRecipeDraft({ ingredient_id: "", amount: "" });
                       }}
-                      className="h-7 px-2.5 bg-purple-500/10 hover:bg-purple-500/20 text-zinc-300 border border-zinc-700 rounded-2xl text-xs font-bold transition flex items-center gap-1"
+                      className="h-7 px-2.5 bg-zinc-800/60 hover:bg-zinc-800/60 text-zinc-300 border border-zinc-700 rounded-2xl text-xs font-bold transition flex items-center gap-1"
                     >
                       <span>+ Орц нэмэх</span>
                     </button>
@@ -15677,7 +15673,7 @@ export default function RecipeEditor({
                       ],
                     })
                   }
-                  className="text-xs font-black text-zinc-300 hover:text-zinc-300 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-zinc-800/20"
+                  className="text-xs font-black text-zinc-300 hover:text-zinc-300 bg-zinc-800/60 px-2.5 py-1 rounded-lg border border-zinc-800/20"
                 >
                   + Орц нэмэх
                 </button>
@@ -15835,7 +15831,7 @@ export default function RecipeEditor({
                   `✅ "${pName}" бүтээгдэхүүний жор болон зарах үнэ амжилттай хадгалагдлаа!`,
                 );
               }}
-              className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black py-3 rounded-xl text-sm transition"
+              className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3 rounded-xl text-sm transition"
             >
               Бүтээгдэхүүн & Жорыг Хадгалах
             </button>
@@ -15906,7 +15902,7 @@ export default function RecipeEditor({
                 setAddIngToRecipeProduct(null);
                 fetchRecipes();
               }}
-              className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black py-2.5 rounded-xl text-sm transition"
+              className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-2.5 rounded-xl text-sm transition"
             >
               Орцыг Жорд Нэмэх
             </button>
@@ -18505,7 +18501,7 @@ export default function SettingsTab({
       id: "COLD_BEVERAGE",
       name: "🍹 Хүйтэн ундаа",
       icon: "🍹",
-      color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
     },
     {
       id: "FOOD_PREP",
@@ -18517,13 +18513,13 @@ export default function SettingsTab({
       id: "BAKERY_DESSERT",
       name: "🥐 Бэйкэри & Десерт",
       icon: "🥐",
-      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
     },
     {
       id: "RETAIL_FMCG",
       name: "🥤 Бэлэн бараа (Лааз/Сав)",
       icon: "🥤",
-      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
     },
     {
       id: "GENERAL",
@@ -18632,7 +18628,7 @@ export default function SettingsTab({
                 }}
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "recipes"
-                    ? "bg-purple-600 text-white shadow-md"
+                    ? "bg-zinc-200 text-white shadow-md"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -18649,7 +18645,7 @@ export default function SettingsTab({
           {/* ТОЛГОЙ БА 3 ТАБ СОЛИГЧ-ийн яг доор */}
           {loading ? (
             <div className="flex justify-center items-center py-20">
-              <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
+              <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
             </div>
           ) : (
             <>
@@ -18787,7 +18783,7 @@ export default function SettingsTab({
                                   ? "bg-zinc-800/60 text-zinc-300 border-zinc-800"
                                   : item.method.includes("AI") &&
                                       !item.isUnknown
-                                    ? "bg-purple-500/10 text-zinc-300 border-zinc-800/30"
+                                    ? "bg-zinc-800/60 text-zinc-300 border-zinc-800/30"
                                     : item.method.includes("Гараар")
                                       ? "bg-zinc-800/60 text-zinc-200 border-zinc-800"
                                       : "bg-zinc-800/60 text-zinc-300 border-zinc-700 "
@@ -19214,7 +19210,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-slate-900/40 p-8 rounded-2xl border border-slate-900 shadow-2xl backdrop-blur-md">
         {/* ТОМОРСОН ЛОГО БА ЦЭВЭРХЭН ГАРЧИГ (Дэд тайлбаргүй) */}
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center shadow-[0_0_25px_rgba(0,245,155,0.2)]">
+          <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center ">
             <OperlinkLogo className="h-12 w-12" />
           </div>
 
@@ -24289,7 +24285,7 @@ function KioskPage() {
                   key={dotIndex}
                   className={`h-3.5 w-3.5 rounded-full transition-all duration-75 ${
                     pin.length > dotIndex
-                      ? "bg-zinc-200 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-110"
+                      ? "bg-zinc-200  scale-110"
                       : "bg-slate-800"
                   }`}
                 />
@@ -24339,7 +24335,7 @@ function KioskPage() {
                   e.preventDefault();
                   handleVerifyPin();
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform"
               >
                 OK
               </button>
@@ -24530,7 +24526,7 @@ function KioskPage() {
             {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
 
             {recentToast && (
-              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in duration-150">
+              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
                 {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
                 <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
                   <span className="bg-slate-950 text-zinc-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
@@ -24654,7 +24650,7 @@ function KioskPage() {
                   onClick={() => setKioskMode("testing")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === "testing"
-                      ? "bg-purple-600 text-white shadow-md"
+                      ? "bg-zinc-200 text-white shadow-md"
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
@@ -24665,7 +24661,7 @@ function KioskPage() {
                   onClick={() => setKioskMode("purchase")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === "purchase"
-                      ? "bg-emerald-600 text-white shadow-md"
+                      ? "bg-white text-zinc-950 shadow-md"
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
@@ -24892,7 +24888,7 @@ function KioskPage() {
                               : kioskMode === "staff_meal"
                                 ? "bg-zinc-800/60 text-zinc-300"
                                 : kioskMode === "testing"
-                                  ? "bg-purple-500/10 text-zinc-300"
+                                  ? "bg-zinc-800/60 text-zinc-300"
                                   : "bg-zinc-800/60 text-zinc-200"
                           }`}
                         >
@@ -24915,7 +24911,7 @@ function KioskPage() {
               <button
                 type="button"
                 onClick={openTasksScreen}
-                className="p-2.5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800/60 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>Даалгавар</span>
@@ -25050,7 +25046,7 @@ function KioskPage() {
                         </div>
                       </div>
 
-                      <div className="bg-zinc-800/60 border border-zinc-700/20 p-3 rounded-2xl text-xs text-blue-300 space-y-1">
+                      <div className="bg-zinc-800/60 border border-zinc-700/20 p-3 rounded-2xl text-xs text-zinc-300 space-y-1">
                         <p className="font-bold">💡 Санамж:</p>
                         <p>
                           Дээрх граммыг яг баримталснаар кофены амт үргэлж
@@ -25094,7 +25090,7 @@ function KioskPage() {
                       onClick={() => setCashOutType("owner_draw")}
                       className={`py-2 rounded-xl text-xs font-black transition ${
                         cashOutType === "owner_draw"
-                          ? "bg-amber-500 text-slate-950 shadow-md"
+                          ? "bg-white text-zinc-950 shadow-md"
                           : "text-slate-400 hover:text-white"
                       }`}
                     >
@@ -25276,7 +25272,7 @@ function KioskPage() {
                         }
                       })();
                     }}
-                    className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95"
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95"
                   >
                     {isAiLoading
                       ? "Хадгалж байна..."
@@ -25309,7 +25305,7 @@ function KioskPage() {
                             : kioskMode === "staff_meal"
                               ? "bg-zinc-200/20 text-zinc-300"
                               : kioskMode === "testing"
-                                ? "bg-purple-500/20 text-zinc-300"
+                                ? "bg-zinc-800/60 text-zinc-300"
                                 : "bg-zinc-800 text-zinc-200"
                         }`}
                       >
@@ -25710,7 +25706,7 @@ function KioskPage() {
                       }
                       className={`py-1.5 rounded-xl text-xs font-bold transition ${
                         ebarimtReview.payMethod === "cash"
-                          ? "bg-amber-500 text-slate-950 font-black shadow-sm"
+                          ? "bg-white text-zinc-950 font-black shadow-sm"
                           : "bg-zinc-950 text-slate-400"
                       }`}
                     >
@@ -26160,7 +26156,7 @@ function KioskPage() {
                   {/* Лугших хөдөлгөөнт лого */}
                   <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
                     <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
-                    <div className="relative bg-zinc-800 p-5 rounded-full border-2 border-zinc-700/40 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
+                    <div className="relative bg-zinc-800 p-5 rounded-full border-2 border-zinc-700/40 ">
                       <Camera className="h-8 w-8 text-zinc-200 " />
                     </div>
                   </div>
@@ -26285,7 +26281,7 @@ function KioskPage() {
                                           ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                           : isStaffMeal
                                             ? "bg-zinc-800/60 text-zinc-300 border border-zinc-700/20"
-                                            : "bg-purple-500/10 text-zinc-300 border border-zinc-800/20"
+                                            : "bg-zinc-800/60 text-zinc-300 border border-zinc-800/20"
                                     }`}
                                   >
                                     {isPurchase
@@ -26564,7 +26560,7 @@ function KioskPage() {
                 <button
                   type="submit"
                   disabled={isAiLoading}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs transition"
+                  className="flex-1 bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs transition"
                 >
                   {isAiLoading ? "Хадгалж байна..." : "Бүртгэх"}
                 </button>
@@ -26756,7 +26752,7 @@ function KioskPage() {
         {purchaseCart.length > 0 && !showCartModal && !quickItemModal && (
           <div
             onClick={() => setShowCartModal(true)}
-            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-white p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex justify-between items-center border border-blue-400 cursor-pointer animate-bounce transition-all active:scale-95"
+            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-white p-3.5 rounded-2xl  flex justify-between items-center border border-zinc-700 cursor-pointer animate-bounce transition-all active:scale-95"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl drop-shadow-md">🛒</span>
@@ -27369,13 +27365,13 @@ function Home() {
       id: "HOT_BEVERAGE",
       name: "☕ Халуун ундаа",
       icon: "☕",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
+      color: "text-amber-300 bg-amber-500/10 border-amber-500/30",
     },
     {
       id: "COLD_BEVERAGE",
       name: "🍹 Хүйтэн ундаа",
       icon: "🍹",
-      color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
     },
     {
       id: "FOOD_PREP",
@@ -27387,13 +27383,13 @@ function Home() {
       id: "BAKERY_DESSERT",
       name: "🥐 Бэйкэри & Десерт",
       icon: "🥐",
-      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
     },
     {
       id: "RETAIL_FMCG",
       name: "🥤 Бэлэн бараа (Лааз/Сав)",
       icon: "🥤",
-      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+      color: "text-zinc-300 bg-zinc-800/60 border-blue-500/30",
     },
     {
       id: "GENERAL",
@@ -28235,7 +28231,7 @@ function Home() {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center justify-between cursor-pointer ${
                       opt.value === value
-                        ? "bg-purple-600/30 text-zinc-300 font-bold border border-zinc-800/30"
+                        ? "bg-zinc-200/30 text-zinc-300 font-bold border border-zinc-800/30"
                         : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
@@ -29216,17 +29212,17 @@ function Home() {
   // ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй
   //   if (loading && userRole !=="owner") {
   //   return (
-  //     <div className="min-h-screen bg-[#0B1120] flex flex-col items-center justify-center select-none">
+  //     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center select-none">
   //       <div className="relative w-12 h-12 flex items-center justify-center mb-4">
   //         <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
-  //         <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+  //         <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin" />
   //       </div>
   //     </div>
   //   );
   // }
 
   return (
-    <div className="flex h-screen bg-[#0B1120] overflow-hidden text-slate-100 font-sans antialiased selection:bg-zinc-800">
+    <div className="flex h-screen bg-zinc-950 overflow-hidden text-slate-100 font-sans antialiased selection:bg-zinc-800">
       {/* ========================================== */}
       {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
       {/* ========================================== */}
@@ -29254,14 +29250,12 @@ function Home() {
         {/* Logo & Close Button Area */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80">
           <div className="flex items-center gap-2">
-            <div className="bg-[#07131d] p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
+            <div className="bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
               <OperlinkLogo className="h-5 w-5" />
             </div>
             <span className="font-black text-lg tracking-tight text-white uppercase">
               OPER
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
-                LINK
-              </span>
+              <span className="text-white">LINK</span>
             </span>
           </div>
 
@@ -29437,7 +29431,7 @@ function Home() {
             <button
               type="button"
               onClick={() => setShowCheckoutModal(true)}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
+              className="w-full bg-white hover:bg-zinc-200 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
             >
               <span className="flex items-center gap-1.5">
                 <span>⚡</span>
@@ -29479,7 +29473,7 @@ function Home() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* TOP HEADER BAR */}
         {/* TOP HEADER BAR */}
-        <header className="h-16 bg-[#0B1120]/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
+        <header className="h-16 bg-zinc-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
           <div className="flex items-center gap-2 sm:gap-4">
             {/* 👈 HAMBURGER MENU (Зөвхөн цэс хураагдсан үед л гарч ирнэ) */}
             {!isSidebarOpen && (
@@ -29527,7 +29521,7 @@ function Home() {
           <div className="max-w-7xl mx-auto w-full max-w-full relative">
             {/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
             {tenantInfo?.isExpired && (
-              <div className="fixed inset-0 z-50 bg-[#0B1120]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+              <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
                 <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 " />
                 <h2 className="text-2xl font-black text-white mb-2">
                   Үйлчилгээний эрх зогссон байна
@@ -29552,9 +29546,9 @@ function Home() {
             {tenantInfo &&
               tenantInfo.daysLeft <= 3 &&
               !tenantInfo.isExpired && (
-                <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-zinc-700 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-zinc-300 text-base">⚠️</span>
+                    <span className="text-amber-400 text-base">⚠️</span>
                     <p className="text-xs text-slate-300">
                       Таны{" "}
                       {tenantInfo.isTrial
@@ -29567,7 +29561,7 @@ function Home() {
                   <button
                     type="button"
                     onClick={() => setShowCheckoutModal(true)}
-                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
+                    className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
                   >
                     {tenantInfo.isTrial
                       ? "Албан ёсны эрх авах ➔"
@@ -29588,7 +29582,7 @@ function Home() {
                     <div className="relative z-10 flex items-center justify-center">
                       <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
                       {/* Арай томруулсан цагираг: h-10 w-10 */}
-                      <div className="h-10 w-10 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
+                      <div className="h-10 w-10 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
                     </div>
                   </div>
 
@@ -29764,7 +29758,7 @@ function Home() {
                     activeTab !== "sales" &&
                     activeTab !== "dashboard" &&
                     activeTab !== "settings" && (
-                      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
+                      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
                           <div>
                             <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
@@ -29923,7 +29917,7 @@ function Home() {
                                               log.type === "purchase"
                                                 ? "bg-zinc-800/60 text-zinc-300"
                                                 : log.type === "count"
-                                                  ? "bg-purple-500/10 text-zinc-300"
+                                                  ? "bg-zinc-800/60 text-zinc-300"
                                                   : "bg-rose-500/10 text-rose-400"
                                             }`}
                                           >
@@ -30019,7 +30013,7 @@ function Home() {
                               </span>
                             </h3>
                             {tenantInfo?.isTrial && (
-                              <span className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded font-black">
+                              <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-black">
                                 Туршилт
                               </span>
                             )}
@@ -30159,7 +30153,7 @@ function Home() {
                           </button>
                         </div>
                         {/* 🤖 AI ЗӨВЛӨХТЭЙ ЯРИЛЦАХ ЗААВАР */}
-                        <div className="bg-zinc-800/60 border border-zinc-800 p-5 rounded-2xl mb-6">
+                        <div className="bg-zinc-800/60 border border-blue-500/30 p-5 rounded-2xl mb-6">
                           <h4 className="font-black text-zinc-300 text-sm flex items-center gap-2 mb-2">
                             <Bot className="h-5 w-5" />
                             AI Зөвлөхөөс хэрхэн асуух вэ? (Хамгийн хурдан арга)
@@ -30196,7 +30190,7 @@ function Home() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* НӨХЦӨЛ 1 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-zinc-800/60 p-2 rounded-xl">
                                 <Coffee className="h-5 w-5 text-zinc-200" />
@@ -30218,7 +30212,7 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 2 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-zinc-800/60 p-2 rounded-xl">
                                 <Layers3 className="h-5 w-5 text-zinc-300" />
@@ -30232,7 +30226,7 @@ function Home() {
                               хэрэглэсэн, эсвэл санамсаргүй асгасан ч Kiosk-д
                               оруулж амжаагүй байх.
                             </p>
-                            <div className="bg-zinc-200/5 border-l-2 border-zinc-700 p-2.5 text-sm text-blue-300/90 rounded-r-lg">
+                            <div className="bg-blue-500/5 border-l-2 border-blue-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
                               <strong>Авах арга хэмжээ:</strong> Ажилтнаас
                               асуух. Хэрэв асгасан байвал Kiosk руу ороод "1л
                               сүү асгасан" гэж нөхөж оруулахад л системийн энэ
@@ -30241,7 +30235,7 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 3 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-rose-900/50 hover:border-rose-500/30 transition md:col-span-2">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-rose-900/50 hover:border-rose-500/30 transition md:col-span-2">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-rose-500/10 p-2 rounded-xl">
                                 <DollarSign className="h-5 w-5 text-rose-400" />
@@ -30272,12 +30266,12 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 4 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-amber-900/50 hover:border-zinc-700 transition md:col-span-2">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-amber-900/50 hover:border-amber-500/30 transition md:col-span-2">
                             <div className="flex items-center gap-3 mb-3">
-                              <div className="bg-zinc-800/60 p-2 rounded-xl">
-                                <AlertTriangle className="h-5 w-5 text-zinc-300" />
+                              <div className="bg-amber-500/10 p-2 rounded-xl">
+                                <AlertTriangle className="h-5 w-5 text-amber-400" />
                               </div>
-                              <h4 className="font-bold text-zinc-300 text-sm">
+                              <h4 className="font-bold text-amber-400 text-sm">
                                 4. Физик хулгай эсвэл Том асгаралт
                               </h4>
                             </div>
@@ -30285,7 +30279,7 @@ function Home() {
                               <strong>Шинж тэмдэг:</strong> Бүтэн 1 хайрцаг сүү
                               (12л), эсвэл 1 бүтэн уут кофе гэнэт алга болох.
                             </p>
-                            <div className="bg-amber-500/5 border-l-2 border-amber-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
+                            <div className="bg-amber-500/5 border-l-2 border-amber-500 p-2.5 text-sm text-amber-300/90 rounded-r-lg">
                               <strong>Авах арга хэмжээ:</strong> Хэрэв Kiosk
                               дээр зурагтай "Хаягдал" бүртгэгдээгүй байвал
                               тухайн ээлжийн ажилтнаас шууд тайлбар нэхэж,
@@ -30404,7 +30398,7 @@ function Home() {
             {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
             {showUpgradeSuccess && (
               <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-                <div className="bg-[#0B1120] border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
+                <div className="bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
                   <div className="w-20 h-20 bg-zinc-800/60 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
                     <span className="text-4xl">🎉</span>
                   </div>

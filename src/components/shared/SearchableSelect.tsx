@@ -84,7 +84,7 @@ export default function SearchableSelect({
           setIsOpen(!isOpen);
           setSearch("");
         }}
-        className="w-full bg-zinc-950 border border-slate-700 hover:border-zinc-800 rounded-xl px-3 py-2 text-sm text-left text-white flex items-center justify-between gap-2 transition cursor-pointer shadow-sm"
+        className="w-full bg-zinc-950 border border-zinc-700 hover:border-zinc-800 rounded-xl px-3 py-2 text-sm text-left text-white flex items-center justify-between gap-2 transition cursor-pointer shadow-sm"
       >
         <span className="truncate font-bold">
           {selectedOption ? (
@@ -92,15 +92,15 @@ export default function SearchableSelect({
           ) : value ? (
             value
           ) : (
-            <span className="text-slate-500 font-normal">{placeholder}</span>
+            <span className="text-zinc-500 font-normal">{placeholder}</span>
           )}
         </span>
-        <span className="text-xs text-slate-500 shrink-0">▼</span>
+        <span className="text-xs text-zinc-500 shrink-0">▼</span>
       </button>
 
       {/* Хайлттай цэс */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full min-w-[300px] max-w-[380px] bg-zinc-900 border border-slate-700 rounded-2xl shadow-2xl z-50 p-2 space-y-2 animate-in fade-in duration-100">
+        <div className="absolute top-full left-0 mt-1 w-full min-w-[300px] max-w-[380px] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl z-50 p-2 space-y-2 animate-in fade-in duration-100">
           {/* Хайлтын Input */}
           <input
             type="text"
@@ -133,8 +133,8 @@ export default function SearchableSelect({
                 setIsOpen(false);
               }
             }}
-            placeholder="🔍 Бичих (Сумаар ⬆️⬇️ гүйлгээд Enter дар)..."
-            className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-xs sm:text-sm text-white outline-none font-bold placeholder:text-slate-500"
+            placeholder="Бичих (Сумаар ⬆️⬇️ гүйлгээд Enter дар)..."
+            className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-xs sm:text-sm text-white outline-none font-bold placeholder:text-zinc-500"
           />
 
           {/* 📜 БАРААНУУДЫН ГҮЙДЭГ ХЭСЭГ (max-h-72 буюу 290px өндөртэй болсон) */}
@@ -151,19 +151,17 @@ export default function SearchableSelect({
                   setIsOpen(false);
                   setSearch("");
                 }}
-                className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-zinc-800/60 text-zinc-300 border border-zinc-700 hover:bg-purple-500/30 transition flex items-center justify-between cursor-pointer mb-1"
+                className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-zinc-800/60 text-zinc-300 border border-zinc-700 hover:bg-white/30 transition flex items-center justify-between cursor-pointer mb-1"
               >
                 <span>➕ Шинээр үүсгэх: "{search.trim()}"</span>
-                <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded font-mono">
+                <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded font-mono">
                   Enter ↵
                 </span>
               </button>
             )}
 
             {filtered.length === 0 && !search.trim() ? (
-              <p className="text-xs text-slate-500 p-3 text-center">
-                Олдсонгүй
-              </p>
+              <p className="text-xs text-zinc-500 p-3 text-center">Олдсонгүй</p>
             ) : (
               filtered.map((opt, idx) => {
                 const isHighlighted = idx === activeIndex;
@@ -184,13 +182,13 @@ export default function SearchableSelect({
                         ? "bg-zinc-200 text-white font-black shadow-md scale-[1.01]"
                         : isSelected
                           ? "bg-zinc-900 text-zinc-300 font-bold border border-zinc-700"
-                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                          : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
                     }`}
                   >
                     <span className="truncate">{opt.label}</span>
                     {opt.sublabel && (
                       <span
-                        className={`text-[11px] ml-2 font-mono shrink-0 ${isHighlighted ? "text-zinc-300" : "text-slate-500"}`}
+                        className={`text-[11px] ml-2 font-mono shrink-0 ${isHighlighted ? "text-zinc-300" : "text-zinc-500"}`}
                       >
                         {opt.sublabel}
                       </span>
@@ -201,7 +199,7 @@ export default function SearchableSelect({
             )}
           </div>
 
-          <div className="pt-1 border-t border-slate-800 text-[10px] text-slate-500 text-center">
+          <div className="pt-1 border-t border-zinc-800 text-[10px] text-zinc-500 text-center">
             ⬆️ ⬇️ Сумаар сонгоод ↵ Enter дарж баталгаажуулна
           </div>
         </div>

@@ -112,14 +112,14 @@ export default function PremiumLandingPage() {
         <div className="flex items-center gap-6 z-50">
           <Link
             href="/login"
-            className="text-sm font-bold text-slate-400 hover:text-white transition py-2 px-3 cursor-pointer"
+            className="text-sm font-bold text-zinc-400 hover:text-white transition py-2 px-3 cursor-pointer"
           >
             Нэвтрэх
           </Link>
 
           <Link
             href="/login"
-            className="hidden sm:flex bg-white text-slate-950 hover:bg-slate-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] cursor-pointer"
+            className="hidden sm:flex bg-white text-zinc-950 hover:bg-zinc-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] cursor-pointer"
           >
             14 хоног үнэгүй турших <ArrowRight className="h-4 w-4" />
           </Link>
@@ -139,18 +139,18 @@ export default function PremiumLandingPage() {
           <span className="text-white">Таны бизнесийн ашгийн хөшүүрэг.</span>
         </h1>
 
-        <p className="text-slate-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
+        <p className="text-zinc-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
           Бизнесийнхээ боол биш, жинхэнэ эзэн нь болж амьдар.{" "}
           <strong>Бүх үйл ажиллагааг бид хариуцна.</strong> Та зөвхөн сар бүр
           өсөх цэвэр ашиг, 40 цагийн эрх чөлөөгөө буцаан ав.
         </p>
 
         {/* Video Placeholder */}
-        <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
+        <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
           <div className="absolute inset-0 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4  group-hover:scale-110 transition-transform duration-300">
-              <Play className="h-8 w-8 text-slate-950 fill-current ml-1" />
+              <Play className="h-8 w-8 text-zinc-950 fill-current ml-1" />
             </div>
             <p className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-zinc-200" /> Систем хэрхэн
@@ -165,7 +165,7 @@ export default function PremiumLandingPage() {
         >
           14 Хоног Үнэгүй Турших <ArrowRight className="h-5 w-5" />
         </Link>
-        <p className="text-xs text-slate-500 mt-3 font-bold uppercase tracking-widest">
+        <p className="text-xs text-zinc-500 mt-3 font-bold uppercase tracking-widest">
           Кредит карт шаардлагагүй. Эрсдэл 100% бидний талд.
         </p>
       </section>
@@ -179,7 +179,7 @@ export default function PremiumLandingPage() {
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
               Та юу ч хийх шаардлагагүй. Бид танай бизнесийг ашигтай болгоно.
             </h2>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
+            <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
               Бүх үйл ажиллагаа, бүтцийг бид өөрсдөө 100% бүрэн бэлдэж,
               бизнесийг тань цаг шиг жигдрүүлж өгнө.{" "}
               <strong>14 хоног үнэгүй ашигла.</strong> Хэрэв таны цэвэр ашиг
@@ -195,7 +195,7 @@ export default function PremiumLandingPage() {
           <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
             Танд Ирэх 3 Бодит Үр Дүн
           </h2>
-          <p className="text-slate-400">
+          <p className="text-zinc-400">
             Эзний амьдрал маш энгийн болно: Зөвшөөрөх, Ажиглах, Цэвэр ашгаа
             авах.
           </p>
@@ -203,7 +203,7 @@ export default function PremiumLandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Result 1 */}
-          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
+          <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
             <div>
               <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
                 <DollarSign className="h-7 w-7 text-zinc-200" />
@@ -211,19 +211,19 @@ export default function PremiumLandingPage() {
               <h3 className="text-xl font-bold text-white mb-3">
                 1. Бодит Цэвэр Ашгийн Өсөлт
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-zinc-400 leading-relaxed">
                 Үл анзаарагдам алдагдлуудыг зогсоож, тэр мөнгийг сар бүр банкны
                 дансанд тань цэвэр ашиг болгон хуримтлуулна. Орлого өсөх бүрд
                 ашиг дагаад өснө.
               </p>
             </div>
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+            <div className="mt-6 pt-4 border-t border-zinc-800/80 text-xs font-bold text-zinc-200 flex items-center gap-1.5">
               <span>Бодит цэвэр ашиг</span>
             </div>
           </div>
 
           {/* Result 2 */}
-          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
+          <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
             <div>
               <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
                 <Zap className="h-7 w-7 text-zinc-300" />
@@ -231,19 +231,19 @@ export default function PremiumLandingPage() {
               <h3 className="text-xl font-bold text-white mb-3">
                 2. Таны Бизнесийн Ашгийн Хөшүүрэг
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-zinc-400 leading-relaxed">
                 Та өдөр бүр стресстэж ажиллах биш, ухаалаг системээр дамжуулан
                 бага хүчээр бизнесийнхээ бодит үр ашиг, өгөөжийг дээд цэгт нь
                 хүргэнэ.
               </p>
             </div>
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+            <div className="mt-6 pt-4 border-t border-zinc-800/80 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
               <span>Өндөр бүтээмж • Ухаалаг өсөлт</span>
             </div>
           </div>
 
           {/* Result 3 */}
-          <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
+          <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
             <div>
               <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
                 <Compass className="h-7 w-7 text-zinc-300" />
@@ -251,13 +251,13 @@ export default function PremiumLandingPage() {
               <h3 className="text-xl font-bold text-white mb-3">
                 3. Сард +40 цагийн Эрх Чөлөө
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-zinc-400 leading-relaxed">
                 Шөнө дөл хүртэл тооцоо шивэх, тайлан ухахаа боль. Бүх зүйл өөрөө
                 автоматаар хийгдэх тул та бизнесээсээ гадуур эрх чөлөөтэй
                 амьдарна.
               </p>
             </div>
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+            <div className="mt-6 pt-4 border-t border-zinc-800/80 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
               <span>Хувийн эрх чөлөө • 100% Done-For-You</span>
             </div>
           </div>
@@ -266,7 +266,7 @@ export default function PremiumLandingPage() {
 
       {/* 5. PROFIT SIMULATOR */}
       <section className="max-w-4xl mx-auto px-6 py-16">
-        <div className="bg-zinc-900 p-8 sm:p-12 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="bg-zinc-900 p-8 sm:p-12 rounded-[2rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/60 blur-3xl rounded-full pointer-events-none"></div>
 
           <div className="text-center mb-10 relative z-10">
@@ -274,7 +274,7 @@ export default function PremiumLandingPage() {
               <Calculator className="text-zinc-200 h-8 w-8" /> Таны бодит цэвэр
               ашиг & эрх чөлөө
             </h2>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-zinc-400">
               Өдөр тутмын орлогоо оруулаад, таны халаасанд үлдэх бодит үр дүнг
               хар.
             </p>
@@ -282,7 +282,7 @@ export default function PremiumLandingPage() {
 
           <div className="mb-12 max-w-2xl mx-auto relative z-10">
             <div className="flex justify-between items-end mb-4">
-              <span className="text-sm font-bold text-slate-300 uppercase tracking-wide">
+              <span className="text-sm font-bold text-zinc-300 uppercase tracking-wide">
                 Өдрийн дундаж орлого:
               </span>
               <span className="text-3xl font-black text-white font-mono">
@@ -296,30 +296,30 @@ export default function PremiumLandingPage() {
               step={100000}
               value={dailyRevenue}
               onChange={(e) => setDailyRevenue(Number(e.target.value))}
-              className="w-full h-3 bg-slate-800 rounded-full appearance-none cursor-pointer accent-emerald-500 outline-none"
+              className="w-full h-3 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-emerald-500 outline-none"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center relative z-10">
-            <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-              <p className="text-xs text-slate-400 font-bold uppercase mb-2">
+            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
+              <p className="text-xs text-zinc-400 font-bold uppercase mb-2">
                 Сар бүр нэмэгдэх цэвэр ашиг
               </p>
               <p className="text-2xl font-black text-zinc-200 font-mono">
                 +{pureProfitGainMonthly.toLocaleString()} ₮
               </p>
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] text-zinc-500 mt-1">
                 Дансанд тань цэвэр хуримтлагдана
               </p>
             </div>
-            <div className="bg-slate-950/50 p-6 rounded-2xl border border-white/5">
-              <p className="text-xs text-slate-400 font-bold uppercase mb-2">
+            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
+              <p className="text-xs text-zinc-400 font-bold uppercase mb-2">
                 Танд эргэж ирэх хувийн цаг
               </p>
               <p className="text-2xl font-black text-zinc-300 font-mono">
                 +{hoursSavedMonthly} цаг / сард
               </p>
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] text-zinc-500 mt-1">
                 Гэр бүл, өөртөө зориулах эрх чөлөө
               </p>
             </div>
@@ -341,20 +341,20 @@ export default function PremiumLandingPage() {
           <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
             Шударга үнэ. Орлогоос хувь авахгүй.
           </h2>
-          <p className="text-slate-400 text-sm max-w-xl mx-auto mb-8">
+          <p className="text-zinc-400 text-sm max-w-xl mx-auto mb-8">
             Танай борлуулалт хэдэн зуун сая хүрсэн ч бид хувь авахгүй. Зөвхөн
             тогтмол төлбөр.
           </p>
 
           {/* 🔘 САР БҮР / ЖИЛЭЭР (2 САР ҮНЭГҮЙ) СОНГОГЧ */}
-          <div className="inline-flex items-center bg-zinc-900 p-1.5 rounded-2xl border border-slate-800 shadow-xl">
+          <div className="inline-flex items-center bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 shadow-xl">
             <button
               type="button"
               onClick={() => setIsYearly(false)}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 !isYearly
-                  ? "bg-white text-slate-950 font-black shadow"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white text-zinc-950 font-black shadow"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               Сар бүр төлөх
@@ -364,8 +364,8 @@ export default function PremiumLandingPage() {
               onClick={() => setIsYearly(true)}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 isYearly
-                  ? "bg-white text-slate-950 font-black shadow"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white text-zinc-950 font-black shadow"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               <span>Жилээр төлөх</span>
@@ -378,23 +378,23 @@ export default function PremiumLandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {/* 1. Starter */}
-          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between">
+          <div className="bg-zinc-900/30 p-8 rounded-3xl border border-zinc-800 flex flex-col justify-between">
             <div>
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <p className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">
                 Starter (Жижиг цэг)
               </p>
               <div className="mb-4">
-                <span className="text-xs text-slate-400 font-bold block mb-1">
+                <span className="text-xs text-zinc-400 font-bold block mb-1">
                   ⚙️ Нэвтрүүлэлт: Бэлэн жортой бол 0₮
                 </span>
                 <span className="text-4xl font-black text-white font-mono">
                   {isYearly ? "124,000₮" : "149,000₮"}
                 </span>
-                <span className="text-xs text-slate-400 block mt-1.5">
+                <span className="text-xs text-zinc-400 block mt-1.5">
                   {isYearly ? "Сарын дүйцэх үнэ (Жилд 1,490,000₮)" : "Сар бүр"}
                 </span>
               </div>
-              <ul className="space-y-4 mb-8 text-sm text-slate-300">
+              <ul className="space-y-4 mb-8 text-sm text-zinc-300">
                 <li className="flex gap-3">
                   <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
                   Бүх төхөөрөмж дээр ажиллана
@@ -410,16 +410,16 @@ export default function PremiumLandingPage() {
               </ul>
             </div>
 
-            <div className="space-y-2 pt-4 border-t border-slate-800">
+            <div className="space-y-2 pt-4 border-t border-zinc-800">
               <Link
                 href={`/login?plan=starter&cycle=${isYearly ? "yearly" : "monthly"}&action=pay`}
-                className="w-full bg-white hover:bg-slate-200 text-slate-950 font-black py-3 rounded-xl text-xs transition flex justify-center items-center gap-1.5 shadow"
+                className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs transition flex justify-center items-center gap-1.5 shadow"
               >
                 Сонгож Төлөх <ArrowRight className="h-3.5 w-3.5" />
               </Link>
               <Link
                 href={`/login?plan=starter&cycle=${isYearly ? "yearly" : "monthly"}&action=trial`}
-                className="w-full text-slate-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
+                className="w-full text-zinc-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
               >
                 14 хоног үнэгүй эхлэх
               </Link>
@@ -428,7 +428,7 @@ export default function PremiumLandingPage() {
 
           {/* 2. Professional (Highlighted) */}
           <div className="bg-zinc-900 p-8 sm:p-10 rounded-[2rem] border-2 border-zinc-700 relative  flex flex-col justify-between transform md:scale-105 z-10">
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full whitespace-nowrap">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white text-zinc-950 font-black text-xs uppercase px-4 py-1.5 rounded-full whitespace-nowrap">
               Хамгийн их сонгогддог
             </div>
             <div>
@@ -442,11 +442,11 @@ export default function PremiumLandingPage() {
                 <span className="text-5xl font-black text-white font-mono">
                   {isYearly ? "249,000₮" : "299,000₮"}
                 </span>
-                <span className="text-xs text-slate-400 block mt-1.5">
+                <span className="text-xs text-zinc-400 block mt-1.5">
                   {isYearly ? "Сарын дүйцэх үнэ (Жилд 2,990,000₮)" : "Сар бүр"}
                 </span>
               </div>
-              <ul className="space-y-4 mb-8 text-sm text-slate-200 font-medium">
+              <ul className="space-y-4 mb-8 text-sm text-zinc-200 font-medium">
                 <li className="flex gap-3">
                   <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" /> 3
                   хүртэлх төхөөрөмж холболт
@@ -466,7 +466,7 @@ export default function PremiumLandingPage() {
               </ul>
             </div>
 
-            <div className="space-y-2 pt-4 border-t border-slate-800">
+            <div className="space-y-2 pt-4 border-t border-zinc-800">
               <Link
                 href={`/login?plan=professional&cycle=${isYearly ? "yearly" : "monthly"}&action=pay`}
                 className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2"
@@ -475,7 +475,7 @@ export default function PremiumLandingPage() {
               </Link>
               <Link
                 href={`/login?plan=professional&cycle=${isYearly ? "yearly" : "monthly"}&action=trial`}
-                className="w-full text-slate-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
+                className="w-full text-zinc-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
               >
                 14 хоног үнэгүй эхлэх
               </Link>
@@ -483,25 +483,25 @@ export default function PremiumLandingPage() {
           </div>
 
           {/* 3. Enterprise */}
-          <div className="bg-slate-900/30 p-8 rounded-3xl border border-slate-800 flex flex-col justify-between">
+          <div className="bg-zinc-900/30 p-8 rounded-3xl border border-zinc-800 flex flex-col justify-between">
             <div>
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">
+              <p className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">
                 Enterprise (Сүлжээ)
               </p>
 
               <div className="mb-4">
-                <span className="text-xs text-slate-400 font-bold block mb-1">
+                <span className="text-xs text-zinc-400 font-bold block mb-1">
                   ⚙️ Нэвтрүүлэлт: Гэрээгээр
                 </span>
                 <span className="text-4xl font-black text-white font-mono">
                   Тохиролцоно
                 </span>
-                <span className="text-xs text-slate-400 block mt-1.5">
+                <span className="text-xs text-zinc-400 block mt-1.5">
                   Байгууллагын хэрэгцээнд тулгуурлана
                 </span>
               </div>
 
-              <ul className="space-y-4 mb-8 text-sm text-slate-300">
+              <ul className="space-y-4 mb-8 text-sm text-zinc-300">
                 <li className="flex gap-3">
                   <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
                   Бүх Pro боломжууд
@@ -517,17 +517,17 @@ export default function PremiumLandingPage() {
               </ul>
             </div>
 
-            <div className="space-y-2 pt-4 border-t border-slate-800">
+            <div className="space-y-2 pt-4 border-t border-zinc-800">
               <Link
                 href="tel:99112233" // 👈 Өөрийн утасны дугаараа бичээрэй
-                className="w-full bg-white hover:bg-slate-200 text-slate-950 font-black py-3 rounded-xl text-xs flex justify-center items-center gap-1.5 shadow"
+                className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs flex justify-center items-center gap-1.5 shadow"
               >
                 Уулзалт товлох (Холбогдох) ➔
               </Link>
 
               <Link
                 href={`/login?plan=enterprise&cycle=${isYearly ? "yearly" : "monthly"}&action=trial`}
-                className="w-full text-slate-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
+                className="w-full text-zinc-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
               >
                 14 хоног үнэгүй эхлэх
               </Link>
@@ -545,11 +545,11 @@ export default function PremiumLandingPage() {
           {faqs.map((faq, idx) => (
             <div
               key={idx}
-              className="bg-slate-900/30 rounded-2xl border border-slate-800/50 overflow-hidden hover:border-slate-700 transition-colors"
+              className="bg-zinc-900/30 rounded-2xl border border-zinc-800/50 overflow-hidden hover:border-zinc-700 transition-colors"
             >
               <button
                 onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                className="w-full p-6 text-left font-bold text-sm text-slate-200 flex justify-between items-center"
+                className="w-full p-6 text-left font-bold text-sm text-zinc-200 flex justify-between items-center"
               >
                 {faq.q}
                 <ChevronDown
@@ -559,9 +559,7 @@ export default function PremiumLandingPage() {
               <div
                 className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === idx ? "max-h-40 pb-6 opacity-100" : "max-h-0 opacity-0"}`}
               >
-                <p className="text-sm text-slate-400 leading-relaxed">
-                  {faq.a}
-                </p>
+                <p className="text-sm text-zinc-400 leading-relaxed">{faq.a}</p>
               </div>
             </div>
           ))}
@@ -573,11 +571,11 @@ export default function PremiumLandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <OperlinkLogo className="h-5 w-5" />
-            <span className="font-bold text-slate-500 tracking-tight uppercase">
+            <span className="font-bold text-zinc-500 tracking-tight uppercase">
               OPERA<span className="text-zinc-200/50">LINK</span>
             </span>
           </div>
-          <p className="text-xs text-slate-600 font-medium">
+          <p className="text-xs text-zinc-600 font-medium">
             © 2026 Operlink Technologies. Улаанбаатар хот, Монгол Улс.
           </p>
         </div>

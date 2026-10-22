@@ -183,16 +183,16 @@ export default function RecipeHistoryModal({
       onClick={onClose}
     >
       <div
-        className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+        className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Толгой хэсэг */}
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
           <div>
             <h3 className="text-base font-black text-white flex items-center gap-2">
               <span>🕒 Жорын Хувилбарын Түүх</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-zinc-400 mt-0.5">
               Бүтээгдэхүүн:{" "}
               <strong className="text-zinc-300 font-bold">{productName}</strong>
             </p>
@@ -200,7 +200,7 @@ export default function RecipeHistoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
           >
             ✕ Хаах
           </button>
@@ -209,7 +209,7 @@ export default function RecipeHistoryModal({
         {/* Хувилбаруудын жагсаалт */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {recipeSnapshots.length === 0 ? (
-            <p className="text-xs text-slate-500 italic text-center py-8">
+            <p className="text-xs text-zinc-500 italic text-center py-8">
               Энэ бүтээгдэхүүн дээр өмнөх хувилбарын түүх бүртгэгдээгүй байна.
             </p>
           ) : (
@@ -223,7 +223,7 @@ export default function RecipeHistoryModal({
                   className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
                     isDeleted
                       ? "bg-rose-950/20 border-rose-500/30"
-                      : "bg-slate-950 border-slate-800"
+                      : "bg-zinc-950 border-zinc-800"
                   }`}
                 >
                   <div className="flex justify-between items-start">
@@ -242,7 +242,7 @@ export default function RecipeHistoryModal({
                               ? "Одоогийн хувилбар"
                               : "Хуучин хувилбар"}
                         </span>
-                        <span className="text-xs font-bold text-slate-400 font-mono">
+                        <span className="text-xs font-bold text-zinc-400 font-mono">
                           {new Date(snap.created_at).toLocaleString("mn-MN", {
                             timeZone: "Asia/Ulaanbaatar",
                             month: "2-digit",
@@ -252,9 +252,9 @@ export default function RecipeHistoryModal({
                           })}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-zinc-500 mt-1">
                         Өөрчилсөн:{" "}
-                        <strong className="text-slate-300">
+                        <strong className="text-zinc-300">
                           {snap.author || "Админ"}
                         </strong>
                       </p>
@@ -272,7 +272,7 @@ export default function RecipeHistoryModal({
 
                   {/* Тухайн хувилбарт байсан орцууд */}
                   {/* ⚡ VISUAL DIFF ОРЦУУДЫН ӨНГӨТ ЖАГСААЛТ */}
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/80">
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800/80">
                     {computeRecipeDiff(items, productName || "").map(
                       (diff, i) => {
                         // 1. ОДООГООС ХАСАГДСАН ОРЦ (УЛААН ЗУРААСТАЙ)
@@ -337,7 +337,7 @@ export default function RecipeHistoryModal({
                         return (
                           <span
                             key={i}
-                            className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-xl text-xs font-medium text-slate-300"
+                            className="bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-xl text-xs font-medium text-zinc-300"
                           >
                             {diff.name}:{" "}
                             <strong className="text-zinc-300 font-mono">
@@ -354,7 +354,7 @@ export default function RecipeHistoryModal({
           )}
         </div>
 
-        <div className="pt-2 border-t border-slate-800 text-xs text-slate-500 text-center">
+        <div className="pt-2 border-t border-zinc-800 text-xs text-zinc-500 text-center">
           💡 Та хүссэн хуучин хувилбарынхаа "↩️ Сэргээх" товчийг дарахад тухайн
           жор тэр дороо сэргэнэ.
         </div>

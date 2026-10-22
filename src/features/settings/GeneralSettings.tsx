@@ -1,16 +1,53 @@
 // src/features/settings/GeneralSettings.tsx
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { Coffee } from "lucide-react";
+import {
+  Coffee,
+  CupSoda,
+  Utensils,
+  Croissant,
+  Package,
+  Archive,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const UNIVERSAL_CATEGORIES = [
-  { id: "HOT_BEVERAGE", name: "☕ Халуун ундаа", icon: "☕" },
-  { id: "COLD_BEVERAGE", name: "🍹 Хүйтэн ундаа", icon: "🍹" },
-  { id: "FOOD_PREP", name: "🍳 Хоол & Зууш", icon: "🍳" },
-  { id: "BAKERY_DESSERT", name: "🥐 Бэйкэри & Десерт", icon: "🥐" },
-  { id: "RETAIL_FMCG", name: "🥤 Бэлэн бараа (Лааз/Сав)", icon: "🥤" },
-  { id: "GENERAL", name: "📦 Бусад", icon: "📦" },
+  {
+    id: "HOT_BEVERAGE",
+    name: "Халуун ундаа",
+    icon: <Coffee className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
+  },
+  {
+    id: "COLD_BEVERAGE",
+    name: "Хүйтэн ундаа",
+    icon: <CupSoda className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
+  },
+  {
+    id: "FOOD_PREP",
+    name: "Хоол & Зууш",
+    icon: <Utensils className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
+  },
+  {
+    id: "BAKERY_DESSERT",
+    name: "Бэйкэри & Десерт",
+    icon: <Croissant className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
+  },
+  {
+    id: "RETAIL_FMCG",
+    name: "Бэлэн бараа",
+    icon: <Package className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
+  },
+  {
+    id: "GENERAL",
+    name: "Бусад",
+    icon: <Archive className="h-4 w-4" />,
+    color: "text-zinc-400 bg-zinc-950 border-zinc-800",
+  },
 ];
 
 const DEFAULT_GLOBAL_MARGINS: Record<string, number> = {
@@ -112,7 +149,7 @@ export default function GeneralSettings({
     if (error) alert("Алдаа: " + error.message);
     else
       alert(
-        "✅ Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
+        "Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
       );
   };
 
@@ -120,25 +157,25 @@ export default function GeneralSettings({
     <div className="space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <h3 className="text-base font-bold mb-4 text-zinc-200 flex items-center gap-2">
-            🏦 1. Мөнгөн Данс & Татварын Горим
+              Мөнгөн Данс & Татварын Горим
           </h3>
 
           {/* 🖼️ KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
           <div className="mb-4">
-            <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">
               Kiosk таблетын лого
             </label>
-            <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800 mb-1.5">
+            <div className="flex items-center gap-3 bg-zinc-950 p-2 rounded-xl border border-zinc-800 mb-1.5">
               {kioskLogoUrl ? (
                 <img
                   src={kioskLogoUrl}
                   alt="Kiosk Logo"
-                  className="h-10 w-10 rounded-xl object-cover border border-slate-700 shrink-0"
+                  className="h-10 w-10 rounded-xl object-cover border border-zinc-700 shrink-0"
                 />
               ) : (
-                <div className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-zinc-200 shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-200 shrink-0">
                   <Coffee className="h-5 w-5" />
                 </div>
               )}
@@ -186,7 +223,7 @@ export default function GeneralSettings({
                     } else {
                       setKioskLogoUrl(newLogoUrl); // Дэлгэц дээрх зургийг тэр дор нь солих
                       alert(
-                        "✅ Лого амжилттай солигдлоо! Kiosk дээр шууд харагдана.",
+                        "Лого амжилттай солигдлоо! Kiosk дээр шууд харагдана.",
                       );
                       fetchData();
                     }
@@ -194,11 +231,11 @@ export default function GeneralSettings({
                 />
                 <label
                   htmlFor="kiosk-logo-upload"
-                  className="inline-block bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-1 px-2.5 rounded-lg cursor-pointer transition border border-slate-700"
+                  className="inline-block bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold py-1 px-2.5 rounded-lg cursor-pointer transition border border-zinc-700"
                 >
                   Зураг солих
                 </label>
-                <p className="text-[10px] text-slate-500 mt-0.5 truncate">
+                <p className="text-[10px] text-zinc-500 mt-0.5 truncate">
                   Зөвхөн Kiosk таблет дээр харагдана
                 </p>
               </div>
@@ -224,7 +261,7 @@ export default function GeneralSettings({
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-bold text-slate-400 mb-1">
+              <label className="block text-sm font-bold text-zinc-400 mb-1">
                 Кассын эхний бэлэн мөнгө (₮)
               </label>
               <input
@@ -232,12 +269,12 @@ export default function GeneralSettings({
                 value={initialCash}
                 onChange={(e) => setInitialCash(e.target.value)}
                 placeholder="Жнь: 200000"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-400 mb-1">
+              <label className="block text-sm font-bold text-zinc-400 mb-1">
                 Банкны дансны эхний үлдэгдэл (₮)
               </label>
               <input
@@ -245,21 +282,21 @@ export default function GeneralSettings({
                 value={initialBank}
                 onChange={(e) => setInitialBank(e.target.value)}
                 placeholder="Жнь: 5000000"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-400 mb-1">
+              <label className="block text-sm font-bold text-zinc-400 mb-1">
                 Татварын тооцоолох горим
               </label>
               <select
                 value={taxMode}
                 onChange={(e) => setTaxMode(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-zinc-200 text-sm font-bold"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-zinc-200 text-sm font-bold"
               >
                 <option value="auto">
-                  ⚡ Автомат (300 сая хүртэл 1%, давбал 10%)
+                  Автомат (300 сая хүртэл 1%, давбал 10%)
                 </option>
                 <option value="simplified_1pct">
                   🟢 Зөвхөн Хялбаршуулсан 1% (Орлогоос)
@@ -281,7 +318,7 @@ export default function GeneralSettings({
         </div>
 
         {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 lg:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 lg:col-span-2">
           <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
             🏢 2. Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
           </h3>
@@ -313,7 +350,7 @@ export default function GeneralSettings({
               value={newOpexName}
               onChange={(e) => setNewOpexName(e.target.value)}
               placeholder="Зардлын нэр (Жнь: Түрээс, Хий/Газ)"
-              className="sm:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white font-bold"
+              className="sm:col-span-2 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold"
             />
             <input
               type="number"
@@ -321,11 +358,11 @@ export default function GeneralSettings({
               value={newOpexCost}
               onChange={(e) => setNewOpexCost(e.target.value)}
               placeholder="Сарын дүн (₮)"
-              className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white font-bold"
+              className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold"
             />
             <button
               type="submit"
-              className="bg-zinc-200 hover:bg-blue-400 text-slate-950 font-bold py-2 rounded-xl text-sm"
+              className="bg-zinc-200 hover:bg-blue-400 text-zinc-950 font-bold py-2 rounded-xl text-sm"
             >
               + Зардал Нэмэх
             </button>
@@ -334,7 +371,7 @@ export default function GeneralSettings({
           <div className="overflow-x-auto max-h-[220px]">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-slate-400 border-b border-slate-800">
+                <tr className="text-zinc-400 border-b border-zinc-800">
                   <th className="pb-2">Зардлын нэр</th>
                   <th className="pb-2 text-right">Сарын дүн (₮)</th>
                   <th className="pb-2 text-right">Үйлдэл</th>
@@ -345,7 +382,7 @@ export default function GeneralSettings({
                   <tr>
                     <td
                       colSpan={3}
-                      className="py-4 text-center text-slate-500 italic"
+                      className="py-4 text-center text-zinc-500 italic"
                     >
                       Тогтмол зардал оруулаагүй байна (Түрээс, тог г.м нэмнэ
                       үү).
@@ -354,10 +391,10 @@ export default function GeneralSettings({
                 ) : (
                   fixedOpexList.map((item) => (
                     <tr key={item.id}>
-                      <td className="py-2.5 font-bold text-slate-200">
+                      <td className="py-2.5 font-bold text-zinc-200">
                         {item.name}
                       </td>
-                      <td className="py-2.5 text-right font-black text-slate-100">
+                      <td className="py-2.5 text-right font-black text-zinc-100">
                         {parseFloat(item.monthly_cost).toLocaleString()} ₮
                       </td>
                       <td className="py-2.5 text-right">
@@ -383,9 +420,9 @@ export default function GeneralSettings({
         </div>
       </div>
       {/* 3. ҮНДСЭН ХӨРӨНГӨ (ТОНОГ ТӨХӨӨРӨМЖ, ШАРАХ ШҮҮГЭЭ, КОФЕ МАШИН) */}
-      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
         <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
-          🍳 3. Үндсэн Хөрөнгө & Тоног Төхөөрөмжийн Бүртгэл (Элэгдэл тооцоо)
+          Үндсэн Хөрөнгө & Тоног Төхөөрөмжийн Бүртгэл (Элэгдэл тооцоо)
         </h3>
 
         <form
@@ -415,7 +452,7 @@ export default function GeneralSettings({
             value={newAssetName}
             onChange={(e) => setNewAssetName(e.target.value)}
             placeholder="Хөрөнгийн нэр (Жнь: Rational зуух, Плитка, Хөргүүр)"
-            className="sm:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white font-bold"
+            className="sm:col-span-2 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold"
           />
           <input
             type="number"
@@ -423,18 +460,18 @@ export default function GeneralSettings({
             value={newAssetCost}
             onChange={(e) => setNewAssetCost(e.target.value)}
             placeholder="Анхны өртөг (₮)"
-            className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white font-bold"
+            className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold"
           />
           <input
             type="number"
             value={newAssetMonths}
             onChange={(e) => setNewAssetMonths(e.target.value)}
             placeholder="Ашиглах сар (Жнь: 60)"
-            className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white font-bold"
+            className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold"
           />
           <button
             type="submit"
-            className="bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold py-2 rounded-xl text-sm"
+            className="bg-white hover:bg-zinc-200 text-zinc-950 font-bold py-2 rounded-xl text-sm"
           >
             + Хөрөнгө Нэмэх
           </button>
@@ -443,7 +480,7 @@ export default function GeneralSettings({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-800">
+              <tr className="text-zinc-400 border-b border-zinc-800">
                 <th className="pb-2">Хөрөнгийн нэр</th>
                 <th className="pb-2 text-right">Анхны өртөг</th>
                 <th className="pb-2 text-center">Ашиглах сар</th>
@@ -456,7 +493,7 @@ export default function GeneralSettings({
                 <tr>
                   <td
                     colSpan={5}
-                    className="py-6 text-center text-slate-500 italic"
+                    className="py-6 text-center text-zinc-500 italic"
                   >
                     Бүртгэлтэй үндсэн хөрөнгө байхгүй байна.
                   </td>
@@ -468,13 +505,13 @@ export default function GeneralSettings({
                   const monthly = months > 0 ? Math.round(cost / months) : 0;
                   return (
                     <tr key={fa.id}>
-                      <td className="py-2.5 font-bold text-slate-200">
+                      <td className="py-2.5 font-bold text-zinc-200">
                         {fa.name}
                       </td>
-                      <td className="py-2.5 text-right text-slate-300">
+                      <td className="py-2.5 text-right text-zinc-300">
                         {cost.toLocaleString()} ₮
                       </td>
-                      <td className="py-2.5 text-center text-slate-400">
+                      <td className="py-2.5 text-center text-zinc-400">
                         {months} сар ({(months / 12).toFixed(1)} жил)
                       </td>
                       <td className="py-2.5 text-right font-black text-zinc-300">
@@ -503,16 +540,16 @@ export default function GeneralSettings({
         </div>
       </div>
 
-      {/* 🎯 4. АНГИЛЛЫН АШГИЙН МАРЖИНГИЙН БОДЛОГО (TARGET MARGINS) */}
-      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 shadow-xl mt-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
+      {/* 4. АНГИЛЛЫН АШГИЙН МАРЖИНГИЙН БОДЛОГО (TARGET MARGINS) */}
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-xl mt-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-zinc-800">
           <div>
             <h3 className="text-base font-black text-zinc-300 flex items-center gap-2">
               <span>
-                🎯 4. Ангиллын Ашгийн Маржингийн Бодлого (Target Margins)
+                 Ангиллын Ашгийн Маржингийн Бодлого (Target Margins)
               </span>
             </h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+            <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
               Ангилал тус бүрийн хүрэх ёстой зорилтот бохир ашгийн % (Gross
               Margin). Түүхий эд өсөхөд систем энэ хувиар автоматаар зөвлөх
               зарах үнийг бодно.
@@ -540,14 +577,14 @@ export default function GeneralSettings({
             return (
               <div
                 key={cat.id}
-                className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2"
+                className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2"
               >
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>{cat.icon}</span>
                     <span>{cat.name.replace(/^[^\s]+\s/, "")}</span>
                   </span>
-                  <span className="text-[10px] text-slate-500 font-mono">
+                  <span className="text-[10px] text-zinc-500 font-mono">
                     Стандарт: {DEFAULT_GLOBAL_MARGINS[cat.id]}%
                   </span>
                 </div>
@@ -566,7 +603,7 @@ export default function GeneralSettings({
                           [cat.id]: val,
                         }));
                       }}
-                      className="w-full bg-zinc-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
+                      className="w-full bg-zinc-950 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-300 font-mono">
                       %
@@ -582,7 +619,7 @@ export default function GeneralSettings({
                           [cat.id]: DEFAULT_GLOBAL_MARGINS[cat.id],
                         }))
                       }
-                      className="text-[10px] text-slate-400 hover:text-white bg-slate-800 px-2 py-2 rounded-xl border border-slate-700"
+                      className="text-[10px] text-zinc-400 hover:text-white bg-zinc-800 px-2 py-2 rounded-xl border border-zinc-700"
                       title="Стандарт руу буцаах"
                     >
                       Reset
@@ -590,7 +627,7 @@ export default function GeneralSettings({
                   )}
                 </div>
 
-                <p className="text-[10px] text-slate-500 font-mono">
+                <p className="text-[10px] text-zinc-500 font-mono">
                   Зорилтот өртөг (Food Cost):{" "}
                   <strong>{(100 - currentVal).toFixed(0)}%</strong>
                 </p>

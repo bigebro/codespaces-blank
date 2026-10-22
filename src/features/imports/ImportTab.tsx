@@ -7,6 +7,11 @@ import {
   UploadCloud,
   Trash2,
   Coffee,
+  CupSoda,
+  Utensils,
+  Croissant,
+  Package,
+  Archive,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -111,39 +116,39 @@ export default function ImportTab({
   const UNIVERSAL_CATEGORIES = [
     {
       id: "HOT_BEVERAGE",
-      name: "☕ Халуун ундаа",
-      icon: "☕",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
+      name: "Халуун ундаа",
+      icon: <Coffee className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "COLD_BEVERAGE",
-      name: "🍹 Хүйтэн ундаа",
-      icon: "🍹",
-      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
+      name: "Хүйтэн ундаа",
+      icon: <CupSoda className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "FOOD_PREP",
-      name: "🍳 Хоол & Зууш",
-      icon: "🍳",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+      name: "Хоол & Зууш",
+      icon: <Utensils className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "BAKERY_DESSERT",
-      name: "🥐 Бэйкэри & Десерт",
-      icon: "🥐",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
+      name: "Бэйкэри & Десерт",
+      icon: <Croissant className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "RETAIL_FMCG",
-      name: "🥤 Бэлэн бараа (Лааз/Сав)",
-      icon: "🥤",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+      name: "Бэлэн бараа",
+      icon: <Package className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "GENERAL",
-      name: "📦 Бусад",
-      icon: "📦",
-      color: "text-slate-300 bg-slate-800 border-slate-700",
+      name: "Бусад",
+      icon: <Archive className="h-4 w-4" />,
+      color: "text-zinc-400 bg-zinc-950 border-zinc-800",
     },
   ];
 
@@ -1698,7 +1703,7 @@ export default function ImportTab({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-200" />
@@ -1715,7 +1720,7 @@ export default function ImportTab({
             </button>
           </div>
 
-          <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+          <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
             Google Sheets-ээс <strong>Бүтээгдэхүүн, Тоо ширхэг, Орлого</strong>{" "}
             гэсэн 3 баганыг хуулаад доор шууд хуулж тавина уу.
           </p>
@@ -1728,14 +1733,14 @@ export default function ImportTab({
           )}
 
           {/* 🟢 БОРЛУУЛАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
-          <div className="mb-4 p-3 rounded-xl border text-sm bg-slate-950/80 border-slate-800/80 flex items-center gap-2.5">
+          <div className="mb-4 p-3 rounded-xl border text-sm bg-zinc-950/80 border-zinc-800/80 flex items-center gap-2.5">
             {existingSales.length > 0 ? (
               <>
                 <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
+                  <span className=" absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                 </span>
-                <p className="text-slate-300 leading-normal">
+                <p className="text-zinc-300 leading-normal">
                   <span className="font-bold text-zinc-200 font-mono">
                     {startDate} ~ {endDate}
                   </span>
@@ -1752,8 +1757,8 @@ export default function ImportTab({
               </>
             ) : (
               <>
-                <span className="h-2 w-2 rounded-full bg-slate-600 shrink-0" />
-                <p className="text-slate-400">
+                <span className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
+                <p className="text-zinc-400">
                   <span className="font-mono">
                     {startDate} ~ {endDate}
                   </span>{" "}
@@ -1769,7 +1774,7 @@ export default function ImportTab({
               value={salesPasteText}
               onChange={(e) => setSalesPasteText(e.target.value)}
               placeholder="Жишээ:&#10;Caffe Latte&#9;34&#10;Tiramisu&#9;62"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:border-zinc-700"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:border-zinc-700"
             />
 
             {/* ☑️ ДАВХАРДЛААС ХАМГААЛАХ OVERWRITE CHECKBOX */}
@@ -1779,7 +1784,7 @@ export default function ImportTab({
                   type="checkbox"
                   checked={overwriteSales}
                   onChange={(e) => setOverwriteSales(e.target.checked)}
-                  className="rounded border-slate-700 accent-amber-500"
+                  className="rounded border-zinc-700 accent-amber-500"
                 />
                 <span>
                   Энэ хугацааны ({startDate} - {endDate}){" "}
@@ -1808,7 +1813,7 @@ export default function ImportTab({
           </form>
         </div>
 
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
@@ -1824,7 +1829,7 @@ export default function ImportTab({
               👁️ Загвар харах
             </button>
           </div>
-          <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+          <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
             Google Sheets-ээс{" "}
             <strong>Барааны нэр, Авсан тоо, Нийт өртөг</strong> гэсэн 3 баганыг
             хуулаад доор шууд хуулж тавина уу.
@@ -1837,14 +1842,14 @@ export default function ImportTab({
             </div>
           )}
           {/* 🔵 ТАТАН АВАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
-          <div className="mb-4 p-3 rounded-xl border text-sm bg-slate-950/80 border-slate-800/80 flex items-center gap-2.5">
+          <div className="mb-4 p-3 rounded-xl border text-sm bg-zinc-950/80 border-zinc-800/80 flex items-center gap-2.5">
             {existingPurchases.length > 0 ? (
               <>
                 <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className=" absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-200"></span>
                 </span>
-                <p className="text-slate-300 leading-normal">
+                <p className="text-zinc-300 leading-normal">
                   <span className="font-bold text-zinc-300 font-mono">
                     {startDate} ~ {endDate}
                   </span>
@@ -1861,8 +1866,8 @@ export default function ImportTab({
               </>
             ) : (
               <>
-                <span className="h-2 w-2 rounded-full bg-slate-600 shrink-0" />
-                <p className="text-slate-400">
+                <span className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
+                <p className="text-zinc-400">
                   <span className="font-mono">
                     {startDate} ~ {endDate}
                   </span>{" "}
@@ -1878,7 +1883,7 @@ export default function ImportTab({
               value={purchasePasteText}
               onChange={(e) => setPurchasePasteText(e.target.value)}
               placeholder="Жишээ:&#10;Milk&#9;10000&#9;58000"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:border-zinc-700"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:border-zinc-700"
             />
 
             {/* OVERWRITE CHECKBOX */}
@@ -1888,7 +1893,7 @@ export default function ImportTab({
                   type="checkbox"
                   checked={overwritePurchases}
                   onChange={(e) => setOverwritePurchases(e.target.checked)}
-                  className="rounded border-slate-700 accent-amber-500"
+                  className="rounded border-zinc-700 accent-amber-500"
                 />
                 <span>
                   Энэ хугацааны хуучин татан авалтыг{" "}
@@ -1903,7 +1908,7 @@ export default function ImportTab({
               className={`w-full font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 ${
                 overwritePurchases
                   ? "bg-white hover:bg-zinc-200 text-zinc-950"
-                  : "bg-zinc-200 hover:bg-blue-400 text-slate-950"
+                  : "bg-white hover:bg-zinc-200 text-zinc-950"
               }`}
             >
               <UploadCloud className="h-4 w-4" />
@@ -1915,7 +1920,7 @@ export default function ImportTab({
         </div>
 
         {/* 🗂️ БОСОО ТООЛЛОГО ИМПОРТЛОХ КАРТ */}
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 col-span-1 md:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 col-span-1 md:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
@@ -1933,7 +1938,7 @@ export default function ImportTab({
             </button>
           </div>
 
-          <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+          <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
             Excel дээрх <strong>[Барааны нэр] болон [Тоо хэмжээ]</strong> гэсэн
             2 босоо баганыг хуулаад доор тавина уу. (Хэвтээ 125 багана
             шаардлагагүй).
@@ -1949,21 +1954,21 @@ export default function ImportTab({
           )}
 
           {/* 📅 ОГНОО БА ТӨРӨЛ СОНГОХ (УХААЛАГ КОНТРОЛ) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">
+              <label className="block text-xs font-bold text-zinc-400 mb-1">
                 Тооллогын Огноо:
               </label>
               <input
                 type="date"
                 value={auditDate}
                 onChange={(e) => setAuditDate(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-bold outline-none focus:border-teal-500 cursor-pointer"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white font-bold outline-none focus:border-teal-500 cursor-pointer"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">
+              <label className="block text-xs font-bold text-zinc-400 mb-1">
                 Тооллогын Төрөл:
               </label>
               <select
@@ -1971,7 +1976,7 @@ export default function ImportTab({
                 onChange={(e) =>
                   setAuditType(e.target.value as "start" | "end")
                 }
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-zinc-300 font-bold outline-none focus:border-teal-500 cursor-pointer"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 font-bold outline-none focus:border-teal-500 cursor-pointer"
               >
                 <option value="start">🟢 Эхний үлдэгдэл (Start Balance)</option>
                 <option value="end">🔴 Эцсийн тооллого (Ending Count)</option>
@@ -1985,7 +1990,7 @@ export default function ImportTab({
               value={inventoryPasteText}
               onChange={(e) => setInventoryPasteText(e.target.value)}
               placeholder="Жишээ:&#10;Matcha powder&#9;41.9&#10;Eggs&#9;5&#10;Hazelnut syrup&#9;833.9"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:outline-none focus:border-teal-500 leading-normal"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-teal-500 leading-normal"
             />
 
             {/* OVERWRITE CHECKBOX */}
@@ -1994,7 +1999,7 @@ export default function ImportTab({
                 type="checkbox"
                 checked={overwriteAudit}
                 onChange={(e) => setOverwriteAudit(e.target.checked)}
-                className="rounded border-slate-700 accent-amber-500"
+                className="rounded border-zinc-700 accent-amber-500"
               />
               <span>
                 Сонгосон огнооны ({auditDate}){" "}
@@ -2013,7 +2018,7 @@ export default function ImportTab({
           </form>
         </div>
 
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 col-span-1 md:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 col-span-1 md:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 mb-4">
               <Trash2 className="h-6 w-6 text-rose-400" />
@@ -2031,7 +2036,7 @@ export default function ImportTab({
               👁️ Загвар харах
             </button>
           </div>
-          <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+          <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
             Google Sheets-ээс{" "}
             <strong>Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар</strong> гэсэн 5
             баганыг чирж хуулаад доор шууд хуулж тавина уу.
@@ -2048,7 +2053,7 @@ export default function ImportTab({
           )}
 
           {/* STATUS BADGE */}
-          <div className="mb-3 p-3 rounded-xl border text-sm font-semibold flex items-center gap-2 bg-slate-950 border-slate-800">
+          <div className="mb-3 p-3 rounded-xl border text-sm font-semibold flex items-center gap-2 bg-zinc-950 border-zinc-800">
             {existingKitchenCount > 0 ? (
               <span className="text-rose-400 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-rose-400 " />
@@ -2061,8 +2066,8 @@ export default function ImportTab({
                 бүртгэгдсэн байна.
               </span>
             ) : (
-              <span className="text-slate-400 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-slate-600" />⚪{" "}
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-zinc-600" />⚪{" "}
                 {startDate} - {endDate} хооронд хаягдал бүртгэгдээгүй байна.
               </span>
             )}
@@ -2074,7 +2079,7 @@ export default function ImportTab({
               value={kitchenPasteText}
               onChange={(e) => setKitchenPasteText(e.target.value)}
               placeholder="Жишээ:&#10;2026-06-04&#9;Spoilage&#9;Whipped cream&#9;500&#9;Асгарч муудсан"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
             />
 
             {/* OVERWRITE CHECKBOX */}
@@ -2084,7 +2089,7 @@ export default function ImportTab({
                   type="checkbox"
                   checked={overwriteKitchen}
                   onChange={(e) => setOverwriteKitchen(e.target.checked)}
-                  className="rounded border-slate-700 accent-amber-500"
+                  className="rounded border-zinc-700 accent-amber-500"
                 />
                 <span>
                   Энэ хугацааны хуучин хаягдлыг{" "}
@@ -2106,7 +2111,7 @@ export default function ImportTab({
 
         {userRole === "owner" && (
           <>
-            <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+            <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FileSpreadsheet className="h-6 w-6 text-zinc-200" />
@@ -2123,7 +2128,7 @@ export default function ImportTab({
                   👁️ Загвар харах
                 </button>
               </div>
-              <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+              <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
                 Excel-ээс{" "}
                 <strong>
                   Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц (Par)
@@ -2143,7 +2148,7 @@ export default function ImportTab({
                   value={ingredientsPasteText}
                   onChange={(e) => setIngredientsPasteText(e.target.value)}
                   placeholder="Жишээ:&#10;Milk&#9;ml&#9;5.8&#9;20000&#10;Beans&#9;gram&#9;85&#9;5000"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:outline-none focus:border-zinc-700"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700"
                 />
                 <button
                   type="submit"
@@ -2157,7 +2162,7 @@ export default function ImportTab({
             </div>
 
             {/* 2. RECIPE / ТЕХНОЛОГИЙН КАРТ SETUP BOX */}
-            <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+            <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
@@ -2174,7 +2179,7 @@ export default function ImportTab({
                   👁️ Загвар харах
                 </button>
               </div>
-              <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+              <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
                 Excel-ээс{" "}
                 <strong>Бүтээгдэхүүн, Орцын нэр, Орцын хэмжээ (гр/мл)</strong>{" "}
                 гэсэн 3 баганыг хуулаад доор хуулж тавина уу.
@@ -2192,12 +2197,12 @@ export default function ImportTab({
                   value={recipesPasteText}
                   onChange={(e) => setRecipesPasteText(e.target.value)}
                   placeholder="Жишээ:&#10;Caffe Latte&#9;Milk&#9;200&#10;Caffe Latte&#9;Beans&#9;16&#10;Chicken Sandwich&#9;Cheese slice&#9;1"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:outline-none focus:border-zinc-800"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-800"
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
+                  className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
                 >
                   <UploadCloud className="h-4 w-4" />
                   Жор бөөнөөр хадгалах (Import Recipes)
@@ -2205,7 +2210,7 @@ export default function ImportTab({
               </form>
             </div>
 
-            <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8">
+            <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-8">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Coffee className="h-6 w-6 text-zinc-200" />
@@ -2223,7 +2228,7 @@ export default function ImportTab({
                   👁️ Загвар харах
                 </button>
               </div>
-              <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+              <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
                 Google Sheets-ээс{" "}
                 <strong>
                   Category (Ангилал), Item (Нэр), Selling Price (Зарах үнэ)
@@ -2243,7 +2248,7 @@ export default function ImportTab({
                   value={productsPasteText}
                   onChange={(e) => setProductsPasteText(e.target.value)}
                   placeholder="Жишээ:&#10;SANDWICH&#9;Chicken Sandwich&#9;8900&#10;COLD COFFEE&#9;Americano /мөстэй/&#9;8500&#10;COLD COFFEE&#9;Caffe latte /мөстэй/&#9;9500"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 font-mono focus:outline-none focus:border-zinc-700"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700"
                 />
                 <button
                   type="submit"
@@ -2265,29 +2270,29 @@ export default function ImportTab({
             onClick={() => setActiveSampleModal(null)}
           >
             <div
-              className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+              className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Толгой хэсэг */}
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                 <h3 className="font-bold text-white text-sm flex items-center gap-2">
                   📊 Excel / Sheets-ээс хуулах албан ёсны загвар
                 </h3>
                 <button
                   onClick={() => setActiveSampleModal(null)}
-                  className="text-slate-400 hover:text-white text-sm font-bold bg-slate-800 px-3 py-1.5 rounded-lg cursor-pointer transition hover:bg-slate-700"
+                  className="text-zinc-400 hover:text-white text-sm font-bold bg-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer transition hover:bg-zinc-700"
                 >
                   ✕ Хаах
                 </button>
               </div>
 
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-zinc-400">
                 Та Excel эсвэл Google Sheets дээрх багануудаа{" "}
-                <code className="bg-slate-950 px-1.5 py-0.5 rounded text-zinc-200">
+                <code className="bg-zinc-950 px-1.5 py-0.5 rounded text-zinc-200">
                   Ctrl+C
                 </code>{" "}
                 хийж хуулаад, талбарт{" "}
-                <code className="bg-slate-950 px-1.5 py-0.5 rounded text-zinc-200">
+                <code className="bg-zinc-950 px-1.5 py-0.5 rounded text-zinc-200">
                   Ctrl+V
                 </code>{" "}
                 дарж оруулна.
@@ -2298,20 +2303,20 @@ export default function ImportTab({
               {/* ========================================================================= */}
               {activeSampleModal === "sales" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-4 bg-slate-950 p-2.5 font-black text-zinc-200 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
+                    <div className="grid grid-cols-4 bg-zinc-950 p-2.5 font-black text-zinc-200 border-b border-zinc-800">
                       <span>1. Бүтээгдэхүүн</span>
                       <span>2. Тоо ширхэг</span>
                       <span>3. Нийт орлого (₮)</span>
                       <span>4. Огноо</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Caffe Latte</span>
                       <span>30</span>
                       <span>285000</span>
                       <span>2026-09-15</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300">
                       <span>Americano</span>
                       <span>20</span>
                       <span>160000</span>
@@ -2319,9 +2324,9 @@ export default function ImportTab({
                     </div>
                   </div>
 
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1">
                     <p>
-                      💡 <strong className="text-slate-200">Санамж:</strong>
+                      💡 <strong className="text-zinc-200">Санамж:</strong>
                     </p>
                     <p>
                       • Баганын дараалал ямар ч байсан систем толгой мөрөөрөө
@@ -2356,20 +2361,20 @@ export default function ImportTab({
               {/* ========================================================================= */}
               {activeSampleModal === "purchases" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-4 bg-slate-950 p-2.5 font-black text-zinc-300 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
+                    <div className="grid grid-cols-4 bg-zinc-950 p-2.5 font-black text-zinc-300 border-b border-zinc-800">
                       <span>1. Барааны нэр</span>
                       <span>2. Тоо хэмжээ</span>
                       <span>3. Нийт өртөг (₮)</span>
                       <span>4. Огноо</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Milk</span>
                       <span>5000</span>
                       <span>27500</span>
                       <span>2026-09-15</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300">
                       <span>Beans</span>
                       <span>1000</span>
                       <span>85000</span>
@@ -2377,9 +2382,9 @@ export default function ImportTab({
                     </div>
                   </div>
 
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1">
                     <p>
-                      💡 <strong className="text-slate-200">Санамж:</strong>
+                      💡 <strong className="text-zinc-200">Санамж:</strong>
                     </p>
                     <p>
                       • Хүнсний түүхий эдээс гадна сальфетка, аяга, угаалгын
@@ -2414,28 +2419,28 @@ export default function ImportTab({
               {/* ========================================================================= */}
               {activeSampleModal === "audit" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-2 bg-slate-950 p-2.5 font-black text-zinc-300 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
+                    <div className="grid grid-cols-2 bg-zinc-950 p-2.5 font-black text-zinc-300 border-b border-zinc-800">
                       <span>1. Барааны нэр (Item Name)</span>
                       <span>2. Тоо хэмжээ (Quantity)</span>
                     </div>
-                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Matcha powder</span>
                       <span>41.9</span>
                     </div>
-                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Eggs</span>
                       <span>5</span>
                     </div>
-                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300">
                       <span>Hazelnut syrup</span>
                       <span>833.9</span>
                     </div>
                   </div>
 
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1">
                     <p>
-                      💡 <strong className="text-slate-200">Заавар:</strong>
+                      💡 <strong className="text-zinc-200">Заавар:</strong>
                     </p>
                     <p>
                       • Дээрх огноо сонгогчоос <strong>Огноо</strong> болон{" "}
@@ -2468,22 +2473,22 @@ export default function ImportTab({
               {/* ========================================================================= */}
               {activeSampleModal === "kitchen" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-xs text-center">
-                    <div className="grid grid-cols-5 bg-slate-950 p-2 font-black text-rose-400 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-xs text-center">
+                    <div className="grid grid-cols-5 bg-zinc-950 p-2 font-black text-rose-400 border-b border-zinc-800">
                       <span>1. Огноо</span>
                       <span>2. Төрөл</span>
                       <span>3. Барааны нэр</span>
                       <span>4. Хэмжээ</span>
                       <span>5. Тайлбар</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>2026-09-15</span>
                       <span className="text-rose-400 font-bold">spoilage</span>
                       <span>Milk</span>
                       <span>1000</span>
                       <span>Өглөө асгарсан</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">
                         staff_meal
@@ -2492,14 +2497,14 @@ export default function ImportTab({
                       <span>2</span>
                       <span>Ажилтны хоолонд</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">testing</span>
                       <span>Beans</span>
                       <span>50</span>
                       <span>Кофены амталгаа</span>
                     </div>
-                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">other</span>
                       <span>Bun</span>
@@ -2509,7 +2514,7 @@ export default function ImportTab({
                   </div>
 
                   {/* 💡 БҮХ 4 ТӨРЛИЙН САНХҮҮГИЙН НАРИЙН ТАЙЛБАР */}
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1.5">
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-300 space-y-1.5">
                     <p className="font-bold text-white">
                       📌 Төрөл (Type) сонголт ба санхүүгийн ялгаа:
                     </p>
@@ -2541,7 +2546,7 @@ export default function ImportTab({
                       Дотоод хэрэгцээ (үзүүлэн, сургалт г.м) $\rightarrow$
                       COGS-оос хасагдаж, OPEX руу шилжинэ.
                     </p>
-                    <p className="text-xs text-slate-500 pt-1">
+                    <p className="text-xs text-zinc-500 pt-1">
                       *(Хэрэв Огноо баганыг бичилгүй 4 баганаар хуулбал систем
                       сонгосон сарын огноог өөрөө автоматаар өгнө).*
                     </p>
@@ -2567,20 +2572,20 @@ export default function ImportTab({
               {/* 5. ТҮҮХИЙ ЭД & ҮНЭ (INGREDIENTS CATALOG) */}
               {activeSampleModal === "ingredients" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-4 bg-slate-950 p-2 font-black text-zinc-200 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
+                    <div className="grid grid-cols-4 bg-zinc-950 p-2 font-black text-zinc-200 border-b border-zinc-800">
                       <span>1. Нэр</span>
                       <span>2. Нэгж (мл/гр/ш)</span>
                       <span>3. Нэгжийн үнэ (₮)</span>
                       <span>4. Хэвийн нөөц (Par)</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Milk</span>
                       <span>ml</span>
                       <span>5.8</span>
                       <span>20000</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300">
                       <span>Beans</span>
                       <span>gram</span>
                       <span>85</span>
@@ -2607,18 +2612,18 @@ export default function ImportTab({
               {/* 6. ТЕХНОЛОГИЙН КАРТ БУЮУ ЖОР (RECIPES) */}
               {activeSampleModal === "recipes" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-zinc-300 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
+                    <div className="grid grid-cols-3 bg-zinc-950 p-2 font-black text-zinc-300 border-b border-zinc-800">
                       <span>1. Бүтээгдэхүүн</span>
                       <span>2. Орцын нэр</span>
                       <span>3. Орцын хэмжээ</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Caffe Latte</span>
                       <span>Milk</span>
                       <span>200</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300">
                       <span>Caffe Latte</span>
                       <span>Beans</span>
                       <span>16</span>
@@ -2634,7 +2639,7 @@ export default function ImportTab({
                         "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",
                       );
                     }}
-                    className="w-full bg-zinc-800/60 hover:bg-purple-500/30 text-zinc-300 border border-zinc-800/30 py-2 rounded-xl text-sm font-bold transition"
+                    className="w-full bg-zinc-800/60 hover:bg-white/30 text-zinc-300 border border-zinc-800/30 py-2 rounded-xl text-sm font-bold transition"
                   >
                     📋 Жишээ хуулах (Copy Test Recipes)
                   </button>
@@ -2644,18 +2649,18 @@ export default function ImportTab({
               {/* 7. МЕНЮ БА ЗАРАХ ҮНЭ (PRODUCTS MENU) */}
               {activeSampleModal === "products" && (
                 <div className="space-y-3">
-                  <div className="border border-slate-800 rounded-xl overflow-hidden font-mono text-sm text-center">
-                    <div className="grid grid-cols-3 bg-slate-950 p-2 font-black text-zinc-300 border-b border-slate-800">
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
+                    <div className="grid grid-cols-3 bg-zinc-950 p-2 font-black text-zinc-300 border-b border-zinc-800">
                       <span>1. Ангилал (Category)</span>
                       <span>2. Бүтээгдэхүүний нэр</span>
                       <span>3. Зарах үнэ (₮)</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300 border-b border-slate-800">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>COFFEE</span>
                       <span>Caffe Latte</span>
                       <span>9500</span>
                     </div>
-                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-slate-300">
+                    <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300">
                       <span>SANDWICH</span>
                       <span>Chicken Sandwich</span>
                       <span>12500</span>

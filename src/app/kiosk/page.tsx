@@ -25,6 +25,12 @@ import {
   X,
   BookOpen,
   PlusCircle,
+  Trash2,
+  Utensils,
+  Beaker,
+  Package,
+  DollarSign, Image as ImageIcon, Wallet,
+   Banknote, Crown, Receipt, ChefHat
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -316,11 +322,11 @@ function KioskAiChatSection({
 
   // 1-Tap Quick Action Presets (Хамгийн түгээмэл 5 хаягдал)
   const QUICK_SPILLS = [
-    { label: "🥛 500мл Сүү", text: "500 мл сүү асгарсан" },
-    { label: "🥛 1л Сүү", text: "1 литр сүү асгарсан" },
-    { label: "☕ 18г Кофе", text: "18 грамм кофе асгарсан" },
-    { label: "🥚 1ш Өндөг", text: "1 ширхэг өндөг хагарсан" },
-    { label: "🥪 1ш Талх", text: "1 ширхэг талх муудсан" },
+    { label: "500мл Сүү", text: "500 мл сүү асгарсан" },
+    { label: "1л Сүү", text: "1 литр сүү асгарсан" },
+    { label: " 18г Кофе", text: "18 грамм кофе асгарсан" },
+    { label: " 1ш Өндөг", text: "1 ширхэг өндөг хагарсан" },
+    { label: "1ш Талх", text: "1 ширхэг талх муудсан" },
   ];
 
   useEffect(() => {
@@ -815,9 +821,9 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-zinc-900 rounded-3xl border border-slate-800 shadow-xl p-3 sm:p-4 overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-zinc-900 rounded-3xl border border-zinc-800 shadow-xl p-3 sm:p-4 overflow-hidden">
       {/* Дэд толгой */}
-      <div className="flex justify-between items-center pb-2.5 border-b border-slate-800/80 shrink-0">
+      <div className="flex justify-between items-center pb-2.5 border-b border-zinc-800/80 shrink-0">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-zinc-300" />
           <h2 className="font-bold text-zinc-300 text-sm sm:text-base">
@@ -831,7 +837,7 @@ function KioskAiChatSection({
         </div>
         <button
           onClick={onBack}
-          className="bg-slate-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95 transition"
+          className="bg-zinc-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-zinc-800 hover:bg-zinc-800 text-zinc-300 active:scale-95 transition"
         >
           ← Буцах
         </button>
@@ -840,14 +846,14 @@ function KioskAiChatSection({
       {/* Мессежүүд гүйх талбар */}
       <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-3 overscroll-contain pr-1">
         {chatHistory.length === 0 && (
-          <div className="text-center text-slate-400 text-xs sm:text-sm mt-4 space-y-2">
+          <div className="text-center text-zinc-400 text-xs sm:text-sm mt-4 space-y-2">
             <div className="bg-zinc-800/60 p-3.5 rounded-2xl border border-zinc-700/20 w-fit mx-auto">
               <Mic className="h-7 w-7 text-zinc-300" />
             </div>
             <p className="font-black text-white text-base">
               Монголоор ярьж эсвэл зураг дарж бүртгэнэ үү
             </p>
-            <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+            <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
               Микрофон товчийг дараад <strong>"2 литр сүү асгарсан"</strong> гэж
               хэлэхэд л AI шууд ойлгоно!
             </p>
@@ -862,8 +868,8 @@ function KioskAiChatSection({
             <div
               className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${
                 msg.sender === "worker"
-                  ? "bg-white text-white rounded-tr-none font-medium shadow-md"
-                  : "bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800/80 shadow-md"
+                  ? "bg-white text-zinc-950 rounded-tr-none font-medium shadow-md"
+                  : "bg-zinc-900 text-zinc-100 rounded-tl-none border border-zinc-800/80 shadow-md"
               }`}
             >
               {msg.sender === "worker" ? (
@@ -881,7 +887,7 @@ function KioskAiChatSection({
                   onClick={() =>
                     handleUndo(msg.logId!, i, (msg as any).learnedAliasId)
                   }
-                  className="mt-2.5 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                  className="mt-2.5 w-full bg-zinc-950 border border-zinc-700 hover:bg-rose-500/20 hover:text-rose-400 text-zinc-300 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
                 >
                   <RotateCcw className="h-3 w-3" /> Буцаах
                 </button>
@@ -891,7 +897,7 @@ function KioskAiChatSection({
         ))}
         {isAiLoading && (
           <div className="flex items-center gap-2 text-zinc-300 text-xs font-bold px-2 py-1 bg-zinc-800/60 rounded-xl w-fit">
-            <span className="animate-spin text-sm">☕</span>
+            <span className="animate-spin text-sm"></span>
             <span>AI бүртгэж байна...</span>
           </div>
         )}
@@ -907,7 +913,7 @@ function KioskAiChatSection({
             onClick={() =>
               handleAiChatSubmit(undefined, undefined, preset.text)
             }
-            className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition flex items-center gap-1 shrink-0"
+            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition flex items-center gap-1 shrink-0"
           >
             <span>{preset.label}</span>
           </button>
@@ -918,7 +924,7 @@ function KioskAiChatSection({
       <div className="pt-1.5 shrink-0 w-full">
         <form
           onSubmit={(e) => handleAiChatSubmit(e)}
-          className="bg-zinc-900] border border-slate-700 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg focus-within:border-zinc-700 w-full"
+          className="bg-zinc-900 border border-zinc-700 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg focus-within:border-zinc-700 w-full"
         >
           <textarea
             ref={textareaRef}
@@ -940,11 +946,11 @@ function KioskAiChatSection({
                 ? "🎙️ Ярьж байна... '2 литр сүү асгасан' гэж хэлнэ үү"
                 : "Зарлага бичих эсвэл микрофоноор ярих..."
             }
-            className={`w-full bg-transparent text-white text-[15px] leading-relaxed resize-none outline-none placeholder:text-slate-500 px-1 ${isListening ? " text-zinc-200 font-bold" : ""}`}
+            className={`w-full bg-transparent text-white text-[15px] leading-relaxed resize-none outline-none placeholder:text-zinc-500 px-1 ${isListening ? " text-zinc-200 font-bold" : ""}`}
             style={{ minHeight: "38px", maxHeight: "100px" }}
           />
 
-          <div className="flex justify-between items-center pt-1.5 border-t border-slate-800/60 shrink-0 w-full gap-1">
+          <div className="flex justify-between items-center pt-1.5 border-t border-zinc-800/60 shrink-0 w-full gap-1">
             {/* ⬅️ Зүүн талын товчнууд: Камер, Цомог, Ярих, Цуцлах */}
             <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 overflow-x-auto no-scrollbar py-0.5">
               {/* 📸 1. Камераар шууд зураг дарах */}
@@ -963,7 +969,7 @@ function KioskAiChatSection({
               />
               <label
                 htmlFor="kiosk-ai-camera"
-                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-zinc-200 font-bold text-xs sm:text-xs transition shrink-0 select-none"
+                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-zinc-200 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="Шууд камераар зураг дарах"
               >
                 <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -985,7 +991,7 @@ function KioskAiChatSection({
               />
               <label
                 htmlFor="kiosk-ai-gallery"
-                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-slate-300 font-bold text-xs sm:text-xs transition shrink-0 select-none"
+                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-zinc-300 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="iPad эсвэл утасны цомгоос сонгох"
               >
                 <span className="text-xs shrink-0">🖼️</span>
@@ -998,8 +1004,8 @@ function KioskAiChatSection({
                 onClick={startVoiceRecording}
                 className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center gap-1 font-bold text-xs sm:text-xs active:scale-95 transition-all shrink-0 select-none ${
                   isListening
-                    ? "bg-rose-600 text-white animate-bounce shadow-[0_0_12px_rgba(225,29,72,0.6)]"
-                    : "bg-slate-800 hover:bg-slate-700 text-zinc-300"
+                    ? "bg-rose-600 text-white  shadow-[0_0_12px_rgba(225,29,72,0.6)]"
+                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
                 }`}
                 title={isListening ? "Дуу бичихийг зогсоох" : "Дуугаар ярих"}
               >
@@ -1031,8 +1037,8 @@ function KioskAiChatSection({
               disabled={isAiLoading || !chatInput.trim()}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-xs flex items-center gap-1.5 transition-all shrink-0 select-none ml-1 ${
                 chatInput.trim() && !isAiLoading
-                  ? "bg-white hover:bg-zinc-200 text-white shadow-md active:scale-95 cursor-pointer"
-                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  ? "bg-white hover:bg-zinc-200 text-zinc-950 shadow-md active:scale-95 cursor-pointer"
+                  : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
               }`}
             >
               <span>{isAiLoading ? "..." : "Илгээх"}</span>
@@ -1799,16 +1805,16 @@ function KioskPage() {
   };
 
   return (
-    <div className="h-[100dvh] w-full bg-zinc-950 text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
+    <div className="h-[100dvh] w-full bg-zinc-950 text-zinc-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       {/* 🔝 HEADER */}
-      <header className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
+      <header className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-zinc-800/80 pb-2.5 mb-2 shrink-0 px-1">
         <div className="flex items-center gap-2.5">
           {
             isLoadingKiosk ? (
-              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-slate-800/80  shrink-0" />
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-zinc-800/80  shrink-0" />
             ) : clientLogo ? (
               /* 2. Зөвхөн эзэн лого оруулсан үед л зургийг харуулна */
-              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center shrink-0">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900 flex items-center justify-center shrink-0">
                 <img
                   src={clientLogo}
                   alt={`${tenantClientId} Logo`}
@@ -1825,7 +1831,7 @@ function KioskPage() {
                 {tenantClientId} KIOSK
               </h1>
             ) : (
-              <div className="h-4 w-28 bg-slate-800  rounded" />
+              <div className="h-4 w-28 bg-zinc-800  rounded" />
             )}
             <p className="text-[10px] sm:text-xs text-zinc-200 font-bold uppercase mt-1">
               Smart Operations
@@ -1838,13 +1844,13 @@ function KioskPage() {
           <button
             type="button"
             onClick={() => setLang(lang === "mn" ? "en" : "mn")}
-            className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
           >
             {lang === "mn" ? "🇲🇳 MN" : "🇺🇸 EN"}
           </button>
           <Link
             href="/login?from=kiosk"
-            className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
+            className="text-zinc-300 hover:text-white text-xs font-bold bg-zinc-900 px-2 py-1.5 rounded-xl border border-zinc-800 active:scale-95 transition"
           >
             🔒 Dashboard
           </Link>
@@ -1876,7 +1882,7 @@ function KioskPage() {
 
         {/* 1. SELECT WORKER */}
         {step === "select_worker" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="text-center pt-2 shrink-0">
               <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-2">
                 <Users className="text-zinc-200 h-7 w-7" />
@@ -1884,7 +1890,7 @@ function KioskPage() {
               <h2 className="text-xl sm:text-2xl font-black text-white">
                 Ажилтнаа сонгоно уу
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 Өөрийн нэр дээр дарж ээлжиндээ нэвтэрнэ үү
               </p>
             </div>
@@ -1893,12 +1899,12 @@ function KioskPage() {
               {/* ⚡ 1. Хэрэв дата ачаалж байгаа бол түр зуур 2 саарал товчлуур лугшина (Гацалтгүй шууд онгойно) */}
               {isLoadingKiosk ? (
                 <div className="space-y-3 ">
-                  <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
-                  <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
+                  <div className="h-20 bg-zinc-900/60 border border-zinc-800 rounded-2xl w-full" />
+                  <div className="h-20 bg-zinc-900/60 border border-zinc-800 rounded-2xl w-full" />
                 </div>
               ) : workers.length === 0 ? (
                 /* 2. Ажилтан байхгүй бол */
-                <div className="text-center text-slate-500 text-xs py-8">
+                <div className="text-center text-zinc-500 text-xs py-8">
                   Энэ салбарт ажилтан бүртгэгдээгүй байна.
                   <br />
                   (Dashboard-аас ажилтан нэмнэ үү)
@@ -1912,7 +1918,7 @@ function KioskPage() {
                       setSelectedWorker(w);
                       setStep("pin_code");
                     }}
-                    className="bg-zinc-950 hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-zinc-700/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full cursor-pointer"
+                    className="bg-zinc-950 hover:bg-zinc-800 active:scale-95 border-2 border-zinc-800 hover:border-zinc-700/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full cursor-pointer"
                   >
                     <div>
                       <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-zinc-200 transition">
@@ -1922,7 +1928,7 @@ function KioskPage() {
                         🏷️ {w.role}
                       </span>
                     </div>
-                    <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-zinc-200 font-black text-xs">
+                    <div className="bg-zinc-950 p-2.5 rounded-xl text-zinc-500 group-hover:text-zinc-200 font-black text-xs">
                       ➔
                     </div>
                   </button>
@@ -1930,7 +1936,7 @@ function KioskPage() {
               )}
             </div>
 
-            <div className="text-center text-xs text-slate-500 pb-1 shrink-0">
+            <div className="text-center text-xs text-zinc-500 pb-1 shrink-0">
               {tenantClientId} Kitchen Kiosk • Voice & AI Powered
             </div>
           </div>
@@ -1938,15 +1944,15 @@ function KioskPage() {
 
         {/* 2. PIN PAD */}
         {step === "pin_code" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
             <div className="text-center w-full shrink-0 pt-1">
               <h2 className="text-xl sm:text-2xl font-black text-zinc-200 tracking-tight">
                 PIN код оруулна уу
               </h2>
-              <p className="text-xs text-slate-300 font-medium mt-0.5">
+              <p className="text-xs text-zinc-300 font-medium mt-0.5">
                 Өөрийн хувийн нууц кодыг оруулна уу
               </p>
-              <div className="mt-1.5 inline-block bg-slate-950 px-3.5 py-1 rounded-xl border border-slate-800">
+              <div className="mt-1.5 inline-block bg-zinc-950 px-3.5 py-1 rounded-xl border border-zinc-800">
                 <span className="text-xs sm:text-sm text-zinc-300 font-black">
                   👤{" "}
                   {selectedWorker?.full_name ||
@@ -1956,14 +1962,14 @@ function KioskPage() {
               </div>
             </div>
 
-            <div className="bg-zinc-950 border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
                 <div
                   key={dotIndex}
                   className={`h-3.5 w-3.5 rounded-full transition-all duration-75 ${
                     pin.length > dotIndex
                       ? "bg-zinc-200  scale-110"
-                      : "bg-slate-800"
+                      : "bg-zinc-800"
                   }`}
                 />
               ))}
@@ -1978,7 +1984,7 @@ function KioskPage() {
                     e.preventDefault();
                     handleKeypadPress(num);
                   }}
-                  className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-3xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
+                  className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-700 active:scale-95 border border-zinc-800 rounded-xl text-2xl sm:text-3xl font-semibold text-white shadow-md flex items-center justify-center select-none transition-transform"
                 >
                   {num}
                 </button>
@@ -1990,7 +1996,7 @@ function KioskPage() {
                   e.preventDefault();
                   setPin("");
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-700 text-zinc-300 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform"
               >
                 Clear
               </button>
@@ -2001,7 +2007,7 @@ function KioskPage() {
                   e.preventDefault();
                   handleKeypadPress("0");
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-700 active:scale-95 border border-zinc-800 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
               >
                 0
               </button>
@@ -2012,7 +2018,7 @@ function KioskPage() {
                   e.preventDefault();
                   handleVerifyPin();
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-zinc-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform"
               >
                 OK
               </button>
@@ -2046,12 +2052,12 @@ function KioskPage() {
                     fetchKioskData(tenantClientId);
                   }
                 }}
-                className="text-xs text-slate-400 hover:text-white underline font-semibold"
+                className="text-xs text-zinc-400 hover:text-white underline font-semibold"
               >
                 PIN солих
               </button>
 
-              <span className="text-slate-700">•</span>
+              <span className="text-zinc-700">•</span>
 
               {/* 2. Бүр мартчихсан үед Менежер/Эзнээр сэргээлгэх */}
               <button
@@ -2089,7 +2095,7 @@ function KioskPage() {
               </button>
             </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-zinc-400">
                 💡 Анхдагч PIN: <strong className="text-white">1234</strong>
               </p>
 
@@ -2099,7 +2105,7 @@ function KioskPage() {
                   setPin("");
                   setMsg("");
                 }}
-                className="text-xs text-slate-400 hover:text-white font-bold"
+                className="text-xs text-zinc-400 hover:text-white font-bold"
               >
                 ← Буцах
               </button>
@@ -2109,7 +2115,7 @@ function KioskPage() {
 
         {/* 3. SHIFT START HANDOVER */}
         {step === "shift_handover" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="text-center shrink-0">
               <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-2">
                 <ShieldCheck className="text-zinc-300 h-7 w-7" />
@@ -2117,7 +2123,7 @@ function KioskPage() {
               <h2 className="text-lg sm:text-xl font-black text-white">
                 Шинэ Ээлж Эхлүүлэх
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 Гал тогооны цэвэрлэгээ, хөргөгчийн төлөвийг шалгаж хүлээн авна
                 уу
               </p>
@@ -2128,7 +2134,7 @@ function KioskPage() {
               className="space-y-4 my-auto"
             >
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   📸 Ээлж хүлээж авах үеийн зураг (Нотлох зураг)
                 </label>
                 <div className="flex items-center gap-2">
@@ -2145,7 +2151,7 @@ function KioskPage() {
                   />
                   <label
                     htmlFor="handover-start-cam"
-                    className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-zinc-700 transition"
+                    className="flex-1 bg-zinc-950 border border-zinc-800 p-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-300 hover:border-zinc-700 transition"
                   >
                     <Camera className="h-4 w-4 text-zinc-300" />
                     <span>
@@ -2158,7 +2164,7 @@ function KioskPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   📝 Тэмдэглэл / Хүлээлцэх тайлбар
                 </label>
                 <textarea
@@ -2166,7 +2172,7 @@ function KioskPage() {
                   value={handoverNote}
                   onChange={(e) => setHandoverNote(e.target.value)}
                   placeholder="Жишээ: Өмнөх ээлжээс хөргөгч цэвэрхэн, сүү 4 хайрцаг үлдсэн..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs font-medium outline-none focus:border-zinc-700"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-xs font-medium outline-none focus:border-zinc-700"
                 />
               </div>
 
@@ -2189,7 +2195,7 @@ function KioskPage() {
                   setStep("select_worker");
                   setSelectedWorker(null);
                 }}
-                className="text-xs text-slate-400 hover:text-white font-bold"
+                className="text-xs text-zinc-400 hover:text-white font-bold"
               >
                 ← Буцах
               </button>
@@ -2199,14 +2205,14 @@ function KioskPage() {
 
         {/* 4. MAIN ACTION MENU & DIGITAL KITCHEN */}
         {step === "menu" && (
-          <div className="w-full h-full bg-zinc-900 p-3 sm:p-4 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
+          <div className="w-full h-full bg-zinc-900 p-3 sm:p-4 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
             {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
 
             {recentToast && (
-              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
+              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-zinc-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
                 {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
                 <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
-                  <span className="bg-slate-950 text-zinc-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                  <span className="bg-zinc-950 text-zinc-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
                     Бүртгэгдсэн:
                   </span>
                   <span className="font-black text-[11px] sm:text-xs leading-snug whitespace-normal break-words">
@@ -2228,14 +2234,14 @@ function KioskPage() {
                       setMsg("↩️ Бүртгэл цуцлагдлаа.");
                       setTimeout(() => setMsg(""), 3000);
                     }}
-                    className="bg-slate-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
+                    className="bg-zinc-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
                   >
                     ↩️ Буцаах
                   </button>
                   <button
                     type="button"
                     onClick={() => setRecentToast(null)}
-                    className="text-slate-900 hover:text-black font-bold p-1 text-sm hidden sm:block"
+                    className="text-zinc-900 hover:text-black font-bold p-1 text-sm hidden sm:block"
                   >
                     ✕
                   </button>
@@ -2246,12 +2252,12 @@ function KioskPage() {
             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
               {/* 🔝 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
-              <div className="flex justify-between items-center pb-3 border-b border-slate-800/80 mb-3 px-1">
+              <div className="flex justify-between items-center pb-3 border-b border-zinc-800/80 mb-3 px-1">
                 {/* 👤 Ажилтан тусдаа тод статус пайзтай */}
 
-                <div className="flex items-center gap-2 bg-slate-900  rounded-xl shadow-inner">
+                <div className="flex items-center gap-2 bg-zinc-900  rounded-xl shadow-inner">
                   <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
+                    <span className=" absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                   </span>
                   <span className="text-xs sm:text-sm font-black text-white uppercase tracking-tight truncate max-w-[100px] sm:max-w-[150px]">
@@ -2268,7 +2274,7 @@ function KioskPage() {
                       fetchTodayLogs(tenantClientId);
                       setShowLogsDrawer(true);
                     }}
-                    className="bg-slate-900 hover:bg-slate-800 text-zinc-300 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <ListOrdered className="h-3.5 w-3.5" />
                     <span className="hidden min-[360px]:inline">Түүх</span>
@@ -2281,7 +2287,7 @@ function KioskPage() {
                       setShowRecipeModal(true);
                       setSelectedProductRecipe(null);
                     }}
-                    className="bg-slate-900 hover:bg-slate-800 text-zinc-200 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
                     <span className="hidden min-[360px]:inline">Жор</span>
@@ -2290,7 +2296,7 @@ function KioskPage() {
                   <button
                     type="button"
                     onClick={() => setStep("ai_chat")}
-                    className="bg-slate-900 hover:bg-slate-800 text-zinc-300 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <Mic className="h-3.5 w-3.5" />
                     <span className="hidden min-[360px]:inline">Чат</span>
@@ -2299,57 +2305,68 @@ function KioskPage() {
               </div>
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
-              <div className="grid grid-cols-4 gap-1 bg-zinc-950 p-1 rounded-2xl border border-slate-800">
+              <div className="grid grid-cols-4 gap-2 bg-zinc-950 p-2 rounded-2xl border border-zinc-800">
+                {/* ХАЯГДАЛ */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("spoilage")}
-                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
                     kioskMode === "spoilage"
-                      ? "bg-rose-600 text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <span>🗑️ {UI_TEXT[lang].spoilage}</span>
+                  <Trash2 className="h-4 w-4" />
+                  <span>{UI_TEXT[lang].spoilage}</span>
                 </button>
+
+                {/* ХООЛ */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("staff_meal")}
-                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
                     kioskMode === "staff_meal"
-                      ? "bg-white text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <span>🍽️ {UI_TEXT[lang].meal}</span>
+                  <Utensils className="h-4 w-4" />
+                  <span>{UI_TEXT[lang].meal}</span>
                 </button>
+
+                {/* ТУРШИЛТ */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("testing")}
-                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
                     kioskMode === "testing"
-                      ? "bg-zinc-200 text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <span>🧪 {UI_TEXT[lang].test}</span>
+                  <Beaker className="h-4 w-4" />
+                  <span>{UI_TEXT[lang].test}</span>
                 </button>
+
+                {/* ОРЛОГО */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("purchase")}
-                  className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
+                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
                     kioskMode === "purchase"
-                      ? "bg-white text-zinc-950 shadow-md"
-                      : "text-slate-400 hover:text-white"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <span>📦 {UI_TEXT[lang].purchase}</span>
+                  <Package className="h-4 w-4" />
+                  <span>{UI_TEXT[lang].purchase}</span>
                 </button>
               </div>
             </div>
 
             {/* 📦 1. ОЛОН БАРААТАЙ E-BARIMT УНШУУЛАХ КАРТ */}
             {kioskMode === "purchase" && (
-              <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border-2 border-zinc-700/40 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-lg">
+              <div className="bg-gradient-to-r from-emerald-950/60 to-zinc-900 border-2 border-zinc-700/40 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-lg">
                 <div>
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
                     <span>🧾 Олон бараатай E-Barimt уншуулах</span>
@@ -2471,7 +2488,7 @@ function KioskPage() {
                   />
                   <label
                     htmlFor="kiosk-receipt-gallery"
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-2.5 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1 active:scale-95 border border-slate-700"
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-2.5 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1 active:scale-95 border border-zinc-700"
                   >
                     <span>🖼️ Цомог</span>
                   </label>
@@ -2479,15 +2496,15 @@ function KioskPage() {
               </div>
             )}
 
-            {/* 🔍 А-CLASS БАРААНУУД БА ХАЙЛТ */}
+            {/*  А-CLASS БАРААНУУД БА ХАЙЛТ */}
             <div className="flex-1 min-h-0 my-1 flex flex-col overflow-hidden">
               <div className="pb-1.5 shrink-0">
                 <input
                   type="text"
                   value={kioskSearch}
                   onChange={(e) => setKioskSearch(e.target.value)}
-                  placeholder="🔍 Бараа хайх (нэг товшилтоор бүртгэнэ)..."
-                  className="w-full bg-zinc-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-zinc-700"
+                  placeholder="Бараа хайх (нэг товшилтоор бүртгэнэ)..."
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700"
                 />
                 {/* ➕ ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
                 {kioskSearch.trim() &&
@@ -2541,7 +2558,7 @@ function KioskPage() {
                         setQuickQty("");
                         setPurchaseCost("");
                       }}
-                      className="bg-zinc-950 hover:bg-slate-800 active:scale-95 border border-slate-800 hover:border-slate-700 p-3 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[80px]"
+                      className="bg-zinc-950 hover:bg-zinc-800 active:scale-95 border border-zinc-800 hover:border-zinc-700 p-3 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[80px]"
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span className="font-bold text-sm sm:text-base text-white line-clamp-2 leading-snug">
@@ -2555,7 +2572,7 @@ function KioskPage() {
                       </div>
 
                       <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs text-slate-400 font-medium">
+                        <span className="text-xs text-zinc-400 font-medium">
                           {tUnit(ing.unit)}
                         </span>
                         <span
@@ -2584,7 +2601,7 @@ function KioskPage() {
             </div>
 
             {/* 🔘 ДООД 3 ТОМ ТОВЧ: Даалгавар / Мөнгө гаргах / Ээлж хаах */}
-            <div className="grid grid-cols-3 gap-1.5 pt-1.5 shrink-0 border-t border-slate-800/80">
+            <div className="grid grid-cols-3 gap-1.5 pt-1.5 shrink-0 border-t border-zinc-800/80">
               <button
                 type="button"
                 onClick={openTasksScreen}
@@ -2604,8 +2621,8 @@ function KioskPage() {
                 }}
                 className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-700 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
-                <span className="text-sm">💵</span>
-                <span>Мөнгө гаргах</span>
+            <Banknote className="h-4 w-4" />
+        <span>Мөнгө гаргах</span>
               </button>
 
               <button
@@ -2627,10 +2644,10 @@ function KioskPage() {
                 onClick={() => setShowRecipeModal(false)}
               >
                 <div
-                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                  className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                     <div className="flex items-center gap-2">
                       <div className="bg-zinc-800/60 p-2 rounded-xl border border-zinc-700/20">
                         <BookOpen className="h-5 w-5 text-zinc-200" />
@@ -2639,7 +2656,7 @@ function KioskPage() {
                         <h3 className="font-black text-white text-base">
                           Стандарт Жор & Заавар (SOP)
                         </h3>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-zinc-400">
                           Хэнээс ч асуухгүйгээр жороо яг граммаар нь хийнэ үү
                         </p>
                       </div>
@@ -2647,7 +2664,7 @@ function KioskPage() {
                     <button
                       type="button"
                       onClick={() => setShowRecipeModal(false)}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs font-bold"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-xs font-bold"
                     >
                       ✕ Хаах
                     </button>
@@ -2656,7 +2673,7 @@ function KioskPage() {
                   {/* Бүтээгдэхүүн сонгох хэсэг */}
                   {!selectedProductRecipe ? (
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                      <p className="text-xs font-bold text-slate-400 mb-2">
+                      <p className="text-xs font-bold text-zinc-400 mb-2">
                         Цэс сонгоно уу:
                       </p>
                       <div className="grid grid-cols-2 gap-2">
@@ -2667,7 +2684,7 @@ function KioskPage() {
                             key={pName}
                             type="button"
                             onClick={() => setSelectedProductRecipe(pName)}
-                            className="bg-zinc-950 hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl text-left font-bold text-xs text-white flex justify-between items-center active:scale-95 transition"
+                            className="bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 p-3 rounded-2xl text-left font-bold text-xs text-white flex justify-between items-center active:scale-95 transition"
                           >
                             <span>{pName}</span>
                             <span className="text-zinc-200 text-sm">➔</span>
@@ -2678,7 +2695,7 @@ function KioskPage() {
                   ) : (
                     /* Сонгосон жорын орцын задаргаа */
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                      <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-2xl border border-slate-800">
+                      <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-2xl border border-zinc-800">
                         <div>
                           <span className="text-xs text-zinc-200 font-bold uppercase tracking-wider">
                             Сонгосон Жор:
@@ -2690,17 +2707,17 @@ function KioskPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedProductRecipe(null)}
-                          className="text-xs text-slate-400 hover:text-white underline font-bold"
+                          className="text-xs text-zinc-400 hover:text-white underline font-bold"
                         >
                           ← Бусад цэс
                         </button>
                       </div>
 
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                           Орц, хэмжээ (Граммаар):
                         </p>
-                        <div className="divide-y divide-slate-800/80 bg-zinc-950 rounded-2xl border border-slate-800 overflow-hidden">
+                        <div className="divide-y divide-slate-800/80 bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden">
                           {recipesList
                             .filter(
                               (r: any) =>
@@ -2711,7 +2728,7 @@ function KioskPage() {
                                 key={idx}
                                 className="flex justify-between items-center p-3 text-xs"
                               >
-                                <span className="font-bold text-slate-200">
+                                <span className="font-bold text-zinc-200">
                                   {tName(item.ingredients?.name || "Орц")}
                                 </span>
                                 <span className="font-mono font-black text-zinc-200 bg-zinc-800/60 px-2.5 py-1 rounded-lg border border-zinc-700/20">
@@ -2745,48 +2762,53 @@ function KioskPage() {
                 onClick={() => setCashOutModal(false)}
               >
                 <div
-                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+                  className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
                     <h3 className="text-base font-black text-white flex items-center gap-2">
-                      💵 Касснаас Бэлэн Мөнгө Гаргах
+                      <Banknote className="h-5 w-5 text-zinc-100" />
+                      <span>Касснаас Бэлэн Мөнгө Гаргах</span>
                     </h3>
                     <button
                       type="button"
                       onClick={() => setCashOutModal(false)}
-                      className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs font-bold"
+                      className="text-zinc-400 hover:text-white bg-zinc-800 p-1.5 rounded-xl text-xs font-bold"
                     >
                       ✕
                     </button>
                   </div>
+            <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
+              {/* 👑 ЭЗНИЙ ТАТАЛТ (Яг голдоо тэгшхэн байрлана) */}
+              <button
+                type="button"
+                onClick={() => setCashOutType("owner_draw")}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  cashOutType === "owner_draw"
+                    ? "bg-white text-zinc-950 shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                <Crown className="h-4 w-4 shrink-0" />
+                <span>Эзний таталт</span>
+              </button>
 
-                  <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setCashOutType("owner_draw")}
-                      className={`py-2 rounded-xl text-xs font-black transition ${
-                        cashOutType === "owner_draw"
-                          ? "bg-white text-zinc-950 shadow-md"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      👑 Эзний таталт
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCashOutType("petty_cash")}
-                      className={`py-2 rounded-xl text-xs font-black transition ${
-                        cashOutType === "petty_cash"
-                          ? "bg-white text-white shadow-md"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      🧼 Жижиг зардал (CU)
-                    </button>
-                  </div>
+              {/* 🧾 ЖИЖИГ ЗАРДАЛ (Яг голдоо тэгшхэн байрлана) */}
+              <button
+                type="button"
+                onClick={() => setCashOutType("petty_cash")}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  cashOutType === "petty_cash"
+                    ? "bg-white text-zinc-950 shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                <Receipt className="h-4 w-4 shrink-0" />
+                <span>Жижиг зардал (CU)</span>
+              </button>
+            </div>
 
-                  <div className="bg-zinc-950 border border-slate-800 rounded-2xl p-3 text-center">
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 text-center">
                     <span className="text-3xl font-black text-white font-mono">
                       {cashOutAmount
                         ? Number(cashOutAmount).toLocaleString()
@@ -2806,7 +2828,7 @@ function KioskPage() {
                         ? "Тайлбар (Захирал хувийн хэрэгцээнд авсан)"
                         : "Юу авсан бэ? (Саван, уут)"
                     }
-                    className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-amber-500"
                   />
 
                   {cashOutType === "petty_cash" && (
@@ -2823,7 +2845,7 @@ function KioskPage() {
                       />
                       <label
                         htmlFor="petty-cash-receipt"
-                        className="w-full bg-slate-900 border border-slate-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-zinc-700 transition"
+                        className="w-full bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-300 hover:border-zinc-700 transition"
                       >
                         <Camera className="h-4 w-4 text-zinc-300" />
                         <span>
@@ -2853,7 +2875,7 @@ function KioskPage() {
                         key={digit}
                         type="button"
                         onClick={() => setCashOutAmount((prev) => prev + digit)}
-                        className="bg-zinc-950 hover:bg-slate-800 active:scale-95 text-white font-black text-lg py-2.5 rounded-2xl border border-slate-800 transition"
+                        className="bg-zinc-950 hover:bg-zinc-800 active:scale-95 text-white font-black text-lg py-2.5 rounded-2xl border border-zinc-800 transition"
                       >
                         {digit}
                       </button>
@@ -2970,10 +2992,10 @@ function KioskPage() {
                 onClick={() => setQuickItemModal(null)}
               >
                 <div
-                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+                  className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
                     <div>
                       <span
                         className={`text-xs font-black uppercase px-2 py-0.5 rounded ${
@@ -3001,26 +3023,26 @@ function KioskPage() {
                     <button
                       type="button"
                       onClick={() => setQuickItemModal(null)}
-                      className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs font-bold"
+                      className="text-zinc-400 hover:text-white bg-zinc-800 p-1.5 rounded-xl text-xs font-bold"
                     >
                       ✕
                     </button>
                   </div>
 
-                  <div className="bg-zinc-950 border border-slate-800 rounded-2xl p-3 text-center">
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 text-center">
                     <span className="text-3xl font-black text-white font-mono">
                       {quickQty || "0"}
                     </span>
-                    <span className="ml-2 text-xs font-bold text-slate-400">
+                    <span className="ml-2 text-xs font-bold text-zinc-400">
                       {quickItemModal.unit}
                     </span>
                   </div>
 
                   {/* Хэрэв ОРЛОГО бол: Үнэ бичих ба Үнийн өсөлтийг бодитоор харуулах */}
                   {kioskMode === "purchase" && (
-                    <div className="space-y-2 pt-1 border-t border-slate-800">
+                    <div className="space-y-2 pt-1 border-t border-zinc-800">
                       <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1">
+                        <label className="block text-xs font-bold text-zinc-400 mb-1">
                           Нийт төлсөн үнэ (₮):
                         </label>
                         <input
@@ -3028,7 +3050,7 @@ function KioskPage() {
                           value={purchaseCost}
                           onChange={(e) => setPurchaseCost(e.target.value)}
                           placeholder="Төлсөн нийт үнийг бичнэ үү..."
-                          className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
                         />
                       </div>
 
@@ -3084,7 +3106,7 @@ function KioskPage() {
                           />
                           <label
                             htmlFor="single-pur-cam"
-                            className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                           >
                             <Camera className="h-4 w-4 text-zinc-200" />
                             <span>Камер</span>
@@ -3102,9 +3124,9 @@ function KioskPage() {
                           />
                           <label
                             htmlFor="single-pur-gallery"
-                            className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                           >
-                            <span>🖼️ Цомог</span>
+                            <span className="flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> Цомог</span>
                           </label>
                         </div>
 
@@ -3136,7 +3158,7 @@ function KioskPage() {
                         key={digit}
                         type="button"
                         onClick={() => setQuickQty((prev) => prev + digit)}
-                        className="bg-zinc-950 hover:bg-slate-800 active:scale-95 text-white font-black text-xl py-3 rounded-2xl border border-slate-800 transition"
+                        className="bg-zinc-950 hover:bg-zinc-800 active:scale-95 text-white font-black text-xl py-3 rounded-2xl border border-zinc-800 transition"
                       >
                         {digit}
                       </button>
@@ -3256,7 +3278,7 @@ function KioskPage() {
                         }
                       })();
                     }}
-                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
                   >
                     {isAiLoading
                       ? "Хадгалж байна..."
@@ -3315,16 +3337,16 @@ function KioskPage() {
                 onClick={() => setEbarimtReview(null)}
               >
                 <div
-                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[90vh] flex flex-col"
+                  className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[90vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Толгой хэсэг */}
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-1.5">
                         <span>🧾 E-Barimt Шалгах</span>
                       </h3>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-zinc-400">
                         AI-ийн таньсан тоо, үнийг шалгаж засна уу
                       </p>
                     </div>
@@ -3332,24 +3354,24 @@ function KioskPage() {
                     <button
                       type="button"
                       onClick={() => setEbarimtReview(null)}
-                      className="bg-slate-800 hover:bg-slate-700 p-1.5 rounded-xl text-xs font-bold text-slate-300"
+                      className="bg-zinc-800 hover:bg-zinc-700 p-1.5 rounded-xl text-xs font-bold text-zinc-300"
                     >
                       ✕ Цуцлах
                     </button>
                   </div>
 
                   {/* Эх баримтын зургийн thumbnail */}
-                  <div className="flex items-center gap-3 bg-zinc-950 p-2.5 rounded-2xl border border-slate-800 shrink-0">
+                  <div className="flex items-center gap-3 bg-zinc-950 p-2.5 rounded-2xl border border-zinc-800 shrink-0">
                     <img
                       src={ebarimtReview.previewUrl}
                       alt="Receipt"
-                      className="h-12 w-12 object-cover rounded-xl border border-slate-700 shrink-0"
+                      className="h-12 w-12 object-cover rounded-xl border border-zinc-700 shrink-0"
                     />
                     <div className="text-xs">
                       <span className="text-zinc-200 font-bold block">
                         📸 Баримтын эх зураг бэлэн
                       </span>
-                      <span className="text-slate-400">
+                      <span className="text-zinc-400">
                         Нийт {ebarimtReview.items.length} бараа илэрсэн
                       </span>
                     </div>
@@ -3367,8 +3389,8 @@ function KioskPage() {
                       }
                       className={`py-1.5 rounded-xl text-xs font-bold transition ${
                         ebarimtReview.payMethod === "bank"
-                          ? "bg-white text-white shadow-sm"
-                          : "bg-zinc-950 text-slate-400"
+                          ? "bg-white text-zinc-950 shadow-sm"
+                          : "bg-zinc-950 text-zinc-400"
                       }`}
                     >
                       💳 Банк / Дансаар
@@ -3384,7 +3406,7 @@ function KioskPage() {
                       className={`py-1.5 rounded-xl text-xs font-bold transition ${
                         ebarimtReview.payMethod === "cash"
                           ? "bg-white text-zinc-950 font-black shadow-sm"
-                          : "bg-zinc-950 text-slate-400"
+                          : "bg-zinc-950 text-zinc-400"
                       }`}
                     >
                       💵 Кассын бэлнээр
@@ -3422,7 +3444,7 @@ function KioskPage() {
                           </span>
                           {/* Нийт үнийг засах input */}
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-xs text-slate-500">Үнэ:</span>
+                            <span className="text-xs text-zinc-500">Үнэ:</span>
                             <input
                               type="number"
                               value={item.total_cost || ""}
@@ -3435,15 +3457,15 @@ function KioskPage() {
                                   items: updated,
                                 });
                               }}
-                              className="w-20 bg-zinc-950 border border-slate-800 rounded px-1 py-0.5 text-zinc-200 font-mono text-xs outline-none"
+                              className="w-20 bg-zinc-950 border border-zinc-800 rounded px-1 py-0.5 text-zinc-200 font-mono text-xs outline-none"
                             />
-                            <span className="text-xs text-slate-500">₮</span>
+                            <span className="text-xs text-zinc-500">₮</span>
                           </div>
                         </div>
 
                         {/* Тоо ширхэгийг засах input */}
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-xs text-slate-500">Тоо:</span>
+                          <span className="text-xs text-zinc-500">Тоо:</span>
                           <input
                             type="number"
                             value={item.quantity || ""}
@@ -3456,7 +3478,7 @@ function KioskPage() {
                                 items: updated,
                               });
                             }}
-                            className="w-14 bg-zinc-950 border border-slate-700 rounded-lg py-1 text-center text-white font-bold text-xs outline-none focus:border-zinc-700"
+                            className="w-14 bg-zinc-950 border border-zinc-700 rounded-lg py-1 text-center text-white font-bold text-xs outline-none focus:border-zinc-700"
                           />
                         </div>
                       </div>
@@ -3464,8 +3486,8 @@ function KioskPage() {
                   </div>
 
                   {/* Нийт дүн */}
-                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center text-xs shrink-0">
-                    <span className="text-slate-400 font-medium">
+                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 flex justify-between items-center text-xs shrink-0">
+                    <span className="text-zinc-400 font-medium">
                       Нийт баримтын дүн:
                     </span>
                     <span className="font-mono font-black text-zinc-200 text-sm">
@@ -3574,7 +3596,7 @@ function KioskPage() {
                         }
                       })();
                     }}
-                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 shrink-0"
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 shrink-0"
                   >
                     {isAiLoading
                       ? "Баазад хадгалж байна..."
@@ -3592,10 +3614,10 @@ function KioskPage() {
                 onClick={() => setShowAddNewItemModal(false)}
               >
                 <div
-                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+                  className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
                     <div>
                       <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-zinc-800 text-zinc-200">
                         Шинэ бараа үүсгэх
@@ -3607,7 +3629,7 @@ function KioskPage() {
                     <button
                       type="button"
                       onClick={() => setShowAddNewItemModal(false)}
-                      className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs font-bold"
+                      className="text-zinc-400 hover:text-white bg-zinc-800 p-1.5 rounded-xl text-xs font-bold"
                     >
                       ✕
                     </button>
@@ -3615,10 +3637,10 @@ function KioskPage() {
 
                   {/* Нэгж сонгох: мл, гр, ш */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                    <label className="block text-xs font-bold text-zinc-400 mb-1">
                       Хэмжих нэгж:
                     </label>
-                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-950 p-1 rounded-xl border border-slate-800">
+                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
                       {["ш", "мл", "гр"].map((u) => (
                         <button
                           key={u}
@@ -3626,8 +3648,8 @@ function KioskPage() {
                           onClick={() => setNewItemUnit(u)}
                           className={`py-1.5 rounded-lg text-xs font-bold transition ${
                             newItemUnit === u
-                              ? "bg-white text-slate-950 font-black"
-                              : "text-slate-400"
+                              ? "bg-white text-zinc-950 font-black"
+                              : "text-zinc-400"
                           }`}
                         >
                           {u}
@@ -3639,7 +3661,7 @@ function KioskPage() {
                   {/* Тоо хэмжээ ба Нийт үнэ */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                      <label className="block text-xs font-bold text-zinc-400 mb-1">
                         Авсан тоо:
                       </label>
                       <input
@@ -3647,11 +3669,11 @@ function KioskPage() {
                         value={newItemQty}
                         onChange={(e) => setNewItemQty(e.target.value)}
                         placeholder="Жишээ: 5"
-                        className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-white font-bold outline-none focus:border-zinc-700"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-center text-xs text-white font-bold outline-none focus:border-zinc-700"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                      <label className="block text-xs font-bold text-zinc-400 mb-1">
                         Нийт үнэ (₮):
                       </label>
                       <input
@@ -3659,14 +3681,14 @@ function KioskPage() {
                         value={newItemCost}
                         onChange={(e) => setNewItemCost(e.target.value)}
                         placeholder="Жишээ: 25000"
-                        className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
                       />
                     </div>
                   </div>
 
                   {/* 📸 Зураг заавал шаардах хэсэг */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-400">
+                    <label className="block text-xs font-bold text-zinc-400">
                       Шинэ барааны зураг (Заавал):
                     </label>
                     <div className="flex gap-2">
@@ -3683,7 +3705,7 @@ function KioskPage() {
                       />
                       <label
                         htmlFor="new-item-cam"
-                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                        className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                       >
                         <Camera className="h-4 w-4 text-zinc-200" />
                         <span>Камер</span>
@@ -3701,7 +3723,7 @@ function KioskPage() {
                       />
                       <label
                         htmlFor="new-item-gallery"
-                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                        className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                       >
                         <span>🖼️ Цомог</span>
                       </label>
@@ -3810,7 +3832,7 @@ function KioskPage() {
                         }
                       })();
                     }}
-                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-[13px] sm:text-xs transition shadow-lg active:scale-95"
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3 rounded-2xl text-[13px] sm:text-xs transition shadow-lg active:scale-95"
                   >
                     {isAiLoading
                       ? "Үүсгэж байна..."
@@ -3829,10 +3851,10 @@ function KioskPage() {
             {/* ========================================================================= */}
             {isScanningReceipt && (
               <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none">
-                <div className="bg-zinc-900 border border-slate-700 p-8 rounded-3xl max-w-xs w-full text-center shadow-2xl space-y-4">
+                <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl max-w-xs w-full text-center shadow-2xl space-y-4">
                   {/* Лугших хөдөлгөөнт лого */}
                   <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                    <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
+                    <div className="absolute inset-0 bg-zinc-800 rounded-full " />
                     <div className="relative bg-zinc-800 p-5 rounded-full border-2 border-zinc-700/40 ">
                       <Camera className="h-8 w-8 text-zinc-200 " />
                     </div>
@@ -3842,12 +3864,12 @@ function KioskPage() {
                     <h3 className="text-base font-black text-white tracking-tight">
                       AI Баримтыг Уншиж Байна...
                     </h3>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-zinc-400 mt-1">
                       Түр хүлээнэ үү. Бараа, тоо, үнийг ялгаж байна.
                     </p>
                   </div>
 
-                  <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                  <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-800">
                     <div className="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full w-2/3  rounded-full" />
                   </div>
                 </div>
@@ -3862,15 +3884,15 @@ function KioskPage() {
                 onClick={() => setShowLogsDrawer(false)}
               >
                 <div
-                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[85vh] flex flex-col"
+                  className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[85vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2.5">
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
                         <span>📋 Өнөөдрийн бүх бүртгэлүүд</span>
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-zinc-400 mt-0.5">
                         Нийт {todayLogs.length} үйлдэл хийгдсэн байна. Буруу
                         бичсэн бол буцаана уу.
                       </p>
@@ -3878,7 +3900,7 @@ function KioskPage() {
                     <button
                       type="button"
                       onClick={() => setShowLogsDrawer(false)}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"
                     >
                       ✕ Хаах
                     </button>
@@ -3887,7 +3909,7 @@ function KioskPage() {
                   {/* ГҮЙДЭГ КАРТУУДЫН ЖАГСААЛТ */}
                   <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
                     {todayLogs.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic text-center py-8">
+                      <p className="text-xs text-zinc-500 italic text-center py-8">
                         Өнөөдөр хараахан ямар нэг бүртгэл хийгдээгүй байна.
                       </p>
                     ) : (
@@ -3928,11 +3950,11 @@ function KioskPage() {
                                   onClick={() =>
                                     setPreviewLogImage(log.image_url)
                                   }
-                                  className="h-10 w-10 object-cover rounded-xl border border-slate-700 cursor-pointer shrink-0 hover:scale-105 transition"
+                                  className="h-10 w-10 object-cover rounded-xl border border-zinc-700 cursor-pointer shrink-0 hover:scale-105 transition"
                                   title="Томруулж харах"
                                 />
                               ) : (
-                                <div className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sm shrink-0">
+                                <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-sm shrink-0">
                                   {isPurchase
                                     ? "📦"
                                     : isSpoilage
@@ -3973,7 +3995,7 @@ function KioskPage() {
                                   </span>
                                 </div>
 
-                                <div className="flex items-center gap-2 text-slate-400 font-mono text-xs mt-0.5">
+                                <div className="flex items-center gap-2 text-zinc-400 font-mono text-xs mt-0.5">
                                   <span>
                                     {qty} {unit}
                                   </span>
@@ -3986,7 +4008,7 @@ function KioskPage() {
                                     </>
                                   )}
                                   <span>•</span>
-                                  <span className="text-slate-500 font-sans">
+                                  <span className="text-zinc-500 font-sans">
                                     {timeStr}
                                   </span>
                                 </div>
@@ -4012,7 +4034,7 @@ function KioskPage() {
                                   .eq("id", log.id);
                                 await fetchKioskData(tenantClientId);
                               }}
-                              className="bg-slate-900 hover:bg-rose-500/20 hover:text-rose-300 text-slate-400 border border-slate-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
+                              className="bg-zinc-900 hover:bg-rose-500/20 hover:text-rose-300 text-zinc-400 border border-zinc-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
                               title="Бүртгэлийг цуцлах"
                             >
                               ↩️ Буцаах
@@ -4038,7 +4060,7 @@ function KioskPage() {
                     alt="preview"
                     className="max-h-[75vh] w-auto rounded-2xl object-contain shadow-2xl"
                   />
-                  <span className="text-xs text-slate-400 mt-2 font-bold">
+                  <span className="text-xs text-zinc-400 mt-2 font-bold">
                     Дэлгэц дээр дарж хаана
                   </span>
                 </div>
@@ -4060,13 +4082,13 @@ function KioskPage() {
 
         {/* 6. DAILY TASKS */}
         {step === "tasks" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <h2 className="text-lg sm:text-xl font-black text-zinc-300 mb-2 flex items-center gap-2 shrink-0">
               <CheckSquare className="h-5 w-5" /> Өнөөдрийн Даалгавар (SOP)
             </h2>
 
             {tasks.length === 0 ? (
-              <p className="text-center text-slate-400 py-8 text-sm my-auto">
+              <p className="text-center text-zinc-400 py-8 text-sm my-auto">
                 Өнөөдөр хийх даалгавар байхгүй байна.
               </p>
             ) : (
@@ -4079,14 +4101,14 @@ function KioskPage() {
                     className={`w-full p-3.5 rounded-xl flex items-center justify-between border transition active:scale-95 ${
                       t.done
                         ? "bg-zinc-800/60 border-zinc-800 text-zinc-200 opacity-60"
-                        : "bg-slate-950 hover:bg-slate-900 border-slate-800 text-white"
+                        : "bg-zinc-950 hover:bg-zinc-900 border-zinc-800 text-white"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       {t.done ? (
                         <CheckCircle className="h-5 w-5 text-zinc-200 shrink-0" />
                       ) : (
-                        <div className="h-5 w-5 rounded-lg border-2 border-slate-600 shrink-0" />
+                        <div className="h-5 w-5 rounded-lg border-2 border-zinc-600 shrink-0" />
                       )}
                       <span className="font-bold text-sm text-left">
                         {t.name}
@@ -4104,7 +4126,7 @@ function KioskPage() {
 
             <button
               onClick={() => setStep("menu")}
-              className="w-full mt-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shrink-0 active:scale-95"
+              className="w-full mt-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-white font-bold py-3 rounded-xl text-xs transition shrink-0 active:scale-95"
             >
               ← Буцах
             </button>
@@ -4113,13 +4135,13 @@ function KioskPage() {
 
         {/* 7. INCIDENT REPORTING */}
         {step === "incident_report" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="shrink-0 mb-3">
               <h2 className="text-lg font-black text-zinc-300 flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" /> Өмнөх Ээлжийн Алдагдал
                 Бүртгэх
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 Өмнөх ээлжийн ажилтны хаягдал эсвэл гэмтсэн барааг менежерт
                 тайлагнана
               </p>
@@ -4130,13 +4152,13 @@ function KioskPage() {
               className="space-y-3 flex-1 overflow-y-auto pr-1"
             >
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   1. Өмнөх ээлжинд ажилласан ажилтан
                 </label>
                 <select
                   value={incidentWorker}
                   onChange={(e) => setIncidentWorker(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-bold"
                 >
                   <option value="">-- Ажилтан сонгох --</option>
                   {workers
@@ -4153,14 +4175,14 @@ function KioskPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   2. Алдагдсан / Муудсан түүхий эд
                 </label>
                 <select
                   required
                   value={incidentItem}
                   onChange={(e) => setIncidentItem(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-bold"
                 >
                   <option value="">-- Түүхий эд сонгох --</option>
                   {ingredients.map((ing) => (
@@ -4172,7 +4194,7 @@ function KioskPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   3. Алдагдсан тоо хэмжээ
                 </label>
                 <input
@@ -4182,12 +4204,12 @@ function KioskPage() {
                   value={incidentQty}
                   onChange={(e) => setIncidentQty(e.target.value)}
                   placeholder="Тоо оруулна уу (жнь: 2)"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-bold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   4. Нотлох зураг авах (Evidence Photo)
                 </label>
                 <input
@@ -4202,7 +4224,7 @@ function KioskPage() {
                 />
                 <label
                   htmlFor="incident-camera-input"
-                  className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-amber-500 transition"
+                  className="w-full bg-zinc-950 border border-zinc-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-300 hover:border-amber-500 transition"
                 >
                   <Camera className="h-4 w-4 text-zinc-300" />
                   <span>
@@ -4214,7 +4236,7 @@ function KioskPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   5. Тайлбар
                 </label>
                 <input
@@ -4222,7 +4244,7 @@ function KioskPage() {
                   value={incidentNote}
                   onChange={(e) => setIncidentNote(e.target.value)}
                   placeholder="Жишээ: Шөнө хөргөгчний хаалга дутуу хаагдсан..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-medium"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-medium"
                 />
               </div>
 
@@ -4230,7 +4252,7 @@ function KioskPage() {
                 <button
                   type="button"
                   onClick={() => setStep("menu")}
-                  className="flex-1 bg-slate-950 border border-slate-800 py-3 rounded-xl text-xs font-bold text-slate-300"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 py-3 rounded-xl text-xs font-bold text-zinc-300"
                 >
                   Буцах
                 </button>
@@ -4247,12 +4269,12 @@ function KioskPage() {
         )}
         {/* 8. CLOSE SHIFT & POS Z-REPORT */}
         {step === "close_shift" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="shrink-0 mb-2">
               <h2 className="text-lg sm:text-xl font-black text-zinc-200 mb-0.5 flex items-center gap-2">
                 <ListOrdered className="h-5 w-5" /> Ээлжийн Тооллого & Z-Тайлан
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-zinc-400">
                 Хөргөгч/лангуун дахь үлдэгдлийг тоолж, Z-тайлангийн зураг
                 оруулна уу.
               </p>
@@ -4260,8 +4282,8 @@ function KioskPage() {
 
             <div className="space-y-2 py-1 flex-1 overflow-y-auto overscroll-contain pr-1">
               {/* 🔄 САРЫН ЦИКЛИЙН ЯВЦ (KIOSK ДЭЭР АЖИЛТАНД ХАРАГДАХ) */}
-              <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 mb-2 flex items-center justify-between text-sm font-mono">
-                <span className="text-slate-400 font-sans">
+              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 mb-2 flex items-center justify-between text-sm font-mono">
+                <span className="text-zinc-400 font-sans">
                   Энэ сарын циклийн гүйцэтгэл:
                 </span>
                 <span className="text-zinc-200 font-black">
@@ -4278,7 +4300,7 @@ function KioskPage() {
                 </span>
               </div>
               {/* POS Z-REPORT UPLOAD */}
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-2">
+              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
                   🧾 ПОС-ын Z-Тайлангийн зураг (End-of-day Z-Report)
                 </p>
@@ -4294,7 +4316,7 @@ function KioskPage() {
                 />
                 <label
                   htmlFor="pos-z-camera"
-                  className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-200 hover:border-zinc-700 transition"
+                  className="w-full bg-zinc-900 border border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-200 hover:border-zinc-700 transition"
                 >
                   <Camera className="h-4 w-4" />
                   <span>
@@ -4306,7 +4328,7 @@ function KioskPage() {
               </div>
 
               {/* 💵 ШИНЭ: КАССЫН БЭЛЭН МӨНГӨНИЙ БОДИТ ТООЛЛОГО */}
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-2">
+              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
                   💵 Кассанд байгаа бэлэн мөнгө (Тоолсон дүн)
                 </p>
@@ -4316,9 +4338,9 @@ function KioskPage() {
                     value={actualCashDrawer}
                     onChange={(e) => setActualCashDrawer(e.target.value)}
                     placeholder="Кассын шүүгээнд яг хэдэн төгрөг байна вэ? (Байхгүй бол 0)"
-                    className="w-full bg-zinc-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-zinc-200 font-mono font-black outline-none focus:border-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-200 font-mono font-black outline-none focus:border-zinc-700"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-500">
                     ₮
                   </span>
                 </div>
@@ -4335,7 +4357,7 @@ function KioskPage() {
                 return (
                   <div
                     key={item.id}
-                    className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-3"
+                    className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center gap-3"
                   >
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -4361,9 +4383,9 @@ function KioskPage() {
                         )}
                       </div>
 
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-zinc-500 mt-0.5">
                         Тоолох нэгж:{" "}
-                        <strong className="text-slate-300 font-bold">
+                        <strong className="text-zinc-300 font-bold">
                           {item.unit}
                         </strong>
                       </p>
@@ -4380,7 +4402,7 @@ function KioskPage() {
                       onChange={(e) =>
                         setCounts({ ...counts, [item.id]: e.target.value })
                       }
-                      className="w-24 h-10 bg-slate-900 px-3 rounded-xl text-center text-white border border-slate-700 font-bold text-base focus:border-zinc-700 outline-none"
+                      className="w-24 h-10 bg-zinc-900 px-3 rounded-xl text-center text-white border border-zinc-700 font-bold text-base focus:border-zinc-700 outline-none"
                     />
                   </div>
                 );
@@ -4391,7 +4413,7 @@ function KioskPage() {
               <button
                 type="button"
                 onClick={() => setStep("menu")}
-                className="flex-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-3 rounded-xl text-xs transition active:scale-95"
+                className="flex-1 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold py-3 rounded-xl text-xs transition active:scale-95"
               >
                 Буцах
               </button>
@@ -4410,7 +4432,7 @@ function KioskPage() {
                   !posZFile || // 👈 Z-Тайлангийн зураггүй бол цоожтой
                   actualCashDrawer.trim() === "" // 👈 Кассын мөнгө хоосон бол цоожтой (0 байвал зөвшөөрнө)
                 }
-                className="flex-1 bg-white hover:bg-zinc-200 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                className="flex-1 bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
               >
                 {isAiLoading
                   ? "Хааж байна..."
@@ -4429,7 +4451,7 @@ function KioskPage() {
         {purchaseCart.length > 0 && !showCartModal && !quickItemModal && (
           <div
             onClick={() => setShowCartModal(true)}
-            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-white p-3.5 rounded-2xl  flex justify-between items-center border border-zinc-700 cursor-pointer animate-bounce transition-all active:scale-95"
+            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-zinc-950 p-3.5 rounded-2xl  flex justify-between items-center border border-zinc-700 cursor-pointer  transition-all active:scale-95"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl drop-shadow-md">🛒</span>
@@ -4446,7 +4468,7 @@ function KioskPage() {
                 </p>
               </div>
             </div>
-            <span className="bg-slate-950/40 px-3.5 py-2 rounded-xl text-xs font-black uppercase">
+            <span className="bg-zinc-950/40 px-3.5 py-2 rounded-xl text-xs font-black uppercase">
               Батлах ➔
             </span>
           </div>
@@ -4457,20 +4479,20 @@ function KioskPage() {
         {/* ========================================================================= */}
         {showCartModal && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3 shrink-0">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-3 shrink-0">
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     <span>🛒 Олон барааны сагс</span>
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-zinc-400">
                     Гаднаас бөөндөж авсан барааг 1 зургаар батлах
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCartModal(false)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs font-bold"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-xs font-bold"
                 >
                   ✕ Хаах
                 </button>
@@ -4484,8 +4506,8 @@ function KioskPage() {
                     className="pt-2 flex justify-between items-center text-sm"
                   >
                     <div>
-                      <p className="font-bold text-slate-200">{item.name}</p>
-                      <p className="text-xs text-slate-500 font-mono">
+                      <p className="font-bold text-zinc-200">{item.name}</p>
+                      <p className="text-xs text-zinc-500 font-mono">
                         {item.qty} {item.unit}
                       </p>
                     </div>
@@ -4516,9 +4538,9 @@ function KioskPage() {
                   0,
                 );
                 return (
-                  <div className="shrink-0 space-y-3 pt-3 border-t border-slate-800">
-                    <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-slate-800">
-                      <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">
+                  <div className="shrink-0 space-y-3 pt-3 border-t border-zinc-800">
+                    <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                      <span className="text-zinc-400 font-bold text-xs uppercase tracking-wider">
                         Нийт төлсөн дүн:
                       </span>
                       <span className="font-mono font-black text-zinc-200 text-lg">
@@ -4541,7 +4563,7 @@ function KioskPage() {
                       />
                       <label
                         htmlFor="cart-cam"
-                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
+                        className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-300 transition"
                       >
                         <Camera className="h-4 w-4 text-zinc-300" />
                         <span>Камер</span>
@@ -4559,14 +4581,14 @@ function KioskPage() {
                       />
                       <label
                         htmlFor="cart-gallery"
-                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
+                        className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-300 transition"
                       >
                         <span>🖼️ Цомог</span>
                       </label>
                     </div>
 
                     <p
-                      className={`text-xs font-bold text-center ${cartFile ? "text-zinc-200" : totalCartCost >= 10000 ? "text-rose-400 " : "text-slate-500"}`}
+                      className={`text-xs font-bold text-center ${cartFile ? "text-zinc-200" : totalCartCost >= 10000 ? "text-rose-400 " : "text-zinc-500"}`}
                     >
                       {cartFile
                         ? `✅ Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`

@@ -160,7 +160,7 @@ export async function POST(request: Request) {
 
       if (callbackData.startsWith("role_")) {
         const selectedRole =
-          callbackData === "role_barista" ? "Бариста ☕" : "Тогооч 🍳";
+          callbackData === "role_barista" ? "Бариста" : "Тогооч";
         const firstName = callback_query.from?.first_name || "Ажилтан";
         const fullNameRole = `${selectedRole} (${firstName})`;
 
@@ -781,9 +781,9 @@ export async function POST(request: Request) {
             : "\n\n📌 Өнөөдөр хийх нэмэлт даалгавар алга байна.";
 
         const oppositeRoleName =
-          profileRole === "Бариста ☕" ? "Тогооч 🍳" : "Бариста ☕";
+          profileRole === "Бариста" ? "Тогооч" : "Бариста";
         const oppositeCallbackData =
-          profileRole === "Бариста ☕" ? "role_chef" : "role_barista";
+          profileRole === "Бариста" ? "role_chef" : "role_barista";
 
         await fetch(
           `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
@@ -827,8 +827,8 @@ export async function POST(request: Request) {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "☕ Бариста", callback_data: `role_barista` },
-                { text: "🍳 Тогооч", callback_data: `role_chef` },
+                { text: "Бариста", callback_data: `role_barista` },
+                { text: "Тогооч", callback_data: `role_chef` },
               ],
             ],
           },
@@ -1569,7 +1569,7 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
   const tenantClientId = activeShift.client_id;
   const startTime = activeShift.start_time;
   const endTime = new Date().toISOString();
-  const role = activeShift.character_role || "Бариста ☕";
+  const role = activeShift.character_role || "Бариста";
 
   const { data: logs } = await supabaseAdmin
     .from("inventory_logs")

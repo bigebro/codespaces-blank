@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useIngredients } from "./useIngredients";
-
+import { Edit2, Trash2 } from "lucide-react";
 export default function IngredientsPanel({
   activeClient,
   ingredients,
@@ -95,8 +95,8 @@ export default function IngredientsPanel({
           type="text"
           value={ingSearch}
           onChange={(e) => setIngSearch(e.target.value)}
-          placeholder="🔍 Түүхий эдийн нэрээр хайх..."
-          className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-zinc-700"
+          placeholder=" Түүхий эдийн нэрээр хайх..."
+          className="w-full sm:flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700"
         />
 
         <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
@@ -138,7 +138,7 @@ export default function IngredientsPanel({
             }}
             className={`${
               isAddingIngRow
-                ? "bg-slate-800 text-slate-300"
+                ? "bg-zinc-800 text-zinc-300"
                 : "bg-white hover:bg-zinc-200 text-zinc-950"
             } px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-1.5 active:scale-95 shadow`}
           >
@@ -147,9 +147,9 @@ export default function IngredientsPanel({
         </div>
       </div>
 
-      <div className="overflow-x-auto max-h-[420px] border border-slate-800 rounded-2xl">
+      <div className="overflow-x-auto max-h-[420px] border border-zinc-800 rounded-2xl">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10">
+          <thead className="bg-zinc-950 text-zinc-400 uppercase font-bold sticky top-0 border-b border-zinc-800 z-10">
             <tr>
               <th className="py-3 px-3 w-8">
                 <input
@@ -173,7 +173,7 @@ export default function IngredientsPanel({
               <th className="py-3 px-3 text-right">Үйлдэл</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-medium">
+          <tbody className="divide-y divide-slate-800/60 bg-zinc-950/40 font-medium">
             {/* ⚡ 1. ХҮСНЭГТ ДОТОР НЭЭГДЭХ ШИНЭ МӨР (ЦОНХГҮЙ!) */}
             {isAddingIngRow && (
               <tr className="bg-emerald-950/40 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
@@ -283,7 +283,7 @@ export default function IngredientsPanel({
                     <button
                       type="button"
                       onClick={() => setIsAddingIngRow(false)}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-2 py-1 rounded-lg text-sm"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-2 py-1 rounded-lg text-sm"
                       title="Болих"
                     >
                       ✕
@@ -418,7 +418,7 @@ export default function IngredientsPanel({
                           <button
                             type="button"
                             onClick={() => setEditingIngId(null)}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-2 py-1 rounded-lg text-sm"
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-2 py-1 rounded-lg text-sm"
                             title="Цуцлах"
                           >
                             ✕
@@ -431,7 +431,7 @@ export default function IngredientsPanel({
 
                 // ЭНГИЙН МӨР
                 return (
-                  <tr key={ing.id} className="hover:bg-slate-900/60 transition">
+                  <tr key={ing.id} className="hover:bg-zinc-900/60 transition">
                     <td className="py-2.5 px-3">
                       <input
                         type="checkbox"
@@ -450,11 +450,11 @@ export default function IngredientsPanel({
                     <td className="py-2.5 px-3 font-bold text-white">
                       {ing.name}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-400">{ing.unit}</td>
+                    <td className="py-2.5 px-3 text-zinc-400">{ing.unit}</td>
                     <td className="py-2.5 px-3 text-right text-zinc-200 font-mono font-bold">
                       {parseFloat(ing.unit_price || 0).toLocaleString()} ₮
                     </td>
-                    <td className="py-2.5 px-3 text-right text-slate-300 font-mono">
+                    <td className="py-2.5 px-3 text-right text-zinc-300 font-mono">
                       {ing.par_level || 0} {ing.unit}
                     </td>
                     <td className="py-2.5 px-3 text-right">
@@ -470,10 +470,10 @@ export default function IngredientsPanel({
                               par: (ing.par_level || 0).toString(),
                             });
                           }}
-                          className="h-7 w-7 rounded-xl bg-slate-950 border border-slate-800 hover:border-zinc-700 hover:text-zinc-300 text-slate-400 flex items-center justify-center transition active:scale-95 shrink-0"
+                          className="h-7 w-7 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300 text-zinc-400 flex items-center justify-center transition active:scale-95 shrink-0"
                           title="Мөр дотор засах"
                         >
-                          ✏️
+                          <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
@@ -491,10 +491,10 @@ export default function IngredientsPanel({
                               .eq("id", ing.id);
                             fetchIngredients();
                           }}
-                          className="h-7 w-7 rounded-xl bg-slate-950/70 hover:bg-rose-500/20 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-300 flex items-center justify-center text-sm transition active:scale-95 shrink-0 cursor-pointer shadow-sm"
+                          className="h-7 w-7 rounded-xl bg-zinc-950/70 hover:bg-rose-500/20 border border-zinc-800 hover:border-rose-500/40 text-zinc-400 hover:text-rose-300 flex items-center justify-center text-sm transition active:scale-95 shrink-0 cursor-pointer shadow-sm"
                           title="Устгах"
                         >
-                          🗑️
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -510,14 +510,14 @@ export default function IngredientsPanel({
       {/* ========================================================================= */}
       {showAddIngModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+          <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
                 + Шинэ Түүхий эд нэмэх
               </h3>
               <button
                 onClick={() => setShowAddIngModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-zinc-400 hover:text-white text-sm"
               >
                 ✕
               </button>
@@ -530,7 +530,7 @@ export default function IngredientsPanel({
                 setNewIngForm({ ...newIngForm, name: e.target.value })
               }
               placeholder="Түүхий эдийн нэр (Жишээ: Овьёосны сүү)"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
             />
             <div className="grid grid-cols-2 gap-2">
               <input
@@ -540,7 +540,7 @@ export default function IngredientsPanel({
                   setNewIngForm({ ...newIngForm, unit: e.target.value })
                 }
                 placeholder="Нэгж (мл/гр/ш)"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
               />
               <input
                 type="number"
@@ -549,7 +549,7 @@ export default function IngredientsPanel({
                   setNewIngForm({ ...newIngForm, price: e.target.value })
                 }
                 placeholder="Нэгжийн өртөг ₮"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
               />
             </div>
             <button
@@ -590,20 +590,20 @@ export default function IngredientsPanel({
       {/* ✏️ ТҮҮХИЙ ЭД БҮРЭН ЗАСАХ МОДАЛ */}
       {editingIngredient && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+          <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
                 ✏️ Түүхий эд засах
               </h3>
               <button
                 onClick={() => setEditingIngredient(null)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-zinc-400 hover:text-white text-sm"
               >
                 ✕
               </button>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">
+              <label className="block text-xs font-bold text-zinc-400 mb-1">
                 Барааны нэр:
               </label>
               <input
@@ -615,12 +615,12 @@ export default function IngredientsPanel({
                     name: e.target.value,
                   })
                 }
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-sm text-white outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-white outline-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   Нэгж (мл, гр, ш):
                 </label>
                 <input
@@ -632,11 +632,11 @@ export default function IngredientsPanel({
                       unit: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-sm text-white outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-white outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   Нэгжийн өртөг (₮):
                 </label>
                 <input
@@ -648,12 +648,12 @@ export default function IngredientsPanel({
                       unit_price: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-sm text-zinc-200 font-mono font-bold outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-zinc-200 font-mono font-bold outline-none"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">
+              <label className="block text-xs font-bold text-zinc-400 mb-1">
                 Хэвийн нөөц (PAR):
               </label>
               <input
@@ -665,7 +665,7 @@ export default function IngredientsPanel({
                     par_level: e.target.value,
                   })
                 }
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-sm text-white outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-sm text-white outline-none"
               />
             </div>
             <button

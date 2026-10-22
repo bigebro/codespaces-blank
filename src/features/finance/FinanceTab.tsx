@@ -91,25 +91,25 @@ export default function FinanceTab({
       <div className="space-y-6">
         {/* 💳 ТӨЛБӨРИЙН САНУУЛГА / БАНКНЫ ДАНСНЫ БАННЕР */}
         {tenantInfo?.isExpired && (
-          <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-900 border-2 border-amber-500/50 p-5 rounded-2xl shadow-2xl ">
+          <div className="bg-gradient-to-r from-amber-500/20 via-zinc-900 to-zinc-900 border-2 border-amber-500/50 p-5 rounded-2xl shadow-2xl ">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
                 <h4 className="text-base font-black text-zinc-300 flex items-center gap-2">
                   ⚠️ Үйлчилгээний эрхийн хугацаа дууссан байна
                 </h4>
-                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
                   Та системээ тасралтгүй ашиглахын тулд сарын төлбөрөө доорх
                   дансанд шилжүүлнэ үү. Шилжүүлснээс хойш 15-30 минутад эрх
                   сунгагдана.
                 </p>
               </div>
 
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-left lg:text-right shrink-0">
-                <p className="text-slate-400">
+              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs font-mono text-left lg:text-right shrink-0">
+                <p className="text-zinc-400">
                   Хаан банк:{" "}
                   <strong className="text-white text-sm">5000 000 000</strong>
                 </p>
-                <p className="text-slate-400">
+                <p className="text-zinc-400">
                   Хүлээн авагч:{" "}
                   <strong className="text-white">Оперлинк ХХК</strong>
                 </p>
@@ -145,7 +145,7 @@ export default function FinanceTab({
                       <h4 className="text-sm font-black text-rose-300">
                         Түүхий эдийн үнэ зах зээл дээр өссөн байна!
                       </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-zinc-400 mt-0.5">
                         Сүүлийн татан авалтаар нэгжийн үнэ 3%-иас дээш өссөн{" "}
                         {priceSpikeAlerts.length} бараа илэрлээ.
                       </p>
@@ -160,7 +160,7 @@ export default function FinanceTab({
                     {/* ⌵ Дэлгэх / Хумих товч */}
                     <button
                       type="button"
-                      className="bg-slate-900 border border-rose-500/30 text-rose-300 p-1.5 rounded-xl hover:bg-slate-800 transition"
+                      className="bg-zinc-900 border border-rose-500/30 text-rose-300 p-1.5 rounded-xl hover:bg-zinc-800 transition"
                     >
                       {isSpikesExpanded ? (
                         <ChevronUp className="h-4 w-4" />
@@ -176,22 +176,22 @@ export default function FinanceTab({
                   <div className="p-4 pt-0 border-t border-rose-500/20 space-y-3 animate-in fade-in duration-150">
                     {/* Дэлгэгдсэн үеийн Хайлтын талбар */}
                     <div className="pt-3 flex justify-between items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400">
+                      <span className="text-xs font-bold text-zinc-400">
                         Өссөн бараануудын задаргаа:
                       </span>
                       <input
                         type="text"
                         value={spikeSearch}
                         onChange={(e) => setSpikeSearch(e.target.value)}
-                        placeholder="🔍 Бараа хайх..."
-                        className="bg-slate-950 border border-rose-500/40 focus:border-rose-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-48 font-bold"
+                        placeholder="Бараа хайх..."
+                        className="bg-zinc-950 border border-rose-500/40 focus:border-rose-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-zinc-500 outline-none w-48 font-bold"
                       />
                     </div>
 
                     {/* Картуудын гүйдэг хайрцаг */}
                     <div className="max-h-56 overflow-y-auto pr-1">
                       {filteredSpikes.length === 0 ? (
-                        <p className="text-xs text-slate-500 italic py-3 text-center">
+                        <p className="text-xs text-zinc-500 italic py-3 text-center">
                           "{spikeSearch}" нэртэй бараа олдсонгүй.
                         </p>
                       ) : (
@@ -213,13 +213,13 @@ export default function FinanceTab({
                                 </span>
                               </div>
 
-                              <p className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                              <p className="text-xs text-zinc-400 font-mono flex items-center gap-1">
                                 <span>{alert.oldPrice.toLocaleString()} ₮</span>
-                                <span className="text-slate-600">➔</span>
+                                <span className="text-zinc-600">➔</span>
                                 <strong className="text-rose-300 font-bold">
                                   {alert.newPrice.toLocaleString()} ₮
                                 </strong>
-                                <span className="text-slate-500 font-sans">
+                                <span className="text-zinc-500 font-sans">
                                   / {alert.unit}
                                 </span>
                               </p>
@@ -236,14 +236,14 @@ export default function FinanceTab({
         {/* ========================================================================= */}
         {/* БҮС 1: ОГНООНЫ КОНТРОЛ + 🚦 ӨРТГИЙН НИЙЦЛИЙН ЗААГУУР (HERO STATUS)         */}
         {/* ========================================================================= */}
-        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 bg-zinc-900] p-4 rounded-2xl border border-slate-700/50 shadow-lg">
+        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-700/20 shrink-0">
               <Activity className="h-5 w-5 text-zinc-200" />
             </div>
             <div>
               <h3 className="text-sm font-black text-white">Тайлант Хугацаа</h3>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-zinc-400">
                 Сонгосон хугацааны орлого, өртөг бодитоор бодогдож байна
               </p>
             </div>
@@ -273,7 +273,7 @@ export default function FinanceTab({
                 >
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span
-                      className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      className={` absolute inline-flex h-full w-full rounded-full opacity-75 ${
                         isHealthy
                           ? "bg-zinc-200"
                           : isWarning
@@ -314,7 +314,7 @@ export default function FinanceTab({
                 setEndDate(today);
                 fetchDatabaseData(activeClient, today, today);
               }}
-              className="bg-slate-950 hover:bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition"
+              className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
             >
               ☀️ Өнөөдөр
             </button>
@@ -331,7 +331,7 @@ export default function FinanceTab({
                 setEndDate(today);
                 fetchDatabaseData(activeClient, past7, today);
               }}
-              className="bg-slate-950 hover:bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition"
+              className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
             >
               📅 7 хоног
             </button>
@@ -339,7 +339,7 @@ export default function FinanceTab({
             <select
               value={startDate.substring(0, 7)}
               onChange={(e) => handleMonthChange(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-zinc-200 font-black text-sm rounded-xl px-3 py-2 outline-none cursor-pointer"
+              className="bg-zinc-950 border border-zinc-800 text-zinc-200 font-black text-sm rounded-xl px-3 py-2 outline-none cursor-pointer"
             >
               {availableMonths.map((ym) => {
                 const [year, month] = ym.split("-");
@@ -347,7 +347,7 @@ export default function FinanceTab({
                   <option
                     key={ym}
                     value={ym}
-                    className="bg-slate-950 text-white font-bold"
+                    className="bg-zinc-950 text-white font-bold"
                   >
                     📅 {year} оны {month}-р сар
                   </option>
@@ -381,7 +381,7 @@ export default function FinanceTab({
                   Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн
                 </h4>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-zinc-300">
                 Борлуулалт хийгдсэн{" "}
                 <strong>
                   {liveAnalytics.financial_ladder.unmapped_recipes_count}
@@ -404,12 +404,12 @@ export default function FinanceTab({
           /* 🟢 ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. НИЙТ ОРЛОГО */}
-            <div className="bg-zinc-900] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
                 Нийт Орлого (Revenue)
               </p>
               {loading || !liveAnalytics ? (
-                <div className="h-8 w-32 bg-slate-800  rounded-xl my-1" />
+                <div className="h-8 w-32 bg-zinc-800  rounded-xl my-1" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-black text-white font-mono animate-in fade-in duration-150">
                   {Math.round(
@@ -424,9 +424,9 @@ export default function FinanceTab({
             </div>
 
             {/* 2. ӨРТӨГ (FOOD COST) */}
-            <div className="bg-zinc-900] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
+            <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
               <div className="flex justify-between items-center mb-1">
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
                   Өртөг (Food Cost)
                 </p>
                 <span
@@ -442,7 +442,7 @@ export default function FinanceTab({
                 </span>
               </div>
               {loading || !liveAnalytics ? (
-                <div className="h-8 w-32 bg-slate-800  rounded-xl my-1" />
+                <div className="h-8 w-32 bg-zinc-800  rounded-xl my-1" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-black text-white font-mono animate-in fade-in duration-150">
                   {Math.round(
@@ -451,7 +451,7 @@ export default function FinanceTab({
                   ₮
                 </p>
               )}
-              <span className="text-xs text-slate-400 mt-2 block">
+              <span className="text-xs text-zinc-400 mt-2 block">
                 {liveAnalytics?.financial_ladder?.is_theoretical_mode
                   ? "Тооллого хийгдээгүй тул жороор бодов"
                   : `Онолын өртөг: ${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮`}
@@ -459,20 +459,20 @@ export default function FinanceTab({
             </div>
 
             {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
-            <div className="bg-zinc-900] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
                 Бохир Ашиг (Gross Margin)
               </p>
               {loading || !liveAnalytics ? (
-                <div className="h-8 w-20 bg-slate-800  rounded-xl my-1" />
+                <div className="h-8 w-20 bg-zinc-800  rounded-xl my-1" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-black text-zinc-200 font-mono animate-in fade-in duration-150">
                   {liveAnalytics.financial_ladder?.gross_margin || "0%"}
                 </p>
               )}
-              <span className="text-xs text-slate-400 mt-2 block">
+              <span className="text-xs text-zinc-400 mt-2 block">
                 Дүн:{" "}
-                <strong className="text-slate-200 font-mono">
+                <strong className="text-zinc-200 font-mono">
                   {liveAnalytics
                     ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()}₮`
                     : "-"}
@@ -481,12 +481,12 @@ export default function FinanceTab({
             </div>
 
             {/* 4. ЦЭВЭР АШИГ (NET PROFIT) */}
-            <div className="bg-zinc-900] p-5 rounded-2xl border border-slate-700/50 shadow-lg">
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">
+            <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
                 Цэвэр Ашиг (Net Profit)
               </p>
               {loading || !liveAnalytics ? (
-                <div className="h-8 w-32 bg-slate-800  rounded-xl my-1" />
+                <div className="h-8 w-32 bg-zinc-800  rounded-xl my-1" />
               ) : (
                 <p
                   className={`text-2xl sm:text-3xl font-black font-mono animate-in fade-in duration-150 ${
@@ -501,7 +501,7 @@ export default function FinanceTab({
                   ₮
                 </p>
               )}
-              <span className="text-xs text-slate-400 mt-2 block">
+              <span className="text-xs text-zinc-400 mt-2 block">
                 Цэвэр маржин:{" "}
                 <strong className="text-white font-mono">
                   {liveAnalytics?.financial_ladder?.net_margin || "0%"}
@@ -515,20 +515,20 @@ export default function FinanceTab({
         {/* ========================================================================= */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ЗҮҮН ТАЛ (2/3): P&L ШАТАЛСАН ТАЙЛАН & ӨРТГИЙН ОНОШИЛГОО */}
-          <div className="bg-zinc-900] p-6 rounded-2xl border border-slate-700/50 shadow-lg lg:col-span-2 space-y-6">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-700/50 shadow-lg lg:col-span-2 space-y-6">
             <div>
               <h3 className="text-base font-black text-white flex items-center gap-2 mb-1">
                 <TrendingUp className="h-5 w-5 text-zinc-200" />
                 Бизнес Моделийн Шаталсан Тайлан (P&L Ladder)
               </h3>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-zinc-400">
                 Борлуулалтын орлогоос цэвэр ашиг хүртэлх зардлын урсгал
               </p>
             </div>
 
             <div className="space-y-3.5 text-sm divide-y divide-slate-800/80">
               <div className="flex justify-between pt-2">
-                <span className="text-slate-400">
+                <span className="text-zinc-400">
                   1. Нийт Борлуулалтын Орлого (ПОС)
                 </span>
                 <span className="font-bold text-white font-mono">
@@ -540,10 +540,10 @@ export default function FinanceTab({
 
               <div className="flex justify-between pt-3">
                 <div>
-                  <span className="text-slate-400 block">
+                  <span className="text-zinc-400 block">
                     2. Борлуулсан Бүтээгдэхүүний Өртөг (COGS)
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-zinc-500">
                     Онолын өртөг (
                     {Math.round(
                       liveAnalytics?.financial_ladder?.theo_cogs || 0,
@@ -560,7 +560,7 @@ export default function FinanceTab({
               </div>
 
               <div className="flex justify-between pt-3">
-                <span className="text-slate-300 font-bold">
+                <span className="text-zinc-300 font-bold">
                   3. БОХИР АШИГ (Gross Profit)
                 </span>
                 <span className="font-black text-zinc-200 font-mono">
@@ -572,10 +572,10 @@ export default function FinanceTab({
 
               <div className="flex justify-between pt-3">
                 <div>
-                  <span className="text-slate-400 block">
+                  <span className="text-zinc-400 block">
                     4. Үйл Ажиллагааны Зардал (OPEX)
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-zinc-500">
                     Түрээс, Цалин, Хүнсний бус, Ажилчдын хоол, Туршилт
                   </span>
                 </div>
@@ -588,7 +588,7 @@ export default function FinanceTab({
               </div>
 
               <div className="flex justify-between pt-3">
-                <span className="text-slate-400">
+                <span className="text-zinc-400">
                   5. Татварын Өмнөх Ашиг (EBIT)
                 </span>
                 <span className="font-bold text-white font-mono">
@@ -598,7 +598,7 @@ export default function FinanceTab({
                 </span>
               </div>
 
-              <div className="flex justify-between pt-3.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+              <div className="flex justify-between pt-3.5 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800">
                 <span className="text-white font-black text-base">
                   6. ЦЭВЭР АШИГ (Net Profit)
                 </span>
@@ -618,9 +618,9 @@ export default function FinanceTab({
             </div>
 
             {/* 🔍 ШАЛТГААНГҮЙ АЛДАГДЛЫН ДҮГНЭЛТ (ЭЗЭНД ӨГӨХ AI ОНОШ) */}
-            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <div className="flex justify-between items-center text-xm">
-                <span className="text-slate-400 font-bold uppercase tracking-wider">
+                <span className="text-zinc-400 font-bold uppercase tracking-wider">
                   Шалтгаангүй Зөрүү (Бүртгэлгүй Зарлага):
                 </span>
                 <span
@@ -635,7 +635,7 @@ export default function FinanceTab({
                     : "0 ₮ (Бүх зардал тайлбарлагдсан ✅)"}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-zinc-500 leading-relaxed">
                 Kiosk-д бүртгэсэн хаягдал болон ПОС-ын борлуулалтыг эцсийн
                 тооллоготой тулгахад
                 {(liveAnalytics?.total_unexplained_waste || 0) > 1000
@@ -646,13 +646,13 @@ export default function FinanceTab({
           </div>
 
           {/* БАРУУН ТАЛ (1/3): 2. LIVE ACTIVITY FEED (АМЬД УРСГАЛ) & ХАЯГДАЛ */}
-          <div className="bg-zinc-900] p-6 rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
-            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-700/50 shadow-lg flex flex-col">
+            <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-3">
               <div>
                 <h3 className="text-base font-black text-rose-400 flex items-center gap-2">
                   <Trash2 className="h-5 w-5" /> Хаягдал & Үйлдэл
                 </h3>
-                <p className="text-xm text-slate-400 mt-0.5">
+                <p className="text-xm text-zinc-400 mt-0.5">
                   Гал тогооны өдөр тутмын амьд бүртгэл
                 </p>
               </div>
@@ -667,7 +667,7 @@ export default function FinanceTab({
             <div className="flex-1 overflow-y-auto space-y-6 max-h-[500px] pr-1">
               {/* ХАМГИЙН ИХ АЛДАГДАЛТАЙ БАРААНУУД (TOP 3) */}
               <div>
-                <p className="text-xs font-black uppercase text-slate-500 mb-2.5 tracking-widest">
+                <p className="text-xs font-black uppercase text-zinc-500 mb-2.5 tracking-widest">
                   Топ 3 Алдагдалтай Бараа
                 </p>
                 {liveAnalytics?.top_wasters?.length > 0 ? (
@@ -675,11 +675,11 @@ export default function FinanceTab({
                     {liveAnalytics.top_wasters.map((w: any, idx: number) => (
                       <div
                         key={idx}
-                        className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-xm"
+                        className="bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/80 flex justify-between items-center text-xm"
                       >
                         <div>
                           <p className="font-bold text-white">{w.name}</p>
-                          <p className="text-xs text-slate-500 font-mono">
+                          <p className="text-xs text-zinc-500 font-mono">
                             Зөрүү: {w.gap.toLocaleString()} {w.unit}
                           </p>
                         </div>
@@ -690,7 +690,7 @@ export default function FinanceTab({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xm text-slate-500 italic">
+                  <p className="text-xm text-zinc-500 italic">
                     Бүртгэгдсэн алдагдалгүй.
                   </p>
                 )}
@@ -698,14 +698,14 @@ export default function FinanceTab({
 
               {/* ⚡ ӨДРИЙН БҮРТГЭГДСЭН ЗАРЛАГУУДЫН УРСГАЛ (LIVE FEED) */}
               <div>
-                <p className="text-xs font-black uppercase text-slate-500 mb-3 tracking-widest">
+                <p className="text-xs font-black uppercase text-zinc-500 mb-3 tracking-widest">
                   Ажилтнуудын Сүүлийн Бүртгэлүүд
                 </p>
 
                 {liveAnalytics?.all_timeline_logs?.filter(
                   (l: any) => l.type !== "count" && l.type !== "purchase",
                 ).length > 0 ? (
-                  <div className="space-y-3 border-l-2 border-slate-800 pl-3 ml-1">
+                  <div className="space-y-3 border-l-2 border-zinc-800 pl-3 ml-1">
                     {liveAnalytics.all_timeline_logs
                       .filter(
                         (l: any) => l.type !== "count" && l.type !== "purchase",
@@ -713,10 +713,10 @@ export default function FinanceTab({
                       .slice(0, 8)
                       .map((log: any, idx: number) => (
                         <div key={idx} className="relative">
-                          <span className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-slate-600 ring-4 ring-[#1E293B]" />
-                          <p className="text-xs font-bold text-slate-300">
+                          <span className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-zinc-600 ring-4 ring-[#1E293B]" />
+                          <p className="text-xs font-bold text-zinc-300">
                             {log.worker}{" "}
-                            <span className="text-slate-500 font-normal">
+                            <span className="text-zinc-500 font-normal">
                               бүртгэсэн:
                             </span>
                           </p>
@@ -727,7 +727,7 @@ export default function FinanceTab({
                               {log.unit})
                             </span>
                           </p>
-                          <p className="text-xs text-slate-500 mt-0.5 flex gap-2">
+                          <p className="text-xs text-zinc-500 mt-0.5 flex gap-2">
                             <span
                               className={`uppercase font-bold ${
                                 log.type === "spoilage"
@@ -745,7 +745,7 @@ export default function FinanceTab({
                       ))}
                   </div>
                 ) : (
-                  <p className="text-xm text-slate-500 italic">
+                  <p className="text-xm text-zinc-500 italic">
                     Өнөөдөр бүртгэгдсэн хаягдал алга байна.
                   </p>
                 )}
@@ -764,9 +764,9 @@ export default function FinanceTab({
             );
 
             return (
-              <div className="bg-zinc-900] p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
+              <div className="bg-zinc-900 p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
                 {/* ТОЛГОЙ ХЭСЭГ */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
                   <div className="flex items-center gap-2.5">
                     <div className="bg-zinc-800/60 p-2 rounded-xl border border-amber-500/20 shrink-0">
                       <AlertTriangle className="h-5 w-5 text-zinc-300" />
@@ -775,7 +775,7 @@ export default function FinanceTab({
                       <h3 className="text-base font-black text-zinc-300">
                         Маржин Хамгаалагч (Үнэ шинэчлэх шаардлагатай)
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-zinc-400 mt-0.5">
                         Түүхий эдийн өртөг өссөнөөс болж ашиг буурсан цэсүүд. Та
                         өөрийн хүссэн үнээр тохируулж батална уу.
                       </p>
@@ -787,8 +787,8 @@ export default function FinanceTab({
                       type="text"
                       value={marginSearch}
                       onChange={(e) => setMarginSearch(e.target.value)}
-                      placeholder="🔍 Цэс хайх..."
-                      className="bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none w-36 sm:w-48 font-bold"
+                      placeholder="Цэс хайх..."
+                      className="bg-zinc-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-zinc-500 outline-none w-36 sm:w-48 font-bold"
                     />
                     <span className="text-xs font-black text-zinc-300 bg-zinc-800/60 border border-zinc-700 px-3 py-1.5 rounded-xl shrink-0 font-mono">
                       {liveAnalytics.margin_guard_alerts.length} цэс
@@ -799,7 +799,7 @@ export default function FinanceTab({
                 {/* КАРТУУДЫН ХЭСЭГ */}
                 <div className="max-h-80 overflow-y-auto pr-1">
                   {filteredMargins.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic py-4 text-center">
+                    <p className="text-xs text-zinc-500 italic py-4 text-center">
                       "{marginSearch}" нэртэй цэс олдсонгүй.
                     </p>
                   ) : (
@@ -845,20 +845,20 @@ export default function FinanceTab({
                                 </span>
                               </div>
 
-                              <div className="text-xs text-slate-400 space-y-1 font-mono flex justify-between">
+                              <div className="text-xs text-zinc-400 space-y-1 font-mono flex justify-between">
                                 <div>
-                                  <span className="block text-[10px] text-slate-500">
+                                  <span className="block text-[10px] text-zinc-500">
                                     Орцын өртөг:
                                   </span>
-                                  <strong className="text-slate-200">
+                                  <strong className="text-zinc-200">
                                     {marginItem.cost_price.toLocaleString()} ₮
                                   </strong>
                                 </div>
                                 <div className="text-right">
-                                  <span className="block text-[10px] text-slate-500">
+                                  <span className="block text-[10px] text-zinc-500">
                                     Одоогийн үнэ:
                                   </span>
-                                  <span className="text-slate-300 line-through">
+                                  <span className="text-zinc-300 line-through">
                                     {marginItem.selling_price.toLocaleString()}{" "}
                                     ₮
                                   </span>
@@ -867,8 +867,8 @@ export default function FinanceTab({
                             </div>
 
                             {/* 🎛️ ИНТЕРАКТИВ ҮНЭ ӨӨРЧЛӨХ ХЭСЭГ */}
-                            <div className="mt-3 pt-3 border-t border-slate-800/80">
-                              <label className="flex justify-between text-[10px] text-slate-400 font-bold mb-1.5 uppercase">
+                            <div className="mt-3 pt-3 border-t border-zinc-800/80">
+                              <label className="flex justify-between text-[10px] text-zinc-400 font-bold mb-1.5 uppercase">
                                 <span>Шинэ зарах үнэ (Тохируулах):</span>
                                 <span className="text-zinc-300">
                                   Систем{" "}
@@ -879,7 +879,7 @@ export default function FinanceTab({
 
                               <div className="flex flex-wrap items-center gap-2">
                                 {/* Үнэ бичих талбар */}
-                                <div className="flex items-center bg-slate-900 border border-slate-700 focus-within:border-zinc-700 rounded-lg overflow-hidden w-28 shrink-0">
+                                <div className="flex items-center bg-zinc-900 border border-zinc-700 focus-within:border-zinc-700 rounded-lg overflow-hidden w-28 shrink-0">
                                   <input
                                     type="number"
                                     value={currentEditingPrice || ""}
@@ -962,7 +962,7 @@ export default function FinanceTab({
                                     }
                                     setLoading(false);
                                   }}
-                                  className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black px-3 py-1.5 rounded-lg text-xs transition shadow shrink-0"
+                                  className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-3 py-1.5 rounded-lg text-xs transition shadow shrink-0"
                                 >
                                   ✓ Батлах
                                 </button>

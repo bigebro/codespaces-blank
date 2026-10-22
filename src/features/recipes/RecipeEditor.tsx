@@ -325,13 +325,13 @@ export default function RecipeEditor({
           type="text"
           value={recipeSearch}
           onChange={(e) => setRecipeSearch(e.target.value)}
-          placeholder="🔍 Бүтээгдэхүүний жор хайх..."
-          className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-zinc-800"
+          placeholder="Бүтээгдэхүүний жор хайх..."
+          className="w-full sm:flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-800"
         />
 
         <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 flex-wrap">
           {/* ☑️ БҮГДИЙГ СОНГОХ CHECKBOX */}
-          <label className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-300 hover:text-white cursor-pointer select-none">
+          <label className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-300 hover:text-white cursor-pointer select-none">
             <input
               type="checkbox"
               checked={
@@ -397,7 +397,7 @@ export default function RecipeEditor({
           <button
             type="button"
             onClick={handleExportRecipeBackup}
-            className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title={`${activeClient}-ийн бүх жорыг файлд хадгалж авах`}
           >
             <span>💾 Жор татах</span>
@@ -439,7 +439,7 @@ export default function RecipeEditor({
             }}
             className={`${
               isCreatingRecipeCard
-                ? "bg-slate-800 text-slate-300"
+                ? "bg-zinc-800 text-zinc-300"
                 : "bg-white hover:bg-zinc-200 text-zinc-950"
             } px-3.5 py-2.5 rounded-xl text-sm font-black transition active:scale-95 flex items-center gap-1.5 shadow`}
           >
@@ -480,7 +480,7 @@ export default function RecipeEditor({
               }
             } catch (err) {}
           }}
-          className="bg-slate-950 p-5 rounded-2xl border-2 border-zinc-800 space-y-4 shadow-xl"
+          className="bg-zinc-950 p-5 rounded-2xl border-2 border-zinc-800 space-y-4 shadow-xl"
         >
           {/* ЧИРЧ УНАГАХ ЗААВАР ТУУЗ */}
           <div className="bg-zinc-900 border border-dashed border-zinc-800/50 p-2.5 rounded-xl text-center">
@@ -528,7 +528,7 @@ export default function RecipeEditor({
                 placeholder="Зарах үнэ"
                 className="w-full bg-transparent text-sm text-zinc-200 font-mono font-black outline-none"
               />
-              <span className="text-slate-500 text-xs font-bold">₮</span>
+              <span className="text-zinc-500 text-xs font-bold">₮</span>
             </div>
 
             {/* Батлах / Болиулах */}
@@ -587,14 +587,14 @@ export default function RecipeEditor({
                   setNewRecipeItemsDraft([]);
                   await fetchRecipes();
                 }}
-                className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer"
+                className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-4 py-2 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer"
               >
                 ✓ Батлах
               </button>
               <button
                 type="button"
                 onClick={() => setIsCreatingRecipeCard(false)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-3 py-2 rounded-xl text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -602,7 +602,7 @@ export default function RecipeEditor({
           </div>
 
           {/* 2-Р МӨР: ОРЦ СОНГОХ + ГРАММ */}
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-900">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-900">
             <div className="w-56 shrink-0">
               <SearchableSelect
                 placeholder="-- Орц хайх --"
@@ -640,7 +640,7 @@ export default function RecipeEditor({
                   setDraftRecipeIngAmt("");
                 }
               }}
-              className="w-24 bg-zinc-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-zinc-800"
+              className="w-24 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white outline-none font-mono focus:border-zinc-800"
             />
 
             <button
@@ -673,12 +673,12 @@ export default function RecipeEditor({
                 return (
                   <div
                     key={idx}
-                    className="bg-zinc-950 border border-slate-700 hover:border-zinc-800/60 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
+                    className="bg-zinc-950 border border-zinc-700 hover:border-zinc-800/60 px-3 py-1.5 rounded-xl text-sm flex items-center gap-2 font-bold text-white shadow-sm"
                   >
                     <span>{ing?.name || "Орц"}</span>
 
                     {/* 👈 ОРСНЫ ДАРАА ТООГ НЬ ШУУД ӨӨРЧИЛЖ БОЛОХ INPUT */}
-                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-lg border border-zinc-800/50">
+                    <div className="flex items-center gap-1 bg-zinc-950 px-2 py-0.5 rounded-lg border border-zinc-800/50">
                       <input
                         type="number"
                         value={item.amount}
@@ -692,7 +692,7 @@ export default function RecipeEditor({
                         }}
                         className="w-14 bg-transparent text-center text-zinc-300 font-mono font-black text-xs outline-none"
                       />
-                      <span className="text-xs text-slate-400 font-normal">
+                      <span className="text-xs text-zinc-400 font-normal">
                         {ing?.unit || "гр"}
                       </span>
                     </div>
@@ -751,7 +751,7 @@ export default function RecipeEditor({
               <div
                 key={pName}
                 // ❌ Бүхэл картыг чирэхийг болиулсан (draggable={false})
-                className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition"
+                className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2.5 hover:border-zinc-700 transition"
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div className="flex items-center gap-2">
@@ -785,14 +785,14 @@ export default function RecipeEditor({
                   </div>
 
                   <div className="flex items-center gap-2 text-sm flex-wrap font-mono">
-                    <span className="text-slate-400">
+                    <span className="text-zinc-400">
                       Зарах:{" "}
                       <strong className="text-white">
                         {sellPrice.toLocaleString()} ₮
                       </strong>
                     </span>
-                    <span className="text-slate-700">•</span>
-                    <span className="text-slate-400">
+                    <span className="text-zinc-700">•</span>
+                    <span className="text-zinc-400">
                       Өртөг:{" "}
                       <strong className="text-rose-400">
                         {Math.round(calculatedCost).toLocaleString()} ₮
@@ -811,7 +811,7 @@ export default function RecipeEditor({
                 </div>
 
                 {/* ⚡ ОРЦ БҮРИЙГ ГАНЦ ГАНЦААР НЬ ЧИРЭХ ЭСВЭЛ [+] ДАРЖ ХУУЛАХ ХЭСЭГ */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900">
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-zinc-900">
                   {productRecipes.map((r: any) => {
                     const ing = ingredients.find(
                       (i) => i.id === r.ingredient_id,
@@ -853,10 +853,10 @@ export default function RecipeEditor({
                               ];
                             });
                           }}
-                          className="bg-slate-900/90 hover:bg-zinc-900 border border-slate-800 hover:border-zinc-800/70 px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2.5 transition shadow-sm cursor-pointer active:scale-95 select-none"
+                          className="bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-800/70 px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2.5 transition shadow-sm cursor-pointer active:scale-95 select-none"
                           title="Дарж дээд талын шинэ жор руу шууд нэмэх"
                         >
-                          <span className="text-slate-200 font-bold">
+                          <span className="text-zinc-200 font-bold">
                             {ing?.name || "Орц"}
                           </span>
                           <span className="text-zinc-300 font-mono text-xs bg-zinc-900 border border-zinc-800/30 px-2 py-0.5 rounded-lg">
@@ -873,18 +873,18 @@ export default function RecipeEditor({
                     return (
                       <div
                         key={r.id}
-                        className={`bg-slate-900/90 border px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2 transition shadow-sm ${
+                        className={`bg-zinc-900/90 border px-3 py-1.5 rounded-2xl text-sm flex items-center gap-2 transition shadow-sm ${
                           isDrafting
-                            ? "border-amber-400 bg-slate-950"
-                            : "border-slate-800 hover:border-slate-700"
+                            ? "border-amber-400 bg-zinc-950"
+                            : "border-zinc-800 hover:border-zinc-700"
                         }`}
                       >
-                        <span className="text-slate-200 font-bold">
+                        <span className="text-zinc-200 font-bold">
                           {ing?.name || "Орц"}
                         </span>
 
                         {/* Грамм бичих талбар */}
-                        <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1 rounded-xl border border-zinc-700">
+                        <div className="flex items-center gap-1 bg-zinc-950 px-2.5 py-1 rounded-xl border border-zinc-700">
                           <input
                             type="number"
                             value={draftVal !== undefined ? draftVal : r.amount}
@@ -916,7 +916,7 @@ export default function RecipeEditor({
                             }}
                             className="w-14 bg-transparent text-center text-zinc-300 font-mono font-black text-sm outline-none"
                           />
-                          <span className="text-xs text-slate-400 font-semibold">
+                          <span className="text-xs text-zinc-400 font-semibold">
                             {ing?.unit || "гр"}
                           </span>
                         </div>
@@ -957,7 +957,7 @@ export default function RecipeEditor({
                                   return n;
                                 });
                               }}
-                              className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center"
+                              className="h-7 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center"
                               title="Болих"
                             >
                               ✕
@@ -983,7 +983,7 @@ export default function RecipeEditor({
                             await recordRecipeSnapshot(pName, "updated");
                             await fetchRecipes();
                           }}
-                          className="text-slate-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer ml-1"
+                          className="text-zinc-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer ml-1"
                           title="Орц хасах"
                         >
                           🗑️
@@ -1003,7 +1003,7 @@ export default function RecipeEditor({
                             ingredient_id: e.target.value,
                           })
                         }
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-white outline-none"
+                        className="bg-zinc-900 border border-zinc-700 rounded-xl px-2 py-1 text-xs text-white outline-none"
                       >
                         <option value="">-- Түүхий эд --</option>
                         {ingredients.map((i) => (
@@ -1022,7 +1022,7 @@ export default function RecipeEditor({
                             amount: e.target.value,
                           })
                         }
-                        className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-white outline-none font-mono"
+                        className="w-16 bg-zinc-900 border border-zinc-700 rounded-xl px-2 py-1 text-xs text-white outline-none font-mono"
                       />
                       <button
                         type="button"
@@ -1054,7 +1054,7 @@ export default function RecipeEditor({
                       <button
                         type="button"
                         onClick={() => setInlineAddRecipeProduct(null)}
-                        className="h-7 px-2 bg-slate-800 text-slate-400 rounded-xl text-xs"
+                        className="h-7 px-2 bg-zinc-800 text-zinc-400 rounded-xl text-xs"
                       >
                         ✕
                       </button>
@@ -1118,15 +1118,15 @@ export default function RecipeEditor({
           onClick={() => setJsonBackupModal(null)}
         >
           <div
-            className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+            className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
               <div>
                 <h3 className="text-base font-black text-white flex items-center gap-2">
                   <span>📥 Нөөц Файлаас Жор Сэргээх</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Файлд нийт{" "}
                   <strong className="text-zinc-300">
                     {Object.keys(jsonBackupModal.recipesByProduct).length}
@@ -1137,7 +1137,7 @@ export default function RecipeEditor({
               <button
                 type="button"
                 onClick={() => setJsonBackupModal(null)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
               >
                 ✕ Хаах
               </button>
@@ -1154,11 +1154,11 @@ export default function RecipeEditor({
             </button>
 
             <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-800"></div>
-              <span className="flex-shrink mx-3 text-xs text-slate-500 font-bold uppercase">
+              <div className="flex-grow border-t border-zinc-800"></div>
+              <span className="flex-shrink mx-3 text-xs text-zinc-500 font-bold uppercase">
                 эсвэл тус тусад нь сонгох
               </span>
-              <div className="flex-grow border-t border-slate-800"></div>
+              <div className="flex-grow border-t border-zinc-800"></div>
             </div>
 
             {/* 🔍 ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
@@ -1175,7 +1175,7 @@ export default function RecipeEditor({
                       <span className="font-bold text-white text-sm block">
                         {pName}
                       </span>
-                      <span className="text-xs text-slate-400 font-mono">
+                      <span className="text-xs text-zinc-400 font-mono">
                         {itemsCount} төрлийн орцтой
                       </span>
                     </div>
@@ -1200,21 +1200,21 @@ export default function RecipeEditor({
 
       {showAddRecipeModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150">
-          <div className="bg-zinc-950 border border-slate-700 p-5 rounded-3xl max-w-md w-full space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+          <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-md w-full space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
                 📖 Бүрэн Жор Угсрах & Маржин Бодох
               </h3>
               <button
                 onClick={() => setShowAddRecipeModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-zinc-400 hover:text-white text-sm"
               >
                 ✕
               </button>
             </div>
 
             {/* 1. Бүтээгдэхүүний мэдээлэл ба Зарах үнэ */}
-            <div className="space-y-2 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <div className="space-y-2 bg-zinc-950 p-3 rounded-2xl border border-zinc-800">
               <input
                 type="text"
                 value={recipeBuilder.product_name}
@@ -1225,7 +1225,7 @@ export default function RecipeEditor({
                   })
                 }
                 placeholder="Бүтээгдэхүүний нэр (Жишээ: Oat Latte, Халуун аньс)"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-sm text-white font-bold outline-none focus:border-zinc-800"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold outline-none focus:border-zinc-800"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -1238,7 +1238,7 @@ export default function RecipeEditor({
                     })
                   }
                   placeholder="Ангилал (COFFEE, FOOD)"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-sm text-slate-300 outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-sm text-zinc-300 outline-none"
                 />
                 <input
                   type="number"
@@ -1250,7 +1250,7 @@ export default function RecipeEditor({
                     })
                   }
                   placeholder="Зарах үнэ ₮"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-sm text-zinc-200 font-mono font-bold outline-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-sm text-zinc-200 font-mono font-bold outline-none"
                 />
               </div>
             </div>
@@ -1258,7 +1258,7 @@ export default function RecipeEditor({
             {/* 2. Олон орц нэмэх хэсэг (Орц 1, Орц 2, Орц 3...) */}
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-400">
+                <span className="text-sm font-bold text-zinc-400">
                   Орцууд ба Грамм:
                 </span>
                 <button
@@ -1281,7 +1281,7 @@ export default function RecipeEditor({
               {recipeBuilder.items.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex gap-2 items-center bg-slate-950 p-2 rounded-xl border border-slate-800"
+                  className="flex gap-2 items-center bg-zinc-950 p-2 rounded-xl border border-zinc-800"
                 >
                   <select
                     value={item.ingredient_id}
@@ -1293,7 +1293,7 @@ export default function RecipeEditor({
                         items: updated,
                       });
                     }}
-                    className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-sm text-white outline-none"
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-sm text-white outline-none"
                   >
                     <option value="">-- Түүхий эд сонгох --</option>
                     {ingredients.map((ing) => (
@@ -1315,7 +1315,7 @@ export default function RecipeEditor({
                       });
                     }}
                     placeholder="Тоо..."
-                    className="w-20 bg-slate-900 border border-slate-800 rounded-lg p-2 text-center text-sm text-white font-mono outline-none"
+                    className="w-20 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-center text-sm text-white font-mono outline-none"
                   />
 
                   {recipeBuilder.items.length > 1 && (
@@ -1353,9 +1353,9 @@ export default function RecipeEditor({
                 sellP > 0 ? ((sellP - totalCost) / sellP) * 100 : 0;
 
               return (
-                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center text-sm font-mono">
+                <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center text-sm font-mono">
                   <div>
-                    <span className="text-slate-500 block text-xs">
+                    <span className="text-zinc-500 block text-xs">
                       Нэг аяганы өртөг:
                     </span>
                     <span className="text-rose-400 font-bold text-sm">
@@ -1363,7 +1363,7 @@ export default function RecipeEditor({
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-slate-500 block text-xs">
+                    <span className="text-zinc-500 block text-xs">
                       Бохир ашиг:
                     </span>
                     <span
@@ -1441,15 +1441,15 @@ export default function RecipeEditor({
       {/* ➕ Тухайн бүтээгдэхүүнд шуурхай орц нэмэх жижиг цонх */}
       {addIngToRecipeProduct && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+          <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
                 + <span className="text-zinc-300">{addIngToRecipeProduct}</span>
                 -д орц нэмэх
               </h3>
               <button
                 onClick={() => setAddIngToRecipeProduct(null)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-zinc-400 hover:text-white text-sm"
               >
                 ✕
               </button>
@@ -1458,7 +1458,7 @@ export default function RecipeEditor({
             <select
               value={quickIngId}
               onChange={(e) => setQuickIngId(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
             >
               <option value="">-- Түүхий эд сонгох --</option>
               {ingredients.map((ing) => (
@@ -1473,7 +1473,7 @@ export default function RecipeEditor({
               value={quickIngAmount}
               onChange={(e) => setQuickIngAmount(e.target.value)}
               placeholder="Орцын хэмжээ (гр/мл/ш)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
             />
 
             <button

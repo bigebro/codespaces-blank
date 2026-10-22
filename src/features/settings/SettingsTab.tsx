@@ -1,7 +1,19 @@
 // src/features/settings/SettingsTab.tsx
 "use client";
 import React, { useState, startTransition } from "react";
-import { Coffee, Database, Save, AlertTriangle, Layers3 } from "lucide-react";
+import {
+  Coffee,
+  BookOpen,
+  CupSoda,
+  Utensils,
+  Croissant,
+  Package,
+  Archive,
+  Database,
+  Save,
+  AlertTriangle,
+  Layers3,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { AutoPilotChange } from "@/types/dashboard";
@@ -100,7 +112,7 @@ export default function SettingsTab({
   const [catalogTab, setCatalogTab] = useState<
     "ingredients" | "products" | "recipes"
   >("ingredients");
-  // 🎯 Мастер Каталог: Checkbox олноор сонгох & Шинээр нэмэх State-үүд
+  //  Мастер Каталог: Checkbox олноор сонгох & Шинээр нэмэх State-үүд
 
   const { ingredients, setIngredients } = useIngredients(activeClient);
   const { productsList, setProductsList } = useProducts(activeClient);
@@ -110,7 +122,7 @@ export default function SettingsTab({
     price: string;
   } | null>(null);
 
-  // 📖 Шинэ жор инлайнаар үүсгэх төлөвүүд
+  // Шинэ жор инлайнаар үүсгэх төлөвүүд
   const [isCreatingRecipeCard, setIsCreatingRecipeCard] = useState(false);
   const [newRecipeNameDraft, setNewRecipeNameDraft] = useState("");
   const [newRecipePriceDraft, setNewRecipePriceDraft] = useState("");
@@ -124,39 +136,39 @@ export default function SettingsTab({
   const UNIVERSAL_CATEGORIES = [
     {
       id: "HOT_BEVERAGE",
-      name: "☕ Халуун ундаа",
-      icon: "☕",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
+      name: "Халуун ундаа",
+      icon: <Coffee className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "COLD_BEVERAGE",
-      name: "🍹 Хүйтэн ундаа",
-      icon: "🍹",
-      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
+      name: "Хүйтэн ундаа",
+      icon: <CupSoda className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "FOOD_PREP",
-      name: "🍳 Хоол & Зууш",
-      icon: "🍳",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+      name: "Хоол & Зууш",
+      icon: <Utensils className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "BAKERY_DESSERT",
-      name: "🥐 Бэйкэри & Десерт",
-      icon: "🥐",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
+      name: "Бэйкэри & Десерт",
+      icon: <Croissant className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "RETAIL_FMCG",
-      name: "🥤 Бэлэн бараа (Лааз/Сав)",
-      icon: "🥤",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+      name: "Бэлэн бараа",
+      icon: <Package className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "GENERAL",
-      name: "📦 Бусад",
-      icon: "📦",
-      color: "text-slate-300 bg-slate-800 border-slate-700",
+      name: "Бусад",
+      icon: <Archive className="h-4 w-4" />,
+      color: "text-zinc-400 bg-zinc-950 border-zinc-800",
     },
   ];
   // 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
@@ -207,19 +219,19 @@ export default function SettingsTab({
         {/* ========================================================================= */}
         {/* 🎯 МАСТЕР КАТАЛОГ (ЦОНХГҮЙ, ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ)            */}
         {/* ========================================================================= */}
-        <div className="col-span-1 md:col-span-2 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 shadow-2xl mt-8">
+        <div className="col-span-1 md:col-span-2 bg-zinc-900/60 p-6 rounded-3xl border border-zinc-800 shadow-2xl mt-8">
           {/* ТОЛГОЙ БА 3 ТАБ СОЛИГЧ */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-zinc-800">
             <div>
               <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <span>🎯 Мастер Каталог & Нарийн Тохиргоо</span>
+                <span>Мастер Каталог & Нарийн Тохиргоо</span>
               </h3>
-              <p className="text-sm text-slate-400 mt-0.5">
+              <p className="text-sm text-zinc-400 mt-0.5">
                 Хүснэгт дотроо шууд мөрөөр нэмэх, засах, баталгаажуулах
               </p>
             </div>
 
-            <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 gap-1 w-full sm:w-auto">
+            <div className="flex bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800 gap-1 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -229,11 +241,14 @@ export default function SettingsTab({
                 }}
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "ingredients"
-                    ? "bg-white text-slate-950 shadow-md"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-white text-zinc-950 shadow-md"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                📦 Түүхий эд ({ingredients.length})
+                <span className="flex items-center gap-2">
+                  <Package className="h-4 w-4" /> Түүхий эд (
+                  {ingredients.length})
+                </span>
               </button>
               <button
                 type="button"
@@ -244,11 +259,14 @@ export default function SettingsTab({
                 }}
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "products"
-                    ? "bg-white text-white shadow-md"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-white text-zinc-950 shadow-md"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                ☕ Менюний үнэ ({productsList.length})
+                <span className="flex items-center gap-2">
+                  <Coffee className="h-4 w-4" /> Менюний үнэ (
+                  {productsList.length})
+                </span>
               </button>
               <button
                 type="button"
@@ -260,15 +278,17 @@ export default function SettingsTab({
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "recipes"
                     ? "bg-zinc-200 text-white shadow-md"
-                    : "text-slate-400 hover:text-white"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                📖 Жорууд (
-                {
-                  Array.from(new Set(recipes.map((r: any) => r.product_name)))
-                    .length
-                }
-                )
+                <span className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" /> Жорууд (
+                  {
+                    Array.from(new Set(recipes.map((r: any) => r.product_name)))
+                      .length
+                  }
+                  )
+                </span>
               </button>
             </div>
           </div>
@@ -281,7 +301,7 @@ export default function SettingsTab({
           ) : (
             <>
               {/* ========================================================================= */}
-              {/* 1. 📦 ТҮҮХИЙ ЭД (ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ & ШУУД ЗАСАХ)                   */}
+              {/* 1.  ТҮҮХИЙ ЭД (ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ & ШУУД ЗАСАХ)                   */}
               {/* ========================================================================= */}
               {catalogTab === "ingredients" && (
                 <IngredientsPanel
@@ -292,7 +312,7 @@ export default function SettingsTab({
               )}
 
               {/* ========================================================================= */}
-              {/* 2. ☕ МЕНЮ & ЗАРАХ ҮНЭ (ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ & ШУУД ЗАСАХ)            */}
+              {/* 2.  МЕНЮ & ЗАРАХ ҮНЭ (ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ & ШУУД ЗАСАХ)            */}
               {/* ========================================================================= */}
               {catalogTab === "products" && (
                 <ProductsPanel
@@ -310,7 +330,7 @@ export default function SettingsTab({
               )}
 
               {/* ========================================================================= */}
-              {/* 3. 📖 ЖОР (САДААГҮЙ, САНАМСАРГҮЙ ЗАСАГДАХААС ХАМГААЛАГДСАН ШУУД ӨӨРЧЛӨЛТ) */}
+              {/* 3.  ЖОР (САДААГҮЙ, САНАМСАРГҮЙ ЗАСАГДАХААС ХАМГААЛАГДСАН ШУУД ӨӨРЧЛӨЛТ) */}
               {/* ========================================================================= */}
               {catalogTab === "recipes" &&
                 (() => {
@@ -332,20 +352,20 @@ export default function SettingsTab({
         </div>
 
         {/* ========================================================================= */}
-        {/* 🤖 ШИНЭ ЦЭСНИЙ АНГИЛАЛЫГ ХҮНЭЭР БАТЛУУЛАХ ЦОНХ (HUMAN-IN-THE-LOOP)        */}
+        {/*  ШИНЭ ЦЭСНИЙ АНГИЛАЛЫГ ХҮНЭЭР БАТЛУУЛАХ ЦОНХ (HUMAN-IN-THE-LOOP)        */}
         {/* ========================================================================= */}
 
         {pendingCategoryReview && catalogTab === "products" && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150">
-            <div className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
               {/* Толгой хэсэг */}
-              <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+              <div className="flex justify-between items-start border-b border-zinc-800 pb-3">
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     <span>✨ Шинэ цэсүүдийг ангилах</span>
                   </h3>
                   <p className="text-xs text-zinc-300 font-bold mt-1 leading-relaxed bg-zinc-800/60 border border-zinc-700 p-2.5 rounded-xl">
-                    ℹ️ Шинээр орж ирсэн{" "}
+                    ℹ Шинээр орж ирсэн{" "}
                     {pendingCategoryReview.productsToReview.length} цэсийн
                     ангиллыг шалгаад баталгаажуулна уу.
                   </p>
@@ -354,7 +374,7 @@ export default function SettingsTab({
                 <button
                   type="button"
                   onClick={() => updatePendingReview(null)}
-                  className="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl text-xs font-bold text-slate-300 cursor-pointer"
+                  className="bg-zinc-800 hover:bg-zinc-700 p-2 rounded-xl text-xs font-bold text-zinc-300 cursor-pointer"
                   title="Цуцлах"
                 >
                   ✕ Цуцлах
@@ -364,7 +384,7 @@ export default function SettingsTab({
               {/* Жагсаалт */}
               <div className="flex-1 overflow-y-auto pr-1">
                 <table className="w-full text-left text-sm border-collapse">
-                  <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10 text-[10px]">
+                  <thead className="bg-zinc-950 text-zinc-400 uppercase font-bold sticky top-0 border-b border-zinc-800 z-10 text-[10px]">
                     <tr>
                       <th className="py-2.5 px-3">Шинэ Цэсний Нэр</th>
                       <th className="py-2.5 px-3">Ухаалаг Ангилал</th>
@@ -373,13 +393,13 @@ export default function SettingsTab({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
+                  <tbody className="divide-y divide-slate-800/80 bg-zinc-950/40">
                     {pendingCategoryReview.productsToReview.map(
                       (item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-900/40">
+                        <tr key={idx} className="hover:bg-zinc-900/40">
                           <td className="py-3 px-3 font-bold text-white text-sm">
                             {item.name}
-                            <span className="block text-[10px] text-slate-500 font-mono mt-0.5">
+                            <span className="block text-[10px] text-zinc-500 font-mono mt-0.5">
                               Үнэ: {item.price.toLocaleString()}₮
                             </span>
                           </td>
@@ -398,7 +418,7 @@ export default function SettingsTab({
                                   productsToReview: updated,
                                 });
                               }}
-                              className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-200 outline-none cursor-pointer w-full max-w-[160px]"
+                              className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-bold text-zinc-200 outline-none cursor-pointer w-full max-w-[160px]"
                             >
                               {UNIVERSAL_CATEGORIES.map((cat) => (
                                 <option key={cat.id} value={cat.id}>
@@ -430,7 +450,7 @@ export default function SettingsTab({
                 </table>
               </div>
 
-              {/* ✅ 2. БАТЛАХ ТОВЧ (Баазад хадгалж, learned_categories-ийг дүүргэнэ): */}
+              {/*  2. БАТЛАХ ТОВЧ (Баазад хадгалж, learned_categories-ийг дүүргэнэ): */}
               <button
                 type="button"
                 disabled={pendingCategoryReview.isProcessing}
@@ -446,15 +466,15 @@ export default function SettingsTab({
                     [],
                   );
                 }}
-                className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
               >
                 {pendingCategoryReview.isProcessing ? (
                   <>
-                    <span className="animate-spin">⏳</span>
+                    <span className="animate-spin"></span>
                     <span>Баазад хадгалж байна...</span>
                   </>
                 ) : (
-                  "✅ БҮГД ЗӨВ, БАТЛАХ & ХАДГАЛАХ"
+                  "БҮГД ЗӨВ, БАТЛАХ & ХАДГАЛАХ"
                 )}
               </button>
             </div>

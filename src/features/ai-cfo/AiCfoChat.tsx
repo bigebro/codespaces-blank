@@ -119,14 +119,14 @@ export default function AiCfoChat({
   };
 
   return (
-    <div className="max-w-6xl w-full mx-auto bg-slate-900/40 rounded-3xl border border-slate-800 flex flex-col h-[82vh] shadow-2xl">
-      <div className="p-5 border-b border-slate-800 flex items-center gap-3 bg-slate-900 rounded-t-3xl">
+    <div className="max-w-6xl w-full mx-auto bg-zinc-900/40 rounded-3xl border border-zinc-800 flex flex-col h-[82vh] shadow-2xl">
+      <div className="p-5 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900 rounded-t-3xl">
         <div className="bg-zinc-200/20 p-2 rounded-xl border border-zinc-800">
           <Bot className="h-6 w-6 text-zinc-300" />
         </div>
         <div>
           <h2 className="font-bold text-white">Operlink - Санхүүгийн Зөвлөх</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-zinc-400">
             Орлого, хаягдал, үнийн бодлогын талаар юу ч асууж болно.
           </p>
         </div>
@@ -134,7 +134,7 @@ export default function AiCfoChat({
 
       <div className="flex-1 p-6 overflow-y-auto space-y-6">
         {cfoChatHistory.length === 0 && (
-          <div className="text-center text-slate-500 text-sm mt-10">
+          <div className="text-center text-zinc-500 text-sm mt-10">
             <p className="mb-4">Жишээ асуултууд:</p>
             <ul className="space-y-2 inline-block text-left">
               <li>👉 "Энэ сарын нийт хаягдал хэдэн төгрөг болсон бэ?"</li>
@@ -152,8 +152,8 @@ export default function AiCfoChat({
             <div
               className={`max-w-[90%] p-4 text-sm leading-relaxed ${
                 msg.sender === "owner"
-                  ? "bg-white text-white rounded-2xl rounded-tr-none shadow-lg"
-                  : "bg-slate-900 text-slate-200 rounded-2xl rounded-tl-none border border-slate-800 shadow-xl overflow-x-auto"
+                  ? "bg-white text-zinc-950 rounded-2xl rounded-tr-none shadow-lg"
+                  : "bg-zinc-900 text-zinc-200 rounded-2xl rounded-tl-none border border-zinc-800 shadow-xl overflow-x-auto"
               }`}
             >
               {msg.sender === "owner" ? (
@@ -166,25 +166,25 @@ export default function AiCfoChat({
                     components={{
                       table: ({ node, ...props }) => (
                         <table
-                          className="w-full my-3 border-collapse border border-slate-800 text-sm rounded-xl overflow-hidden"
+                          className="w-full my-3 border-collapse border border-zinc-800 text-sm rounded-xl overflow-hidden"
                           {...props}
                         />
                       ),
                       thead: ({ node, ...props }) => (
                         <thead
-                          className="bg-slate-950 text-zinc-200 border-b border-slate-800 font-bold"
+                          className="bg-zinc-950 text-zinc-200 border-b border-zinc-800 font-bold"
                           {...props}
                         />
                       ),
                       th: ({ node, ...props }) => (
                         <th
-                          className="border border-slate-800 px-3 py-2 text-left font-black"
+                          className="border border-zinc-800 px-3 py-2 text-left font-black"
                           {...props}
                         />
                       ),
                       td: ({ node, ...props }) => (
                         <td
-                          className="border border-slate-800/80 px-3 py-1.5 text-slate-300 font-medium"
+                          className="border border-zinc-800/80 px-3 py-1.5 text-zinc-300 font-medium"
                           {...props}
                         />
                       ),
@@ -219,14 +219,14 @@ export default function AiCfoChat({
         )}
       </div>
 
-      <div className="p-4 bg-slate-900 rounded-b-3xl border-t border-slate-800">
+      <div className="p-4 bg-zinc-900 rounded-b-3xl border-t border-zinc-800">
         <form onSubmit={handleChatSubmit} className="flex gap-3">
           <input
             type="text"
             value={cfoChatInput}
             onChange={(e) => setCfoChatInput(e.target.value)}
             placeholder="Асуултаа энд бичнэ үү..."
-            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm"
+            className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm"
           />
           <button
             type="submit"

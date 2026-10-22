@@ -32,9 +32,8 @@
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: #71717a; /* zinc-500 */
 }
-
 /* Scrollbar нуух туслах класс */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

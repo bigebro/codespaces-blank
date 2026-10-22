@@ -14,6 +14,11 @@ import {
   AlertTriangle,
   Database,
   Coffee,
+  CupSoda,
+  Utensils,
+  Croissant,
+  Package,
+  Archive,
   Layers3,
   Save,
   Check,
@@ -71,26 +76,37 @@ function OperlinkLogo({
         cy="256"
         r="214"
         stroke="currentColor"
-        strokeOpacity="0.2"
+        strokeOpacity="0.16"
         strokeWidth="2"
       />
       <path
-        d="M286.9 351.1A100 100 0 0 1 160.9 225.1"
+        d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1"
         stroke="currentColor"
-        strokeWidth="32"
+        strokeWidth="28"
         strokeLinecap="round"
+        fill="none"
       />
       <path
-        d="M225.1 160.9A100 100 0 0 1 351.1 286.9"
+        d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9"
         stroke="currentColor"
-        strokeWidth="32"
+        strokeWidth="28"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <line
+        x1="78"
+        y1="434"
+        x2="434"
+        y2="78"
+        stroke="currentColor"
+        strokeOpacity="0.4"
+        strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="256" cy="256" r="10" fill="currentColor" />
+      <circle cx="256" cy="256" r="7" fill="currentColor" />
     </svg>
   );
 }
-
 // 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
   const year = d.getFullYear();
@@ -170,7 +186,7 @@ function LiveMetric({
   if (!isReady) {
     return (
       <span
-        className={`inline-block bg-slate-800  rounded-md align-middle ${skeletonClass}`}
+        className={`inline-block bg-zinc-800  rounded-md align-middle ${skeletonClass}`}
       />
     );
   }
@@ -189,12 +205,12 @@ function ListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-5">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="border-b border-slate-800 pb-4 last:border-0">
+        <div key={i} className="border-b border-zinc-800 pb-4 last:border-0">
           <div className="flex justify-between items-center mb-2">
-            <div className="h-4 w-32 bg-slate-800/80  rounded"></div>
-            <div className="h-4 w-20 bg-slate-800/80  rounded"></div>
+            <div className="h-4 w-32 bg-zinc-800/80  rounded"></div>
+            <div className="h-4 w-20 bg-zinc-800/80  rounded"></div>
           </div>
-          <div className="h-3 w-48 bg-slate-800/60  rounded"></div>
+          <div className="h-3 w-48 bg-zinc-800/60  rounded"></div>
         </div>
       ))}
     </div>
@@ -359,39 +375,39 @@ function Home() {
   const UNIVERSAL_CATEGORIES = [
     {
       id: "HOT_BEVERAGE",
-      name: "☕ Халуун ундаа",
-      icon: "☕",
-      color: "text-amber-300 bg-amber-500/10 border-amber-500/30",
+      name: "Халуун ундаа",
+      icon: <Coffee className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "COLD_BEVERAGE",
-      name: "🍹 Хүйтэн ундаа",
-      icon: "🍹",
-      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
+      name: "Хүйтэн ундаа",
+      icon: <CupSoda className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "FOOD_PREP",
-      name: "🍳 Хоол & Зууш",
-      icon: "🍳",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+      name: "Хоол & Зууш",
+      icon: <Utensils className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "BAKERY_DESSERT",
-      name: "🥐 Бэйкэри & Десерт",
-      icon: "🥐",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
+      name: "Бэйкэри & Десерт",
+      icon: <Croissant className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "RETAIL_FMCG",
-      name: "🥤 Бэлэн бараа (Лааз/Сав)",
-      icon: "🥤",
-      color: "text-zinc-300 bg-zinc-800/60 border-blue-500/30",
+      name: "Бэлэн бараа",
+      icon: <Package className="h-4 w-4" />,
+      color: "text-zinc-100 bg-zinc-900 border-zinc-800",
     },
     {
       id: "GENERAL",
-      name: "📦 Бусад",
-      icon: "📦",
-      color: "text-slate-300 bg-slate-800 border-slate-700",
+      name: "Бусад",
+      icon: <Archive className="h-4 w-4" />,
+      color: "text-zinc-400 bg-zinc-950 border-zinc-800",
     },
   ];
 
@@ -1187,33 +1203,33 @@ function Home() {
             setIsOpen(!isOpen);
             setSearch("");
           }}
-          className="w-full bg-zinc-950 border border-slate-700 hover:border-zinc-800 rounded-xl px-3 py-2 text-sm text-left text-white flex items-center justify-between gap-2 transition cursor-pointer shadow-sm"
+          className="w-full bg-zinc-950 border border-zinc-700 hover:border-zinc-800 rounded-xl px-3 py-2 text-sm text-left text-white flex items-center justify-between gap-2 transition cursor-pointer shadow-sm"
         >
           <span className="truncate font-bold">
             {selectedOption ? (
               selectedOption.label
             ) : (
-              <span className="text-slate-500 font-normal">{placeholder}</span>
+              <span className="text-zinc-500 font-normal">{placeholder}</span>
             )}
           </span>
-          <span className="text-xs text-slate-500 shrink-0">▼</span>
+          <span className="text-xs text-zinc-500 shrink-0">▼</span>
         </button>
 
         {/* Хайлттай хөвөгч цэс */}
         {isOpen && (
-          <div className="absolute top-full left-0 mt-1 w-full min-w-[260px] bg-zinc-900 border border-slate-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 animate-in fade-in duration-100">
+          <div className="absolute top-full left-0 mt-1 w-full min-w-[260px] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 animate-in fade-in duration-100">
             <input
               type="text"
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="🔍 Нэрээр хайх..."
-              className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-sm text-white outline-none font-bold placeholder:text-slate-500"
+              className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-sm text-white outline-none font-bold placeholder:text-zinc-500"
             />
 
             <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
               {filtered.length === 0 ? (
-                <p className="text-xs text-slate-500 p-2.5 text-center">
+                <p className="text-xs text-zinc-500 p-2.5 text-center">
                   Олдсонгүй
                 </p>
               ) : (
@@ -1228,12 +1244,12 @@ function Home() {
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center justify-between cursor-pointer ${
                       opt.value === value
                         ? "bg-zinc-200/30 text-zinc-300 font-bold border border-zinc-800/30"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
                     }`}
                   >
                     <span className="truncate">{opt.label}</span>
                     {opt.sublabel && (
-                      <span className="text-xs text-slate-500 ml-2 font-mono shrink-0">
+                      <span className="text-xs text-zinc-500 ml-2 font-mono shrink-0">
                         {opt.sublabel}
                       </span>
                     )}
@@ -1685,7 +1701,7 @@ function Home() {
 
       const { data: tenantData } = await supabase
         .from("tenants")
-        .select("status, plan, subscription_end_date")
+        .select("status, plan, subscription_end_date, feature_flags")
         .ilike("client_id", targetClient)
         .maybeSingle();
 
@@ -1704,9 +1720,22 @@ function Home() {
           isTrial,
           plan: tenantData.plan || "professional",
           daysLeft,
-          endDate: tenantData.subscription_end_date, // 👈 Энд endDate хэвээрээ байна!
+          endDate: tenantData.subscription_end_date, 
           formattedEndDate,
         });
+
+             // ⚡ ШИНЭ ЛОГИК: Хэрэв админ шинээр огноо сунгасан бөгөөд хэрэглэгч хараахан "Хаах" дараагүй бол 1 удаа харуулна
+      const ackKey = `ack_sub_${targetClient.toLowerCase().trim()}`;
+      const lastAckDate = localStorage.getItem(ackKey);
+
+      if (!lastAckDate) {
+        // Анх удаа орж ирж байгаа бол одоогийн огноог цээжилж, зүгээр өнгөрнө
+        localStorage.setItem(ackKey, tenantData.subscription_end_date);
+      } else if (lastAckDate !== tenantData.subscription_end_date && !isTrial) {
+        // Хэрэв админ огноог шинэчилсэн бол цонхыг 1 удаа нээнэ!
+        setShowUpgradeSuccess(true);
+      }
+ 
       }
 
       if (includeAnalytics || tabToLoad === "dashboard") {
@@ -2136,8 +2165,8 @@ function Home() {
   // 🔒 ХЭРЭВ KIOSK ГАЛ ТОГООНЫ ТӨХӨӨРӨМЖӨӨС ОРОХ ГЭЖ БАЙГАА БОЛ ЭНЭ ДЭЛГЭЦ ГАРНА:
   if (isKioskLocked) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900/60 p-8 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md text-center">
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-zinc-900/60 p-8 rounded-3xl border border-zinc-800 shadow-2xl backdrop-blur-md text-center">
           <div className="bg-zinc-800/60 p-4 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-4">
             <ShieldAlert className="h-8 w-8 text-zinc-200" />
           </div>
@@ -2145,7 +2174,7 @@ function Home() {
           <h2 className="text-xl font-black text-white">
             Санхүүгийн Самбар Түгжигдсэн
           </h2>
-          <p className="text-sm text-slate-400 mt-1 mb-6">
+          <p className="text-sm text-zinc-400 mt-1 mb-6">
             Энэ төхөөрөмж Kiosk горимд байна. Санхүүгийн мэдээлэл харахын тулд
             Эзний нууц үгээ оруулна уу.
           </p>
@@ -2163,7 +2192,7 @@ function Home() {
               value={unlockPassword}
               onChange={(e) => setUnlockPassword(e.target.value)}
               placeholder="Эзний нууц үг оруулах..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-zinc-700 outline-none text-center tracking-widest"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-zinc-700 outline-none text-center tracking-widest"
             />
 
             <button
@@ -2186,17 +2215,17 @@ function Home() {
                 sessionStorage.removeItem("kiosk_device_locked");
                 router.push("/login");
               }}
-              className="text-sm text-slate-400 hover:text-zinc-200 transition underline underline-offset-4 font-bold"
+              className="text-sm text-zinc-400 hover:text-zinc-200 transition underline underline-offset-4 font-bold"
             >
               🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
             </button>
           </div>
 
           {/* ✅ 📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧИЙГ Link БОЛГОХ: */}
-          <div className="mt-4 pt-4 border-t border-slate-800">
+          <div className="mt-4 pt-4 border-t border-zinc-800">
             <Link
               href="/kiosk"
-              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-zinc-200 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-200 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
               📱 Гал тогооны Kiosk руу буцах
             </Link>
@@ -2210,7 +2239,7 @@ function Home() {
   //   return (
   //     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center select-none">
   //       <div className="relative w-12 h-12 flex items-center justify-center mb-4">
-  //         <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
+  //         <div className="absolute inset-0 bg-zinc-800 rounded-full " />
   //         <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin" />
   //       </div>
   //     </div>
@@ -2218,7 +2247,7 @@ function Home() {
   // }
 
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden text-slate-100 font-sans antialiased selection:bg-zinc-800">
+    <div className="flex h-screen bg-zinc-950 overflow-hidden text-zinc-100 font-sans antialiased selection:bg-zinc-800">
       {/* ========================================== */}
       {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
       {/* ========================================== */}
@@ -2234,7 +2263,7 @@ function Home() {
       <aside
         className={`
           fixed md:relative inset-y-0 left-0 z-40 h-full
-          flex flex-col flex-shrink-0 bg-zinc-950 border-slate-800/80
+          flex flex-col flex-shrink-0 bg-zinc-950 border-zinc-800/80
           transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap
           ${
             isSidebarOpen
@@ -2244,7 +2273,7 @@ function Home() {
         `}
       >
         {/* Logo & Close Button Area */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-800/80">
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
               <OperlinkLogo className="h-5 w-5" />
@@ -2258,7 +2287,7 @@ function Home() {
           {/* 👈 ХУРААХ ТОВЧ */}
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors md:block"
+            className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors md:block"
             title="Цэс хураах"
           >
             <PanelLeftClose className="h-5 w-5" />
@@ -2270,13 +2299,13 @@ function Home() {
           {isAuthChecking ? (
             /* ⚡ Ачаалж байх үед харагдах зүүн талын Скелетон (Гялсхийхээс хамгаална) */
             <div className="space-y-3  px-2 pt-4">
-              <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
-              <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
-              <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+              <div className="h-10 bg-zinc-800/60 rounded-xl w-full"></div>
+              <div className="h-10 bg-zinc-800/60 rounded-xl w-full"></div>
+              <div className="h-10 bg-zinc-800/60 rounded-xl w-full"></div>
             </div>
           ) : (
             <>
-              <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mb-2">
+              <div className="text-xs font-black text-zinc-500 uppercase tracking-widest px-3 mb-2">
                 Үйл ажиллагаа
               </div>
 
@@ -2294,7 +2323,7 @@ function Home() {
                         "dashboard",
                       );
                     }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "dashboard" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "dashboard" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
                     <LayoutDashboard className="h-4 w-4" /> Санхүүгийн Самбар
                   </button>
@@ -2312,7 +2341,7 @@ function Home() {
                         ); // 👈 CFO нь аналитик шаардана
                       });
                     }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
                     <Bot className="h-4 w-4" /> AI CFO Зөвлөх
                   </button>
@@ -2322,7 +2351,7 @@ function Home() {
               {!isOwner && (
                 <button
                   onClick={() => setActiveTab("operations")}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "operations" || (userRole === "barista" && activeTab === "dashboard") ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "operations" || (userRole === "barista" && activeTab === "dashboard") ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                 >
                   <Coffee className="h-4 w-4" /> Үйл ажиллагаа
                 </button>
@@ -2337,7 +2366,7 @@ function Home() {
                 </button>
               )}
 
-              <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">
+              <div className="text-xs font-black text-zinc-500 uppercase tracking-widest px-3 mt-6 mb-2">
                 Агуулах & Бүртгэл
               </div>
 
@@ -2355,7 +2384,7 @@ function Home() {
                     ); // 👈 Аналитик татахгүй хурдан онгойно
                   });
                 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
               >
                 <Database className="h-4 w-4" /> Агуулахын Тооллого
               </button>
@@ -2374,14 +2403,14 @@ function Home() {
                     ); // 👈 Аналитик татахгүй хурдан онгойно
                   });
                 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
               >
                 <UploadCloud className="h-4 w-4" /> Бөөнөөр Импортлох
               </button>
 
               {isOwner && (
                 <>
-                  <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">
+                  <div className="text-xs font-black text-zinc-500 uppercase tracking-widest px-3 mt-6 mb-2">
                     Тохиргоо
                   </div>
                   <button
@@ -2396,7 +2425,7 @@ function Home() {
                         "tasks",
                       ); // 👈 Зөвхөн Tasks-ийн хүнд датаг татна
                     }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
                     <CheckSquare className="h-4 w-4" /> Ажлын Даалгавар
                   </button>
@@ -2412,7 +2441,7 @@ function Home() {
                         "settings",
                       ); // 👈 Тохиргооны 10 хүснэгтийг дөнгөж одоо л татна
                     }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
                     <Settings className="h-4 w-4" /> Системийн Тохиргоо
                   </button>
@@ -2427,13 +2456,13 @@ function Home() {
             <button
               type="button"
               onClick={() => setShowCheckoutModal(true)}
-              className="w-full bg-white hover:bg-zinc-200 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
+              className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
             >
               <span className="flex items-center gap-1.5">
                 <span>⚡</span>
                 <span>Бүрэн эрх нээх</span>
               </span>
-              <span className="text-xs bg-slate-950/20 px-1.5 py-0.5 rounded">
+              <span className="text-xs bg-zinc-950/20 px-1.5 py-0.5 rounded">
                 Pro ➔
               </span>
             </button>
@@ -2441,20 +2470,20 @@ function Home() {
         )}
         {/* User Profile Footer */}
         {user && (
-          <div className="p-4 border-t border-slate-800/80 bg-slate-900/30">
+          <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/30">
             <div className="flex items-center justify-between">
               <div className="overflow-hidden">
                 <p className="text-white font-bold text-sm truncate">
                   {user.email}
                 </p>
-                <p className="text-slate-500 text-xs uppercase font-bold mt-0.5">
+                <p className="text-zinc-500 text-xs uppercase font-bold mt-0.5">
                   {userRole}
                 </p>
               </div>
               <button
                 onClick={handleSignOut}
                 title="Гарах"
-                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                className="p-2 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -2469,13 +2498,13 @@ function Home() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* TOP HEADER BAR */}
         {/* TOP HEADER BAR */}
-        <header className="h-16 bg-zinc-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
+        <header className="h-16 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
           <div className="flex items-center gap-2 sm:gap-4">
             {/* 👈 HAMBURGER MENU (Зөвхөн цэс хураагдсан үед л гарч ирнэ) */}
             {!isSidebarOpen && (
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer mr-1 animate-in fade-in zoom-in-95 duration-200"
+                className="text-zinc-400 hover:text-white p-2 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer mr-1 animate-in fade-in zoom-in-95 duration-200"
                 title="Цэс дэлгэх"
               >
                 <Menu className="h-5 w-5" />
@@ -2488,7 +2517,7 @@ function Home() {
                 setActiveClient(selected);
                 fetchDatabaseData(selected);
               }}
-              className="bg-slate-900 border border-slate-700 text-white font-bold text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-zinc-700"
+              className="bg-zinc-900 border border-zinc-700 text-white font-bold text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-zinc-700"
             >
               <option value={userClient}>{userClient}</option>
               {/* Хэрэв олон салбартай бол энд map хийж болно */}
@@ -2497,16 +2526,16 @@ function Home() {
 
           {/* ⚡ Ачаалж байх үед Header дээр гарч ирэх гоёмсог ногоон цагираг */}
 
-          <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-2 bg-zinc-900/80 p-1 rounded-xl border border-zinc-800">
             <button
               onClick={() => setIsLive(false)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"}`}
             >
               Demo
             </button>
             <button
               onClick={() => setIsLive(true)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isLive ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isLive ? "bg-zinc-800 text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
             >
               <Database className="h-3 w-3" /> Live DB
             </button>
@@ -2522,7 +2551,7 @@ function Home() {
                 <h2 className="text-2xl font-black text-white mb-2">
                   Үйлчилгээний эрх зогссон байна
                 </h2>
-                <p className="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
+                <p className="text-zinc-400 text-sm max-w-md mb-6 leading-relaxed">
                   Таны{" "}
                   {tenantInfo.isTrial ? "үнэгүй туршилтын" : "үйлчилгээний"}{" "}
                   хугацаа <strong>{tenantInfo.formattedEndDate}</strong>-нд
@@ -2542,10 +2571,10 @@ function Home() {
             {tenantInfo &&
               tenantInfo.daysLeft <= 3 &&
               !tenantInfo.isExpired && (
-                <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
                   <div className="flex items-center gap-2.5">
                     <span className="text-amber-400 text-base">⚠️</span>
-                    <p className="text-xs text-slate-300">
+                    <p className="text-xs text-zinc-300">
                       Таны{" "}
                       {tenantInfo.isTrial
                         ? "14 хоногийн туршилт"
@@ -2570,13 +2599,13 @@ function Home() {
               {isAuthChecking ? (
                 <div className=" space-y-6">
                   {/* 1. Толгой хэсгийн скелетон - Голд нь томорсон цагираг тасралтгүй эргэлдэнэ */}
-                  <div className="relative h-24 w-full rounded-2xl border border-slate-700/50 overflow-hidden flex items-center justify-center">
+                  <div className="relative h-24 w-full rounded-2xl border border-zinc-700/50 overflow-hidden flex items-center justify-center">
                     {/* Арын дэвсгэр нь л лугшина (Pulse) */}
-                    <div className="absolute inset-0 bg-slate-800/40 " />
+                    <div className="absolute inset-0 bg-zinc-800/40 " />
 
                     {/* Урд талын ногоон цагираг хэзээ ч бүдгэрэхгүй (Relative & Set Middle) */}
                     <div className="relative z-10 flex items-center justify-center">
-                      <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
+                      <div className="absolute inset-0 bg-zinc-800 rounded-full " />
                       {/* Арай томруулсан цагираг: h-10 w-10 */}
                       <div className="h-10 w-10 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
                     </div>
@@ -2584,14 +2613,14 @@ function Home() {
 
                   {/* 2. Доод талын 4 картын скелетон (Эдгээр нь хэвийн лугшина) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
-                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
-                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
-                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                    <div className="h-32 bg-zinc-800/40 rounded-2xl w-full border border-zinc-700/50 "></div>
+                    <div className="h-32 bg-zinc-800/40 rounded-2xl w-full border border-zinc-700/50 "></div>
+                    <div className="h-32 bg-zinc-800/40 rounded-2xl w-full border border-zinc-700/50 "></div>
+                    <div className="h-32 bg-zinc-800/40 rounded-2xl w-full border border-zinc-700/50 "></div>
                   </div>
 
                   {/* 3. Том графикийн скелетон */}
-                  <div className="h-96 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                  <div className="h-96 bg-zinc-800/40 rounded-2xl w-full border border-zinc-700/50 "></div>
                 </div>
               ) : (
                 <>
@@ -2637,14 +2666,14 @@ function Home() {
                     <div>
                       {/* 🔐 ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
                       {userRole !== "owner" && (
-                        <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                           <div>
                             <p className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
                               🔐 Миний Kiosk PIN код
                             </p>
-                            <p className="text-sm text-slate-400 mt-0.5">
+                            <p className="text-sm text-zinc-400 mt-0.5">
                               Гал тогооны дундын таблет дээр нэвтрэх нууц код:
-                              <span className="ml-2 font-mono font-black text-sm text-zinc-200 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-700">
+                              <span className="ml-2 font-mono font-black text-sm text-zinc-200 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-700">
                                 {myPin || "1234 (Анхдагч)"}
                               </span>
                             </p>
@@ -2659,7 +2688,7 @@ function Home() {
                                 setMyPin(e.target.value.replace(/\D/g, ""))
                               }
                               placeholder="Шинэ PIN (4 тоо)"
-                              className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-center text-white font-bold text-sm tracking-widest w-32 focus:border-zinc-700 outline-none"
+                              className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-center text-white font-bold text-sm tracking-widest w-32 focus:border-zinc-700 outline-none"
                             />
                             <button
                               type="button"
@@ -2754,23 +2783,23 @@ function Home() {
                     activeTab !== "sales" &&
                     activeTab !== "dashboard" &&
                     activeTab !== "settings" && (
-                      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
+                      <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-8 mt-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-zinc-800">
                           <div>
-                            <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
                               <Activity className="h-5 w-5 text-zinc-200" />
                               Өдөр тутмын үйл ажиллагааны Хяналтын Лог
                             </h3>
-                            <p className="text-sm text-slate-400 mt-1">
+                            <p className="text-sm text-zinc-400 mt-1">
                               Ажилтан тус бүрийн хийсэн бүх гүйлгээ, зураг болон
                               баримтын хяналт
                             </p>
                           </div>
 
                           {/* Date & Worker Range Filter Inputs */}
-                          <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 flex-wrap">
+                          <div className="flex items-center gap-4 bg-zinc-950 px-4 py-2 rounded-xl border border-zinc-800 flex-wrap">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-slate-400">
+                              <span className="text-sm font-bold text-zinc-400">
                                 Ажилтан Хайх:
                               </span>
                               <input
@@ -2780,11 +2809,11 @@ function Home() {
                                   setWorkerSearchQuery(e.target.value)
                                 }
                                 placeholder="Нэр бичих..."
-                                className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 w-36 placeholder:text-slate-600"
+                                className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 w-36 placeholder:text-zinc-600"
                               />
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-slate-400">
+                              <span className="text-sm font-bold text-zinc-400">
                                 Эхлэх:
                               </span>
                               <input
@@ -2795,7 +2824,7 @@ function Home() {
                               />
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-slate-400">
+                              <span className="text-sm font-bold text-zinc-400">
                                 Дуусах:
                               </span>
                               <input
@@ -2810,8 +2839,8 @@ function Home() {
 
                         <div className="overflow-x-auto max-h-[400px]">
                           <table className="w-full text-left">
-                            <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
-                              <tr className="text-slate-400 text-sm font-bold uppercase border-b border-slate-800">
+                            <thead className="sticky top-0 bg-zinc-900/90 backdrop-blur">
+                              <tr className="text-zinc-400 text-sm font-bold uppercase border-b border-zinc-800">
                                 <th className="pb-3 px-2">Төрөл</th>
                                 <th className="pb-3 px-2">Ажилтан</th>
                                 <th className="pb-3 px-2">Барааны Нэр</th>
@@ -2852,7 +2881,7 @@ function Home() {
                                 <tr>
                                   <td
                                     colSpan={7}
-                                    className="py-8 text-center text-slate-500 italic"
+                                    className="py-8 text-center text-zinc-500 italic"
                                   >
                                     Энэ хугацаанд агуулахын ямар нэгэн хөдөлгөөн
                                     бүртгэгдээгүй байна.
@@ -2905,7 +2934,7 @@ function Home() {
                                     return (
                                       <tr
                                         key={log.id}
-                                        className="hover:bg-slate-900/30"
+                                        className="hover:bg-zinc-900/30"
                                       >
                                         <td className="py-3 px-2">
                                           <span
@@ -2921,10 +2950,10 @@ function Home() {
                                           </span>
                                         </td>
                                         {/* АЖИЛТАН БАГАНА */}
-                                        <td className="py-3 px-2 text-slate-300 font-medium">
+                                        <td className="py-3 px-2 text-zinc-300 font-medium">
                                           {log.worker_name || "Үл мэдэгдэх"}
                                         </td>
-                                        <td className="py-3 px-2 font-bold text-slate-200">
+                                        <td className="py-3 px-2 font-bold text-zinc-200">
                                           {name}
                                         </td>
                                         <td className="py-3 px-2 text-right font-semibold">
@@ -2933,7 +2962,7 @@ function Home() {
                                           ).toLocaleString()}{" "}
                                           {unit}
                                         </td>
-                                        <td className="py-3 px-2 text-right text-slate-400">
+                                        <td className="py-3 px-2 text-right text-zinc-400">
                                           {log.total_cost
                                             ? `${parseFloat(log.total_cost).toLocaleString()}₮`
                                             : "-"}
@@ -2962,15 +2991,15 @@ function Home() {
                                               ⚠️ Зураггүй
                                             </span>
                                           ) : (
-                                            <span className="text-slate-500 text-sm italic">
+                                            <span className="text-zinc-500 text-sm italic">
                                               Дотоод
                                             </span>
                                           )}
                                         </td>
-                                        <td className="py-3 px-2 text-slate-400 max-w-[200px] truncate">
+                                        <td className="py-3 px-2 text-zinc-400 max-w-[200px] truncate">
                                           {log.notes || "-"}
                                         </td>
-                                        <td className="py-3 px-2 text-slate-400 text-sm font-mono">
+                                        <td className="py-3 px-2 text-zinc-400 text-sm font-mono">
                                           {new Date(log.date).toLocaleString(
                                             "mn-MN",
                                             {
@@ -2998,7 +3027,7 @@ function Home() {
                   {activeTab === "settings" && userRole === "owner" && (
                     <div className="space-y-6">
                       {/* 🟢 ХЭРЭГЛЭГЧИЙН ИДЭВХТЭЙ БАГЦЫН МЭДЭЭЛЭЛ (SETTINGS) */}
-                      <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
+                      <div className="bg-zinc-900/60 p-5 rounded-2xl border border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="h-2.5 w-2.5 rounded-full bg-zinc-200"></span>
@@ -3014,9 +3043,9 @@ function Home() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-400">
-                            📅 Дараагийн сунгалт:{" "}
-                            <strong className="text-slate-200">
+                          <p className="text-xs text-zinc-400">
+                             Дараагийн сунгалт:{" "}
+                            <strong className="text-zinc-200">
                               {tenantInfo?.formattedEndDate || "2026.11.20"}{" "}
                               хүртэл
                             </strong>
@@ -3026,7 +3055,7 @@ function Home() {
                         <button
                           type="button"
                           onClick={() => setShowCheckoutModal(true)}
-                          className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition border border-slate-700 active:scale-95 cursor-pointer"
+                          className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition border border-zinc-700 active:scale-95 cursor-pointer"
                         >
                           Багц солих / Сунгах
                         </button>
@@ -3073,23 +3102,23 @@ function Home() {
                       onClick={() => setSelectedImageModal(null)}
                     >
                       <div
-                        className="bg-slate-900 border border-slate-700 rounded-3xl p-5 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+                        className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                        <div className="flex justify-between items-center pb-3 border-b border-zinc-800">
                           <div>
                             <h3 className="text-base font-black text-white">
                               {selectedImageModal.title}
                             </h3>
                             {selectedImageModal.subtitle && (
-                              <p className="text-sm text-slate-400 mt-0.5">
+                              <p className="text-sm text-zinc-400 mt-0.5">
                                 {selectedImageModal.subtitle}
                               </p>
                             )}
                           </div>
                           <button
                             onClick={() => setSelectedImageModal(null)}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl text-sm font-bold transition"
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-3 py-1.5 rounded-xl text-sm font-bold transition"
                           >
                             ✕ Хаах
                           </button>
@@ -3099,11 +3128,11 @@ function Home() {
                           <img
                             src={selectedImageModal.url}
                             alt="Evidence Preview"
-                            className="max-h-[65vh] w-auto rounded-2xl object-contain shadow-md border border-slate-800"
+                            className="max-h-[65vh] w-auto rounded-2xl object-contain shadow-md border border-zinc-800"
                           />
                         </div>
 
-                        <div className="pt-2 border-t border-slate-800 flex justify-end">
+                        <div className="pt-2 border-t border-zinc-800 flex justify-end">
                           <a
                             href={selectedImageModal.url}
                             target="_blank"
@@ -3125,16 +3154,16 @@ function Home() {
                       onClick={() => setShowWasteGuideModal(false)}
                     >
                       <div
-                        className="bg-zinc-950 border border-slate-700 rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
+                        className="bg-zinc-950 border border-zinc-700 rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+                        <div className="flex justify-between items-start border-b border-zinc-800 pb-4">
                           <div>
                             <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-2">
                               <Search className="h-6 w-6 text-zinc-300" />
                               Алдагдлын Шинжилгээний Гарын Авлага
                             </h3>
-                            <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+                            <p className="text-sm text-zinc-400 mt-1.5 leading-relaxed">
                               Систем дээр үүссэн "Шалтгаангүй алдагдал" нь шууд
                               хулгай гэсэн үг биш юм. Та менежерийн хувиар
                               дараах 4 нөхцөлийг шалгаж эрсдэлийг удирдах
@@ -3143,7 +3172,7 @@ function Home() {
                           </div>
                           <button
                             onClick={() => setShowWasteGuideModal(false)}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-sm font-bold transition"
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-sm font-bold transition"
                           >
                             ✕ Хаах
                           </button>
@@ -3154,7 +3183,7 @@ function Home() {
                             <Bot className="h-5 w-5" />
                             AI Зөвлөхөөс хэрхэн асуух вэ? (Хамгийн хурдан арга)
                           </h4>
-                          <p className="text-sm text-slate-300 mb-3 leading-relaxed">
+                          <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
                             Та дээрх алдагдал хулгай мөн эсэхийг өөрөө таах
                             шаардлагагүй. <strong>"🤖 AI Зөвлөх"</strong> таб
                             руу ороод доорх асуултуудаас хуулж асуугаарай. AI
@@ -3163,8 +3192,8 @@ function Home() {
                           </p>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
-                              <p className="text-xs text-slate-500 font-bold mb-1 uppercase">
+                            <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-xl">
+                              <p className="text-xs text-zinc-500 font-bold mb-1 uppercase">
                                 Жишээ асуулт 1:
                               </p>
                               <p className="text-sm text-white font-mono">
@@ -3172,8 +3201,8 @@ function Home() {
                                 юу, эсвэл орц хэтрүүлэлт үү? Шинжилж өг."
                               </p>
                             </div>
-                            <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
-                              <p className="text-xs text-slate-500 font-bold mb-1 uppercase">
+                            <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-xl">
+                              <p className="text-xs text-zinc-500 font-bold mb-1 uppercase">
                                 Жишээ асуулт 2:
                               </p>
                               <p className="text-sm text-white font-mono">
@@ -3186,16 +3215,16 @@ function Home() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* НӨХЦӨЛ 1 */}
-                          <div className="bg-zinc-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-zinc-800/60 p-2 rounded-xl">
                                 <Coffee className="h-5 w-5 text-zinc-200" />
                               </div>
-                              <h4 className="font-bold text-slate-200 text-sm">
+                              <h4 className="font-bold text-zinc-200 text-sm">
                                 1. Орц хэтрүүлэлт (Overpouring)
                               </h4>
                             </div>
-                            <p className="text-sm text-slate-400 mb-2">
+                            <p className="text-sm text-zinc-400 mb-2">
                               <strong>Шинж тэмдэг:</strong> Аяга бүрээс 10-20мл
                               гэх мэт маш бага хэмжээгээр, тогтмол дутаад байх.
                             </p>
@@ -3208,16 +3237,16 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 2 */}
-                          <div className="bg-zinc-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-zinc-800/60 p-2 rounded-xl">
                                 <Layers3 className="h-5 w-5 text-zinc-300" />
                               </div>
-                              <h4 className="font-bold text-slate-200 text-sm">
+                              <h4 className="font-bold text-zinc-200 text-sm">
                                 2. Бүртгэхээ мартсан (Forgot Log)
                               </h4>
                             </div>
-                            <p className="text-sm text-slate-400 mb-2">
+                            <p className="text-sm text-zinc-400 mb-2">
                               <strong>Шинж тэмдэг:</strong> Ажилтан хоолондоо
                               хэрэглэсэн, эсвэл санамсаргүй асгасан ч Kiosk-д
                               оруулж амжаагүй байх.
@@ -3240,7 +3269,7 @@ function Home() {
                                 3. Бэлэн мөнгөний хулгай (Un-rung Sales)
                               </h4>
                             </div>
-                            <p className="text-sm text-slate-400 mb-2">
+                            <p className="text-sm text-zinc-400 mb-2">
                               <strong>Шинж тэмдэг:</strong> Системд ямар ч
                               борлуулалт (Орлого) ороогүй мөртлөө Сүү, Кофе үр,
                               Аяга 3 зэрэг дутсан байх.
@@ -3271,7 +3300,7 @@ function Home() {
                                 4. Физик хулгай эсвэл Том асгаралт
                               </h4>
                             </div>
-                            <p className="text-sm text-slate-400 mb-2">
+                            <p className="text-sm text-zinc-400 mb-2">
                               <strong>Шинж тэмдэг:</strong> Бүтэн 1 хайрцаг сүү
                               (12л), эсвэл 1 бүтэн уут кофе гэнэт алга болох.
                             </p>
@@ -3296,15 +3325,15 @@ function Home() {
                       onClick={() => setJsonBackupModal(null)}
                     >
                       <div
-                        className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                        className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                           <div>
                             <h3 className="text-base font-black text-white flex items-center gap-2">
                               <span>📥 Нөөц Файлаас Жор Сэргээх</span>
                             </h3>
-                            <p className="text-xs text-slate-400 mt-0.5">
+                            <p className="text-xs text-zinc-400 mt-0.5">
                               Файлд нийт{" "}
                               <strong className="text-zinc-300">
                                 {
@@ -3318,7 +3347,7 @@ function Home() {
                           <button
                             type="button"
                             onClick={() => setJsonBackupModal(null)}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
                           >
                             ✕ Хаах
                           </button>
@@ -3334,11 +3363,11 @@ function Home() {
                         </button>
 
                         <div className="relative flex py-1 items-center">
-                          <div className="flex-grow border-t border-slate-800"></div>
-                          <span className="flex-shrink mx-3 text-xs text-slate-500 font-bold uppercase">
+                          <div className="flex-grow border-t border-zinc-800"></div>
+                          <span className="flex-shrink mx-3 text-xs text-zinc-500 font-bold uppercase">
                             эсвэл тус тусад нь сонгох
                           </span>
-                          <div className="flex-grow border-t border-slate-800"></div>
+                          <div className="flex-grow border-t border-zinc-800"></div>
                         </div>
 
                         {/* 🔍 ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
@@ -3356,7 +3385,7 @@ function Home() {
                                     <span className="font-bold text-white text-sm block">
                                       {pName}
                                     </span>
-                                    <span className="text-xs text-slate-400 font-mono">
+                                    <span className="text-xs text-zinc-400 font-mono">
                                       {itemsCount} төрлийн орцтой
                                     </span>
                                   </div>
@@ -3395,31 +3424,44 @@ function Home() {
             {showUpgradeSuccess && (
               <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
                 <div className="bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
-                  <div className="w-20 h-20 bg-zinc-800/60 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
-                    <span className="text-4xl">🎉</span>
-                  </div>
-                  <h2 className="text-2xl font-black text-white">
-                    Баяр хүргэе!
-                  </h2>
-                  <p className="text-sm text-slate-300 leading-relaxed">
+                  <p className="text-sm text-zinc-300 leading-relaxed">
                     Таны төлбөр баталгаажиж, үйлчилгээний эрх амжилттай
                     сунгагдлаа.
                   </p>
 
-                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl inline-block mt-2 min-w-[200px]">
-                    <span className="text-xs text-slate-500 block uppercase font-bold mb-1">
-                      Дараагийн сунгалт:
+                  <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl inline-block mt-2 min-w-[200px]">
+                    <span className="text-xs text-zinc-500 block uppercase font-bold mb-1">
+                      Таны эрх:
                     </span>
-                    <span className="text-zinc-200 font-black text-lg">
+                    <span className="text-zinc-200 block font-black text-lg mb-1">
                       {tenantInfo?.formattedEndDate}
                     </span>
+                      <span className="text-xs text-zinc-500 block uppercase font-bold">хүртэл нээлттэй</span>
                   </div>
 
                   <button
-                    onClick={() => setShowUpgradeSuccess(false)}
+                    onClick={async () => {
+                  // 1. Дэлгэцээс хаах
+                  setShowUpgradeSuccess(false);
+                  
+                  // 2. Баазаас "модал харуулах" дохиог устгаж цэвэрлэх
+                  const { data: tData } = await supabase.from('tenants').select('feature_flags').eq('client_id', activeClient).single();
+                  const currentFlags = tData?.feature_flags || {};
+                  
+                  // show_success_modal-ийг false болгоно
+                  const newFlags = { ...currentFlags, show_success_modal: false };
+                  
+                  await supabase.from('tenants').update({ feature_flags: newFlags }).eq('client_id', activeClient);
+
+
+                            if (tenantInfo?.endDate) {
+            localStorage.setItem(`ack_sub_${activeClient.toLowerCase().trim()}`, tenantInfo.endDate);
+          }
+          
+                }}
                     className="w-full mt-6 bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3.5 rounded-xl transition shadow-lg active:scale-95 cursor-pointer"
                   >
-                    Үргэлжлүүлэх
+                    Хаах
                   </button>
                 </div>
               </div>

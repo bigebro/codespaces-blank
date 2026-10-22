@@ -366,8 +366,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900/40 p-8 rounded-2xl border border-slate-900 shadow-2xl backdrop-blur-md">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-zinc-900/40 p-8 rounded-2xl border border-zinc-900 shadow-2xl backdrop-blur-md">
         {/* ТОМОРСОН ЛОГО БА ЦЭВЭРХЭН ГАРЧИГ (Дэд тайлбаргүй) */}
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center ">
@@ -401,7 +401,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+            <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
               Имэйл хаяг
             </label>
             <input
@@ -410,28 +410,28 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="name@example.com"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
             />
           </div>
 
           {isSignUp && (
             <div className="space-y-4">
               <div>
-                <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
                   Би хэн бэ?
                 </label>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setSignupRole("owner")}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "owner" ? "bg-white text-slate-950 shadow-md" : "bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white"}`}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "owner" ? "bg-white text-zinc-950 shadow-md" : "bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:text-white"}`}
                   >
                     👑 Бизнес эрхлэгч
                   </button>
                   <button
                     type="button"
                     onClick={() => setSignupRole("staff")}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "staff" ? "bg-white text-slate-950 shadow-md" : "bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white"}`}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "staff" ? "bg-white text-zinc-950 shadow-md" : "bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:text-white"}`}
                   >
                     👷 Ажилтан
                   </button>
@@ -440,7 +440,7 @@ export default function LoginPage() {
 
               {signupRole === "staff" && (
                 <div>
-                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
                     Таны нэр
                   </label>
                   <input
@@ -449,13 +449,13 @@ export default function LoginPage() {
                     onChange={(e) => setFullName(e.target.value)}
                     required={isSignUp && signupRole === "staff"}
                     placeholder="Жишээ: Бат, Нараа, Билгүүн"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                   />
                 </div>
               )}
               {isSignUp && signupRole === "owner" && (
                 <div>
-                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
                     Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)
                   </label>
                   <input
@@ -467,13 +467,13 @@ export default function LoginPage() {
                     required
                     maxLength={8}
                     placeholder="Жишээ: 99112233"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
                   {signupRole === "owner"
                     ? "Бизнесийн Нэр (Шинээр үүсгэх)"
                     : "Бизнесийн нэр (Салбар)"}
@@ -489,7 +489,7 @@ export default function LoginPage() {
                       ? "Жишээ: SF Coffee"
                       : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                 />
               </div>
             </div>
@@ -497,7 +497,7 @@ export default function LoginPage() {
 
           {!isForgotPassword && (
             <div>
-              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
                 Нууц үг
               </label>
               <div className="relative">
@@ -507,12 +507,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required={!isForgotPassword}
                   placeholder="••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-12 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -531,7 +531,7 @@ export default function LoginPage() {
                       setErrorMsg(null);
                       setSuccessMsg(null);
                     }}
-                    className="text-slate-500 hover:text-slate-400 text-xs font-medium transition cursor-pointer"
+                    className="text-zinc-500 hover:text-zinc-400 text-xs font-medium transition cursor-pointer"
                   >
                     Нууц үгээ мартсан уу?
                   </button>
@@ -561,7 +561,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-900 text-center">
+        <div className="mt-8 pt-6 border-t border-zinc-900 text-center">
           {isForgotPassword ? (
             <button
               type="button"
@@ -591,10 +591,10 @@ export default function LoginPage() {
           )}
         </div>
         {fromKiosk && (
-          <div className="mt-4 pt-4 border-t border-slate-900 text-center">
+          <div className="mt-4 pt-4 border-t border-zinc-900 text-center">
             <Link
               href="/kiosk"
-              className="text-xs text-slate-500 hover:text-zinc-200 font-bold transition inline-flex items-center gap-1"
+              className="text-xs text-zinc-500 hover:text-zinc-200 font-bold transition inline-flex items-center gap-1"
             >
               ← Kiosk руу буцах
             </Link>

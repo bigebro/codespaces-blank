@@ -93,19 +93,20 @@ export default function MasterAdminPage() {
     // 1. Тухайн дэлгүүрийн одоогийн эрхийг татах
     const { data: tenant } = await supabaseMaster
       .from("tenants")
-      .select("subscription_end_date")
+      .select("subscription_end_date,  plan, feature_flags")
       .ilike("client_id", req.client_id.trim())
       .maybeSingle();
 
     const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
-    let baseDate = new Date();
-    if (
-      tenant?.subscription_end_date &&
-      new Date(tenant.subscription_end_date) > new Date()
-    ) {
+  let baseDate = new Date();
+    if (tenant?.subscription_end_date && new Date(tenant.subscription_end_date) > new Date()) {
       baseDate = new Date(tenant.subscription_end_date);
     }
     baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
+
+        // ⚡ ШИНЭ: Одоо байгаа тохиргоонуудыг устгалгүйгээр модал харуулах тушаалыг нэмэх
+    const currentFlags = tenant?.feature_flags || {};
+    const newFlags = { ...currentFlags, show_success_modal: true };
 
     // 2. Tenants хүснэгтийн эрхийг шинэчлэх
     const { error: tenantErr } = await supabaseMaster
@@ -114,6 +115,7 @@ export default function MasterAdminPage() {
         plan: req.plan,
         status: "active",
         subscription_end_date: baseDate.toISOString(),
+        feature_flags: newFlags
       })
       .ilike("client_id", req.client_id.trim());
 
@@ -139,11 +141,11 @@ export default function MasterAdminPage() {
     }
 
     alert(
-      `✅ Амжилттай баталлаа! "${req.client_id}"-ийн эрх ${baseDate.toLocaleDateString("mn-MN")} хүртэл сунгагдлаа.`,
+      `Амжилттай баталлаа! "${req.client_id}"-ийн эрх ${baseDate.toLocaleDateString("mn-MN")} хүртэл сунгагдлаа.`,
     );
     await fetchRequests();
     // Dashboard руу шууд дохио буудах (Broadcast)
-    const channelName = `shop-updates-${req.client_id.replace(/\s+/g, "_")}`;
+    const channelName = `shop-updates-${req.client_id.trim().replace(/\s+/g, "_")}`;
     const broadcastChannel = supabaseMaster.channel(channelName);
 
     broadcastChannel.subscribe(async (status) => {
@@ -191,7 +193,7 @@ export default function MasterAdminPage() {
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 gap-3">
         <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin" />
         <p className="text-xs font-bold tracking-wider uppercase">
           Админ эрхийг шалгаж байна...
@@ -201,15 +203,15 @@ export default function MasterAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* ТОЛГОЙ ХЭСЭГ */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl">
           <div>
             <h1 className="text-2xl font-black text-white flex items-center gap-2">
               👑 Operlink Master Admin
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-zinc-400 mt-1">
               Бүх салбарын төлбөр, эрхийг удирдах төв
             </p>
           </div>
@@ -225,11 +227,11 @@ export default function MasterAdminPage() {
 
             <button
               onClick={fetchRequests}
-              className="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
+              className="p-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl transition cursor-pointer"
               title="Шинэчлэх"
             >
               <RefreshCw
-                className={`h-4 w-4 text-slate-300 ${loading ? "animate-spin text-zinc-200" : ""}`}
+                className={`h-4 w-4 text-zinc-300 ${loading ? "animate-spin text-zinc-200" : ""}`}
               />
             </button>
 
@@ -244,11 +246,11 @@ export default function MasterAdminPage() {
         </div>
 
         {/* ХҮСНЭГТ */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-950 border-b border-slate-800">
-                <tr className="text-xs uppercase font-black text-slate-400">
+              <thead className="bg-zinc-950 border-b border-zinc-800">
+                <tr className="text-xs uppercase font-black text-zinc-400">
                   <th className="p-4">Огноо</th>
                   <th className="p-4">Байгууллага (Утас)</th>
                   <th className="p-4">Сонгосон Багц</th>
@@ -260,13 +262,13 @@ export default function MasterAdminPage() {
               <tbody className="divide-y divide-slate-800/50 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-8 text-slate-500">
+                    <td colSpan={6} className="text-center p-8 text-zinc-500">
                       Уншиж байна...
                     </td>
                   </tr>
                 ) : requests.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-8 text-slate-500">
+                    <td colSpan={6} className="text-center p-8 text-zinc-500">
                       Одоогоор төлбөрийн хүсэлт байхгүй байна.
                     </td>
                   </tr>
@@ -274,21 +276,21 @@ export default function MasterAdminPage() {
                   requests.map((req) => (
                     <tr
                       key={req.id}
-                      className="hover:bg-slate-800/30 transition"
+                      className="hover:bg-zinc-800/30 transition"
                     >
-                      <td className="p-4 text-xs text-slate-400 font-mono">
+                      <td className="p-4 text-xs text-zinc-400 font-mono">
                         {new Date(req.created_at).toLocaleString("mn-MN")}
                       </td>
                       <td className="p-4">
                         <div className="font-bold text-white text-base">
                           {req.client_id}
                         </div>
-                        <div className="text-xs text-slate-400 font-mono mt-0.5">
+                        <div className="text-xs text-zinc-400 font-mono mt-0.5">
                           📞 {req.phone_number}
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="bg-slate-800 text-zinc-200 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider">
+                        <span className="bg-zinc-800 text-zinc-200 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider">
                           {req.plan} (
                           {req.billing_cycle === "yearly"
                             ? "1 Жил"
@@ -323,7 +325,7 @@ export default function MasterAdminPage() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleReject(req)}
-                              className="bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                              className="bg-zinc-800 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                             >
                               <XCircle className="h-4 w-4" /> Цуцлах
                             </button>
@@ -335,7 +337,7 @@ export default function MasterAdminPage() {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-500 font-bold">
+                          <span className="text-xs text-zinc-500 font-bold">
                             {req.notes || "Шийдэгдсэн"}
                           </span>
                         )}

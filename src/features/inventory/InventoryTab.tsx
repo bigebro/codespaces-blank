@@ -104,15 +104,15 @@ export default function InventoryTab({
 
   return (
     <>
-      <div className="bg-slate-900/50 p-5 rounded-2xl border border-slate-800 w-full overflow-hidden">
+      <div className="bg-zinc-900/50 p-5 rounded-2xl border border-zinc-800 w-full overflow-hidden">
         {/* ДЭЭД ЭГНЭЭ: Гарчиг + Хадгалах товч (Баруун буланд байнга ил харагдана) */}
-        <div className="flex justify-between items-center pb-4 border-b border-slate-800 gap-4">
+        <div className="flex justify-between items-center pb-4 border-b border-zinc-800 gap-4">
           <div>
             <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
               <Database className="h-5 w-5 text-zinc-200" />
               Агуулахын Тооллого
             </h3>
-            <p className="text-sm text-slate-400 mt-0.5">
+            <p className="text-sm text-zinc-400 mt-0.5">
               Бодит үлдэгдлийг шивээд "Хадгалах" дарна уу
             </p>
           </div>
@@ -128,13 +128,13 @@ export default function InventoryTab({
         </div>
         {/* 🔄 ЦИКЛИЙН ТОЛЛОГЫН ЯВЦ (ЭНД БАЙХ НЬ 100% ЗӨВ) */}
         {liveAnalytics && (
-          <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-sm font-mono">
-            <span className="text-slate-400">Цикл тооллого:</span>
+          <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800 text-sm font-mono">
+            <span className="text-zinc-400">Цикл тооллого:</span>
             <span className="font-black text-zinc-200">
               {liveAnalytics.abc_summary?.counted_in_cycle || 0} /{" "}
               {liveAnalytics.abc_summary?.total_items || ingredients.length}
             </span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-zinc-500">
               (
               {Math.round(
                 ((liveAnalytics.abc_summary?.counted_in_cycle || 0) /
@@ -150,36 +150,36 @@ export default function InventoryTab({
           </div>
         )}
         {/* ДОР ЭГНЭЭ: Хайлт + Шүүлтүүр (Эвтэйхэн багтана) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-slate-800/60">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-zinc-800/60">
           <input
             type="text"
             value={invSearch}
             onChange={(e) => setInvSearch(e.target.value)}
-            placeholder="🔍 Бараа хайх..."
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-zinc-700 w-full sm:w-56"
+            placeholder="Бараа хайх..."
+            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700 w-full sm:w-56"
           />
           {lowStockItems.length > 0 && (
-            <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-xl text-sm font-semibold border border-rose-500/20 flex items-center gap-1.5 animate-bounce">
+            <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-xl text-sm font-semibold border border-rose-500/20 flex items-center gap-1.5 ">
               <AlertTriangle className="h-4 w-4" />
               {lowStockItems.length} Барааны нөөц дуусаж байна!
             </span>
           )}
-          <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800 shrink-0 text-xs">
+          <div className="flex bg-zinc-950 rounded-xl p-1 border border-zinc-800 shrink-0 text-xs">
             <button
               onClick={() => setInvFilter("all")}
-              className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "all" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}
+              className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "all" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"}`}
             >
               Бүгд
             </button>
             <button
               onClick={() => setInvFilter("low")}
-              className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "low" ? "bg-rose-500/20 text-rose-400" : "text-slate-400 hover:text-white"}`}
+              className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "low" ? "bg-rose-500/20 text-rose-400" : "text-zinc-400 hover:text-white"}`}
             >
               ⚠️ Дуусаж буй
             </button>
             <button
               onClick={() => setInvFilter("critical")}
-              className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "critical" ? "bg-zinc-800 text-zinc-200" : "text-slate-400 hover:text-white"}`}
+              className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "critical" ? "bg-zinc-800 text-zinc-200" : "text-zinc-400 hover:text-white"}`}
             >
               ⭐ A-Class
             </button>
@@ -194,7 +194,7 @@ export default function InventoryTab({
         ) : (
           <div className="w-full max-h-[600px] overflow-y-auto">
             <table className="w-full text-left border-collapse table-auto">
-              <thead className="sticky top-0 bg-zinc-900 border-b border-slate-800 z-10 text-slate-400 text-xs font-bold uppercase tracking-wider">
+              <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-800 z-10 text-zinc-400 text-xs font-bold uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3">Барааны Нэр</th>
                   <th className="py-2.5 px-2 text-right">Өртөг</th>
@@ -241,7 +241,7 @@ export default function InventoryTab({
                     return (
                       <tr
                         key={ing.id}
-                        className="hover:bg-slate-800/40 transition"
+                        className="hover:bg-zinc-800/40 transition"
                       >
                         {/* 1. БАРААНЫ НЭР + НЭГЖ + A-CLASS ЧЕКБОКС */}
                         <td className="py-2.5 px-3">
@@ -276,7 +276,7 @@ export default function InventoryTab({
                                   ★
                                 </span>
                               ) : (
-                                <span className="text-slate-600 hover:text-slate-400 text-2xl leading-none">
+                                <span className="text-zinc-600 hover:text-zinc-400 text-2xl leading-none">
                                   ☆
                                 </span>
                               )}
@@ -295,14 +295,14 @@ export default function InventoryTab({
                                       ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
                                       : abc === "B"
                                         ? "bg-zinc-800/60 text-zinc-300 border-zinc-700"
-                                        : "bg-slate-800 text-slate-400 border-slate-700"
+                                        : "bg-zinc-800 text-zinc-400 border-zinc-700"
                                   }`}
                                 >
                                   {abc}-Class
                                 </span>
                               </div>
 
-                              <span className="text-xs text-slate-400 font-mono">
+                              <span className="text-xs text-zinc-400 font-mono">
                                 Нэгж: {ing.unit}
                               </span>
                             </div>
@@ -322,7 +322,7 @@ export default function InventoryTab({
                                           : null,
                                       )
                                     }
-                                    className="bg-slate-900 border border-zinc-800 rounded px-1.5 py-0.5 text-xs text-zinc-300 font-bold outline-none"
+                                    className="bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 text-xs text-zinc-300 font-bold outline-none"
                                   />
                                   <button
                                     onClick={async () => {
@@ -364,7 +364,7 @@ export default function InventoryTab({
                                   </button>
                                   <button
                                     onClick={() => setEditingTranslation(null)}
-                                    className="text-slate-500 font-bold text-xl"
+                                    className="text-zinc-500 font-bold text-xl"
                                   >
                                     ✕
                                   </button>
@@ -376,7 +376,7 @@ export default function InventoryTab({
                                     {translationsCache[
                                       ing.name.toLowerCase().trim()
                                     ] || (
-                                      <span className="text-slate-500 italic">
+                                      <span className="text-zinc-500 italic">
                                         Орчуулгагүй
                                       </span>
                                     )}
@@ -391,7 +391,7 @@ export default function InventoryTab({
                                           ] || "",
                                       })
                                     }
-                                    className="text-slate-500 hover:text-zinc-300 transition"
+                                    className="text-zinc-500 hover:text-zinc-300 transition"
                                     title="Орчуулгыг засах"
                                   >
                                     ✏️
@@ -403,7 +403,7 @@ export default function InventoryTab({
                         </td>
 
                         {/* 2. НЭГЖИЙН ӨРТӨГ */}
-                        <td className="py-2.5 px-2 text-right font-mono text-sm text-slate-300">
+                        <td className="py-2.5 px-2 text-right font-mono text-sm text-zinc-300">
                           {parseFloat(ing.unit_price).toLocaleString()} ₮
                         </td>
 
@@ -422,7 +422,7 @@ export default function InventoryTab({
                                 e.target.value,
                               )
                             }
-                            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-center text-sm text-white w-14 font-mono outline-none focus:border-zinc-700"
+                            className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-center text-sm text-white w-14 font-mono outline-none focus:border-zinc-700"
                           />
                         </td>
 
@@ -442,7 +442,7 @@ export default function InventoryTab({
                                 e.target.value,
                               )
                             }
-                            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-center text-sm text-white w-14 font-mono outline-none focus:border-zinc-700"
+                            className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-center text-sm text-white w-14 font-mono outline-none focus:border-zinc-700"
                           />
                         </td>
 
@@ -477,7 +477,7 @@ export default function InventoryTab({
                               })
                             }
                             placeholder="Тоо..."
-                            className="bg-slate-950 border border-slate-700 focus:border-zinc-700 rounded-lg px-2.5 py-1 text-right text-white font-black text-sm w-20 sm:w-24 outline-none font-mono"
+                            className="bg-zinc-950 border border-zinc-700 focus:border-zinc-700 rounded-lg px-2.5 py-1 text-right text-white font-black text-sm w-20 sm:w-24 outline-none font-mono"
                           />
                         </td>
                       </tr>

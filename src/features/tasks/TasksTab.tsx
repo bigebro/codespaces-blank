@@ -35,14 +35,14 @@ export default function TasksTab({
         {" "}
         {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
         {/* 🚀 АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
-        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8 space-y-6">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-8 space-y-6">
           {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-800">
             <div>
               <h4 className="text-sm font-bold text-white flex items-center gap-2">
                 🔗 Ажилтан урих холбоос
               </h4>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-zinc-400 mt-1">
                 Энэ линкийг ажилтандаа явуулснаар тэд салбарын нэрийг
                 алдаагүйгээр шууд нэгдэж бүртгүүлнэ.
               </p>
@@ -52,11 +52,11 @@ export default function TasksTab({
               onClick={() => {
                 const inviteUrl = `${window.location.origin}/login?branch=${encodeURIComponent(activeClient)}&role=staff`;
                 navigator.clipboard.writeText(inviteUrl);
-                alert(`✅ Урилгын холбоос хуулагдлаа:\n${inviteUrl}`);
+                alert(` Урилгын холбоос хуулагдлаа:\n${inviteUrl}`);
               }}
               className="bg-zinc-200/20 hover:bg-zinc-200/30 text-zinc-300 border border-zinc-800 px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 shrink-0"
             >
-              📋 Урилгын линк хуулах
+               Урилгын линк хуулах
             </button>
           </div>
 
@@ -101,7 +101,7 @@ export default function TasksTab({
                   alert(`Алдаа: ${error.message}`);
                 } else {
                   alert(
-                    `✅ [${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`,
+                    `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`,
                   );
                   form.reset();
                   fetchDatabaseData(activeClient);
@@ -114,21 +114,21 @@ export default function TasksTab({
                 name="workerName"
                 required
                 placeholder="Ажилтны нэр (жнь: Болд)"
-                className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-zinc-700"
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-zinc-700"
               />
               <input
                 name="workerPin"
                 required
                 maxLength={4}
                 placeholder="4 оронтой PIN (жнь: 1234)"
-                className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-zinc-700 text-center"
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-zinc-700 text-center"
               />
 
               {/* 💡 ДИНАМИК ҮҮРГҮҮДИЙН СОНГОЛТ (Эзний үүсгэсэн бүх үүрэг энд гарч ирнэ): */}
               <select
                 name="workerRole"
                 required
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-zinc-200 font-bold outline-none cursor-pointer"
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-200 font-bold outline-none cursor-pointer"
               >
                 <option value="">-- Үүрэг сонгох --</option>
                 <option value="Ажилтан">Ерөнхий ажилтан</option>
@@ -153,7 +153,7 @@ export default function TasksTab({
         {/* SECTION 1: CREATE ROLES & ASSIGN ROLES TO WORKERS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Role Creator */}
-          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
               1. Албан тушаал / Үүрэг үүсгэх
             </h3>
@@ -181,11 +181,11 @@ export default function TasksTab({
                 type="text"
                 required
                 placeholder="Жнь: Бармен, Талхчин, Зөөгч"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold outline-none focus:border-zinc-700"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold outline-none focus:border-zinc-700"
               />
               <button
                 type="submit"
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs"
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2.5 rounded-xl text-xs"
               >
                 + Үүрэг Нэмэх
               </button>
@@ -195,9 +195,9 @@ export default function TasksTab({
               {companyRoles.map((r) => (
                 <div
                   key={r.id}
-                  className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2 text-sm font-bold text-slate-200"
+                  className="bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-xl flex items-center gap-2 text-sm font-bold text-zinc-200"
                 >
-                  <span>🏷️ {r.role_name}</span>
+                  <span>{r.role_name}</span>
                   <button
                     type="button"
                     onClick={async () => {
@@ -219,7 +219,7 @@ export default function TasksTab({
           </div>
 
           {/* Assign Roles to Registered Workers */}
-          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 md:col-span-2">
             <h3 className="text-base font-bold mb-4 text-zinc-300">
               {" "}
               Ажилтнуудад үүрэг оноох
@@ -227,7 +227,7 @@ export default function TasksTab({
             <div className="overflow-x-auto max-h-[220px]">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-slate-400 text-sm border-b border-slate-800">
+                  <tr className="text-zinc-400 text-sm border-b border-zinc-800">
                     <th className="pb-2">Ажилтны Нэр</th>
                     <th className="pb-2">Үүрэг</th>
                     <th className="pb-2">Цалингийн Төрөл</th>
@@ -238,7 +238,7 @@ export default function TasksTab({
                 <tbody className="divide-y divide-slate-800/50">
                   {workersList.map((w) => (
                     <tr key={w.id}>
-                      <td className="py-2.5 font-bold text-slate-200">
+                      <td className="py-2.5 font-bold text-zinc-200">
                         {w.full_name || w.email.split("@")[0]}
                       </td>
                       <td className="py-2.5">
@@ -252,7 +252,7 @@ export default function TasksTab({
                               .eq("id", w.id);
                             fetchDatabaseData(activeClient);
                           }}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-sm text-zinc-200 font-bold"
+                          className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-sm text-zinc-200 font-bold"
                         >
                           <option value="Ажилтан">Ажилтан</option>
                           {companyRoles.map((r) => (
@@ -278,10 +278,10 @@ export default function TasksTab({
                               .eq("id", w.id);
                             fetchDatabaseData(activeClient);
                           }}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-sm text-zinc-300 font-bold"
+                          className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-sm text-zinc-300 font-bold"
                         >
-                          <option value="hourly">⏱️ Цагийн хөлс</option>
-                          <option value="fixed">📅 Сар бүр тогтмол</option>
+                          <option value="hourly"> Цагийн хөлс</option>
+                          <option value="fixed"> Сар бүр тогтмол</option>
                         </select>
                       </td>
                       <td className="py-2.5">
@@ -296,7 +296,7 @@ export default function TasksTab({
                               .eq("id", w.id);
                             fetchDatabaseData(activeClient);
                           }}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-sm text-white font-bold w-24 text-right"
+                          className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-sm text-white font-bold w-24 text-right"
                         />
                       </td>
                       <td className="py-2.5 text-right">
@@ -329,7 +329,7 @@ export default function TasksTab({
         {/* SECTION 2: CREATE & VIEW TASKS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Task Form */}
-          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-1 h-fit">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 md:col-span-1 h-fit">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
               3. Шинэ даалгавар үүсгэх
             </h3>
@@ -369,19 +369,19 @@ export default function TasksTab({
               className="space-y-4"
             >
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-2">
+                <label className="block text-xs font-bold text-zinc-400 mb-2">
                   Хэнд оноох вэ?
                 </label>
                 <select
                   name="taskRole"
                   defaultValue="Бүх ажилтан"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                 >
                   <option value="Бүх ажилтан">Бүх ажилтан (Бүгд хийх)</option>
                   <optgroup label="Үүргээр оноох">
                     {companyRoles.map((r) => (
                       <option key={r.id} value={r.role_name}>
-                        🏷️ {r.role_name}
+                       {r.role_name}
                       </option>
                     ))}
                   </optgroup>
@@ -391,7 +391,7 @@ export default function TasksTab({
                         key={w.id}
                         value={w.full_name || w.email.split("@")[0]}
                       >
-                        👤 {w.full_name || w.email.split("@")[0]}
+                        {w.full_name || w.email.split("@")[0]}
                       </option>
                     ))}
                   </optgroup>
@@ -399,7 +399,7 @@ export default function TasksTab({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-2">
+                <label className="block text-xs font-bold text-zinc-400 mb-2">
                   Даалгаврын нэр
                 </label>
                 <input
@@ -407,12 +407,12 @@ export default function TasksTab({
                   type="text"
                   required
                   placeholder="Жнь: Кофены машин угаах"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold outline-none focus:border-zinc-700"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold outline-none focus:border-zinc-700"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-2">
+                <label className="block text-xs font-bold text-zinc-400 mb-2">
                   Ачааллын жин (Оноо 1-100)
                 </label>
                 <input
@@ -421,7 +421,7 @@ export default function TasksTab({
                   required
                   defaultValue={15}
                   placeholder="Жнь: 15"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-bold outline-none focus:border-zinc-700"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold outline-none focus:border-zinc-700"
                 />
               </div>
 
@@ -435,12 +435,12 @@ export default function TasksTab({
           </div>
 
           {/* Tasks List */}
-          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 md:col-span-2">
             <h3 className="text-base font-bold mb-4">Бүртгэлтэй Даалгаврууд</h3>
             <div className="overflow-x-auto max-h-[350px]">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-slate-400 text-sm border-b border-slate-800 uppercase">
+                  <tr className="text-zinc-400 text-sm border-b border-zinc-800 uppercase">
                     <th className="pb-3 px-2">Оноосон Хаяг</th>
                     <th className="pb-3 px-2">Даалгаврын нэр</th>
                     <th className="pb-3 px-2">Ачаалал</th>
@@ -454,7 +454,7 @@ export default function TasksTab({
                     <tr>
                       <td
                         colSpan={5}
-                        className="py-6 text-center text-slate-500 italic"
+                        className="py-6 text-center text-zinc-500 italic"
                       >
                         Даалгавар байхгүй байна.
                       </td>
@@ -463,11 +463,11 @@ export default function TasksTab({
                     tasks
                       .filter((t) => t.client_id === activeClient)
                       .map((t) => (
-                        <tr key={t.id} className="hover:bg-slate-900/30">
+                        <tr key={t.id} className="hover:bg-zinc-900/30">
                           <td className="py-3 px-2 text-zinc-200 font-bold">
                             {t.role}
                           </td>
-                          <td className="py-3 px-2 font-semibold text-slate-200">
+                          <td className="py-3 px-2 font-semibold text-zinc-200">
                             {t.task_name}
                           </td>
                           <td className="py-3 px-2 text-zinc-300 font-bold">
@@ -475,7 +475,7 @@ export default function TasksTab({
                           </td>
 
                           {/* EXACT TIMESTAMPS: Year, Month, Day, Hour, Minute, Second */}
-                          <td className="py-3 px-2 text-slate-400 text-sm font-mono">
+                          <td className="py-3 px-2 text-zinc-400 text-sm font-mono">
                             {t.created_at
                               ? new Date(t.created_at).toLocaleString("mn-MN", {
                                   year: "numeric",
@@ -511,7 +511,7 @@ export default function TasksTab({
           </div>
 
           {/* Closed Shifts Report Table */}
-          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-3 mt-8">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 md:col-span-3 mt-8">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-zinc-300">
               <Activity className="h-5 w-5" /> Хаагдсан ээлжүүдийн түүх (Shift
               History)
@@ -519,7 +519,7 @@ export default function TasksTab({
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-slate-400 text-sm border-b border-slate-800 uppercase tracking-wider font-bold">
+                  <tr className="text-zinc-400 text-sm border-b border-zinc-800 uppercase tracking-wider font-bold">
                     <th className="py-3 px-2">Ажилтан (Үүрэг)</th>
                     <th className="py-3 px-2">Эхэлсэн огноо</th>
                     <th className="py-3 px-2">Хаагдсан огноо</th>
@@ -534,7 +534,7 @@ export default function TasksTab({
                     <tr>
                       <td
                         colSpan={5}
-                        className="py-8 text-center text-slate-500 italic"
+                        className="py-8 text-center text-zinc-500 italic"
                       >
                         Хаагдсан ээлж одоогоор байхгүй байна.
                       </td>
@@ -559,14 +559,14 @@ export default function TasksTab({
                             : 100;
 
                         return (
-                          <tr key={s.id} className="hover:bg-slate-900/30">
-                            <td className="py-3 px-2 font-bold text-slate-200">
+                          <tr key={s.id} className="hover:bg-zinc-900/30">
+                            <td className="py-3 px-2 font-bold text-zinc-200">
                               {s.character_role || "Ерөнхий ажилтан"}
                             </td>
-                            <td className="py-3 px-2 text-slate-400">
+                            <td className="py-3 px-2 text-zinc-400">
                               {new Date(s.start_time).toLocaleString("mn-MN")}
                             </td>
-                            <td className="py-3 px-2 text-slate-400">
+                            <td className="py-3 px-2 text-zinc-400">
                               {s.end_time
                                 ? new Date(s.end_time).toLocaleString("mn-MN")
                                 : "-"}
@@ -583,7 +583,7 @@ export default function TasksTab({
                                   {percentage}% ({completed}/{total})
                                 </span>
                               ) : (
-                                <span className="text-slate-500 italic">
+                                <span className="text-zinc-500 italic">
                                   Даалгавар байхгүй
                                 </span>
                               )}
@@ -616,7 +616,7 @@ export default function TasksTab({
                                   <Camera className="h-3 w-3" /> Z-Тайлан
                                 </button>
                               )}
-                              <span className="bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg text-sm font-bold uppercase">
+                              <span className="bg-zinc-800 text-zinc-400 px-2.5 py-1 rounded-lg text-sm font-bold uppercase">
                                 Closed
                               </span>
                             </td>

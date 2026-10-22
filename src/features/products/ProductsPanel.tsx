@@ -1,7 +1,17 @@
 // src/features/products/ProductsPanel.tsx
 "use client";
 import React, { useState, useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  Coffee,
+  Edit2,
+  Trash2,
+  CupSoda,
+  Utensils,
+  Croissant,
+  Package,
+  Archive,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import {
@@ -14,39 +24,39 @@ import { AutoPilotChange } from "@/types/dashboard";
 const UNIVERSAL_CATEGORIES = [
   {
     id: "HOT_BEVERAGE",
-    name: "☕ Халуун ундаа",
-    icon: "☕",
-    color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
+    name: "Халуун ундаа",
+    icon: <Coffee className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
   },
   {
     id: "COLD_BEVERAGE",
-    name: "🍹 Хүйтэн ундаа",
-    icon: "🍹",
-    color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
+    name: "Хүйтэн ундаа",
+    icon: <CupSoda className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
   },
   {
     id: "FOOD_PREP",
-    name: "🍳 Хоол & Зууш",
-    icon: "🍳",
-    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+    name: "Хоол & Зууш",
+    icon: <Utensils className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
   },
   {
     id: "BAKERY_DESSERT",
-    name: "🥐 Бэйкэри & Десерт",
-    icon: "🥐",
-    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
+    name: "Бэйкэри & Десерт",
+    icon: <Croissant className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
   },
   {
     id: "RETAIL_FMCG",
-    name: "🥤 Бэлэн бараа (Лааз/Сав)",
-    icon: "🥤",
-    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+    name: "Бэлэн бараа",
+    icon: <Package className="h-4 w-4" />,
+    color: "text-zinc-100 bg-zinc-900 border-zinc-800",
   },
   {
     id: "GENERAL",
-    name: "📦 Бусад",
-    icon: "📦",
-    color: "text-slate-300 bg-slate-800 border-slate-700",
+    name: "Бусад",
+    icon: <Archive className="h-4 w-4" />,
+    color: "text-zinc-400 bg-zinc-950 border-zinc-800",
   },
 ];
 function cleanString(str: string) {
@@ -410,7 +420,7 @@ export default function ProductsPanel({
               <button
                 type="button"
                 onClick={() => setAutoPilotActivity(null)}
-                className="text-slate-500 hover:text-slate-300 p-1 text-sm"
+                className="text-zinc-500 hover:text-zinc-300 p-1 text-sm"
                 title="Хаах"
               >
                 ✕
@@ -427,15 +437,15 @@ export default function ProductsPanel({
           onClick={() => setShowChangesModal(false)}
         >
           <div
-            className="bg-zinc-950 border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+            className="bg-zinc-950 border border-zinc-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
               <div>
                 <h3 className="font-black text-white text-base flex items-center gap-2">
                   <span>📋 Авто-Пилотын хийсэн өөрчлөлтүүд</span>
                 </h3>
-                <p className="text-sm text-slate-400 mt-0.5">
+                <p className="text-sm text-zinc-400 mt-0.5">
                   Шинээр орж ирсэн ПОС-ын нэр болон үнийг шалгаж, шаардлагатай
                   бол буцаана уу.
                 </p>
@@ -443,16 +453,16 @@ export default function ProductsPanel({
               <button
                 type="button"
                 onClick={() => setShowChangesModal(false)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-sm font-bold"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-sm font-bold"
               >
                 ✕ Хаах
               </button>
             </div>
 
             {/* ХҮСНЭГТ: ХУУЧИН БА ШИНЭ УТГУУД ЗӨВ БАЙРАНДАА */}
-            <div className="flex-1 overflow-y-auto border border-slate-800 rounded-2xl">
+            <div className="flex-1 overflow-y-auto border border-zinc-800 rounded-2xl">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800">
+                <thead className="bg-zinc-950 text-zinc-400 uppercase font-bold sticky top-0 border-b border-zinc-800">
                   <tr>
                     <th className="py-2.5 px-3">Шинэ бүтээгдэхүүн (ПОС)</th>
                     <th className="py-2.5 px-3">Төлөв</th>
@@ -461,21 +471,21 @@ export default function ProductsPanel({
                     <th className="py-2.5 px-3 text-center">Үйлдэл</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
+                <tbody className="divide-y divide-slate-800/80 bg-zinc-950/40">
                   {autoPilotActivity.changes.map((ch) => (
                     <tr
                       key={ch.id}
                       className={
                         ch.reverted
-                          ? "opacity-40 line-through bg-slate-900/20"
-                          : "hover:bg-slate-900/40"
+                          ? "opacity-40 line-through bg-zinc-900/20"
+                          : "hover:bg-zinc-900/40"
                       }
                     >
                       <td className="py-2.5 px-3 font-bold text-white">
                         <div>
                           <span>{ch.oldName}</span>
                           {ch.newName && ch.newName !== ch.oldName && (
-                            <span className="block text-xs text-slate-400 font-normal">
+                            <span className="block text-xs text-zinc-400 font-normal">
                               {ch.newName}
                             </span>
                           )}
@@ -486,7 +496,7 @@ export default function ProductsPanel({
                           Үнэ шинэчлэгдсэн
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right text-slate-400 font-mono">
+                      <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">
                         {ch.oldPrice.toLocaleString()} ₮
                       </td>
                       <td className="py-2.5 px-3 text-right text-zinc-200 font-mono font-black">
@@ -495,14 +505,14 @@ export default function ProductsPanel({
 
                       <td className="py-2.5 px-3 text-center">
                         {ch.reverted ? (
-                          <span className="text-xs text-slate-500 font-bold">
+                          <span className="text-xs text-zinc-500 font-bold">
                             Буцаагдсан ↩️
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleSingleUndo(ch.id)}
-                            className="bg-slate-800 hover:bg-rose-500/20 hover:text-rose-300 text-slate-300 border border-slate-700 hover:border-rose-500/40 px-2.5 py-1 rounded-xl text-sm font-bold transition active:scale-95 cursor-pointer"
+                            className="bg-zinc-800 hover:bg-rose-500/20 hover:text-rose-300 text-zinc-300 border border-zinc-700 hover:border-rose-500/40 px-2.5 py-1 rounded-xl text-sm font-bold transition active:scale-95 cursor-pointer"
                             title="Хуучин нэр ба үнэ рүү нь буцаах"
                           >
                             ↩️ Буцаах
@@ -516,7 +526,7 @@ export default function ProductsPanel({
             </div>
 
             <div className="flex justify-between items-center pt-2">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-zinc-500">
                 💡 Буцаах товч дармагц тухайн бараа хуучин нэр болон үнэ рүүгээ
                 тэр дороо шилжинэ.
               </p>
@@ -541,7 +551,7 @@ export default function ProductsPanel({
                 ПОС дээр нэр зөрсөн/шинэ бүтээгдэхүүнүүд ({unmappedSales.length}
                 ):
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 Хэрэв хуучин цэсний товчлол бол <strong>"Сольж нэгтгэх"</strong>
                 , цоо шинэ бараа бол <strong>"+ Шинэ цэс үүсгэх"</strong> дарна
                 уу.
@@ -553,7 +563,7 @@ export default function ProductsPanel({
             {unmappedSales.map((item, idx) => (
               <div
                 key={idx}
-                className="bg-slate-950 p-3 rounded-2xl border border-zinc-700 text-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 shadow-sm"
+                className="bg-zinc-950 p-3 rounded-2xl border border-zinc-700 text-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 shadow-sm"
               >
                 <div>
                   <span className="text-white font-black text-sm">
@@ -708,7 +718,7 @@ export default function ProductsPanel({
                     </button>
                   </div>
 
-                  <span className="text-slate-600 text-sm hidden lg:inline">
+                  <span className="text-zinc-600 text-sm hidden lg:inline">
                     эсвэл
                   </span>
 
@@ -740,7 +750,7 @@ export default function ProductsPanel({
                       }
                       fetchProducts();
                     }}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl font-bold text-sm transition active:scale-95 whitespace-nowrap"
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3 py-1.5 rounded-xl font-bold text-sm transition active:scale-95 whitespace-nowrap"
                   >
                     + Шинэ цэс үүсгэх ({item.unitPrice.toLocaleString()}₮)
                   </button>
@@ -757,8 +767,8 @@ export default function ProductsPanel({
           type="text"
           value={menuSearch}
           onChange={(e) => setMenuSearch(e.target.value)}
-          placeholder="🔍 Менюний нэрээр хайх..."
-          className="w-full sm:flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-zinc-700"
+          placeholder="Менюний нэрээр хайх..."
+          className="w-full sm:flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700"
         />
 
         <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
@@ -794,8 +804,8 @@ export default function ProductsPanel({
             }}
             className={`${
               isAddingProdRow
-                ? "bg-slate-800 text-slate-300"
-                : "bg-white hover:bg-zinc-200 text-white"
+                ? "bg-zinc-800 text-zinc-300"
+                : "bg-white hover:bg-zinc-200 text-zinc-950"
             } px-4 py-2.5 rounded-xl text-sm font-black transition flex items-center gap-1.5 active:scale-95 shadow`}
           >
             <span>{isAddingProdRow ? "✕ Цуцлах" : "+ Менюний цэс нэмэх"}</span>
@@ -804,9 +814,9 @@ export default function ProductsPanel({
       </div>
 
       {/* 📋 МЕНЮНИЙ ХҮСНЭГТ (МӨР ДОТРОО ЖОР СОНГОЖ ХОЛБОХ БАГАНАТАЙ) */}
-      <div className="overflow-x-auto max-h-[440px] border border-slate-800 rounded-2xl">
+      <div className="overflow-x-auto max-h-[440px] border border-zinc-800 rounded-2xl">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-950 text-slate-400 uppercase font-bold sticky top-0 border-b border-slate-800 z-10">
+          <thead className="bg-zinc-950 text-zinc-400 uppercase font-bold sticky top-0 border-b border-zinc-800 z-10">
             <tr>
               <th className="py-3 px-3 w-8">
                 <input
@@ -830,7 +840,7 @@ export default function ProductsPanel({
               <th className="py-3 px-3 text-right">Үйлдэл</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-medium">
+          <tbody className="divide-y divide-slate-800/60 bg-zinc-950/40 font-medium">
             {/* Шинэ цэс нэмэх инлайн мөр */}
             {isAddingProdRow && (
               <tr className="bg-zinc-900/60 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
@@ -885,7 +895,7 @@ export default function ProductsPanel({
                     className="w-24 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-right text-sm text-zinc-200 font-mono font-bold outline-none"
                   />
                 </td>
-                <td className="py-2 px-3 text-center text-slate-500">-</td>
+                <td className="py-2 px-3 text-center text-zinc-500">-</td>
                 <td className="py-2 px-3 text-right">
                   <div className="flex items-center justify-end gap-1">
                     <button
@@ -913,7 +923,7 @@ export default function ProductsPanel({
                           price: "",
                         });
                       }}
-                      className="bg-white hover:bg-zinc-200 text-white font-black px-2.5 py-1 rounded-lg text-sm transition"
+                      className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-2.5 py-1 rounded-lg text-sm transition"
                       title="Хадгалах"
                     >
                       ✓
@@ -921,7 +931,7 @@ export default function ProductsPanel({
                     <button
                       type="button"
                       onClick={() => setIsAddingProdRow(false)}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-2 py-1 rounded-lg text-sm"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-2 py-1 rounded-lg text-sm"
                       title="Болих"
                     >
                       ✕
@@ -1006,9 +1016,7 @@ export default function ProductsPanel({
                           className="w-24 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-right text-sm text-zinc-200 font-mono font-bold outline-none"
                         />
                       </td>
-                      <td className="py-2 px-3 text-center text-slate-500">
-                        -
-                      </td>
+                      <td className="py-2 px-3 text-center text-zinc-500">-</td>
                       <td className="py-2 px-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
@@ -1073,7 +1081,7 @@ export default function ProductsPanel({
                           <button
                             type="button"
                             onClick={() => setEditingProdId(null)}
-                            className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-2 py-1 rounded-lg text-sm"
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-2 py-1 rounded-lg text-sm"
                             title="Цуцлах"
                           >
                             ✕
@@ -1087,7 +1095,7 @@ export default function ProductsPanel({
                 return (
                   <tr
                     key={`prod-${prod.id}-${idx}`}
-                    className="hover:bg-slate-900/60 transition"
+                    className="hover:bg-zinc-900/60 transition"
                   >
                     <td className="py-2.5 px-3">
                       <input
@@ -1163,10 +1171,10 @@ export default function ProductsPanel({
                               price: (prod.selling_price || 0).toString(),
                             });
                           }}
-                          className="text-slate-400 hover:text-zinc-300 p-1 text-sm transition"
+                          className="text-zinc-400 hover:text-zinc-300 p-1 text-sm transition"
                           title="Мөр дотор засах"
                         >
-                          ✏️
+                          <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
@@ -1186,10 +1194,10 @@ export default function ProductsPanel({
                               .eq("id", prod.id);
                             fetchProducts();
                           }}
-                          className="text-slate-500 hover:text-rose-400 p-1 text-sm transition"
+                          className="text-zinc-500 hover:text-rose-400 p-1 text-sm transition"
                           title="Устгах"
                         >
-                          🗑️
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -1205,14 +1213,14 @@ export default function ProductsPanel({
       {/* ========================================================================= */}
       {showAddProdModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+          <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
                 + Шинэ Менюний Цэс нэмэх
               </h3>
               <button
                 onClick={() => setShowAddProdModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-zinc-400 hover:text-white text-sm"
               >
                 ✕
               </button>
@@ -1225,7 +1233,7 @@ export default function ProductsPanel({
                 setNewProdForm({ ...newProdForm, name: e.target.value })
               }
               placeholder="Бүтээгдэхүүний нэр (Жишээ: Oat Latte)"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
             />
             <div className="grid grid-cols-2 gap-2">
               <input
@@ -1238,7 +1246,7 @@ export default function ProductsPanel({
                   })
                 }
                 placeholder="Ангилал (COFFEE, FOOD)"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
               />
               <input
                 type="number"
@@ -1250,7 +1258,7 @@ export default function ProductsPanel({
                   })
                 }
                 placeholder="Зарах үнэ ₮"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
               />
             </div>
             <button
@@ -1277,7 +1285,7 @@ export default function ProductsPanel({
                   price: "",
                 });
               }}
-              className="w-full bg-white hover:bg-zinc-200 text-white font-black py-2.5 rounded-xl text-sm transition"
+              className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-2.5 rounded-xl text-sm transition"
             >
               Цэсэнд Нэмэх
             </button>
@@ -1288,19 +1296,19 @@ export default function ProductsPanel({
       {/* ✏️ МЕНЮ БҮТЭЭГДЭХҮҮН ЗАСАХ МОДАЛ (Нэр болон Зарах үнийг хамтад нь засна) */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-slate-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+          <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">✏️ Цэс засах</h3>
               <button
                 onClick={() => setEditingProduct(null)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-zinc-400 hover:text-white text-sm"
               >
                 ✕
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">
+              <label className="block text-xs font-bold text-zinc-400 mb-1">
                 Бүтээгдэхүүний нэр (ПОС-той таарах):
               </label>
               <input
@@ -1312,13 +1320,13 @@ export default function ProductsPanel({
                     name: e.target.value,
                   })
                 }
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-zinc-700 font-bold"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none focus:border-zinc-700 font-bold"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   Ангилал:
                 </label>
                 <input
@@ -1330,11 +1338,11 @@ export default function ProductsPanel({
                       category: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-300 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-zinc-300 outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-zinc-400 mb-1">
                   Зарах үнэ (₮):
                 </label>
                 <input
@@ -1346,7 +1354,7 @@ export default function ProductsPanel({
                       selling_price: e.target.value,
                     })
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-zinc-200 font-mono font-bold outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-zinc-200 font-mono font-bold outline-none"
                 />
               </div>
             </div>
@@ -1382,7 +1390,7 @@ export default function ProductsPanel({
                 setEditingProduct(null);
                 fetchProducts();
               }}
-              className="w-full bg-white hover:bg-zinc-200 text-white font-black py-2.5 rounded-xl text-sm transition"
+              className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-2.5 rounded-xl text-sm transition"
             >
               Хадгалах
             </button>
