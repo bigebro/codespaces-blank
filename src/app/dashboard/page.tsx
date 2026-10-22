@@ -58,8 +58,8 @@ import SettingsTab from "@/features/settings/SettingsTab";
 import AiCfoChat from "@/features/ai-cfo/AiCfoChat";
 import CheckoutModal from "@/components/shared/CheckoutModal";
 
-function OperlinkLogo({
-  className = "h-8 w-8 text-white",
+export function OperlinkLogo({
+  className = "h-8 w-8",
 }: {
   className?: string;
 }) {
@@ -71,39 +71,71 @@ function OperlinkLogo({
       className={className}
       aria-hidden="true"
     >
+      <defs>
+        {/* 1. Brilliant White: Adds a microscopic sheen so the solid shapes look premium, not flat */}
+        <linearGradient id="pureWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="50%" stopColor="#f4f4f5" />
+          <stop offset="100%" stopColor="#ffffff" />
+        </linearGradient>
+
+        {/* 2. Optical Fade for the Diagonal Line: Brightest in the center, tapering off perfectly to the tips like a laser beam */}
+        <linearGradient id="laserLine" x1="78" y1="434" x2="434" y2="78" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="30%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="70%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
+        </linearGradient>
+
+        {/* 3. Optical Ring: Gives the outer circle a dynamic, glass-like reflection instead of a flat dull gray */}
+        <linearGradient id="glassRing" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
+        </linearGradient>
+      </defs>
+
+      {/* --- EXACT ORIGINAL SHAPES --- */}
+
+      {/* Outer Circle */}
       <circle
         cx="256"
         cy="256"
         r="214"
-        stroke="currentColor"
-        strokeOpacity="0.16"
+        stroke="url(#glassRing)"
         strokeWidth="2"
       />
+
+      {/* Thick Arcs */}
       <path
         d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1"
-        stroke="currentColor"
+        stroke="url(#pureWhite)"
         strokeWidth="28"
         strokeLinecap="round"
         fill="none"
       />
       <path
         d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9"
-        stroke="currentColor"
+        stroke="url(#pureWhite)"
         strokeWidth="28"
         strokeLinecap="round"
         fill="none"
       />
+
+      {/* Diagonal Line */}
       <line
         x1="78"
         y1="434"
         x2="434"
         y2="78"
-        stroke="currentColor"
-        strokeOpacity="0.4"
+        stroke="url(#laserLine)"
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="256" cy="256" r="7" fill="currentColor" />
+
+      {/* Center Dot */}
+      <circle cx="256" cy="256" r="7" fill="#ffffff" />
     </svg>
   );
 }
@@ -2275,13 +2307,10 @@ function Home() {
         {/* Logo & Close Button Area */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-800/80">
           <div className="flex items-center gap-2">
-            <div className="bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
+            <div className="bg-black p-1.5 rounded-xl border border-zinc-700/20 flex items-center justify-center">
               <OperlinkLogo className="h-5 w-5" />
             </div>
-            <span className="font-black text-lg tracking-tight text-white uppercase">
-              OPER
-              <span className="text-white">LINK</span>
-            </span>
+          
           </div>
 
           {/* 👈 ХУРААХ ТОВЧ */}

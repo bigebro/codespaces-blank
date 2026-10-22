@@ -17,8 +17,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-function OperlinkLogo({
-  className = "h-8 w-8 text-white",
+export function OperlinkLogo({
+  className = "h-8 w-8",
 }: {
   className?: string;
 }) {
@@ -30,30 +30,75 @@ function OperlinkLogo({
       className={className}
       aria-hidden="true"
     >
+      <defs>
+        {/* 1. Brilliant White: Adds a microscopic sheen so the solid shapes look premium, not flat */}
+        <linearGradient id="pureWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="50%" stopColor="#f4f4f5" />
+          <stop offset="100%" stopColor="#ffffff" />
+        </linearGradient>
+
+        {/* 2. Optical Fade for the Diagonal Line: Brightest in the center, tapering off perfectly to the tips like a laser beam */}
+        <linearGradient id="laserLine" x1="78" y1="434" x2="434" y2="78" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="30%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="70%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
+        </linearGradient>
+
+        {/* 3. Optical Ring: Gives the outer circle a dynamic, glass-like reflection instead of a flat dull gray */}
+        <linearGradient id="glassRing" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
+        </linearGradient>
+      </defs>
+
+      {/* --- EXACT ORIGINAL SHAPES --- */}
+
+      {/* Outer Circle */}
       <circle
         cx="256"
         cy="256"
         r="214"
-        stroke="currentColor"
-        strokeOpacity="0.2"
+        stroke="url(#glassRing)"
         strokeWidth="2"
       />
+
+      {/* Thick Arcs */}
       <path
-        d="M286.9 351.1A100 100 0 0 1 160.9 225.1"
-        stroke="currentColor"
-        strokeWidth="32"
+        d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1"
+        stroke="url(#pureWhite)"
+        strokeWidth="28"
         strokeLinecap="round"
+        fill="none"
       />
       <path
-        d="M225.1 160.9A100 100 0 0 1 351.1 286.9"
-        stroke="currentColor"
-        strokeWidth="32"
+        d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9"
+        stroke="url(#pureWhite)"
+        strokeWidth="28"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Diagonal Line */}
+      <line
+        x1="78"
+        y1="434"
+        x2="434"
+        y2="78"
+        stroke="url(#laserLine)"
+        strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="256" cy="256" r="10" fill="currentColor" />
+
+      {/* Center Dot */}
+      <circle cx="256" cy="256" r="7" fill="#ffffff" />
     </svg>
   );
 }
+
 export default function PremiumLandingPage() {
   const router = useRouter();
   const [dailyRevenue, setDailyRevenue] = useState(2500000);
@@ -68,7 +113,7 @@ export default function PremiumLandingPage() {
 
   const faqs = [
     {
-      q: "Operlink миний бизнест ямар үр дүн өгөх вэ?",
+      q: "Миний бизнест ямар үр дүн өгөх вэ?",
       a: "Танай өдөр тутмын үйл ажиллагаанаас үл анзаарагдам алдагдаж байдаг мөнгийг хамгаалж, цэвэр ашгийг тань бодитоор өсгөнө. Мөн та бизнесээсээ гадуур байсан ч бизнес тань цаг шиг нарийн өөрөө ажиллаж, сард 40 гаруй цагийн хувийн эрх чөлөөгөө буцаан авна.",
     },
     {
@@ -101,13 +146,10 @@ export default function PremiumLandingPage() {
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => router.push("/")}
         >
-          <div className="bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 ">
+          <div className="bg-black p-1.5 rounded-2xl border border-zinc-700/20 ">
             <OperlinkLogo className="h-7 w-7" />
           </div>
-          <span className="text-2xl font-black tracking-tight text-white uppercase">
-            OPER
-            <span className="text-white">LINK</span>
-          </span>
+        
         </div>
         <div className="flex items-center gap-6 z-50">
           <Link
@@ -163,11 +205,9 @@ export default function PremiumLandingPage() {
           href="/login"
           className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-zinc-950 font-black text-base px-10 py-5 rounded-2xl  hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto cursor-pointer max-w-sm"
         >
-          14 Хоног Үнэгүй Турших <ArrowRight className="h-5 w-5" />
+          Үнэгүй Турших 
         </Link>
-        <p className="text-xs text-zinc-500 mt-3 font-bold uppercase tracking-widest">
-          Кредит карт шаардлагагүй. Эрсдэл 100% бидний талд.
-        </p>
+  
       </section>
 
       {/* 3. HORMOZI GRAND SLAM OFFER */}
@@ -175,7 +215,7 @@ export default function PremiumLandingPage() {
         <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-cyan-900/40 p-1 rounded-3xl">
           <div className="bg-zinc-900 rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
-            <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
+          
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
               Та юу ч хийх шаардлагагүй. Бид танай бизнесийг ашигтай болгоно.
             </h2>
@@ -209,7 +249,7 @@ export default function PremiumLandingPage() {
                 <DollarSign className="h-7 w-7 text-zinc-200" />
               </div>
               <h3 className="text-xl font-bold text-white mb-3">
-                1. Бодит Цэвэр Ашгийн Өсөлт
+                Бодит Цэвэр Ашгийн Өсөлт
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Үл анзаарагдам алдагдлуудыг зогсоож, тэр мөнгийг сар бүр банкны
@@ -229,7 +269,7 @@ export default function PremiumLandingPage() {
                 <Zap className="h-7 w-7 text-zinc-300" />
               </div>
               <h3 className="text-xl font-bold text-white mb-3">
-                2. Таны Бизнесийн Ашгийн Хөшүүрэг
+                Таны Бизнесийн Ашгийн Хөшүүрэг
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Та өдөр бүр стресстэж ажиллах биш, ухаалаг системээр дамжуулан
@@ -249,7 +289,7 @@ export default function PremiumLandingPage() {
                 <Compass className="h-7 w-7 text-zinc-300" />
               </div>
               <h3 className="text-xl font-bold text-white mb-3">
-                3. Сард +40 цагийн Эрх Чөлөө
+                Сард +40 цагийн Эрх Чөлөө
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Шөнө дөл хүртэл тооцоо шивэх, тайлан ухахаа боль. Бүх зүйл өөрөө
@@ -369,8 +409,8 @@ export default function PremiumLandingPage() {
               }`}
             >
               <span>Жилээр төлөх</span>
-              <span className="text-[10px] bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-zinc-700/30 font-black">
-                🎁 2 САР ҮНЭГҮЙ
+              <span className="text-xs bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-zinc-700/30 font-black">
+                2 САР ҮНЭГҮЙ
               </span>
             </button>
           </div>
@@ -396,15 +436,15 @@ export default function PremiumLandingPage() {
               </div>
               <ul className="space-y-4 mb-8 text-sm text-zinc-300">
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
+             
                   Бүх төхөөрөмж дээр ажиллана
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
+               
                   Агуулахын тооллого & Хаягдал
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
+            
                   Бодит ашгийн өдөр тутмын хяналт
                 </li>
               </ul>
@@ -417,12 +457,7 @@ export default function PremiumLandingPage() {
               >
                 Сонгож Төлөх <ArrowRight className="h-3.5 w-3.5" />
               </Link>
-              <Link
-                href={`/login?plan=starter&cycle=${isYearly ? "yearly" : "monthly"}&action=trial`}
-                className="w-full text-zinc-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
-              >
-                14 хоног үнэгүй эхлэх
-              </Link>
+          
             </div>
           </div>
 
@@ -437,7 +472,7 @@ export default function PremiumLandingPage() {
               </p>
               <div className="mb-6">
                 <span className="text-xs text-zinc-200 font-bold block mb-1">
-                  ⚙️ Нэвтрүүлэлт: Бэлэн жортой бол 0₮ / Жор гаргах: Тохиролцоно
+                   Нэвтрүүлэлт: Бэлэн жортой бол 0₮ / Жор гаргах: Тохиролцоно
                 </span>
                 <span className="text-5xl font-black text-white font-mono">
                   {isYearly ? "249,000₮" : "299,000₮"}
@@ -448,19 +483,19 @@ export default function PremiumLandingPage() {
               </div>
               <ul className="space-y-4 mb-8 text-sm text-zinc-200 font-medium">
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" /> 3
+                  3
                   хүртэлх төхөөрөмж холболт
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" /> 📈
+              
                   Санхүүгийн гүнзгийрүүлсэн шинжилгээ
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" /> 📊
+                
                   E-Tax СТ-2 тайлан экспорт
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" /> 🛡️
+                
                   Өртөг, ашгийн автомат хяналт
                 </li>
               </ul>
@@ -491,7 +526,7 @@ export default function PremiumLandingPage() {
 
               <div className="mb-4">
                 <span className="text-xs text-zinc-400 font-bold block mb-1">
-                  ⚙️ Нэвтрүүлэлт: Гэрээгээр
+                  Нэвтрүүлэлт: Гэрээгээр
                 </span>
                 <span className="text-4xl font-black text-white font-mono">
                   Тохиролцоно
@@ -503,15 +538,15 @@ export default function PremiumLandingPage() {
 
               <ul className="space-y-4 mb-8 text-sm text-zinc-300">
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
+                
                   Бүх Pro боломжууд
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
+              
                   Олон салбарын нэгдсэн удирдлага
                 </li>
                 <li className="flex gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-zinc-200 shrink-0" />{" "}
+                  
                   Захиалгалт хөгжүүлэлт
                 </li>
               </ul>
@@ -525,12 +560,6 @@ export default function PremiumLandingPage() {
                 Уулзалт товлох (Холбогдох) ➔
               </Link>
 
-              <Link
-                href={`/login?plan=enterprise&cycle=${isYearly ? "yearly" : "monthly"}&action=trial`}
-                className="w-full text-zinc-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
-              >
-                14 хоног үнэгүй эхлэх
-              </Link>
             </div>
           </div>
         </div>
@@ -571,9 +600,7 @@ export default function PremiumLandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <OperlinkLogo className="h-5 w-5" />
-            <span className="font-bold text-zinc-500 tracking-tight uppercase">
-              OPERA<span className="text-zinc-200/50">LINK</span>
-            </span>
+         
           </div>
           <p className="text-xs text-zinc-600 font-medium">
             © 2026 Operlink Technologies. Улаанбаатар хот, Монгол Улс.

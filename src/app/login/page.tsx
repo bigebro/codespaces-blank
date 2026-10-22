@@ -6,67 +6,86 @@ import { useRouter } from "next/navigation";
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 // 🚀 THE QUANTUM FORCE & MATTER OPERALINK LOGO
+
 export function OperlinkLogo({
-  className = "h-10 w-auto text-white",
+  className = "h-8 w-8",
 }: {
   className?: string;
 }) {
   return (
-    <svg viewBox="0 0 520 100" className={className} aria-label="OPERLINK">
+    <svg
+      viewBox="0 0 512 512"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
       <defs>
-        {/* Slices the logo perfectly in half horizontally */}
-        <clipPath id="top-slice">
-          <rect x="0" y="0" width="520" height="48" />
-        </clipPath>
-        <clipPath id="bottom-slice">
-          <rect x="0" y="52" width="520" height="48" />
-        </clipPath>
+        {/* 1. Brilliant White: Adds a microscopic sheen so the solid shapes look premium, not flat */}
+        <linearGradient id="pureWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="50%" stopColor="#f4f4f5" />
+          <stop offset="100%" stopColor="#ffffff" />
+        </linearGradient>
+
+        {/* 2. Optical Fade for the Diagonal Line: Brightest in the center, tapering off perfectly to the tips like a laser beam */}
+        <linearGradient id="laserLine" x1="78" y1="434" x2="434" y2="78" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="30%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="70%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
+        </linearGradient>
+
+        {/* 3. Optical Ring: Gives the outer circle a dynamic, glass-like reflection instead of a flat dull gray */}
+        <linearGradient id="glassRing" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
+        </linearGradient>
       </defs>
 
-      {/* TOP HALF - Shifted left for the shear effect */}
-      <g clipPath="url(#top-slice)" transform="translate(-2, 0)">
-        <LogoGeometry />
-      </g>
+      {/* --- EXACT ORIGINAL SHAPES --- */}
 
-      {/* BOTTOM HALF - Shifted right for the shear effect */}
-      <g clipPath="url(#bottom-slice)" transform="translate(2, 0)">
-        <LogoGeometry />
-      </g>
+      {/* Outer Circle */}
+      <circle
+        cx="256"
+        cy="256"
+        r="214"
+        stroke="url(#glassRing)"
+        strokeWidth="2"
+      />
+
+      {/* Thick Arcs */}
+      <path
+        d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1"
+        stroke="url(#pureWhite)"
+        strokeWidth="28"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9"
+        stroke="url(#pureWhite)"
+        strokeWidth="28"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Diagonal Line */}
+      <line
+        x1="78"
+        y1="434"
+        x2="434"
+        y2="78"
+        stroke="url(#laserLine)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+
+      {/* Center Dot */}
+      <circle cx="256" cy="256" r="7" fill="#ffffff" />
     </svg>
-  );
-}
-
-// Reusable geometry so we can slice it in half above
-function LogoGeometry() {
-  return (
-    <>
-      {/* The 'O' - Embedded perfectly as your Reticle Logo */}
-      <g transform="translate(10, 20)">
-        <circle cx="30" cy="30" r="26" stroke="currentColor" strokeWidth="3" fill="none" />
-        <path d="M 33 41 A 12 12 0 0 1 19 27" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-        <path d="M 27 19 A 12 12 0 0 1 41 33" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-        <line x1="9" y1="51" x2="51" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="30" cy="30" r="2.5" fill="currentColor" />
-      </g>
-
-      {/* The 'PERLINK' - Custom Engineered Forward-Leaning Geometric Path */}
-      <g transform="translate(90, 0) skewX(-12)" fill="currentColor">
-        {/* P */}
-        <path fillRule="evenodd" clipRule="evenodd" d="M0 25h30a15 15 0 0 1 15 15 15 15 0 0 1-15 15H12v20H0V25zm12 12h18a3 3 0 0 1 3 3 3 3 0 0 1-3 3H12V37z" />
-        {/* E */}
-        <path d="M 60 25 h 40 v 11 h -28 v 8 h 22 v 11 h -22 v 9 h 28 v 11 h -40 z" />
-        {/* R */}
-        <path fillRule="evenodd" clipRule="evenodd" d="M115 25h30a15 15 0 0 1 15 15 15 15 0 0 1-15 15h-0l15 20h-14.5l-14.5-20h-4v20h-12V25zm12 12h18a3 3 0 0 1 3 3 3 3 0 0 1-3 3H127V37z" />
-        {/* L */}
-        <path d="M 175 25 v 50 h 35 v -11 h -23 v -39 z" />
-        {/* I */}
-        <path d="M 225 25 v 50 h 12 v -50 z" />
-        {/* N */}
-        <path d="M252 25 H264 L285 55 V25 H297 V75 H285 L264 45 V75 H252 Z" />
-        {/* K */}
-        <path d="M312 25 V75 H324 V55 L340 75 H357 L334 50 L357 25 H340 L324 45 V25 Z" />
-      </g>
-    </>
   );
 }
 export default function LoginPage() {
@@ -261,7 +280,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-zinc-900/40 p-8 rounded-2xl border border-zinc-900 shadow-2xl backdrop-blur-md">
         {/* ТОМОРСОН ЛОГО БА ЦЭВЭРХЭН ГАРЧИГ (Дэд тайлбаргүй) */}
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-black p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center ">
+          <div className="bg-black p-3 rounded-2xl border border border-zinc-700/20 mb-4 flex items-center justify-center ">
             <OperlinkLogo className="h-12 w-12" />
           </div>
 
@@ -270,7 +289,7 @@ export default function LoginPage() {
               ? "Нууц үг сэргээх"
               : isSignUp
                 ? "Шинэ Бүртгэл Үүсгэх"
-                : "Operlink"}
+                : ""}
           </h2>
         </div>
 
