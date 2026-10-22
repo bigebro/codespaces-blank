@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabaseMaster } from "@/lib/supabaseMaster";
 import { CheckCircle2, XCircle, Bell, RefreshCw, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -14,17 +14,16 @@ export default function MasterAdminPage() {
   // 1. Эрх шалгах: Зөвхөн админ хүнд л дэлгэцийг нээнэ
   const checkAdmin = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseMaster.auth.getSession();
       if (!session) {
         router.replace("/master-login");
         return;
       }
 
-      // Бэкэндээс зөвхөн таны имэйл мөн эсэхийг асууна
-      const { data: isAdmin } = await supabase.rpc("is_master_admin");
+      const { data: isAdmin } = await supabaseMaster.rpc("is_master_admin");
       if (!isAdmin) {
         alert("🔒 Зөвхөн платформын эзэн хандах эрхтэй!");
-        await supabase.auth.signOut();
+        await supabaseMaster.auth.signOut();
         router.replace("/master-login");
         return;
       }
@@ -38,7 +37,7 @@ export default function MasterAdminPage() {
   // 2. Хүсэлтүүдийг татах
   const fetchRequests = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await supabaseMaster
       .from("payment_requests")
       .select("*")
       .order("created_at", { ascending: false });
@@ -53,14 +52,13 @@ export default function MasterAdminPage() {
     checkAdmin();
     fetchRequests();
 
-    // 🔔 REALTIME СУВАГ: Шинэ төлбөр ирмэгц дуут дохио дуугарч, alert гарна
-    const channel = supabase
-      .channel("payment_alerts")
+    // 🔔 REALTIME СУВАГ: Шинэ төлбөр ирмэгц шууд дэлгэцэнд орж ирнэ
+    const channel = supabaseMaster
+      .channel("payment_alerts_channel")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "payment_requests" },
         (payload) => {
-          // 🔊 Дуут дохио
           try {
             const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
             audio.play();
@@ -73,19 +71,21 @@ export default function MasterAdminPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabaseMaster.removeChannel(channel);
     };
   }, [checkAdmin, fetchRequests]);
 
-  // ✅ БАТЛАХ ҮЙЛДЭЛ (Approve)
+  // ✅ БАТЛАХ ҮЙЛДЭЛ (Approve - БҮРЭН ШАЛГАЛТТАЙ)
   const handleApprove = async (req: any) => {
     if (!confirm(`"${req.client_id}"-ийн ${Number(req.amount).toLocaleString()}₮ төлбөрийг баталгаажуулах уу?`)) return;
 
-    // 1. Одоо байгаа өдрүүдийг нь хадгалж сунгах (Алдагдалгүй сунгалт)
-    const { data: tenant } = await supabase
+    setLoading(true);
+
+    // 1. Тухайн дэлгүүрийн одоогийн эрхийг татах
+    const { data: tenant } = await supabaseMaster
       .from("tenants")
       .select("subscription_end_date")
-      .eq("client_id", req.client_id)
+      .ilike("client_id", req.client_id.trim())
       .maybeSingle();
 
     const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
@@ -95,23 +95,24 @@ export default function MasterAdminPage() {
     }
     baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
 
-    // 2. Хэрэглэгчийн Tenant эрхийг нээх & сунгах
-    const { error: tenantErr } = await supabase
+    // 2. Tenants хүснэгтийн эрхийг шинэчлэх
+    const { error: tenantErr } = await supabaseMaster
       .from("tenants")
       .update({
         plan: req.plan,
         status: "active",
         subscription_end_date: baseDate.toISOString()
       })
-      .eq("client_id", req.client_id);
+      .ilike("client_id", req.client_id.trim());
 
     if (tenantErr) {
-      alert("Алдаа гарлаа: " + tenantErr.message);
+      alert("❌ Байгууллагын эрх сунгахад алдаа гарлаа: " + tenantErr.message);
+      setLoading(false);
       return;
     }
 
-    // 3. Хүсэлтийн статусыг Approved болгох
-    await supabase
+    // 3. Payment_requests хүснэгтийн төлөвийг APPROVED болгох (Алдааг заавал шалгана!)
+    const { error: reqErr } = await supabaseMaster
       .from("payment_requests")
       .update({
         status: "approved",
@@ -119,16 +120,38 @@ export default function MasterAdminPage() {
       })
       .eq("id", req.id);
 
-    alert(`✅ Амжилттай баталлаа! ${req.client_id}-ийн эрх ${baseDate.toLocaleDateString("mn-MN")} хүртэл нээгдлээ.`);
-    fetchRequests();
+    if (reqErr) {
+      alert("❌ Төлбөрийн хүсэлтийн төлөв өөрчлөхөд алдаа: " + reqErr.message);
+      setLoading(false);
+      return;
+    }
+
+    alert(`✅ Амжилттай баталлаа! "${req.client_id}"-ийн эрх ${baseDate.toLocaleDateString("mn-MN")} хүртэл сунгагдлаа.`);
+    await fetchRequests();
+     // Dashboard руу шууд дохио буудах (Broadcast)
+    const channelName = `shop-updates-${req.client_id.replace(/\s+/g, "_")}`;
+    const broadcastChannel = supabaseMaster.channel(channelName);
+    
+    broadcastChannel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await broadcastChannel.send({
+          type: 'broadcast',
+          event: 'payment_approved',
+          payload: { message: "approved" }
+        });
+        // Дохиог илгээгээд сувгийг хаана
+        setTimeout(() => supabaseMaster.removeChannel(broadcastChannel), 500);
+      }
+    });
   };
 
   // ❌ ЦУЦЛАХ ҮЙЛДЭЛ (Reject)
   const handleReject = async (req: any) => {
-    const reason = prompt("Цуцлах шалтгаанаа бичнэ үү (Жишээ нь: Мөнгө дансанд ороогүй):");
+    const reason = prompt("Цуцлах шалтгаанаа бичнэ үү (Жишээ нь: Дансанд мөнгө ороогүй):");
     if (reason === null) return;
 
-    await supabase
+    setLoading(true);
+    const { error: reqErr } = await supabaseMaster
       .from("payment_requests")
       .update({
         status: "rejected",
@@ -136,17 +159,20 @@ export default function MasterAdminPage() {
       })
       .eq("id", req.id);
 
-    alert(`❌ Хүсэлтийг цуцаллаа.`);
-    fetchRequests();
+    if (reqErr) {
+      alert("Цуцлахад алдаа гарлаа: " + reqErr.message);
+    } else {
+      alert("❌ Хүсэлтийг цуцаллаа.");
+    }
+    await fetchRequests();
   };
 
-  // 🚪 ГАРАХ ҮЙЛДЭЛ (Logout)
+  // 🚪 ГАРАХ ҮЙЛДЭЛ
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabaseMaster.auth.signOut();
     router.replace("/master-login");
   };
 
-  // 🛡️ Эрх шалгаж байх үед түр харагдах цэвэрхэн дэлгэц
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
@@ -179,7 +205,6 @@ export default function MasterAdminPage() {
               </span>
             </div>
 
-            {/* Шинэчлэх товч (Дарсан үед эргэлдэж харагдана) */}
             <button 
               onClick={fetchRequests} 
               className="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
@@ -188,7 +213,6 @@ export default function MasterAdminPage() {
               <RefreshCw className={`h-4 w-4 text-slate-300 ${loading ? "animate-spin text-emerald-400" : ""}`} />
             </button>
 
-            {/* Гарах товч */}
             <button 
               onClick={handleLogout} 
               className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl transition cursor-pointer"
@@ -230,7 +254,7 @@ export default function MasterAdminPage() {
                       </td>
                       <td className="p-4">
                         <span className="bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider">
-                          {req.plan} ({req.billing_cycle === 'yearly' ? '1 Жил' : '1 Сар'})
+                          {req.plan} ({req.billing_cycle === 'yearly' ? '1 Жил' : req.billing_cycle === 'upgrade' ? 'Ахиулах' : '1 Сар'})
                         </span>
                       </td>
                       <td className="p-4 text-right font-black text-white font-mono text-lg">

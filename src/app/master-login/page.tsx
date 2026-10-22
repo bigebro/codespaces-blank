@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Mail, Lock, ArrowRight } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabaseMaster } from "@/lib/supabaseMaster";
 
 export default function MasterLoginPage() {
   const router = useRouter();
@@ -18,28 +18,23 @@ export default function MasterLoginPage() {
     setError(null);
 
     try {
-      // 1. Supabase-ийн жинхэнэ нууцлалтайгаар нэвтрэнэ (Нууц үг хэзээ ч ил харагдахгүй)
-      const { data, error: authError } = await supabase.auth.signInWithPassword(
-        {
-          email: email.trim(),
-          password: password,
-        },
-      );
+      const { data, error: authError } = await supabaseMaster.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+      });
 
       if (authError || !data.user) {
         throw new Error("Имэйл эсвэл нууц үг буруу байна!");
       }
 
-      // 2. Бэкэнд функцээс "Энэ хүн платформ эзэмшигч мөн үү?" гэж асууна
-      const { data: isAdmin } = await supabase.rpc("is_master_admin");
+      // Админ мөн эсэхийг шалгах
+      const { data: isAdmin } = await supabaseMaster.rpc("is_master_admin");
 
       if (!isAdmin) {
-        // Хэрэв таны имэйл биш бол шууд системээс хөөнө
-        await supabase.auth.signOut();
-        throw new Error("⛔ Хандалт хориотой: Та платформын админ биш байна!");
+        await supabaseMaster.auth.signOut();
+        throw new Error("⛔ Хандалт хориотой: Зөвхөн платформ эзэмшигч нэвтрэх эрхтэй!");
       }
 
-      // 3. Зөв бол Админ самбар руу оруулна
       router.push("/admin");
     } catch (err: any) {
       setError(err.message || "Нэвтрэхэд алдаа гарлаа.");
@@ -57,9 +52,7 @@ export default function MasterLoginPage() {
 
         <div>
           <h2 className="text-xl font-black text-white">Master Admin Portal</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Зөвхөн платформын үүсгэн байгуулагчид зориулсан
-          </p>
+          <p className="text-xs text-slate-400 mt-1">Зөвхөн платформын үүсгэн байгуулагчид зориулсан</p>
         </div>
 
         {error && (
@@ -71,7 +64,7 @@ export default function MasterLoginPage() {
         <form onSubmit={handleLogin} className="space-y-4 text-left">
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              Hэвтрэх имэйл
+              Админ Имэйл
             </label>
             <div className="relative">
               <input
@@ -79,7 +72,7 @@ export default function MasterLoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Имэйл"
+                placeholder="bigeservice@gmail.com"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 font-medium"
               />
               <Mail className="h-4 w-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />

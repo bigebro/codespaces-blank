@@ -407,7 +407,7 @@ const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 const [checkoutInitialPlan, setCheckoutInitialPlan] = useState('professional');
 const [checkoutInitialCycle, setCheckoutInitialCycle] = useState('monthly');
 const [userPhone, setUserPhone] = useState('');
-  
+const [showUpgradeSuccess, setShowUpgradeSuccess] = useState(false);  
 // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
 const UNIVERSAL_CATEGORIES = [
   { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', icon: '☕', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
@@ -1627,19 +1627,7 @@ if (includeAnalytics || tabToLoad === "dashboard") {
   }
 }
     
-      // Хүнд аналитикийг ЗӨВХӨН эзэн Санхүүгийн таб дээр байгаа үед л дуудна!
-      if (includeAnalytics || tabToLoad === "dashboard") {
-        const activeStart = start || startDate;
-        const activeEnd = end || endDate;
-        const res = await fetch(
-          `/api/analytics?clientId=${encodeURIComponent(targetClient)}&startDate=${encodeURIComponent(activeStart)}T00:00:00.000Z&endDate=${encodeURIComponent(activeEnd)}T23:59:59.999Z`,
-          { cache: "no-store" }
-        );
-        if (res.ok) {
-          const analData = await res.json();
-          setLiveAnalytics(analData);
-        }
-      }
+
     } catch (err) {
       console.error("Error fetching database:", err);
     } finally {
@@ -1668,47 +1656,35 @@ if (includeAnalytics || tabToLoad === "dashboard") {
     setLoading(false);
   }
 };
-
-  useEffect(() => {
+useEffect(() => {
     if (!activeClient) return;
 
+    // 1. Салбарын нэрээр тусгай суваг үүсгэнэ
+    const channelName = `shop-updates-${activeClient.replace(/\s+/g, "_")}`;
+
     const channel = supabase
-      .channel("realtime-dashboard-sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "inventory_logs" },
-        () => {
-          fetchDatabaseData(activeClient);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "shifts" },
-        () => {
-          fetchDatabaseData(activeClient);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        () => {
-          fetchDatabaseData(activeClient);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tasks" },
-        () => {
-          fetchDatabaseData(activeClient);
-        },
-      )
-      .subscribe();
+      .channel(channelName)
+      // ⚡ 2. БААЗААС БИШ, АДМИНААС ШУУД ИРЭХ ДОХИОГ БАРЬЖ АВАХ (Broadcast)
+      .on("broadcast", { event: "payment_approved" }, () => {
+        console.log("⚡ Админаас шууд дохио ирлээ! Батлагдлаа!");
+        fetchDatabaseData(activeClient);
+          // 1. ТӨЛБӨРИЙН ЦОНХЫГ АВТОМАТААР ХААХ:
+        setShowCheckoutModal(false); 
+        setShowUpgradeSuccess(true);
+      })
+      // Бусад жирийн хүснэгтүүдийн шинэчлэлт (Хуучнаараа байна)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_logs" }, () => fetchDatabaseData(activeClient))
+      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => fetchDatabaseData(activeClient))
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => fetchDatabaseData(activeClient))
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchDatabaseData(activeClient))
+      .subscribe((status) => {
+        console.log("📡 Холболтын төлөв:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [activeClient]);
-
  
 
   const cleanNameForMatch = (str: string) => {
@@ -3117,7 +3093,34 @@ const commitFinalSales = async (
         userPhone={userPhone}
         initialPlan={checkoutInitialPlan}
         initialCycle={checkoutInitialCycle}
+         currentPlan={tenantInfo?.plan || "trial"}
       />
+      {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
+        {showUpgradeSuccess && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+            <div className="bg-[#0B1120] border-2 border-emerald-500 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
+              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
+                <span className="text-4xl">🎉</span>
+              </div>
+              <h2 className="text-2xl font-black text-white">Баяр хүргэе!</h2>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Таны төлбөр баталгаажиж, үйлчилгээний эрх амжилттай сунгагдлаа.
+              </p>
+              
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl inline-block mt-2 min-w-[200px]">
+                <span className="text-xs text-slate-500 block uppercase font-bold mb-1">Дараагийн сунгалт:</span>
+                <span className="text-emerald-400 font-black text-lg">{tenantInfo?.formattedEndDate}</span>
+              </div>
+              
+              <button
+                onClick={() => setShowUpgradeSuccess(false)}
+                className="w-full mt-6 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3.5 rounded-xl transition shadow-lg active:scale-95 cursor-pointer"
+              >
+                Үргэлжлүүлэх
+              </button>
+            </div>
+          </div>
+        )}
          </div>
         </main>
       </div>
