@@ -104,7 +104,7 @@ export default function SettingsTab({
 
   const { ingredients, setIngredients } = useIngredients(activeClient);
   const { productsList, setProductsList } = useProducts(activeClient);
-    const { recipes, setRecipes } = useRecipes(activeClient, ingredients);
+  const { recipes, setRecipes } = useRecipes(activeClient, ingredients);
   const [targetRecipeDraft, setTargetRecipeDraft] = useState<{
     name: string;
     price: string;
@@ -126,7 +126,7 @@ export default function SettingsTab({
       id: "HOT_BEVERAGE",
       name: "☕ Халуун ундаа",
       icon: "☕",
-      color: "text-amber-300 bg-amber-500/10 border-amber-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
     },
     {
       id: "COLD_BEVERAGE",
@@ -138,19 +138,19 @@ export default function SettingsTab({
       id: "FOOD_PREP",
       name: "🍳 Хоол & Зууш",
       icon: "🍳",
-      color: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
     },
     {
       id: "BAKERY_DESSERT",
       name: "🥐 Бэйкэри & Десерт",
       icon: "🥐",
-      color: "text-purple-300 bg-purple-500/10 border-purple-500/30",
+      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
     },
     {
       id: "RETAIL_FMCG",
       name: "🥤 Бэлэн бараа (Лааз/Сав)",
       icon: "🥤",
-      color: "text-blue-300 bg-blue-500/10 border-blue-500/30",
+      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
     },
     {
       id: "GENERAL",
@@ -229,7 +229,7 @@ export default function SettingsTab({
                 }}
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "ingredients"
-                    ? "bg-emerald-500 text-slate-950 shadow-md"
+                    ? "bg-white text-slate-950 shadow-md"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -244,7 +244,7 @@ export default function SettingsTab({
                 }}
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "products"
-                    ? "bg-blue-600 text-white shadow-md"
+                    ? "bg-white text-white shadow-md"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -337,14 +337,14 @@ export default function SettingsTab({
 
         {pendingCategoryReview && catalogTab === "products" && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150">
-            <div className="bg-[#0d1527] border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-2xl shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
               {/* Толгой хэсэг */}
               <div className="flex justify-between items-start border-b border-slate-800 pb-3">
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     <span>✨ Шинэ цэсүүдийг ангилах</span>
                   </h3>
-                  <p className="text-xs text-amber-300 font-bold mt-1 leading-relaxed bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl">
+                  <p className="text-xs text-zinc-300 font-bold mt-1 leading-relaxed bg-zinc-800/60 border border-zinc-700 p-2.5 rounded-xl">
                     ℹ️ Шинээр орж ирсэн{" "}
                     {pendingCategoryReview.productsToReview.length} цэсийн
                     ангиллыг шалгаад баталгаажуулна уу.
@@ -411,13 +411,13 @@ export default function SettingsTab({
                             <span
                               className={`text-[10px] font-black px-2 py-0.5 rounded border ${
                                 item.method.includes("Толь бичиг")
-                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                                  ? "bg-zinc-800/60 text-zinc-300 border-zinc-800"
                                   : item.method.includes("AI") &&
                                       !item.isUnknown
-                                    ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                    ? "bg-purple-500/10 text-zinc-300 border-zinc-800/30"
                                     : item.method.includes("Гараар")
-                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                      : "bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse"
+                                      ? "bg-zinc-800/60 text-zinc-200 border-zinc-800"
+                                      : "bg-zinc-800/60 text-zinc-300 border-zinc-700 "
                               }`}
                             >
                               {item.method}
@@ -446,7 +446,7 @@ export default function SettingsTab({
                     [],
                   );
                 }}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
               >
                 {pendingCategoryReview.isProcessing ? (
                   <>

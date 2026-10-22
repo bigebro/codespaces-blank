@@ -46,31 +46,37 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-         {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
-           
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
+
         {/* 🍏 APPLE (IPAD / IPHONE) ТОХИРГОО: */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
         <meta name="apple-mobile-web-app-title" content="Smart BoH" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        
+
         {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#070b14" />
-     <Script
-      id="sw-register"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{
-        __html: `
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
               navigator.serviceWorker.register('/sw.js');
             });
           }
         `,
-      }}
-    />
+          }}
+        />
         {/* <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -81,7 +87,9 @@ export default function RootLayout({
           }}
         /> */}
       </head>
-      <body className="min-h-full flex flex-col bg-[#070b14] text-slate-100">{children}</body>
+      <body className="min-h-full flex flex-col bg-zinc-950 text-slate-100">
+        {children}
+      </body>
     </html>
   );
 }

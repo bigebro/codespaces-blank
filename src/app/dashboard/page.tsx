@@ -1,21 +1,49 @@
 "use client";
 
-import React, { useState, useEffect, useRef, startTransition  } from "react";
+import React, { useState, useEffect, useRef, startTransition } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 // @ts-ignore
-import * as XLSX from 'xlsx'; 
+import * as XLSX from "xlsx";
 
 import {
-  TrendingUp, Trash2, DollarSign, Activity, AlertTriangle, Database, Coffee, 
-  Layers3, Save, Check, FileSpreadsheet, UploadCloud, Bot, 
-  ShieldAlert, Download, Camera, ExternalLink, Search,
-  LayoutDashboard, CheckSquare, LogOut, Smartphone, Settings,  PanelLeftClose, Menu,ChevronDown, ChevronUp 
+  TrendingUp,
+  Trash2,
+  DollarSign,
+  Activity,
+  AlertTriangle,
+  Database,
+  Coffee,
+  Layers3,
+  Save,
+  Check,
+  FileSpreadsheet,
+  UploadCloud,
+  Bot,
+  ShieldAlert,
+  Download,
+  Camera,
+  ExternalLink,
+  Search,
+  LayoutDashboard,
+  CheckSquare,
+  LogOut,
+  Smartphone,
+  Settings,
+  PanelLeftClose,
+  Menu,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
-import { autoCategorizeProduct, evaluateSaleItem, sanitizeName, transliterate  } from "../../lib/autoReconcile";
+import {
+  autoCategorizeProduct,
+  evaluateSaleItem,
+  sanitizeName,
+  transliterate,
+} from "../../lib/autoReconcile";
 import FinanceTab from "@/features/finance/FinanceTab";
 import InventoryTab from "@/features/inventory/InventoryTab";
 import { AutoPilotChange } from "@/types/dashboard";
@@ -25,148 +53,43 @@ import SettingsTab from "@/features/settings/SettingsTab";
 import AiCfoChat from "@/features/ai-cfo/AiCfoChat";
 import CheckoutModal from "@/components/shared/CheckoutModal";
 
-function OperlinkLogo({ className = "h-8 w-8" }: { className?: string }) {
+function OperlinkLogo({
+  className = "h-8 w-8 text-white",
+}: {
+  className?: string;
+}) {
   return (
-    <svg 
-      viewBox="0 0 512 512" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
+    <svg
+      viewBox="0 0 512 512"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
       className={className}
+      aria-hidden="true"
     >
-      <defs>
-        {/* Хүчний шугамын градиент (Force Vector) */}
-        <linearGradient id="vectorGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#00f59b" stopOpacity="0" />
-          <stop offset="30%" stopColor="#00f59b" stopOpacity="0.5" />
-          <stop offset="50%" stopColor="#ffffff" stopOpacity="1" />
-          <stop offset="70%" stopColor="#00c8ff" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#00c8ff" stopOpacity="0" />
-        </linearGradient>
-
-        {/* Эрчим хүчний тойрог замын градиент (Link Orbit) */}
-        <linearGradient id="energyGrad" x1="56" y1="456" x2="456" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#00f59b" />
-          <stop offset="50%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#00c8ff" />
-        </linearGradient>
-
-        {/* Физик материйн хүрээний градиент (Matter Stators) */}
-        <linearGradient id="statorGrad" x1="120" y1="120" x2="392" y2="392" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#00f59b" />
-          <stop offset="30%" stopColor="#005577" />
-          <stop offset="70%" stopColor="#005577" />
-          <stop offset="100%" stopColor="#00c8ff" />
-        </linearGradient>
-
-        {/* Төвийн квант цөмийн гэрэлтэлтийн градиент (Quantum Core Halo) */}
-        <radialGradient id="coreHalo" cx="256" cy="256" r="60" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-          <stop offset="25%" stopColor="#00f59b" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#00f59b" stopOpacity="0" />
-        </radialGradient>
-
-        {/* Неон гэрэлтэлтийн шүүлтүүрүүд (Glow Filters) */}
-        <filter id="neonCyan" x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="0" stdDeviation="12" floodColor="#00c8ff" floodOpacity="0.8" />
-        </filter>
-        <filter id="neonEmerald" x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#00f59b" floodOpacity="0.6" />
-        </filter>
-      </defs>
-
-      {/* 1. OUTER HUD RING (SpaceX сансрын нарийвчлалтай хүрээ) */}
-      <circle 
-        cx="256" 
-        cy="256" 
-        r="220" 
-        stroke="#00c8ff" 
-        strokeOpacity="0.2" 
-        strokeWidth="2" 
-        strokeDasharray="4 12" 
+      <circle
+        cx="256"
+        cy="256"
+        r="214"
+        stroke="currentColor"
+        strokeOpacity="0.2"
+        strokeWidth="2"
       />
-      {/* HUD-ийн 4 холбоос цэг */}
-      <circle cx="411.5" cy="411.5" r="4" fill="#00f59b" />
-      <circle cx="100.5" cy="411.5" r="4" fill="#00f59b" />
-      <circle cx="100.5" cy="100.5" r="4" fill="#00f59b" />
-      <circle cx="411.5" cy="100.5" r="4" fill="#00f59b" />
-
-      {/* 2. THE FORCE VECTOR (Шууд чиглэсэн хүчний вектор шугам) */}
-      <line 
-        x1="56" 
-        y1="456" 
-        x2="456" 
-        y2="56" 
-        stroke="url(#vectorGrad)" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
+      <path
+        d="M286.9 351.1A100 100 0 0 1 160.9 225.1"
+        stroke="currentColor"
+        strokeWidth="32"
+        strokeLinecap="round"
       />
-
-      {/* 3. BACK ORBIT (Орбитын арын хагас - Материйн цаагуур эргэх) */}
-      <g transform="rotate(-45 256 256)">
-        <path 
-          d="M 56 256 A 200 60 0 0 1 456 256" 
-          stroke="url(#energyGrad)" 
-          strokeWidth="10" 
-          strokeOpacity="0.4" 
-          strokeLinecap="round" 
-          fill="none" 
-        />
-      </g>
-
-      {/* 4. MATTER STATORS (Физик материйн хуваагдсан 'O' цагираг) */}
-      <g filter="url(#neonEmerald)">
-        {/* Доод талын масс (Bottom Arc: 0.4*PI -> 1.1*PI) */}
-        <path 
-          d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1" 
-          stroke="url(#statorGrad)" 
-          strokeWidth="28" 
-          strokeLinecap="round" 
-          fill="none" 
-        />
-        {/* Дээд талын масс (Top Arc: 1.4*PI -> 2.1*PI) */}
-        <path 
-          d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9" 
-          stroke="url(#statorGrad)" 
-          strokeWidth="28" 
-          strokeLinecap="round" 
-          fill="none" 
-        />
-      </g>
-
-      {/* Материйн дотоод ховил (Tech Detail Groove) */}
-      <path 
-        d="M 280.9 349.5 A 100 100 0 0 1 162.7 231.3" 
-        stroke="#050a12" 
-        strokeWidth="4" 
-        strokeLinecap="round" 
-        fill="none" 
+      <path
+        d="M225.1 160.9A100 100 0 0 1 351.1 286.9"
+        stroke="currentColor"
+        strokeWidth="32"
+        strokeLinecap="round"
       />
-      <path 
-        d="M 231.1 162.5 A 100 100 0 0 1 349.3 280.7" 
-        stroke="#050a12" 
-        strokeWidth="4" 
-        strokeLinecap="round" 
-        fill="none" 
-      />
-
-      {/* 5. FRONT ORBIT (Орбитын урд хагас - Материйн урдуур гарч ирэх) */}
-      <g transform="rotate(-45 256 256)" filter="url(#neonCyan)">
-        <path 
-          d="M 456 256 A 200 60 0 0 1 56 256" 
-          stroke="url(#energyGrad)" 
-          strokeWidth="14" 
-          strokeLinecap="round" 
-          fill="none" 
-        />
-      </g>
-
-      {/* 6. QUANTUM CORE (Төв дэх цөм - Singularity) */}
-      <circle cx="256" cy="256" r="45" fill="url(#coreHalo)" />
-      <circle cx="256" cy="256" r="8" fill="#ffffff" filter="url(#neonCyan)" />
+      <circle cx="256" cy="256" r="10" fill="currentColor" />
     </svg>
   );
 }
-
 
 // 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
@@ -208,7 +131,9 @@ function getSimilarity(s1: string, s2: string): number {
     }
     if (i > 0) costs[shorter.length] = lastValue;
   }
-  return (longerLength - costs[shorter.length]) / parseFloat(longerLength.toString());
+  return (
+    (longerLength - costs[shorter.length]) / parseFloat(longerLength.toString())
+  );
 }
 
 // =====================================================================
@@ -222,7 +147,7 @@ function LiveMetric({
   liveValue,
   demoValue,
   type = "money", // "money" | "text"
-  skeletonClass = "h-8 w-24"
+  skeletonClass = "h-8 w-24",
 }: {
   isLive: boolean;
   isReady: boolean;
@@ -233,14 +158,30 @@ function LiveMetric({
 }) {
   // Demo горим
   if (!isLive) {
-    return <>{type === "money" ? `${Math.round(demoValue).toLocaleString()}₮` : demoValue}</>;
+    return (
+      <>
+        {type === "money"
+          ? `${Math.round(demoValue).toLocaleString()}₮`
+          : demoValue}
+      </>
+    );
   }
   // Live горим боловч дата ирээгүй үед (Skeleton лугших)
   if (!isReady) {
-    return <span className={`inline-block bg-slate-800 animate-pulse rounded-md align-middle ${skeletonClass}`} />;
+    return (
+      <span
+        className={`inline-block bg-slate-800  rounded-md align-middle ${skeletonClass}`}
+      />
+    );
   }
   // Live дата ирсэн үед
-  return <>{type === "money" ? `${Math.round(liveValue).toLocaleString()}₮` : liveValue}</>;
+  return (
+    <>
+      {type === "money"
+        ? `${Math.round(liveValue).toLocaleString()}₮`
+        : liveValue}
+    </>
+  );
 }
 
 // 2. Жагсаалт (Top Waste гэх мэт) ачаалж байх үеийн Skeleton
@@ -250,10 +191,10 @@ function ListSkeleton({ rows = 3 }: { rows?: number }) {
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="border-b border-slate-800 pb-4 last:border-0">
           <div className="flex justify-between items-center mb-2">
-            <div className="h-4 w-32 bg-slate-800/80 animate-pulse rounded"></div>
-            <div className="h-4 w-20 bg-slate-800/80 animate-pulse rounded"></div>
+            <div className="h-4 w-32 bg-slate-800/80  rounded"></div>
+            <div className="h-4 w-20 bg-slate-800/80  rounded"></div>
           </div>
-          <div className="h-3 w-48 bg-slate-800/60 animate-pulse rounded"></div>
+          <div className="h-3 w-48 bg-slate-800/60  rounded"></div>
         </div>
       ))}
     </div>
@@ -266,13 +207,13 @@ function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [tenantInfo, setTenantInfo] = useState<{
-  isExpired: boolean;
-  isTrial: boolean;
-  plan: string;
-  daysLeft: number;
-  endDate: string | null; 
-  formattedEndDate: string; 
-} | null>(null);
+    isExpired: boolean;
+    isTrial: boolean;
+    plan: string;
+    daysLeft: number;
+    endDate: string | null;
+    formattedEndDate: string;
+  } | null>(null);
   const [userClient, setUserClient] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   // Navigation State
@@ -341,7 +282,7 @@ function Home() {
 
   const [salesImportSuccess, setSalesImportSuccess] = useState(false);
   const [purchaseImportSuccess, setPurchaseImportSuccess] = useState(false);
-  
+
   const [kioskLogoUrl, setKioskLogoUrl] = useState<string | null>(null);
   // Form States
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
@@ -351,16 +292,16 @@ function Home() {
   const [isNonFood, setIsNonFood] = useState(false); // FIXED: Tracks if it is a non-food OPEX purchase
   const [nonFoodName, setNonFoodName] = useState(""); // FIXED: Stores non-food item name
 
-  const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false); 
+  const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false);
   const [logCost, setLogCost] = useState(""); // NEW: Holds the total purchase cost
   const [workersList, setWorkersList] = useState<any[]>([]);
   const [companyRoles, setCompanyRoles] = useState<any[]>([]);
 
   const [ingredientsImportSuccess, setIngredientsImportSuccess] =
     useState(false);
-  
+
   const [recipesImportSuccess, setRecipesImportSuccess] = useState(false);
-  
+
   const [productsImportSuccess, setProductsImportSuccess] = useState(false);
   const [myPin, setMyPin] = useState("");
   const [invSearch, setInvSearch] = useState("");
@@ -386,11 +327,16 @@ function Home() {
   // 🔍 Үнэ өссөн барааг хайх стэйт:
   const [spikeSearch, setSpikeSearch] = useState("");
   // 🚨 Үнийн өсөлтийг хумих/дэлгэх & Маржин хайх стэйтүүд:
-  const [isSpikesExpanded, setIsSpikesExpanded] = useState(false); 
+  const [isSpikesExpanded, setIsSpikesExpanded] = useState(false);
   const [marginSearch, setMarginSearch] = useState("");
   // 🌐 ОРЧУУЛГЫН ХЯНАЛТЫН СТЭЙТҮҮД (Dashboard)
-  const [translationsCache, setTranslationsCache] = useState<Record<string, string>>({});
-  const [editingTranslation, setEditingTranslation] = useState<{ original: string; text: string } | null>(null);
+  const [translationsCache, setTranslationsCache] = useState<
+    Record<string, string>
+  >({});
+  const [editingTranslation, setEditingTranslation] = useState<{
+    original: string;
+    text: string;
+  } | null>(null);
   // ➕ Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
   const [showAddIngModal, setShowAddIngModal] = useState(false);
   const [learnedMenus, setLearnedMenus] = useState<any[]>([]);
@@ -403,45 +349,83 @@ function Home() {
   });
 
   // Төлбөрийн цонхны State-үүд:
-const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-const [checkoutInitialPlan, setCheckoutInitialPlan] = useState('professional');
-const [checkoutInitialCycle, setCheckoutInitialCycle] = useState('monthly');
-const [userPhone, setUserPhone] = useState('');
-const [showUpgradeSuccess, setShowUpgradeSuccess] = useState(false);  
-// 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
-const UNIVERSAL_CATEGORIES = [
-  { id: 'HOT_BEVERAGE', name: '☕ Халуун ундаа', icon: '☕', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
-  { id: 'COLD_BEVERAGE', name: '🍹 Хүйтэн ундаа', icon: '🍹', color: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/30' },
-  { id: 'FOOD_PREP', name: '🍳 Хоол & Зууш', icon: '🍳', color: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' },
-  { id: 'BAKERY_DESSERT', name: '🥐 Бэйкэри & Десерт', icon: '🥐', color: 'text-purple-300 bg-purple-500/10 border-purple-500/30' },
-  { id: 'RETAIL_FMCG', name: '🥤 Бэлэн бараа (Лааз/Сав)', icon: '🥤', color: 'text-blue-300 bg-blue-500/10 border-blue-500/30' },
-  { id: 'GENERAL', name: '📦 Бусад', icon: '📦', color: 'text-slate-300 bg-slate-800 border-slate-700' }
-];
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutInitialPlan, setCheckoutInitialPlan] =
+    useState("professional");
+  const [checkoutInitialCycle, setCheckoutInitialCycle] = useState("monthly");
+  const [userPhone, setUserPhone] = useState("");
+  const [showUpgradeSuccess, setShowUpgradeSuccess] = useState(false);
+  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
+  const UNIVERSAL_CATEGORIES = [
+    {
+      id: "HOT_BEVERAGE",
+      name: "☕ Халуун ундаа",
+      icon: "☕",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
+    },
+    {
+      id: "COLD_BEVERAGE",
+      name: "🍹 Хүйтэн ундаа",
+      icon: "🍹",
+      color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+    },
+    {
+      id: "FOOD_PREP",
+      name: "🍳 Хоол & Зууш",
+      icon: "🍳",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
+    },
+    {
+      id: "BAKERY_DESSERT",
+      name: "🥐 Бэйкэри & Десерт",
+      icon: "🥐",
+      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+    },
+    {
+      id: "RETAIL_FMCG",
+      name: "🥤 Бэлэн бараа (Лааз/Сав)",
+      icon: "🥤",
+      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+    },
+    {
+      id: "GENERAL",
+      name: "📦 Бусад",
+      icon: "📦",
+      color: "text-slate-300 bg-slate-800 border-slate-700",
+    },
+  ];
 
-// 🎯 6 АНГИЛЛЫН АНХДАГЧ ГЛОБАЛ МАРЖИН
-const DEFAULT_GLOBAL_MARGINS: Record<string, number> = {
-  'HOT_BEVERAGE': 82,
-  'COLD_BEVERAGE': 78,
-  'FOOD_PREP': 68,
-  'BAKERY_DESSERT': 75,
-  'RETAIL_FMCG': 50,
-  'GENERAL': 70
-};
+  // 🎯 6 АНГИЛЛЫН АНХДАГЧ ГЛОБАЛ МАРЖИН
+  const DEFAULT_GLOBAL_MARGINS: Record<string, number> = {
+    HOT_BEVERAGE: 82,
+    COLD_BEVERAGE: 78,
+    FOOD_PREP: 68,
+    BAKERY_DESSERT: 75,
+    RETAIL_FMCG: 50,
+    GENERAL: 70,
+  };
 
-const [categoryMargins, setCategoryMargins] = useState<Record<string, number>>(DEFAULT_GLOBAL_MARGINS);
-const [customMarginPrices, setCustomMarginPrices] = useState<Record<string, number>>({});
+  const [categoryMargins, setCategoryMargins] = useState<
+    Record<string, number>
+  >(DEFAULT_GLOBAL_MARGINS);
+  const [customMarginPrices, setCustomMarginPrices] = useState<
+    Record<string, number>
+  >({});
 
-// 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
-const renderCategoryBadge = (catId: string) => {
-  const found = UNIVERSAL_CATEGORIES.find(c => c.id === catId) || UNIVERSAL_CATEGORIES[5];
-  return (
-    <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 shadow-sm ${found.color}`}>
-      <span>{found.icon}</span>
-      <span>{found.name.replace(/^[^\s]+\s/, '')}</span>
-    </span>
-  );
-};
-
+  // 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
+  const renderCategoryBadge = (catId: string) => {
+    const found =
+      UNIVERSAL_CATEGORIES.find((c) => c.id === catId) ||
+      UNIVERSAL_CATEGORIES[5];
+    return (
+      <span
+        className={`px-2.5 py-1 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 shadow-sm ${found.color}`}
+      >
+        <span>{found.icon}</span>
+        <span>{found.name.replace(/^[^\s]+\s/, "")}</span>
+      </span>
+    );
+  };
 
   const [showAddProdModal, setShowAddProdModal] = useState(false);
   const [newProdForm, setNewProdForm] = useState({
@@ -523,30 +507,31 @@ const renderCategoryBadge = (catId: string) => {
     amount: "",
   });
 
-const aliasMap: Record<string, string> = {};
+  const aliasMap: Record<string, string> = {};
 
-// ⚡ 0.001 СЕКУНДЭД ШАЛГАХ ХЭТ ХУРДАН ХУВИЛБАР (CPU ХӨЛДӨХГҮЙ)
+  // ⚡ 0.001 СЕКУНДЭД ШАЛГАХ ХЭТ ХУРДАН ХУВИЛБАР (CPU ХӨЛДӨХГҮЙ)
 
   const unmappedSales = React.useMemo(() => {
     // Бүх нэрсийг санах ойд (Set) 1 удаа бэлтгэх (O(1) хурд)
     const knownSet = new Set<string>();
-    
+
     productsList.forEach((p: any) => {
       const clean = cleanString(p.name).toLowerCase();
       knownSet.add(clean);
       knownSet.add(sanitizeName(clean));
       // Крилл үсгийг латин болгож санах ойд нэмэх (Салями сэндвич == salami sendvich)
-      if (typeof transliterate === 'function') knownSet.add(transliterate(clean));
+      if (typeof transliterate === "function")
+        knownSet.add(transliterate(clean));
     });
 
- // 🧠 САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
+    // 🧠 САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
     (learnedMenus || []).forEach((lm: any) => {
       if (lm.pos_name) {
         const cleanPos = cleanString(lm.pos_name).toLowerCase();
         knownSet.add(cleanPos);
         knownSet.add(sanitizeName(cleanPos));
-        if (typeof transliterate === 'function') {
-          knownSet.add(transliterate(cleanPos).replace(/\s+/g, ''));
+        if (typeof transliterate === "function") {
+          knownSet.add(transliterate(cleanPos).replace(/\s+/g, ""));
         }
       }
     });
@@ -565,18 +550,27 @@ const aliasMap: Record<string, string> = {};
         const rawName = cleanString(s.product_name);
         const pNameLower = rawName.toLowerCase();
         const pClean = sanitizeName(pNameLower);
-        const pTrans = typeof transliterate === 'function' ? transliterate(pNameLower) : pNameLower;
+        const pTrans =
+          typeof transliterate === "function"
+            ? transliterate(pNameLower)
+            : pNameLower;
 
         // ⚡ 300 сая биш, 0.00001 миллисекундэд шууд шалгана:
-        const isKnown = knownSet.has(pNameLower) || knownSet.has(pClean) || knownSet.has(pTrans);
+        const isKnown =
+          knownSet.has(pNameLower) ||
+          knownSet.has(pClean) ||
+          knownSet.has(pTrans);
 
         if (!isKnown && !seen.has(pNameLower)) {
           seen.add(pNameLower);
-          const calculatedPrice = s.quantity_sold > 0 ? Math.round(s.total_revenue / s.quantity_sold) : 0;
+          const calculatedPrice =
+            s.quantity_sold > 0
+              ? Math.round(s.total_revenue / s.quantity_sold)
+              : 0;
           missingItems.push({
             name: s.product_name,
             soldCount: s.quantity_sold,
-            unitPrice: calculatedPrice
+            unitPrice: calculatedPrice,
           });
         }
       });
@@ -584,11 +578,13 @@ const aliasMap: Record<string, string> = {};
     return missingItems;
   }, [salesLogs, productsList, activeClient, learnedMenus]);
   // 🔗 ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
-  const [mergeSelections, setMergeSelections] = useState<Record<string, string>>({});
-// ⚡ БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
+  const [mergeSelections, setMergeSelections] = useState<
+    Record<string, string>
+  >({});
+  // ⚡ БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
   const productRecipeStatus = React.useMemo(() => {
     const map = new Map<string, { count: number }>();
-    
+
     // Бэлэн жоруудын нэрийг 1 удаа бэлтгэх
     const recipeGroups = new Map<string, any[]>();
     recipes.forEach((r: any) => {
@@ -600,7 +596,10 @@ const aliasMap: Record<string, string> = {};
     // Бүх цэсийг хурдан шалгаж Map дотор хадгалах
     productsList.forEach((prod: any) => {
       const pClean = cleanString(prod.name).toLowerCase();
-      const pTrans = typeof transliterate === 'function' ? transliterate(pClean).replace(/\s+/g, "") : pClean;
+      const pTrans =
+        typeof transliterate === "function"
+          ? transliterate(pClean).replace(/\s+/g, "")
+          : pClean;
 
       // 1. Яг адил нэртэй жор байна уу?
       if (recipeGroups.has(pClean)) {
@@ -611,11 +610,14 @@ const aliasMap: Record<string, string> = {};
       // 2. Алиас эсвэл Крилл-Латин (Салями сэндвич == Salami Sandwich) таарч байна уу?
       let matchedCount = 0;
       for (const [rName, rItems] of recipeGroups.entries()) {
-        const rTrans = typeof transliterate === 'function' ? transliterate(rName).replace(/\s+/g, "") : rName;
+        const rTrans =
+          typeof transliterate === "function"
+            ? transliterate(rName).replace(/\s+/g, "")
+            : rName;
         if (
-          rName === aliasMap[pClean] || 
-          rTrans === pTrans || 
-          getSimilarity(rTrans, pTrans) >= 0.70 ||
+          rName === aliasMap[pClean] ||
+          rTrans === pTrans ||
+          getSimilarity(rTrans, pTrans) >= 0.7 ||
           (pClean.includes("салями") && rName.includes("salami"))
         ) {
           matchedCount = rItems.length;
@@ -671,14 +673,13 @@ const aliasMap: Record<string, string> = {};
   }, [inventoryLogs, ingredients, activeClient, startDate, endDate]);
   // 📖 Шинэ жор инлайнаар үүсгэх төлөвүүд
   const [isCreatingRecipeCard, setIsCreatingRecipeCard] = useState(false);
-  const [newRecipeNameDraft, setNewRecipeNameDraft] = useState('');
-  const [newRecipePriceDraft, setNewRecipePriceDraft] = useState('');
-  const [newRecipeItemsDraft, setNewRecipeItemsDraft] = useState<Array<{ ingredient_id: string; amount: string }>>([]);
-  const [draftRecipeIngId, setDraftRecipeIngId] = useState('');
-  const [draftRecipeIngAmt, setDraftRecipeIngAmt] = useState('');
-
-
-
+  const [newRecipeNameDraft, setNewRecipeNameDraft] = useState("");
+  const [newRecipePriceDraft, setNewRecipePriceDraft] = useState("");
+  const [newRecipeItemsDraft, setNewRecipeItemsDraft] = useState<
+    Array<{ ingredient_id: string; amount: string }>
+  >([]);
+  const [draftRecipeIngId, setDraftRecipeIngId] = useState("");
+  const [draftRecipeIngAmt, setDraftRecipeIngAmt] = useState("");
 
   const [autoPilotActivity, setAutoPilotActivity] = useState<{
     totalSales: number;
@@ -690,59 +691,77 @@ const aliasMap: Record<string, string> = {};
   // ⚡ 1-CLICK ЗӨВ БУЦААХ (UNDO) ФУНКЦ
   const handleSingleUndo = async (changeId: string) => {
     if (!autoPilotActivity) return;
-    const targetChange = autoPilotActivity.changes.find(c => c.id === changeId);
+    const targetChange = autoPilotActivity.changes.find(
+      (c) => c.id === changeId,
+    );
     if (!targetChange || targetChange.reverted) return;
 
     setLoading(true);
 
     try {
-      if (targetChange.type === 'NEW_PRODUCT') {
+      if (targetChange.type === "NEW_PRODUCT") {
         await supabase
-          .from('products')
+          .from("products")
           .delete()
-          .eq('client_id', activeClient)
-          .or(`id.eq.${targetChange.productId},name.eq.${targetChange.productName}`);
+          .eq("client_id", activeClient)
+          .or(
+            `id.eq.${targetChange.productId},name.eq.${targetChange.productName}`,
+          );
 
-        setProductsList(prev => prev.filter(p => p.id !== targetChange.productId && p.name !== targetChange.productName));
+        setProductsList((prev) =>
+          prev.filter(
+            (p) =>
+              p.id !== targetChange.productId &&
+              p.name !== targetChange.productName,
+          ),
+        );
       } else {
-              // Нэр ба үнийг хуучин Меню дээр байсан хэвэнд нь буцааж UPDATE хийнэ:
+        // Нэр ба үнийг хуучин Меню дээр байсан хэвэнд нь буцааж UPDATE хийнэ:
         await supabase
-          .from('products')
+          .from("products")
           .update({
             name: targetChange.oldName,
             selling_price: targetChange.oldPrice,
-            category: targetChange.oldCategory
+            category: targetChange.oldCategory,
           })
-          .eq('id', targetChange.productId);
+          .eq("id", targetChange.productId);
 
         // Жорон дээрх нэрийг хуучин нэр рүү нь буцаана:
         await supabase
-          .from('recipes')
+          .from("recipes")
           .update({ product_name: targetChange.oldName })
-          .eq('client_id', activeClient)
-          .ilike('product_name', targetChange.newName);
+          .eq("client_id", activeClient)
+          .ilike("product_name", targetChange.newName);
 
         // Local state-ийг шинэчлэх:
-        setProductsList(prev => prev.map(p => 
-          p.id === targetChange.productId ? {
-            ...p,
-            name: targetChange.oldName,
-            selling_price: targetChange.oldPrice,
-            category: targetChange.oldCategory
-          } : p
-        ));
+        setProductsList((prev) =>
+          prev.map((p) =>
+            p.id === targetChange.productId
+              ? {
+                  ...p,
+                  name: targetChange.oldName,
+                  selling_price: targetChange.oldPrice,
+                  category: targetChange.oldCategory,
+                }
+              : p,
+          ),
+        );
       }
 
       // Төлөвийг буцаагдсан болгох:
-      setAutoPilotActivity(prev => {
+      setAutoPilotActivity((prev) => {
         if (!prev) return null;
         return {
           ...prev,
-          changes: prev.changes.map(c => c.id === changeId ? { ...c, reverted: true } : c)
+          changes: prev.changes.map((c) =>
+            c.id === changeId ? { ...c, reverted: true } : c,
+          ),
         };
       });
 
-      alert(`↩️ "${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`);
+      alert(
+        `↩️ "${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`,
+      );
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
     } finally {
@@ -766,10 +785,14 @@ const aliasMap: Record<string, string> = {};
   const handleExportRecipeBackup = () => {
     // 🔒 Өөр салбарын жор хутгалдахаас хамгаалж activeClient-ээр нарийн шүүнэ
     const clientRecipes = recipes.filter(
-      (r: any) => cleanString(r.client_id).toLowerCase() === cleanString(activeClient).toLowerCase()
+      (r: any) =>
+        cleanString(r.client_id).toLowerCase() ===
+        cleanString(activeClient).toLowerCase(),
     );
     const clientProducts = productsList.filter(
-      (p: any) => cleanString(p.client_id).toLowerCase() === cleanString(activeClient).toLowerCase()
+      (p: any) =>
+        cleanString(p.client_id).toLowerCase() ===
+        cleanString(activeClient).toLowerCase(),
     );
 
     const backupData = {
@@ -781,7 +804,9 @@ const aliasMap: Record<string, string> = {};
       recipes: clientRecipes,
     };
 
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -790,45 +815,45 @@ const aliasMap: Record<string, string> = {};
     URL.revokeObjectURL(url);
   };
 
-// 📥 EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
-const handleExportToExcel = () => {
-  // 1. Меню (Products) өгөгдлийг бэлтгэх
-  const menuData = productsList
-    .filter((p: any) => p.client_id === activeClient)
-    .map((p: any) => ({
-      'Ангилал (Category)': p.category || 'General',
-      'Бүтээгдэхүүний нэр (Product Name)': p.name,
-      'Зарах үнэ ₮ (Selling Price)': parseFloat(p.selling_price) || 0
-    }));
+  // 📥 EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
+  const handleExportToExcel = () => {
+    // 1. Меню (Products) өгөгдлийг бэлтгэх
+    const menuData = productsList
+      .filter((p: any) => p.client_id === activeClient)
+      .map((p: any) => ({
+        "Ангилал (Category)": p.category || "General",
+        "Бүтээгдэхүүний нэр (Product Name)": p.name,
+        "Зарах үнэ ₮ (Selling Price)": parseFloat(p.selling_price) || 0,
+      }));
 
-  // 2. Жор (Recipes) өгөгдлийг бэлтгэх
-  const recipeData = recipes
-    .filter((r: any) => r.client_id === activeClient)
-    .map((r: any) => {
-      const ing = ingredients.find((i: any) => i.id === r.ingredient_id);
-      return {
-        'Бүтээгдэхүүний нэр (Product Name)': r.product_name,
-        'Орцын нэр (Ingredient)': ing?.name || 'Unknown',
-        'Хэмжээ (Amount)': parseFloat(r.amount) || 0,
-        'Нэгж (Unit)': ing?.unit || ''
-      };
-    });
+    // 2. Жор (Recipes) өгөгдлийг бэлтгэх
+    const recipeData = recipes
+      .filter((r: any) => r.client_id === activeClient)
+      .map((r: any) => {
+        const ing = ingredients.find((i: any) => i.id === r.ingredient_id);
+        return {
+          "Бүтээгдэхүүний нэр (Product Name)": r.product_name,
+          "Орцын нэр (Ingredient)": ing?.name || "Unknown",
+          "Хэмжээ (Amount)": parseFloat(r.amount) || 0,
+          "Нэгж (Unit)": ing?.unit || "",
+        };
+      });
 
-  // 3. Excel Workbook үүсгэх
-  const wb = XLSX.utils.book_new();
+    // 3. Excel Workbook үүсгэх
+    const wb = XLSX.utils.book_new();
 
-  // 4. Меню хуудсыг үүсгэж хавсаргах
-  const wsMenu = XLSX.utils.json_to_sheet(menuData);
-  XLSX.utils.book_append_sheet(wb, wsMenu, "Меню_Үнэ");
+    // 4. Меню хуудсыг үүсгэж хавсаргах
+    const wsMenu = XLSX.utils.json_to_sheet(menuData);
+    XLSX.utils.book_append_sheet(wb, wsMenu, "Меню_Үнэ");
 
-  // 5. Жор хуудсыг үүсгэж хавсаргах
-  const wsRecipes = XLSX.utils.json_to_sheet(recipeData);
-  XLSX.utils.book_append_sheet(wb, wsRecipes, "Технологийн_Карт");
+    // 5. Жор хуудсыг үүсгэж хавсаргах
+    const wsRecipes = XLSX.utils.json_to_sheet(recipeData);
+    XLSX.utils.book_append_sheet(wb, wsRecipes, "Технологийн_Карт");
 
-  // 6. Файлыг татаж авах
-  const fileName = `Menu_Recipes_${activeClient.replace(/\s+/g, '_')}_${getLocalDateStr()}.xlsx`;
-  XLSX.writeFile(wb, fileName);
-};
+    // 6. Файлыг татаж авах
+    const fileName = `Menu_Recipes_${activeClient.replace(/\s+/g, "_")}_${getLocalDateStr()}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
   // 📥 JSON НӨӨЦ ФАЙЛЫГ УНШИХ & СОНГОЖ СЭРГЭЭХ СТЭЙТҮҮД
   const [jsonBackupModal, setJsonBackupModal] = useState<{
     fileData: any;
@@ -859,20 +884,25 @@ const handleExportToExcel = () => {
 
         setJsonBackupModal({
           fileData: data,
-          recipesByProduct: grouped
+          recipesByProduct: grouped,
         });
       } catch (err) {
         alert("JSON файл уншихад алдаа гарлаа!");
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; // Reset
+    e.target.value = ""; // Reset
   };
 
   // 2. БҮХ ЖОРЫГ НЭГ ДОР СЭРГЭЭХ
   const handleRestoreAllFromJson = async () => {
     if (!jsonBackupModal) return;
-    if (!confirm(`Нөөц файлаас нийт ${Object.keys(jsonBackupModal.recipesByProduct).length} бүтээгдэхүүний БҮХ жорыг сэргээх үү?`)) return;
+    if (
+      !confirm(
+        `Нөөц файлаас нийт ${Object.keys(jsonBackupModal.recipesByProduct).length} бүтээгдэхүүний БҮХ жорыг сэргээх үү?`,
+      )
+    )
+      return;
 
     setLoading(true);
     try {
@@ -883,10 +913,12 @@ const handleExportToExcel = () => {
         const cleanProducts = products.map((p: any) => ({
           client_id: activeClient,
           name: p.name,
-          category: p.category || 'General',
-          selling_price: p.selling_price || 0
+          category: p.category || "General",
+          selling_price: p.selling_price || 0,
         }));
-        await supabase.from("products").upsert(cleanProducts, { onConflict: "client_id,name" });
+        await supabase
+          .from("products")
+          .upsert(cleanProducts, { onConflict: "client_id,name" });
       }
 
       // Жорыг баазад сэргээх
@@ -895,9 +927,11 @@ const handleExportToExcel = () => {
           client_id: activeClient,
           product_name: r.product_name,
           ingredient_id: r.ingredient_id,
-          amount: parseFloat(r.amount) || 0
+          amount: parseFloat(r.amount) || 0,
         }));
-        await supabase.from("recipes").upsert(cleanRecipes, { onConflict: "client_id,product_name,ingredient_id" });
+        await supabase.from("recipes").upsert(cleanRecipes, {
+          onConflict: "client_id,product_name,ingredient_id",
+        });
       }
 
       setJsonBackupModal(null);
@@ -919,14 +953,21 @@ const handleExportToExcel = () => {
     setLoading(true);
     try {
       // Бүтээгдэхүүний үнийг сэргээх
-      const matchedProd = jsonBackupModal.fileData.products?.find((p: any) => p.name === productName);
+      const matchedProd = jsonBackupModal.fileData.products?.find(
+        (p: any) => p.name === productName,
+      );
       if (matchedProd) {
-        await supabase.from("products").upsert([{
-          client_id: activeClient,
-          name: matchedProd.name,
-          category: matchedProd.category || 'General',
-          selling_price: matchedProd.selling_price || 0
-        }], { onConflict: "client_id,name" });
+        await supabase.from("products").upsert(
+          [
+            {
+              client_id: activeClient,
+              name: matchedProd.name,
+              category: matchedProd.category || "General",
+              selling_price: matchedProd.selling_price || 0,
+            },
+          ],
+          { onConflict: "client_id,name" },
+        );
       }
 
       // Зөвхөн энэ бүтээгдэхүүний орцуудыг баазад оруулах
@@ -934,9 +975,11 @@ const handleExportToExcel = () => {
         client_id: activeClient,
         product_name: productName,
         ingredient_id: r.ingredient_id,
-        amount: parseFloat(r.amount) || 0
+        amount: parseFloat(r.amount) || 0,
       }));
-      await supabase.from("recipes").upsert(cleanRows, { onConflict: "client_id,product_name,ingredient_id" });
+      await supabase.from("recipes").upsert(cleanRows, {
+        onConflict: "client_id,product_name,ingredient_id",
+      });
 
       await fetchDatabaseData(activeClient);
       alert(`✅ "${productName}" амжилттай сэргээгдлээ!`);
@@ -947,32 +990,35 @@ const handleExportToExcel = () => {
     }
   };
 
-
-// 🕒 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
+  // 🕒 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
   const recordRecipeSnapshot = async (
-    productName: string, 
-    arg2?: 'created' | 'updated' | 'deleted' | any[],
-    arg3?: 'created' | 'updated' | 'deleted' | any[]
+    productName: string,
+    arg2?: "created" | "updated" | "deleted" | any[],
+    arg3?: "created" | "updated" | "deleted" | any[],
   ) => {
     // Параметрүүд аль ч дарааллаар орж ирсэн автоматаар зөв ялгах логик:
-    let action: 'created' | 'updated' | 'deleted' = 'updated';
+    let action: "created" | "updated" | "deleted" = "updated";
     let customItems: any[] | undefined = undefined;
 
-    if (typeof arg2 === 'string') {
-      action = arg2 as 'created' | 'updated' | 'deleted';
+    if (typeof arg2 === "string") {
+      action = arg2 as "created" | "updated" | "deleted";
       if (Array.isArray(arg3)) customItems = arg3;
     } else if (Array.isArray(arg2)) {
       customItems = arg2;
-      if (typeof arg3 === 'string') action = arg3 as 'created' | 'updated' | 'deleted';
+      if (typeof arg3 === "string")
+        action = arg3 as "created" | "updated" | "deleted";
     }
 
-    const currentActor = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Менежер";
-    
+    const currentActor =
+      user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Менежер";
+
     // Хэрэв бэлэн орц өгөөгүй бол одоо баазад байгаа тухайн бүтээгдэхүүний орцуудыг татна
     let itemsToSave = customItems;
     if (!itemsToSave || itemsToSave.length === 0) {
       const prodRecipes = recipes.filter(
-        (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(productName).toLowerCase()
+        (r: any) =>
+          cleanString(r.product_name).toLowerCase() ===
+          cleanString(productName).toLowerCase(),
       );
       itemsToSave = prodRecipes.map((r: any) => {
         const ing = ingredients.find((i: any) => i.id === r.ingredient_id);
@@ -980,7 +1026,7 @@ const handleExportToExcel = () => {
           ingredient_id: r.ingredient_id,
           name: ing?.name || "Орц",
           unit: ing?.unit || "гр",
-          amount: parseFloat(r.amount) || 0
+          amount: parseFloat(r.amount) || 0,
         };
       });
     } else {
@@ -991,28 +1037,30 @@ const handleExportToExcel = () => {
           ingredient_id: it.ingredient_id,
           name: it.name || ing?.name || "Орц",
           unit: it.unit || ing?.unit || "гр",
-          amount: parseFloat(it.amount) || 0
+          amount: parseFloat(it.amount) || 0,
         };
       });
     }
 
-    await supabase.from("recipe_snapshots").insert([{
-      client_id: activeClient,
-      product_name: productName,
-      action: action,
-      ingredients_snapshot: itemsToSave,
-      author: `${currentActor} (Dashboard)`
-    }]);
+    await supabase.from("recipe_snapshots").insert([
+      {
+        client_id: activeClient,
+        product_name: productName,
+        action: action,
+        ingredients_snapshot: itemsToSave,
+        author: `${currentActor} (Dashboard)`,
+      },
+    ]);
   };
-   const createSnapshotFromDb = recordRecipeSnapshot;
-
-
+  const createSnapshotFromDb = recordRecipeSnapshot;
 
   // ⚡ 1. ОДООГИЙН ЖОР БА ХУУЧИН ХУВИЛБАРЫГ ХАРЬЦУУЛАХ (VISUAL DIFF)
   const computeRecipeDiff = (snapshotItems: any[], productName: string) => {
     // Одоо баазад байгаа тухайн бүтээгдэхүүний идэвхтэй орцууд
     const currentActiveRows = recipes.filter(
-      (r: any) => cleanString(r.product_name).toLowerCase() === cleanString(productName).toLowerCase()
+      (r: any) =>
+        cleanString(r.product_name).toLowerCase() ===
+        cleanString(productName).toLowerCase(),
     );
 
     const currentMap = new Map();
@@ -1031,7 +1079,11 @@ const handleExportToExcel = () => {
       unit: string;
       snapAmount: number;
       currAmount?: number;
-      status: "unchanged" | "modified" | "removed_in_current" | "added_in_current";
+      status:
+        | "unchanged"
+        | "modified"
+        | "removed_in_current"
+        | "added_in_current";
     }> = [];
 
     // А. Хуучин хувилбарт байсан орцуудыг шалгах
@@ -1084,105 +1136,116 @@ const handleExportToExcel = () => {
     return diffList;
   };
 
-
   // =========================================================================
-// 🔍 ХАЙЛТТАЙ УХААЛАГ УНАДАГ ЦЭС (SEARCHABLE DROPDOWN)
-// =========================================================================
-function SearchableSelect({
-  options,
-  value,
-  onChange,
-  placeholder = "-- Сонгоно уу --",
-  className = ""
-}: {
-  options: Array<{ value: string; label: string; sublabel?: string }>;
-  value: string;
-  onChange: (val: string) => void;
-  placeholder?: string;
-  className?: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
+  // 🔍 ХАЙЛТТАЙ УХААЛАГ УНАДАГ ЦЭС (SEARCHABLE DROPDOWN)
+  // =========================================================================
+  function SearchableSelect({
+    options,
+    value,
+    onChange,
+    placeholder = "-- Сонгоно уу --",
+    className = "",
+  }: {
+    options: Array<{ value: string; label: string; sublabel?: string }>;
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    className?: string;
+  }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  // Гадуур дарахад цэсийг автоматаар хаах
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    // Гадуур дарахад цэсийг автоматаар хаах
+    useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (
+          containerRef.current &&
+          !containerRef.current.contains(e.target as Node)
+        ) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
-  const selectedOption = options.find((o) => o.value === value);
-  const filtered = options.filter(
-    (o) =>
-      o.label.toLowerCase().includes(search.toLowerCase()) ||
-      (o.sublabel && o.sublabel.toLowerCase().includes(search.toLowerCase()))
-  );
+    const selectedOption = options.find((o) => o.value === value);
+    const filtered = options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(search.toLowerCase()) ||
+        (o.sublabel && o.sublabel.toLowerCase().includes(search.toLowerCase())),
+    );
 
-  return (
-    <div ref={containerRef} className={`relative ${className}`}>
-      {/* Сонгогдсон утгыг харуулах товчлуур */}
-      <button
-        type="button"
-        onClick={() => {
-          setIsOpen(!isOpen);
-          setSearch("");
-        }}
-        className="w-full bg-[#060b17] border border-slate-700 hover:border-purple-500 rounded-xl px-3 py-2 text-sm text-left text-white flex items-center justify-between gap-2 transition cursor-pointer shadow-sm"
-      >
-        <span className="truncate font-bold">
-          {selectedOption ? selectedOption.label : <span className="text-slate-500 font-normal">{placeholder}</span>}
-        </span>
-        <span className="text-xs text-slate-500 shrink-0">▼</span>
-      </button>
-
-      {/* Хайлттай хөвөгч цэс */}
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full min-w-[260px] bg-[#0d1527] border border-slate-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 animate-in fade-in duration-100">
-          <input
-            type="text"
-            autoFocus
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="🔍 Нэрээр хайх..."
-            className="w-full bg-[#060b17] border border-purple-500/60 rounded-xl px-3 py-2 text-sm text-white outline-none font-bold placeholder:text-slate-500"
-          />
-
-          <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
-            {filtered.length === 0 ? (
-              <p className="text-xs text-slate-500 p-2.5 text-center">Олдсонгүй</p>
+    return (
+      <div ref={containerRef} className={`relative ${className}`}>
+        {/* Сонгогдсон утгыг харуулах товчлуур */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(!isOpen);
+            setSearch("");
+          }}
+          className="w-full bg-zinc-950 border border-slate-700 hover:border-zinc-800 rounded-xl px-3 py-2 text-sm text-left text-white flex items-center justify-between gap-2 transition cursor-pointer shadow-sm"
+        >
+          <span className="truncate font-bold">
+            {selectedOption ? (
+              selectedOption.label
             ) : (
-              filtered.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.value);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center justify-between cursor-pointer ${
-                    opt.value === value
-                      ? "bg-purple-600/30 text-purple-300 font-bold border border-purple-500/30"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <span className="truncate">{opt.label}</span>
-                  {opt.sublabel && (
-                    <span className="text-xs text-slate-500 ml-2 font-mono shrink-0">{opt.sublabel}</span>
-                  )}
-                </button>
-              ))
+              <span className="text-slate-500 font-normal">{placeholder}</span>
             )}
+          </span>
+          <span className="text-xs text-slate-500 shrink-0">▼</span>
+        </button>
+
+        {/* Хайлттай хөвөгч цэс */}
+        {isOpen && (
+          <div className="absolute top-full left-0 mt-1 w-full min-w-[260px] bg-zinc-900 border border-slate-700 rounded-2xl shadow-2xl z-50 p-2 space-y-1.5 animate-in fade-in duration-100">
+            <input
+              type="text"
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="🔍 Нэрээр хайх..."
+              className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-sm text-white outline-none font-bold placeholder:text-slate-500"
+            />
+
+            <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
+              {filtered.length === 0 ? (
+                <p className="text-xs text-slate-500 p-2.5 text-center">
+                  Олдсонгүй
+                </p>
+              ) : (
+                filtered.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center justify-between cursor-pointer ${
+                      opt.value === value
+                        ? "bg-purple-600/30 text-zinc-300 font-bold border border-zinc-800/30"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                    {opt.sublabel && (
+                      <span className="text-xs text-slate-500 ml-2 font-mono shrink-0">
+                        {opt.sublabel}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        )}
+      </div>
+    );
+  }
 
   // Эзний нууц үгээр түгжээг тайлах функц:
   const handleUnlockDashboard = async (e: React.FormEvent) => {
@@ -1404,16 +1467,12 @@ function SearchableSelect({
     const {
       data: { session },
     } = await supabase.auth.getSession();
-  
-    
 
-    if (!session) { 
+    if (!session) {
       router.push("/login");
-       
     } else {
-       
       setUser(session.user);
-      
+
       // ✍️ ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
       const { data: profile } = await supabase
         .from("profiles")
@@ -1421,7 +1480,7 @@ function SearchableSelect({
         .eq("id", session.user.id)
         .single();
 
-            if (profile?.phone) {
+      if (profile?.phone) {
         setUserPhone(profile.phone);
       } else if (session.user.user_metadata?.phone) {
         setUserPhone(session.user.user_metadata.phone);
@@ -1459,9 +1518,8 @@ function SearchableSelect({
 
         fetchDatabaseData(realBranch);
       }
-      setIsAuthChecking(false); 
+      setIsAuthChecking(false);
     }
-    
   };
 
   useEffect(() => {
@@ -1469,54 +1527,75 @@ function SearchableSelect({
   }, []);
 
   // Хэрэв нүүр хуудаснаас "Сонгож төлөх" гэж орж ирсэн бол цонхыг шууд нээх:
-useEffect(() => {
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'open') {
-      setShowCheckoutModal(true);
-      if (params.get('plan')) setCheckoutInitialPlan(params.get('plan')!);
-      if (params.get('cycle')) setCheckoutInitialCycle(params.get('cycle')!);
-      if (params.get('phone')) setUserPhone(params.get('phone')!);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("checkout") === "open") {
+        setShowCheckoutModal(true);
+        if (params.get("plan")) setCheckoutInitialPlan(params.get("plan")!);
+        if (params.get("cycle")) setCheckoutInitialCycle(params.get("cycle")!);
+        if (params.get("phone")) setUserPhone(params.get("phone")!);
+      }
     }
-  }
-}, []);
+  }, []);
 
   // 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг анхнаасаа зөв татах
-// ⚡ БҮХ ТОВЧЛУУРЫГ 0ms ХУРДТАЙ БОЛГОХ ХӨНГӨН ФУНКЦ
+  // ⚡ БҮХ ТОВЧЛУУРЫГ 0ms ХУРДТАЙ БОЛГОХ ХӨНГӨН ФУНКЦ
   const fetchDatabaseData = async (
     clientId?: string,
     start?: string,
     end?: string,
     includeAnalytics: boolean = false, // 👈 Байнга хүнд аналитик дуудахгүй!
-    targetTab?: string 
+    targetTab?: string,
   ) => {
     const targetClient = (clientId || activeClient || userClient || "").trim();
-      if (!targetClient) {
-    setWorkersList([]);
-    return;
-  }
-  const tabToLoad = targetTab || activeTab;
+    if (!targetClient) {
+      setWorkersList([]);
+      return;
+    }
+    const tabToLoad = targetTab || activeTab;
 
     try {
       //  Зөвхөн үндсэн өгөгдлийг татах (Маш хурдан 0.1s)
       const [
-      { data: ingData },
-      { data: recData },
-      { data: logData },
-      { data: saleData },
-      { data: staffData },
-      { data: settData },
-      { data: prodData },
-      { data: lmData }
+        { data: ingData },
+        { data: recData },
+        { data: logData },
+        { data: saleData },
+        { data: staffData },
+        { data: settData },
+        { data: prodData },
+        { data: lmData },
       ] = await Promise.all([
-        supabase.from("ingredients").select("*").ilike("client_id", targetClient).order("name", { ascending: true }),
+        supabase
+          .from("ingredients")
+          .select("*")
+          .ilike("client_id", targetClient)
+          .order("name", { ascending: true }),
         supabase.from("recipes").select("*").ilike("client_id", targetClient),
-        supabase.from("inventory_logs").select("*").ilike("client_id", targetClient),
-        supabase.from("sales_logs").select("*").ilike("client_id", targetClient),
-        supabase.from("profiles").select("*").ilike("client_id", targetClient).neq("role", "owner"),
-        supabase.from("client_settings").select("*").ilike("client_id", targetClient).maybeSingle(),
+        supabase
+          .from("inventory_logs")
+          .select("*")
+          .ilike("client_id", targetClient),
+        supabase
+          .from("sales_logs")
+          .select("*")
+          .ilike("client_id", targetClient),
+        supabase
+          .from("profiles")
+          .select("*")
+          .ilike("client_id", targetClient)
+          .neq("role", "owner"),
+        supabase
+          .from("client_settings")
+          .select("*")
+          .ilike("client_id", targetClient)
+          .maybeSingle(),
         supabase.from("products").select("*").ilike("client_id", targetClient),
-        supabase.from("learned_menus").select("*").ilike("client_id", targetClient),
+        supabase
+          .from("learned_menus")
+          .select("*")
+          .ilike("client_id", targetClient),
       ]);
 
       if (ingData) setIngredients(ingData);
@@ -1531,36 +1610,62 @@ useEffect(() => {
         setInitialBank(settData.initial_bank?.toString() || "0");
         setTaxMode(settData.tax_mode || "auto");
         setKioskLogoUrl(settData.logo_url || null);
-        
-                // 🎯 Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
-        if (settData.category_margins && Object.keys(settData.category_margins).length > 0) {
-          setCategoryMargins({ ...DEFAULT_GLOBAL_MARGINS, ...settData.category_margins });
+
+        // 🎯 Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
+        if (
+          settData.category_margins &&
+          Object.keys(settData.category_margins).length > 0
+        ) {
+          setCategoryMargins({
+            ...DEFAULT_GLOBAL_MARGINS,
+            ...settData.category_margins,
+          });
         } else {
           setCategoryMargins(DEFAULT_GLOBAL_MARGINS);
         }
       }
       if (prodData) setProductsList(prodData);
       if (lmData) setLearnedMenus(lmData);
-       
-        // 🚀 LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
-    if (tabToLoad === "settings" || tabToLoad === "tasks") {
-      const [
-        { data: taskData },
-        { data: shiftData },
-        { data: rolesData },
-        { data: faData },
-        { data: opexData },
-        { data: lcData },
-        { data: transData }
-      ] = await Promise.all([
-        supabase.from("tasks").select("*").ilike("client_id", targetClient),
-        supabase.from("shifts").select("*").ilike("client_id", targetClient).order("start_time", { ascending: false }),
-        supabase.from("company_roles").select("*").ilike("client_id", targetClient),
-        supabase.from("fixed_assets").select("*").ilike("client_id", targetClient),
-        supabase.from("fixed_opex").select("*").ilike("client_id", targetClient).eq("is_active", true),
-        supabase.from("learned_categories").select("*").ilike("client_id", targetClient),
-        supabase.from("learned_translations").select("*").ilike("client_id", targetClient)
-      ]);
+
+      // 🚀 LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
+      if (tabToLoad === "settings" || tabToLoad === "tasks") {
+        const [
+          { data: taskData },
+          { data: shiftData },
+          { data: rolesData },
+          { data: faData },
+          { data: opexData },
+          { data: lcData },
+          { data: transData },
+        ] = await Promise.all([
+          supabase.from("tasks").select("*").ilike("client_id", targetClient),
+          supabase
+            .from("shifts")
+            .select("*")
+            .ilike("client_id", targetClient)
+            .order("start_time", { ascending: false }),
+          supabase
+            .from("company_roles")
+            .select("*")
+            .ilike("client_id", targetClient),
+          supabase
+            .from("fixed_assets")
+            .select("*")
+            .ilike("client_id", targetClient),
+          supabase
+            .from("fixed_opex")
+            .select("*")
+            .ilike("client_id", targetClient)
+            .eq("is_active", true),
+          supabase
+            .from("learned_categories")
+            .select("*")
+            .ilike("client_id", targetClient),
+          supabase
+            .from("learned_translations")
+            .select("*")
+            .ilike("client_id", targetClient),
+        ]);
         if (taskData) setTasks(taskData);
         if (shiftData) setShifts(shiftData);
         if (rolesData) setCompanyRoles(rolesData);
@@ -1568,66 +1673,67 @@ useEffect(() => {
         if (opexData) setFixedOpexList(opexData);
         if (lcData) setLearnedCategories(lcData);
         if (transData) {
-            const tMap: Record<string, string> = {};
-            transData.forEach((t: any) => {
-              tMap[t.original_text.toLowerCase()] = t.translated_text;
-            });
-            setTranslationsCache(tMap);
-           }
-         }
+          const tMap: Record<string, string> = {};
+          transData.forEach((t: any) => {
+            tMap[t.original_text.toLowerCase()] = t.translated_text;
+          });
+          setTranslationsCache(tMap);
+        }
+      }
 
-// 💳 1. Эрх сунгагдсан эсэхийг шалгах
+      // 💳 1. Эрх сунгагдсан эсэхийг шалгах
 
-  const { data: tenantData } = await supabase
-    .from('tenants')
-    .select('status, plan, subscription_end_date')
-    .ilike('client_id', targetClient)
-    .maybeSingle();
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("status, plan, subscription_end_date")
+        .ilike("client_id", targetClient)
+        .maybeSingle();
 
-  if (tenantData && tenantData.subscription_end_date) {
-    const end = new Date(tenantData.subscription_end_date);
-    const now = new Date();
-    const diffTime = end.getTime() - now.getTime();
-    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const isExpired = diffTime <= 0;
-    const isTrial = tenantData.status === 'trial' || tenantData.plan === 'trial';
-     const formattedEndDate = `${end.getFullYear()} оны ${end.getMonth() + 1}-р сарын ${end.getDate()}`;
+      if (tenantData && tenantData.subscription_end_date) {
+        const end = new Date(tenantData.subscription_end_date);
+        const now = new Date();
+        const diffTime = end.getTime() - now.getTime();
+        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const isExpired = diffTime <= 0;
+        const isTrial =
+          tenantData.status === "trial" || tenantData.plan === "trial";
+        const formattedEndDate = `${end.getFullYear()} оны ${end.getMonth() + 1}-р сарын ${end.getDate()}`;
 
-    setTenantInfo({
-      isExpired,
-      isTrial,
-      plan: tenantData.plan || 'professional',
-      daysLeft,
-      endDate: tenantData.subscription_end_date, // 👈 Энд endDate хэвээрээ байна!
-      formattedEndDate
-    });
-  }
+        setTenantInfo({
+          isExpired,
+          isTrial,
+          plan: tenantData.plan || "professional",
+          daysLeft,
+          endDate: tenantData.subscription_end_date, // 👈 Энд endDate хэвээрээ байна!
+          formattedEndDate,
+        });
+      }
 
-if (includeAnalytics || tabToLoad === "dashboard") {
-  const activeStart = start || startDate;
-  const activeEnd = end || endDate;
-  
-  // 🔒 1. Session-оос токен авах
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token || '';
+      if (includeAnalytics || tabToLoad === "dashboard") {
+        const activeStart = start || startDate;
+        const activeEnd = end || endDate;
 
-  // 🔒 2. URL дээрээс clientId-г ХАССАН, Header-т токен нэмсэн:
-  const res = await fetch(
-    `/api/analytics?startDate=${encodeURIComponent(activeStart)}T00:00:00.000Z&endDate=${encodeURIComponent(activeEnd)}T23:59:59.999Z`,
-    { 
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      cache: "no-store" 
-    }
-  );
-  if (res.ok) {
-    const analData = await res.json();
-    setLiveAnalytics(analData);
-  }
-}
-    
+        // 🔒 1. Session-оос токен авах
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
 
+        // 🔒 2. URL дээрээс clientId-г ХАССАН, Header-т токен нэмсэн:
+        const res = await fetch(
+          `/api/analytics?startDate=${encodeURIComponent(activeStart)}T00:00:00.000Z&endDate=${encodeURIComponent(activeEnd)}T23:59:59.999Z`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+          },
+        );
+        if (res.ok) {
+          const analData = await res.json();
+          setLiveAnalytics(analData);
+        }
+      }
     } catch (err) {
       console.error("Error fetching database:", err);
     } finally {
@@ -1636,27 +1742,30 @@ if (includeAnalytics || tabToLoad === "dashboard") {
   };
 
   const handleSaveCategoryMargins = async () => {
-  setLoading(true);
-  try {
-    const { error } = await supabase
-      .from("client_settings")
-      .upsert({
-        client_id: activeClient,
-        category_margins: categoryMargins,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "client_id" });
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("client_settings").upsert(
+        {
+          client_id: activeClient,
+          category_margins: categoryMargins,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "client_id" },
+      );
 
-    if (error) throw error;
-    alert("✅ Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!");
-    // Аналитикийг шинэчлэн бодох
-    await fetchDatabaseData(activeClient, startDate, endDate, true);
-  } catch (err: any) {
-    alert("Маржин хадгалахад алдаа гарлаа: " + err.message);
-  } finally {
-    setLoading(false);
-  }
-};
-useEffect(() => {
+      if (error) throw error;
+      alert(
+        "✅ Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
+      );
+      // Аналитикийг шинэчлэн бодох
+      await fetchDatabaseData(activeClient, startDate, endDate, true);
+    } catch (err: any) {
+      alert("Маржин хадгалахад алдаа гарлаа: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
     if (!activeClient) return;
 
     // 1. Салбарын нэрээр тусгай суваг үүсгэнэ
@@ -1668,15 +1777,31 @@ useEffect(() => {
       .on("broadcast", { event: "payment_approved" }, () => {
         console.log("⚡ Админаас шууд дохио ирлээ! Батлагдлаа!");
         fetchDatabaseData(activeClient);
-          // 1. ТӨЛБӨРИЙН ЦОНХЫГ АВТОМАТААР ХААХ:
-        setShowCheckoutModal(false); 
+        // 1. ТӨЛБӨРИЙН ЦОНХЫГ АВТОМАТААР ХААХ:
+        setShowCheckoutModal(false);
         setShowUpgradeSuccess(true);
       })
       // Бусад жирийн хүснэгтүүдийн шинэчлэлт (Хуучнаараа байна)
-      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_logs" }, () => fetchDatabaseData(activeClient))
-      .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => fetchDatabaseData(activeClient))
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => fetchDatabaseData(activeClient))
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchDatabaseData(activeClient))
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inventory_logs" },
+        () => fetchDatabaseData(activeClient),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "shifts" },
+        () => fetchDatabaseData(activeClient),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => fetchDatabaseData(activeClient),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
+        () => fetchDatabaseData(activeClient),
+      )
       .subscribe((status) => {
         console.log("📡 Холболтын төлөв:", status);
       });
@@ -1685,7 +1810,6 @@ useEffect(() => {
       supabase.removeChannel(channel);
     };
   }, [activeClient]);
- 
 
   const cleanNameForMatch = (str: string) => {
     return str
@@ -1750,30 +1874,39 @@ useEffect(() => {
     }
   };
 
-
-
-
-// ⚡ МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
-  const parseSafeDate = (rawDate: string | undefined, fallbackIso?: string): string => {
+  // ⚡ МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
+  const parseSafeDate = (
+    rawDate: string | undefined,
+    fallbackIso?: string,
+  ): string => {
     const now = new Date();
-    
+
     // Одоогийн Улаанбаатарын цаг, минут, секундыг авах (HH:mm:ss)
-    const timeParts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Ulaanbaatar',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hour12: false
+    const timeParts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ulaanbaatar",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
     }).format(now);
 
     let targetDay = getLocalDateStr(now);
 
     if (rawDate) {
-      let cleaned = rawDate.replace(/[\r\n\u00a0"']/g, "").trim().replace(/[./]/g, "-");
-      if (cleaned && !cleaned.toLowerCase().includes("date") && !cleaned.toLowerCase().includes("огноо")) {
+      let cleaned = rawDate
+        .replace(/[\r\n\u00a0"']/g, "")
+        .trim()
+        .replace(/[./]/g, "-");
+      if (
+        cleaned &&
+        !cleaned.toLowerCase().includes("date") &&
+        !cleaned.toLowerCase().includes("огноо")
+      ) {
         const match = cleaned.match(/\d{4}-\d{2}-\d{2}/);
         if (match) targetDay = match[0];
       }
     } else if (fallbackIso) {
-      targetDay = fallbackIso.split('T')[0];
+      targetDay = fallbackIso.split("T")[0];
     }
 
     // Улаанбаатарын цагийн бүсээр (+08:00) ISO string үүсгэх
@@ -1785,44 +1918,59 @@ useEffect(() => {
       .replace(/[\r\n\s\-_.]/g, "")
       .trim();
 
-// 1. Стэйтийг sessionStorage-оос сэргээж эхлүүлэх
-const [pendingCategoryReview, setPendingCategoryReview] = useState<{
-  salesToInsert: any[];
-  productsToReview: Array<{ name: string; category: string; method: string; price: number; isUnknown?: boolean }>;
-  productsToUpdateBatch: Array<{ id: string; name: string; selling_price: number }>;
-  existingChanges: AutoPilotChange[];
-  isProcessing: boolean;
-} | null>(() => {
-  if (typeof window !== 'undefined') {
-    const saved = sessionStorage.getItem('operlink_pending_review');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+  // 1. Стэйтийг sessionStorage-оос сэргээж эхлүүлэх
+  const [pendingCategoryReview, setPendingCategoryReview] = useState<{
+    salesToInsert: any[];
+    productsToReview: Array<{
+      name: string;
+      category: string;
+      method: string;
+      price: number;
+      isUnknown?: boolean;
+    }>;
+    productsToUpdateBatch: Array<{
+      id: string;
+      name: string;
+      selling_price: number;
+    }>;
+    existingChanges: AutoPilotChange[];
+    isProcessing: boolean;
+  } | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("operlink_pending_review");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
     }
-  }
-  return null;
-});
+    return null;
+  });
 
-// Стэйт өөрчлөгдөх бүрд sessionStorage-д синхрончлох туслах функц
-const updatePendingReview = (val: any) => {
-  setPendingCategoryReview(val);
-  if (typeof window !== 'undefined') {
-    if (val) sessionStorage.setItem('operlink_pending_review', JSON.stringify(val));
-    else sessionStorage.removeItem('operlink_pending_review');
-  }
-};
-// =========================================================================
+  // Стэйт өөрчлөгдөх бүрд sessionStorage-д синхрончлох туслах функц
+  const updatePendingReview = (val: any) => {
+    setPendingCategoryReview(val);
+    if (typeof window !== "undefined") {
+      if (val)
+        sessionStorage.setItem("operlink_pending_review", JSON.stringify(val));
+      else sessionStorage.removeItem("operlink_pending_review");
+    }
+  };
+  // =========================================================================
   // ⚡ ЭЦСИЙН ХАДГАЛАЛТ ХИЙХ ЦӨМ ФУНКЦ (БҮХ НЭРСИЙГ ЖИГДЭЛСЭН)
   // =========================================================================
-const commitFinalSales = async (
+  const commitFinalSales = async (
     sales: any[],
     newProductsList: any[] = [],
     updates: any[] = [],
-    existingChanges: AutoPilotChange[] = []
+    existingChanges: AutoPilotChange[] = [],
   ) => {
     setLoading(true);
     try {
       if (overwriteSales) {
-        await supabase.from("sales_logs").delete()
+        await supabase
+          .from("sales_logs")
+          .delete()
           .eq("client_id", activeClient)
           .gte("date", `${startDate}T00:00:00.000Z`)
           .lte("date", `${endDate}T23:59:59.999Z`);
@@ -1830,7 +1978,9 @@ const commitFinalSales = async (
 
       // Борлуулалт оруулах (хэрэв байгаа бол):
       if (sales && sales.length > 0) {
-        const { error: salesErr } = await supabase.from("sales_logs").insert(sales);
+        const { error: salesErr } = await supabase
+          .from("sales_logs")
+          .insert(sales);
         if (salesErr) throw salesErr;
       }
 
@@ -1841,7 +1991,7 @@ const commitFinalSales = async (
           client_id: activeClient,
           name: p.name,
           category: p.category,
-          selling_price: p.price || 0
+          selling_price: p.price || 0,
         }));
 
         const { data, error: prodErr } = await supabase
@@ -1856,46 +2006,54 @@ const commitFinalSales = async (
         const learnedCatsToInsert = newProductsList.map((p: any) => ({
           client_id: activeClient,
           product_name: p.name,
-          category: p.category
+          category: p.category,
         }));
 
         if (learnedCatsToInsert.length > 0) {
-          await supabase.from('learned_categories').upsert(learnedCatsToInsert, { onConflict: 'client_id,product_name' });
+          await supabase
+            .from("learned_categories")
+            .upsert(learnedCatsToInsert, {
+              onConflict: "client_id,product_name",
+            });
         }
       }
 
- if (updates && updates.length > 0) {
-          await Promise.all(
-            updates.map(async (p: any) => {
-              // 1. Зөвхөн зарах үнийг шууд шинэчлэх (Нэрний алдаа гарахгүй)
-              const { error } = await supabase
-                .from("products")
-                .update({ selling_price: p.selling_price })
-                .eq("id", p.id);
-              if (error) console.error("Price update error:", error);
-            })
-          );
+      if (updates && updates.length > 0) {
+        await Promise.all(
+          updates.map(async (p: any) => {
+            // 1. Зөвхөн зарах үнийг шууд шинэчлэх (Нэрний алдаа гарахгүй)
+            const { error } = await supabase
+              .from("products")
+              .update({ selling_price: p.selling_price })
+              .eq("id", p.id);
+            if (error) console.error("Price update error:", error);
+          }),
+        );
 
-          // 2. Дэлгэц дээрх цэсний үнийг refresh хийлгүй шууд 0ms-д шинэчлэх
-          setProductsList(prev => prev.map(prod => {
+        // 2. Дэлгэц дээрх цэсний үнийг refresh хийлгүй шууд 0ms-д шинэчлэх
+        setProductsList((prev) =>
+          prev.map((prod) => {
             const up = updates.find((u: any) => u.id === prod.id);
             return up ? { ...prod, selling_price: up.selling_price } : prod;
-          }));
-        }
+          }),
+        );
+      }
 
-  // ⚡ АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
-      const newProductChanges: AutoPilotChange[] = insertedNewProds.map((p: any) => ({
-        id: `new-${p.id}-${Date.now()}`,
-        productId: p.id,
-        productName: p.name,
-        type: 'NEW_PRODUCT',
-        oldName: 'Байхгүй',
-        newName: `${p.name} (${Number(p.selling_price).toLocaleString()} ₮) [${p.category}]`,
-        oldPrice: 0,
-        newPrice: Number(p.selling_price),
-        oldCategory: p.category || 'General',
-        reverted: false
-      }));
+      // ⚡ АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
+      const newProductChanges: AutoPilotChange[] = insertedNewProds.map(
+        (p: any) => ({
+          id: `new-${p.id}-${Date.now()}`,
+          productId: p.id,
+          productName: p.name,
+          type: "NEW_PRODUCT",
+          oldName: "Байхгүй",
+          newName: `${p.name} (${Number(p.selling_price).toLocaleString()} ₮) [${p.category}]`,
+          oldPrice: 0,
+          newPrice: Number(p.selling_price),
+          oldCategory: p.category || "General",
+          reverted: false,
+        }),
+      );
 
       const allAutoPilotChanges = [...existingChanges, ...newProductChanges];
 
@@ -1903,14 +2061,13 @@ const commitFinalSales = async (
       if (allAutoPilotChanges.length > 0) {
         setAutoPilotActivity({
           totalSales: sales.length,
-          changes: allAutoPilotChanges
+          changes: allAutoPilotChanges,
         });
       }
 
       // ⚡ SessionStorage болон Попап цонхыг бүрэн хаах:
       updatePendingReview(null);
       await fetchDatabaseData(activeClient);
-
     } catch (err: any) {
       alert(`Хадгалах үед алдаа гарлаа: ${err.message}`);
     } finally {
@@ -1981,8 +2138,8 @@ const commitFinalSales = async (
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-slate-900/60 p-8 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md text-center">
-          <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 w-fit mx-auto mb-4">
-            <ShieldAlert className="h-8 w-8 text-emerald-400" />
+          <div className="bg-zinc-800/60 p-4 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-4">
+            <ShieldAlert className="h-8 w-8 text-zinc-200" />
           </div>
 
           <h2 className="text-xl font-black text-white">
@@ -2006,13 +2163,13 @@ const commitFinalSales = async (
               value={unlockPassword}
               onChange={(e) => setUnlockPassword(e.target.value)}
               placeholder="Эзний нууц үг оруулах..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-emerald-500 outline-none text-center tracking-widest"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-zinc-700 outline-none text-center tracking-widest"
             />
 
             <button
               type="submit"
               disabled={isUnlocking}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl transition text-sm shadow-lg"
+              className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl transition text-sm shadow-lg"
             >
               {isUnlocking
                 ? "Шалгаж байна..."
@@ -2029,7 +2186,7 @@ const commitFinalSales = async (
                 sessionStorage.removeItem("kiosk_device_locked");
                 router.push("/login");
               }}
-              className="text-sm text-slate-400 hover:text-emerald-400 transition underline underline-offset-4 font-bold"
+              className="text-sm text-slate-400 hover:text-zinc-200 transition underline underline-offset-4 font-bold"
             >
               🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
             </button>
@@ -2039,7 +2196,7 @@ const commitFinalSales = async (
           <div className="mt-4 pt-4 border-t border-slate-800">
             <Link
               href="/kiosk"
-              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-emerald-400 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-zinc-200 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
               📱 Гал тогооны Kiosk руу буцах
             </Link>
@@ -2048,58 +2205,60 @@ const commitFinalSales = async (
       </div>
     );
   }
-// ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй 
+  // ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй
   //   if (loading && userRole !=="owner") {
   //   return (
   //     <div className="min-h-screen bg-[#0B1120] flex flex-col items-center justify-center select-none">
   //       <div className="relative w-12 h-12 flex items-center justify-center mb-4">
-  //         <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
+  //         <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
   //         <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
   //       </div>
   //     </div>
   //   );
   // }
- 
+
   return (
-    <div className="flex h-screen bg-[#0B1120] overflow-hidden text-slate-100 font-sans antialiased selection:bg-emerald-500/20">
-   
-     {/* ========================================== */}
+    <div className="flex h-screen bg-[#0B1120] overflow-hidden text-slate-100 font-sans antialiased selection:bg-zinc-800">
+      {/* ========================================== */}
       {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
       {/* ========================================== */}
- {/* 📱 УТСАН ДЭЭР: Цэс нээлттэй үед арын дэвсгэрийг бүдгэрүүлэх (Backdrop) */}
+      {/* 📱 УТСАН ДЭЭР: Цэс нээлттэй үед арын дэвсгэрийг бүдгэрүүлэх (Backdrop) */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 z-30 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* 🖥️ БОСОО ЦЭС (Sidebar) */}
-      <aside 
+      <aside
         className={`
           fixed md:relative inset-y-0 left-0 z-40 h-full
-          flex flex-col flex-shrink-0 bg-[#0F172A] border-slate-800/80
+          flex flex-col flex-shrink-0 bg-zinc-950 border-slate-800/80
           transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap
-          ${isSidebarOpen 
-            ? "translate-x-0 w-64 border-r" 
-            : "-translate-x-full w-64 md:translate-x-0 md:w-0 border-r-0"
+          ${
+            isSidebarOpen
+              ? "translate-x-0 w-64 border-r"
+              : "-translate-x-full w-64 md:translate-x-0 md:w-0 border-r-0"
           }
         `}
       >
-
         {/* Logo & Close Button Area */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80">
           <div className="flex items-center gap-2">
-            <div className="bg-[#07131d] p-1.5 rounded-xl border border-emerald-500/30 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
+            <div className="bg-[#07131d] p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
               <OperlinkLogo className="h-5 w-5" />
             </div>
             <span className="font-black text-lg tracking-tight text-white uppercase">
-              OPER<span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">LINK</span>
+              OPER
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
+                LINK
+              </span>
             </span>
           </div>
-          
+
           {/* 👈 ХУРААХ ТОВЧ */}
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(false)}
             className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors md:block"
             title="Цэс хураах"
@@ -2107,129 +2266,198 @@ const commitFinalSales = async (
             <PanelLeftClose className="h-5 w-5" />
           </button>
         </div>
-        
+
         {/* Menu Items */}
         <div className="flex-1 overflow-y-auto py-6 flex flex-col gap-1 px-3">
-          
-        {isAuthChecking ? (
-    /* ⚡ Ачаалж байх үед харагдах зүүн талын Скелетон (Гялсхийхээс хамгаална) */
-    <div className="space-y-3 animate-pulse px-2 pt-4">
-      <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
-      <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
-      <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
-    </div>
-  ) : (
-    <>
-      <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mb-2">Үйл ажиллагаа</div>
-      
-      {/* 🚀 AI CFO ЗӨВЛӨХ (LAZY LOAD НЭМСЭН) */}
-      {isOwner && (
-        <>
-          <button onClick={() => { setActiveTab("dashboard"); fetchDatabaseData(activeClient, startDate, endDate, true, "dashboard"); }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "dashboard" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-            <LayoutDashboard className="h-4 w-4" /> Санхүүгийн Самбар
-          </button>
-          <button onClick={() => { 
-            startTransition(() => {
-              setActiveTab("ai_cfo");
-              setLoading(true);
-              fetchDatabaseData(activeClient, startDate, endDate, true, "ai_cfo"); // 👈 CFO нь аналитик шаардана
-            });
-          }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-            <Bot className="h-4 w-4" /> AI CFO Зөвлөх
-          </button>
-        </>
-      )}
-
-
-          {!isOwner && (
-            <button onClick={() => setActiveTab("operations")} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "operations" || (userRole === "barista" && activeTab === "dashboard") ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-              <Coffee className="h-4 w-4" /> Үйл ажиллагаа
-            </button>
-          )}
-
-          {!isOwner && (
-            <button onClick={() => router.push("/kiosk")} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-blue-400 hover:bg-blue-500/10 transition-all mt-1">
-              <Smartphone className="h-4 w-4" /> Гал тогооны Kiosk
-            </button>
-          )}
-
-          <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">Агуулах & Бүртгэл</div>
-          
-           <button onClick={() => {
-        startTransition(() => {
-          setActiveTab("inventory");
-          setLoading(true);
-          fetchDatabaseData(activeClient, startDate, endDate, false, "inventory"); // 👈 Аналитик татахгүй хурдан онгойно
-        });
-      }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-        <Database className="h-4 w-4" /> Агуулахын Тооллого
-      </button>
-          
-         <button onClick={() => {
-        startTransition(() => {
-          setActiveTab("import");
-          setLoading(true);
-          fetchDatabaseData(activeClient, startDate, endDate, false, "import"); // 👈 Аналитик татахгүй хурдан онгойно
-        });
-      }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}>
-        <UploadCloud className="h-4 w-4" /> Бөөнөөр Импортлох
-      </button>
-
-          {isOwner && (
+          {isAuthChecking ? (
+            /* ⚡ Ачаалж байх үед харагдах зүүн талын Скелетон (Гялсхийхээс хамгаална) */
+            <div className="space-y-3  px-2 pt-4">
+              <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+              <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+              <div className="h-10 bg-slate-800/60 rounded-xl w-full"></div>
+            </div>
+          ) : (
             <>
-              <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">Тохиргоо</div>
-            <button 
-            onClick={() => {
-              setActiveTab("tasks");
-              setLoading(true); // Татах хооронд loading харуулна
-              fetchDatabaseData(activeClient, startDate, endDate, false, "tasks"); // 👈 Зөвхөн Tasks-ийн хүнд датаг татна
-            }} 
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
-          >
-            <CheckSquare className="h-4 w-4" /> Ажлын Даалгавар
-          </button>
-              <button 
-            onClick={() => {
-              setActiveTab("settings");
-              setLoading(true); // Татах хооронд loading харуулна
-              fetchDatabaseData(activeClient, startDate, endDate, false, "settings"); // 👈 Тохиргооны 10 хүснэгтийг дөнгөж одоо л татна
-            }} 
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
-          >
-            <Settings className="h-4 w-4" /> Системийн Тохиргоо
-          </button>
+              <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mb-2">
+                Үйл ажиллагаа
+              </div>
+
+              {/* 🚀 AI CFO ЗӨВЛӨХ (LAZY LOAD НЭМСЭН) */}
+              {isOwner && (
+                <>
+                  <button
+                    onClick={() => {
+                      setActiveTab("dashboard");
+                      fetchDatabaseData(
+                        activeClient,
+                        startDate,
+                        endDate,
+                        true,
+                        "dashboard",
+                      );
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "dashboard" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                  >
+                    <LayoutDashboard className="h-4 w-4" /> Санхүүгийн Самбар
+                  </button>
+                  <button
+                    onClick={() => {
+                      startTransition(() => {
+                        setActiveTab("ai_cfo");
+                        setLoading(true);
+                        fetchDatabaseData(
+                          activeClient,
+                          startDate,
+                          endDate,
+                          true,
+                          "ai_cfo",
+                        ); // 👈 CFO нь аналитик шаардана
+                      });
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                  >
+                    <Bot className="h-4 w-4" /> AI CFO Зөвлөх
+                  </button>
+                </>
+              )}
+
+              {!isOwner && (
+                <button
+                  onClick={() => setActiveTab("operations")}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "operations" || (userRole === "barista" && activeTab === "dashboard") ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                >
+                  <Coffee className="h-4 w-4" /> Үйл ажиллагаа
+                </button>
+              )}
+
+              {!isOwner && (
+                <button
+                  onClick={() => router.push("/kiosk")}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-300 hover:bg-zinc-800/60 transition-all mt-1"
+                >
+                  <Smartphone className="h-4 w-4" /> Гал тогооны Kiosk
+                </button>
+              )}
+
+              <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">
+                Агуулах & Бүртгэл
+              </div>
+
+              <button
+                onClick={() => {
+                  startTransition(() => {
+                    setActiveTab("inventory");
+                    setLoading(true);
+                    fetchDatabaseData(
+                      activeClient,
+                      startDate,
+                      endDate,
+                      false,
+                      "inventory",
+                    ); // 👈 Аналитик татахгүй хурдан онгойно
+                  });
+                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+              >
+                <Database className="h-4 w-4" /> Агуулахын Тооллого
+              </button>
+
+              <button
+                onClick={() => {
+                  startTransition(() => {
+                    setActiveTab("import");
+                    setLoading(true);
+                    fetchDatabaseData(
+                      activeClient,
+                      startDate,
+                      endDate,
+                      false,
+                      "import",
+                    ); // 👈 Аналитик татахгүй хурдан онгойно
+                  });
+                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+              >
+                <UploadCloud className="h-4 w-4" /> Бөөнөөр Импортлох
+              </button>
+
+              {isOwner && (
+                <>
+                  <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-3 mt-6 mb-2">
+                    Тохиргоо
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveTab("tasks");
+                      setLoading(true); // Татах хооронд loading харуулна
+                      fetchDatabaseData(
+                        activeClient,
+                        startDate,
+                        endDate,
+                        false,
+                        "tasks",
+                      ); // 👈 Зөвхөн Tasks-ийн хүнд датаг татна
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                  >
+                    <CheckSquare className="h-4 w-4" /> Ажлын Даалгавар
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("settings");
+                      setLoading(true); // Татах хооронд loading харуулна
+                      fetchDatabaseData(
+                        activeClient,
+                        startDate,
+                        endDate,
+                        false,
+                        "settings",
+                      ); // 👈 Тохиргооны 10 хүснэгтийг дөнгөж одоо л татна
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-zinc-800/60 text-zinc-200" : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"}`}
+                  >
+                    <Settings className="h-4 w-4" /> Системийн Тохиргоо
+                  </button>
+                </>
+              )}
             </>
           )}
-      </>
-      )
-        }
- 
-</div>   
-{/* ⚡ CHATGPT ЗАГВАРЫН UPGRADE ТОBЧ (Зөвхөн туршилттай үед зүүн цэсэнд ил харагдана) */}
-{tenantInfo?.isTrial && (
-  <div className="px-3 pb-2">
-    <button
-      type="button"
-      onClick={() => setShowCheckoutModal(true)}
-      className="w-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
-    >
-      <span className="flex items-center gap-1.5">
-        <span>⚡</span>
-        <span>Бүрэн эрх нээх</span>
-      </span>
-      <span className="text-xs bg-slate-950/20 px-1.5 py-0.5 rounded">Pro ➔</span>
-    </button>
-  </div>
-)}
+        </div>
+        {/* ⚡ CHATGPT ЗАГВАРЫН UPGRADE ТОBЧ (Зөвхөн туршилттай үед зүүн цэсэнд ил харагдана) */}
+        {tenantInfo?.isTrial && (
+          <div className="px-3 pb-2">
+            <button
+              type="button"
+              onClick={() => setShowCheckoutModal(true)}
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <span>⚡</span>
+                <span>Бүрэн эрх нээх</span>
+              </span>
+              <span className="text-xs bg-slate-950/20 px-1.5 py-0.5 rounded">
+                Pro ➔
+              </span>
+            </button>
+          </div>
+        )}
         {/* User Profile Footer */}
         {user && (
           <div className="p-4 border-t border-slate-800/80 bg-slate-900/30">
             <div className="flex items-center justify-between">
               <div className="overflow-hidden">
-                <p className="text-white font-bold text-sm truncate">{user.email}</p>
-                <p className="text-slate-500 text-xs uppercase font-bold mt-0.5">{userRole}</p>
+                <p className="text-white font-bold text-sm truncate">
+                  {user.email}
+                </p>
+                <p className="text-slate-500 text-xs uppercase font-bold mt-0.5">
+                  {userRole}
+                </p>
               </div>
-              <button onClick={handleSignOut} title="Гарах" className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+              <button
+                onClick={handleSignOut}
+                title="Гарах"
+                className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+              >
                 <LogOut className="h-4 w-4" />
               </button>
             </div>
@@ -2241,12 +2469,10 @@ const commitFinalSales = async (
       {/* 2. MAIN CONTENT WRAPPER */}
       {/* ========================================== */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        
         {/* TOP HEADER BAR */}
-          {/* TOP HEADER BAR */}
+        {/* TOP HEADER BAR */}
         <header className="h-16 bg-[#0B1120]/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
           <div className="flex items-center gap-2 sm:gap-4">
-            
             {/* 👈 HAMBURGER MENU (Зөвхөн цэс хураагдсан үед л гарч ирнэ) */}
             {!isSidebarOpen && (
               <button
@@ -2264,864 +2490,943 @@ const commitFinalSales = async (
                 setActiveClient(selected);
                 fetchDatabaseData(selected);
               }}
-              className="bg-slate-900 border border-slate-700 text-white font-bold text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-emerald-500"
+              className="bg-slate-900 border border-slate-700 text-white font-bold text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-zinc-700"
             >
               <option value={userClient}>{userClient}</option>
               {/* Хэрэв олон салбартай бол энд map хийж болно */}
             </select>
           </div>
-                 
-    
-    {/* ⚡ Ачаалж байх үед Header дээр гарч ирэх гоёмсог ногоон цагираг */}
-  
+
+          {/* ⚡ Ачаалж байх үед Header дээр гарч ирэх гоёмсог ногоон цагираг */}
 
           <div className="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-           
-            <button onClick={() => setIsLive(false)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>
+            <button
+              onClick={() => setIsLive(false)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}
+            >
               Demo
             </button>
-            <button onClick={() => setIsLive(true)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isLive ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-white"}`}>
+            <button
+              onClick={() => setIsLive(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isLive ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-white"}`}
+            >
               <Database className="h-3 w-3" /> Live DB
             </button>
           </div>
-
-
         </header>
-   {/* SCROLLABLE BODY (Tab Contents go here) */}
-    <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 relative w-full">
+        {/* SCROLLABLE BODY (Tab Contents go here) */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 relative w-full">
+          <div className="max-w-7xl mx-auto w-full max-w-full relative">
+            {/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
+            {tenantInfo?.isExpired && (
+              <div className="fixed inset-0 z-50 bg-[#0B1120]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+                <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 " />
+                <h2 className="text-2xl font-black text-white mb-2">
+                  Үйлчилгээний эрх зогссон байна
+                </h2>
+                <p className="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
+                  Таны{" "}
+                  {tenantInfo.isTrial ? "үнэгүй туршилтын" : "үйлчилгээний"}{" "}
+                  хугацаа <strong>{tenantInfo.formattedEndDate}</strong>-нд
+                  дууссан байна. Системээ үргэлжлүүлэн ашиглахын тулд эрхээ
+                  сунгана уу.
+                </p>
+                <button
+                  onClick={() => setShowCheckoutModal(true)}
+                  className="bg-white hover:bg-zinc-200 text-zinc-950 px-8 py-3.5 rounded-2xl font-black transition shadow-lg active:scale-95 cursor-pointer"
+                >
+                  💳 ЭРХ СУНГАХ (БАТАЛГААЖУУЛАХ)
+                </button>
+              </div>
+            )}
 
-  <div className="max-w-7xl mx-auto w-full max-w-full relative">
-    
-{/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
-{tenantInfo?.isExpired && (
-  <div className="fixed inset-0 z-50 bg-[#0B1120]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-    <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 animate-pulse" />
-    <h2 className="text-2xl font-black text-white mb-2">Үйлчилгээний эрх зогссон байна</h2>
-    <p className="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
-      Таны {tenantInfo.isTrial ? 'үнэгүй туршилтын' : 'үйлчилгээний'} хугацаа <strong>{tenantInfo.formattedEndDate}</strong>-нд дууссан байна. Системээ үргэлжлүүлэн ашиглахын тулд эрхээ сунгана уу.
-    </p>
-    <button
-      onClick={() => setShowCheckoutModal(true)}
-      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-8 py-3.5 rounded-2xl font-black transition shadow-lg active:scale-95 cursor-pointer"
-    >
-      💳 ЭРХ СУНГАХ (БАТАЛГААЖУУЛАХ)
-    </button>
-  </div>
-)}
- 
-
-
-{/* 🟡 3 ХОНОГ ҮЛДСЭН ҮЕД ХАРАГДАХ ДАРУУХАН ШАР ТУУЗ (Vercel, ChatGPT загвар) */}
-{tenantInfo && tenantInfo.daysLeft <= 3 && !tenantInfo.isExpired && (
-  <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
-    <div className="flex items-center gap-2.5">
-      <span className="text-amber-400 text-base">⚠️</span>
-      <p className="text-xs text-slate-300">
-        Таны {tenantInfo.isTrial ? "14 хоногийн туршилт" : `${tenantInfo.plan.toUpperCase()} эрх`} <strong>{tenantInfo.formattedEndDate}</strong>-нд дуусна. Үйл ажиллагаагаа тасалдуулахгүйн тулд сунгана уу.
-      </p>
-    </div>
-    <button
-      type="button"
-      onClick={() => setShowCheckoutModal(true)}
-      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
-    >
-      {tenantInfo.isTrial ? "Албан ёсны эрх авах ➔" : "Эрх сунгах ➔"}
-    </button>
-  </div>
-)}
-
-    <div className="max-w-7xl mx-auto w-full max-w-full">
-
-
-{isAuthChecking ? (
-      <div className="animate-pulse space-y-6">
-        
-     {/* 1. Толгой хэсгийн скелетон - Голд нь томорсон цагираг тасралтгүй эргэлдэнэ */}
-    <div className="relative h-24 w-full rounded-2xl border border-slate-700/50 overflow-hidden flex items-center justify-center">
-      {/* Арын дэвсгэр нь л лугшина (Pulse) */}
-      <div className="absolute inset-0 bg-slate-800/40 animate-pulse" />
-      
-      {/* Урд талын ногоон цагираг хэзээ ч бүдгэрэхгүй (Relative & Set Middle) */}
-      <div className="relative z-10 flex items-center justify-center">
-        <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
-        {/* Арай томруулсан цагираг: h-10 w-10 */}
-        <div className="h-10 w-10 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
-      </div>
-    </div>
-
-    {/* 2. Доод талын 4 картын скелетон (Эдгээр нь хэвийн лугшина) */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
-      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
-      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
-      <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
-    </div>
-
-    {/* 3. Том графикийн скелетон */}
-    <div className="h-96 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 animate-pulse"></div>
-    
-  </div>
-    ) : (   <>
-    
-  {/* ========================================================================= */}
-        {/* 1. САНХҮҮГИЙН ХЯНАЛТ (COGS ALIGNMENT & LIVE FEED БҮХИЙ ШИНЭ ИНТЕРФЕЙС)      */}
-        {/* ========================================================================= */}
-   {activeTab === "dashboard" && userRole === "owner" && (
-        <FinanceTab
-        isLive={isLive}  
-        activeClient={activeClient}
-        startDate={startDate}
-        endDate={endDate}
-        setStartDate={setStartDate}
-        setEndDate={setEndDate}
-        availableMonths={availableMonths}
-        handleMonthChange={handleMonthChange}
-        priceSpikeAlerts={priceSpikeAlerts}
-        liveAnalytics={liveAnalytics}
-        loading={loading}
-        setLoading={setLoading}
-        productsList={productsList}
-        fetchDatabaseData={fetchDatabaseData}
-        tenantInfo={tenantInfo}
-        setShowWasteGuideModal={setShowWasteGuideModal}
-        setActiveTab={setActiveTab}
-        setCatalogTab={setCatalogTab}
-        />
-        )}
-        {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
-        {userRole === "owner" && (
-          <div className={activeTab === "ai_cfo" ? "block" : "hidden"}>
-            <AiCfoChat
-              activeClient={activeClient}
-              startDate={startDate}
-              endDate={endDate}
-            />
-          </div>
-        )}
-        {/* 3.  STAFF PORTAL (INPUTS) */}
-        {activeTab === "operations" && (
-          <div>
-            {/* 🔐 ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
-            {userRole !== "owner" && (
-              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <p className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                    🔐 Миний Kiosk PIN код
-                  </p>
-                  <p className="text-sm text-slate-400 mt-0.5">
-                    Гал тогооны дундын таблет дээр нэвтрэх нууц код:
-                    <span className="ml-2 font-mono font-black text-sm text-emerald-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-700">
-                      {myPin || "1234 (Анхдагч)"}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={myPin}
-                    onChange={(e) =>
-                      setMyPin(e.target.value.replace(/\D/g, ""))
-                    }
-                    placeholder="Шинэ PIN (4 тоо)"
-                    className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-center text-white font-bold text-sm tracking-widest w-32 focus:border-emerald-500 outline-none"
-                  />
+            {/* 🟡 3 ХОНОГ ҮЛДСЭН ҮЕД ХАРАГДАХ ДАРУУХАН ШАР ТУУЗ (Vercel, ChatGPT загвар) */}
+            {tenantInfo &&
+              tenantInfo.daysLeft <= 3 &&
+              !tenantInfo.isExpired && (
+                <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-zinc-700 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-zinc-300 text-base">⚠️</span>
+                    <p className="text-xs text-slate-300">
+                      Таны{" "}
+                      {tenantInfo.isTrial
+                        ? "14 хоногийн туршилт"
+                        : `${tenantInfo.plan.toUpperCase()} эрх`}{" "}
+                      <strong>{tenantInfo.formattedEndDate}</strong>-нд дуусна.
+                      Үйл ажиллагаагаа тасалдуулахгүйн тулд сунгана уу.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (myPin.length !== 4) {
-                        alert("PIN код заавал 4 оронтой тоо байх ёстой!");
-                        return;
-                      }
-                      const { error } = await supabase
-                        .from("profiles")
-                        .update({ pin_code: myPin })
-                        .eq("id", user.id);
-                      if (error) alert(`Алдаа: ${error.message}`);
-                      else alert("Таны хувийн PIN код амжилттай солигдлоо! ✅");
-                    }}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2 rounded-xl text-sm transition"
+                    onClick={() => setShowCheckoutModal(true)}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
                   >
-                    Шинэчлэх
+                    {tenantInfo.isTrial
+                      ? "Албан ёсны эрх авах ➔"
+                      : "Эрх сунгах ➔"}
+                  </button>
+                </div>
+              )}
+
+            <div className="max-w-7xl mx-auto w-full max-w-full">
+              {isAuthChecking ? (
+                <div className=" space-y-6">
+                  {/* 1. Толгой хэсгийн скелетон - Голд нь томорсон цагираг тасралтгүй эргэлдэнэ */}
+                  <div className="relative h-24 w-full rounded-2xl border border-slate-700/50 overflow-hidden flex items-center justify-center">
+                    {/* Арын дэвсгэр нь л лугшина (Pulse) */}
+                    <div className="absolute inset-0 bg-slate-800/40 " />
+
+                    {/* Урд талын ногоон цагираг хэзээ ч бүдгэрэхгүй (Relative & Set Middle) */}
+                    <div className="relative z-10 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
+                      {/* Арай томруулсан цагираг: h-10 w-10 */}
+                      <div className="h-10 w-10 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
+                    </div>
+                  </div>
+
+                  {/* 2. Доод талын 4 картын скелетон (Эдгээр нь хэвийн лугшина) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                    <div className="h-32 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                  </div>
+
+                  {/* 3. Том графикийн скелетон */}
+                  <div className="h-96 bg-slate-800/40 rounded-2xl w-full border border-slate-700/50 "></div>
+                </div>
+              ) : (
+                <>
+                  {/* ========================================================================= */}
+                  {/* 1. САНХҮҮГИЙН ХЯНАЛТ (COGS ALIGNMENT & LIVE FEED БҮХИЙ ШИНЭ ИНТЕРФЕЙС)      */}
+                  {/* ========================================================================= */}
+                  {activeTab === "dashboard" && userRole === "owner" && (
+                    <FinanceTab
+                      isLive={isLive}
+                      activeClient={activeClient}
+                      startDate={startDate}
+                      endDate={endDate}
+                      setStartDate={setStartDate}
+                      setEndDate={setEndDate}
+                      availableMonths={availableMonths}
+                      handleMonthChange={handleMonthChange}
+                      priceSpikeAlerts={priceSpikeAlerts}
+                      liveAnalytics={liveAnalytics}
+                      loading={loading}
+                      setLoading={setLoading}
+                      productsList={productsList}
+                      fetchDatabaseData={fetchDatabaseData}
+                      tenantInfo={tenantInfo}
+                      setShowWasteGuideModal={setShowWasteGuideModal}
+                      setActiveTab={setActiveTab}
+                      setCatalogTab={setCatalogTab}
+                    />
+                  )}
+                  {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
+                  {userRole === "owner" && (
+                    <div
+                      className={activeTab === "ai_cfo" ? "block" : "hidden"}
+                    >
+                      <AiCfoChat
+                        activeClient={activeClient}
+                        startDate={startDate}
+                        endDate={endDate}
+                      />
+                    </div>
+                  )}
+                  {/* 3.  STAFF PORTAL (INPUTS) */}
+                  {activeTab === "operations" && (
+                    <div>
+                      {/* 🔐 ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
+                      {userRole !== "owner" && (
+                        <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                              🔐 Миний Kiosk PIN код
+                            </p>
+                            <p className="text-sm text-slate-400 mt-0.5">
+                              Гал тогооны дундын таблет дээр нэвтрэх нууц код:
+                              <span className="ml-2 font-mono font-black text-sm text-zinc-200 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-700">
+                                {myPin || "1234 (Анхдагч)"}
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <input
+                              type="password"
+                              maxLength={4}
+                              value={myPin}
+                              onChange={(e) =>
+                                setMyPin(e.target.value.replace(/\D/g, ""))
+                              }
+                              placeholder="Шинэ PIN (4 тоо)"
+                              className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-center text-white font-bold text-sm tracking-widest w-32 focus:border-zinc-700 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (myPin.length !== 4) {
+                                  alert(
+                                    "PIN код заавал 4 оронтой тоо байх ёстой!",
+                                  );
+                                  return;
+                                }
+                                const { error } = await supabase
+                                  .from("profiles")
+                                  .update({ pin_code: myPin })
+                                  .eq("id", user.id);
+                                if (error) alert(`Алдаа: ${error.message}`);
+                                else
+                                  alert(
+                                    "Таны хувийн PIN код амжилттай солигдлоо! ✅",
+                                  );
+                              }}
+                              className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-sm transition"
+                            >
+                              Шинэчлэх
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 5. SPREADSHEET BULK STOCK TAKE TAB */}
+                  {activeTab === "inventory" && (
+                    <InventoryTab
+                      activeClient={activeClient}
+                      ingredients={ingredients}
+                      setIngredients={setIngredients}
+                      liveAnalytics={liveAnalytics}
+                      loading={loading}
+                      fetchDatabaseData={fetchDatabaseData}
+                      translationsCache={translationsCache}
+                      setTranslationsCache={setTranslationsCache}
+                      editingTranslation={editingTranslation}
+                      setEditingTranslation={setEditingTranslation}
+                    />
+                  )}
+
+                  {/* 6. BULK CLIPBOARD PASTE TAB */}
+
+                  {activeTab === "import" && (
+                    <ImportTab
+                      activeClient={activeClient}
+                      startDate={startDate}
+                      endDate={endDate}
+                      ingredients={ingredients}
+                      salesLogs={salesLogs}
+                      inventoryLogs={inventoryLogs}
+                      productsList={productsList}
+                      setProductsList={setProductsList}
+                      learnedMenus={learnedMenus}
+                      learnedCategories={learnedCategories}
+                      userRole={userRole}
+                      user={user}
+                      loading={loading}
+                      setLoading={setLoading}
+                      fetchDatabaseData={fetchDatabaseData}
+                      setAutoPilotActivity={setAutoPilotActivity}
+                      updatePendingReview={updatePendingReview}
+                    />
+                  )}
+
+                  {/* 7. TASK & ROLE MANAGEMENT TAB */}
+                  {activeTab === "tasks" && userRole === "owner" && (
+                    <TasksTab
+                      activeClient={activeClient}
+                      workersList={workersList}
+                      companyRoles={companyRoles}
+                      tasks={tasks}
+                      shifts={shifts}
+                      loading={loading}
+                      setLoading={setLoading}
+                      fetchDatabaseData={fetchDatabaseData}
+                      setSelectedImageModal={setSelectedImageModal}
+                    />
+                  )}
+
+                  {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
+                  {userRole === "owner" &&
+                    activeTab !== "inventory" &&
+                    activeTab !== "import" &&
+                    activeTab !== "ai_cfo" &&
+                    activeTab !== "operations" &&
+                    activeTab !== "sales" &&
+                    activeTab !== "dashboard" &&
+                    activeTab !== "settings" && (
+                      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                              <Activity className="h-5 w-5 text-zinc-200" />
+                              Өдөр тутмын үйл ажиллагааны Хяналтын Лог
+                            </h3>
+                            <p className="text-sm text-slate-400 mt-1">
+                              Ажилтан тус бүрийн хийсэн бүх гүйлгээ, зураг болон
+                              баримтын хяналт
+                            </p>
+                          </div>
+
+                          {/* Date & Worker Range Filter Inputs */}
+                          <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-400">
+                                Ажилтан Хайх:
+                              </span>
+                              <input
+                                type="text"
+                                value={workerSearchQuery}
+                                onChange={(e) =>
+                                  setWorkerSearchQuery(e.target.value)
+                                }
+                                placeholder="Нэр бичих..."
+                                className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 w-36 placeholder:text-slate-600"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-400">
+                                Эхлэх:
+                              </span>
+                              <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-400">
+                                Дуусах:
+                              </span>
+                              <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="overflow-x-auto max-h-[400px]">
+                          <table className="w-full text-left">
+                            <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
+                              <tr className="text-slate-400 text-sm font-bold uppercase border-b border-slate-800">
+                                <th className="pb-3 px-2">Төрөл</th>
+                                <th className="pb-3 px-2">Ажилтан</th>
+                                <th className="pb-3 px-2">Барааны Нэр</th>
+                                <th className="pb-3 px-2 text-right">Хэмжээ</th>
+                                <th className="pb-3 px-2 text-right">
+                                  Үнэ (Cost)
+                                </th>
+                                <th className="pb-3 px-2 text-center">
+                                  Баримт (Proof)
+                                </th>
+                                <th className="pb-3 px-2">Тайлбар</th>
+                                <th className="pb-3 px-2">Огноо</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-sm divide-y divide-slate-800/50">
+                              {inventoryLogs.filter((log) => {
+                                const logDate = log.date
+                                  ? log.date.split("T")[0]
+                                  : "";
+                                const dateMatch =
+                                  logDate >= startDate && logDate <= endDate;
+
+                                // Live, case-insensitive partial match search logic
+                                const workerMatch =
+                                  !workerSearchQuery.trim() ||
+                                  (log.worker_name || "Үл мэдэгдэх")
+                                    .toLowerCase()
+                                    .includes(
+                                      workerSearchQuery.toLowerCase().trim(),
+                                    );
+
+                                return (
+                                  dateMatch &&
+                                  workerMatch &&
+                                  log.client_id === activeClient
+                                );
+                              }).length === 0 ? (
+                                <tr>
+                                  <td
+                                    colSpan={7}
+                                    className="py-8 text-center text-slate-500 italic"
+                                  >
+                                    Энэ хугацаанд агуулахын ямар нэгэн хөдөлгөөн
+                                    бүртгэгдээгүй байна.
+                                  </td>
+                                </tr>
+                              ) : (
+                                inventoryLogs
+                                  .filter((log) => {
+                                    const logDate = log.date
+                                      ? log.date.split("T")[0]
+                                      : "";
+                                    const dateMatch =
+                                      logDate >= startDate &&
+                                      logDate <= endDate;
+
+                                    // Same dynamic search matching applied to the mapping loop
+                                    const workerMatch =
+                                      !workerSearchQuery.trim() ||
+                                      (log.worker_name || "Үл мэдэгдэх")
+                                        .toLowerCase()
+                                        .includes(
+                                          workerSearchQuery
+                                            .toLowerCase()
+                                            .trim(),
+                                        );
+
+                                    return (
+                                      dateMatch &&
+                                      workerMatch &&
+                                      log.client_id === activeClient
+                                    );
+                                  })
+                                  .map((log) => {
+                                    const ing = ingredients.find(
+                                      (i) => i.id === log.ingredient_id,
+                                    );
+                                    const name = ing
+                                      ? ing.name
+                                      : log.non_food_item || "Unknown";
+                                    const unit = ing ? ing.unit : "ш";
+                                    const noteText = (
+                                      log.notes || ""
+                                    ).toLowerCase();
+                                    const isPhotoVerified =
+                                      noteText.includes("scan") ||
+                                      noteText.includes("e-barimt") ||
+                                      noteText.includes("proof") ||
+                                      noteText.includes("зураг");
+
+                                    return (
+                                      <tr
+                                        key={log.id}
+                                        className="hover:bg-slate-900/30"
+                                      >
+                                        <td className="py-3 px-2">
+                                          <span
+                                            className={`px-2 py-1 rounded-lg text-sm font-black uppercase ${
+                                              log.type === "purchase"
+                                                ? "bg-zinc-800/60 text-zinc-300"
+                                                : log.type === "count"
+                                                  ? "bg-purple-500/10 text-zinc-300"
+                                                  : "bg-rose-500/10 text-rose-400"
+                                            }`}
+                                          >
+                                            {log.type}
+                                          </span>
+                                        </td>
+                                        {/* АЖИЛТАН БАГАНА */}
+                                        <td className="py-3 px-2 text-slate-300 font-medium">
+                                          {log.worker_name || "Үл мэдэгдэх"}
+                                        </td>
+                                        <td className="py-3 px-2 font-bold text-slate-200">
+                                          {name}
+                                        </td>
+                                        <td className="py-3 px-2 text-right font-semibold">
+                                          {Math.abs(
+                                            log.quantity,
+                                          ).toLocaleString()}{" "}
+                                          {unit}
+                                        </td>
+                                        <td className="py-3 px-2 text-right text-slate-400">
+                                          {log.total_cost
+                                            ? `${parseFloat(log.total_cost).toLocaleString()}₮`
+                                            : "-"}
+                                        </td>
+                                        <td className="py-3 px-2 text-center">
+                                          {log.image_url ? (
+                                            <button
+                                              onClick={() =>
+                                                setSelectedImageModal({
+                                                  url: log.image_url,
+                                                  title: `📸 Нотлох баримт: ${name}`,
+                                                  subtitle: `${log.worker_name} • ${new Date(log.date).toLocaleString("mn-MN")}`,
+                                                })
+                                              }
+                                              className="bg-zinc-800/60 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 px-2.5 py-1 rounded-lg text-sm font-black transition flex items-center gap-1 mx-auto"
+                                            >
+                                              <Camera className="h-3 w-3" />{" "}
+                                              Зураг үзэх
+                                            </button>
+                                          ) : isPhotoVerified ? (
+                                            <span className="bg-zinc-800/60 text-zinc-200 px-2 py-1 rounded-lg text-sm font-bold border border-zinc-700/20">
+                                              📸 Баримттай
+                                            </span>
+                                          ) : log.type === "purchase" ? (
+                                            <span className="bg-rose-500/10 text-rose-400 px-2 py-1 rounded-lg text-sm font-bold border border-rose-500/20">
+                                              ⚠️ Зураггүй
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-500 text-sm italic">
+                                              Дотоод
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="py-3 px-2 text-slate-400 max-w-[200px] truncate">
+                                          {log.notes || "-"}
+                                        </td>
+                                        <td className="py-3 px-2 text-slate-400 text-sm font-mono">
+                                          {new Date(log.date).toLocaleString(
+                                            "mn-MN",
+                                            {
+                                              year: "numeric",
+                                              month: "2-digit",
+                                              day: "2-digit",
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              second: "2-digit",
+                                              timeZone: "Asia/Ulaanbaatar",
+                                            },
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* 8. ⚙️ 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
+                  {activeTab === "settings" && userRole === "owner" && (
+                    <div className="space-y-6">
+                      {/* 🟢 ХЭРЭГЛЭГЧИЙН ИДЭВХТЭЙ БАГЦЫН МЭДЭЭЛЭЛ (SETTINGS) */}
+                      <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full bg-zinc-200"></span>
+                            <h3 className="font-black text-white text-sm uppercase">
+                              Идэвхтэй багц:{" "}
+                              <span className="text-zinc-200">
+                                {tenantInfo?.plan || "Professional"}
+                              </span>
+                            </h3>
+                            {tenantInfo?.isTrial && (
+                              <span className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded font-black">
+                                Туршилт
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            📅 Дараагийн сунгалт:{" "}
+                            <strong className="text-slate-200">
+                              {tenantInfo?.formattedEndDate || "2026.11.20"}{" "}
+                              хүртэл
+                            </strong>
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowCheckoutModal(true)}
+                          className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition border border-slate-700 active:scale-95 cursor-pointer"
+                        >
+                          Багц солих / Сунгах
+                        </button>
+                      </div>
+
+                      <SettingsTab
+                        user={user}
+                        startDate={startDate}
+                        endDate={endDate}
+                        activeClient={activeClient}
+                        salesLogs={salesLogs}
+                        learnedMenus={learnedMenus}
+                        fixedAssets={fixedAssets}
+                        fixedOpexList={fixedOpexList}
+                        initialCash={initialCash}
+                        setInitialCash={setInitialCash}
+                        initialBank={initialBank}
+                        setInitialBank={setInitialBank}
+                        taxMode={taxMode}
+                        setTaxMode={setTaxMode}
+                        kioskLogoUrl={kioskLogoUrl}
+                        setKioskLogoUrl={setKioskLogoUrl}
+                        categoryMargins={categoryMargins}
+                        setCategoryMargins={setCategoryMargins}
+                        loading={loading}
+                        setLoading={setLoading}
+                        fetchDatabaseData={fetchDatabaseData}
+                        productRecipeStatus={productRecipeStatus}
+                        unmappedSales={unmappedSales}
+                        handleExportRecipeBackup={handleExportRecipeBackup}
+                        handleExportToExcel={handleExportToExcel}
+                        handleJsonFileSelect={handleJsonFileSelect}
+                        pendingCategoryReview={pendingCategoryReview}
+                        updatePendingReview={updatePendingReview}
+                        commitFinalSales={commitFinalSales}
+                      />
+                    </div>
+                  )}
+
+                  {/* 📸 FULL-SCREEN EVIDENCE IMAGE VIEWER MODAL */}
+                  {selectedImageModal && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+                      onClick={() => setSelectedImageModal(null)}
+                    >
+                      <div
+                        className="bg-slate-900 border border-slate-700 rounded-3xl p-5 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                          <div>
+                            <h3 className="text-base font-black text-white">
+                              {selectedImageModal.title}
+                            </h3>
+                            {selectedImageModal.subtitle && (
+                              <p className="text-sm text-slate-400 mt-0.5">
+                                {selectedImageModal.subtitle}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setSelectedImageModal(null)}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl text-sm font-bold transition"
+                          >
+                            ✕ Хаах
+                          </button>
+                        </div>
+
+                        <div className="flex-1 min-h-0 py-4 flex items-center justify-center overflow-auto">
+                          <img
+                            src={selectedImageModal.url}
+                            alt="Evidence Preview"
+                            className="max-h-[65vh] w-auto rounded-2xl object-contain shadow-md border border-slate-800"
+                          />
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800 flex justify-end">
+                          <a
+                            href={selectedImageModal.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white hover:bg-zinc-200 text-zinc-950 font-bold px-4 py-2 rounded-xl text-sm transition flex items-center gap-1.5"
+                          >
+                            <span>Эх хувилбараар нээх</span>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 💡 UNEXPLAINED WASTE ANALYSIS GUIDE MODAL */}
+                  {showWasteGuideModal && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+                      onClick={() => setShowWasteGuideModal(false)}
+                    >
+                      <div
+                        className="bg-zinc-950 border border-slate-700 rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+                          <div>
+                            <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-2">
+                              <Search className="h-6 w-6 text-zinc-300" />
+                              Алдагдлын Шинжилгээний Гарын Авлага
+                            </h3>
+                            <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+                              Систем дээр үүссэн "Шалтгаангүй алдагдал" нь шууд
+                              хулгай гэсэн үг биш юм. Та менежерийн хувиар
+                              дараах 4 нөхцөлийг шалгаж эрсдэлийг удирдах
+                              боломжтой.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setShowWasteGuideModal(false)}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-sm font-bold transition"
+                          >
+                            ✕ Хаах
+                          </button>
+                        </div>
+                        {/* 🤖 AI ЗӨВЛӨХТЭЙ ЯРИЛЦАХ ЗААВАР */}
+                        <div className="bg-zinc-800/60 border border-zinc-800 p-5 rounded-2xl mb-6">
+                          <h4 className="font-black text-zinc-300 text-sm flex items-center gap-2 mb-2">
+                            <Bot className="h-5 w-5" />
+                            AI Зөвлөхөөс хэрхэн асуух вэ? (Хамгийн хурдан арга)
+                          </h4>
+                          <p className="text-sm text-slate-300 mb-3 leading-relaxed">
+                            Та дээрх алдагдал хулгай мөн эсэхийг өөрөө таах
+                            шаардлагагүй. <strong>"🤖 AI Зөвлөх"</strong> таб
+                            руу ороод доорх асуултуудаас хуулж асуугаарай. AI
+                            өөрөө датаг шинжлээд хулгай юу, эсвэл алдаа юу
+                            гэдгийг магадлалаар нь гаргаж өгнө.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                              <p className="text-xs text-slate-500 font-bold mb-1 uppercase">
+                                Жишээ асуулт 1:
+                              </p>
+                              <p className="text-sm text-white font-mono">
+                                "Өнөөдрийн 15,000₮-ийн сүүний алдагдал хулгай
+                                юу, эсвэл орц хэтрүүлэлт үү? Шинжилж өг."
+                              </p>
+                            </div>
+                            <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                              <p className="text-xs text-slate-500 font-bold mb-1 uppercase">
+                                Жишээ асуулт 2:
+                              </p>
+                              <p className="text-sm text-white font-mono">
+                                "Сүү, Кофе хоёр зэрэгцээд дутсан байна. ПОС дээр
+                                бэлэн мөнгөөр зараагүй нуусан хулгай байх
+                                магадлалтай юу?"
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* НӨХЦӨЛ 1 */}
+                          <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="bg-zinc-800/60 p-2 rounded-xl">
+                                <Coffee className="h-5 w-5 text-zinc-200" />
+                              </div>
+                              <h4 className="font-bold text-slate-200 text-sm">
+                                1. Орц хэтрүүлэлт (Overpouring)
+                              </h4>
+                            </div>
+                            <p className="text-sm text-slate-400 mb-2">
+                              <strong>Шинж тэмдэг:</strong> Аяга бүрээс 10-20мл
+                              гэх мэт маш бага хэмжээгээр, тогтмол дутаад байх.
+                            </p>
+                            <div className="bg-white/5 border-l-2 border-zinc-700 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
+                              <strong>Авах арга хэмжээ:</strong> Бариста нарт
+                              сүүний хөөсрүүлэгч савны зураасаар сүүгээ тааруулж
+                              хийхийг анхааруулах, кофены бутлагчийн (grinder)
+                              граммын тохиргоог дахин жигнэж тааруулах.
+                            </div>
+                          </div>
+
+                          {/* НӨХЦӨЛ 2 */}
+                          <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="bg-zinc-800/60 p-2 rounded-xl">
+                                <Layers3 className="h-5 w-5 text-zinc-300" />
+                              </div>
+                              <h4 className="font-bold text-slate-200 text-sm">
+                                2. Бүртгэхээ мартсан (Forgot Log)
+                              </h4>
+                            </div>
+                            <p className="text-sm text-slate-400 mb-2">
+                              <strong>Шинж тэмдэг:</strong> Ажилтан хоолондоо
+                              хэрэглэсэн, эсвэл санамсаргүй асгасан ч Kiosk-д
+                              оруулж амжаагүй байх.
+                            </p>
+                            <div className="bg-zinc-200/5 border-l-2 border-zinc-700 p-2.5 text-sm text-blue-300/90 rounded-r-lg">
+                              <strong>Авах арга хэмжээ:</strong> Ажилтнаас
+                              асуух. Хэрэв асгасан байвал Kiosk руу ороод "1л
+                              сүү асгасан" гэж нөхөж оруулахад л системийн энэ
+                              алдагдал автоматаар 0 болж засагдана.
+                            </div>
+                          </div>
+
+                          {/* НӨХЦӨЛ 3 */}
+                          <div className="bg-[#111827] p-5 rounded-2xl border border-rose-900/50 hover:border-rose-500/30 transition md:col-span-2">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="bg-rose-500/10 p-2 rounded-xl">
+                                <DollarSign className="h-5 w-5 text-rose-400" />
+                              </div>
+                              <h4 className="font-bold text-rose-400 text-sm">
+                                3. Бэлэн мөнгөний хулгай (Un-rung Sales)
+                              </h4>
+                            </div>
+                            <p className="text-sm text-slate-400 mb-2">
+                              <strong>Шинж тэмдэг:</strong> Системд ямар ч
+                              борлуулалт (Орлого) ороогүй мөртлөө Сүү, Кофе үр,
+                              Аяга 3 зэрэг дутсан байх.
+                            </p>
+                            <div className="bg-rose-500/5 border-l-2 border-rose-500 p-2.5 text-sm text-rose-300/90 rounded-r-lg flex flex-col gap-1.5">
+                              <span>
+                                <strong>Авах арга хэмжээ:</strong> Энэ бол
+                                бариста үйлчлүүлэгчээс бэлэн мөнгө аваад ПОС-д
+                                шивэлгүй кофе хийж өгсөн хамгийн ноцтой үйлдэл
+                                юм.
+                              </span>
+                              <span>
+                                Агуулахын Тооллого цэсний "Үйл ажиллагааны
+                                Хяналтын Лог" хэсгээс тооллого дутсан яг тэр цаг
+                                мөчийг шүүж, хяналтын камертай (CCTV) тулгаж
+                                шалгана уу.
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* НӨХЦӨЛ 4 */}
+                          <div className="bg-[#111827] p-5 rounded-2xl border border-amber-900/50 hover:border-zinc-700 transition md:col-span-2">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="bg-zinc-800/60 p-2 rounded-xl">
+                                <AlertTriangle className="h-5 w-5 text-zinc-300" />
+                              </div>
+                              <h4 className="font-bold text-zinc-300 text-sm">
+                                4. Физик хулгай эсвэл Том асгаралт
+                              </h4>
+                            </div>
+                            <p className="text-sm text-slate-400 mb-2">
+                              <strong>Шинж тэмдэг:</strong> Бүтэн 1 хайрцаг сүү
+                              (12л), эсвэл 1 бүтэн уут кофе гэнэт алга болох.
+                            </p>
+                            <div className="bg-amber-500/5 border-l-2 border-amber-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
+                              <strong>Авах арга хэмжээ:</strong> Хэрэв Kiosk
+                              дээр зурагтай "Хаягдал" бүртгэгдээгүй байвал
+                              тухайн ээлжийн ажилтнаас шууд тайлбар нэхэж,
+                              хариуцлага тооцох шаардлагатай.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ========================================================================= */}
+                  {/* 📥 JSON НӨӨЦӨӨС БҮГДИЙГ ЭСВЭЛ СОНГОЖ СЭРГЭЭХ ЦОНХ                        */}
+                  {/* ========================================================================= */}
+                  {jsonBackupModal && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150"
+                      onClick={() => setJsonBackupModal(null)}
+                    >
+                      <div
+                        className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                          <div>
+                            <h3 className="text-base font-black text-white flex items-center gap-2">
+                              <span>📥 Нөөц Файлаас Жор Сэргээх</span>
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Файлд нийт{" "}
+                              <strong className="text-zinc-300">
+                                {
+                                  Object.keys(jsonBackupModal.recipesByProduct)
+                                    .length
+                                }
+                              </strong>{" "}
+                              бүтээгдэхүүний жор байна.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setJsonBackupModal(null)}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                          >
+                            ✕ Хаах
+                          </button>
+                        </div>
+
+                        {/* ⚡ БҮГДИЙГ НЭГ ДОР СЭРГЭЭХ ТОМ ТОВЧ */}
+                        <button
+                          type="button"
+                          onClick={handleRestoreAllFromJson}
+                          className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                        >
+                          <span>✓ БҮХ ЖОРЫГ БӨӨНӨӨР НЬ СЭРГЭЭХ</span>
+                        </button>
+
+                        <div className="relative flex py-1 items-center">
+                          <div className="flex-grow border-t border-slate-800"></div>
+                          <span className="flex-shrink mx-3 text-xs text-slate-500 font-bold uppercase">
+                            эсвэл тус тусад нь сонгох
+                          </span>
+                          <div className="flex-grow border-t border-slate-800"></div>
+                        </div>
+
+                        {/* 🔍 ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
+                          {Object.keys(jsonBackupModal.recipesByProduct).map(
+                            (pName) => {
+                              const itemsCount =
+                                jsonBackupModal.recipesByProduct[pName].length;
+                              return (
+                                <div
+                                  key={pName}
+                                  className="pt-2 flex justify-between items-center text-xs"
+                                >
+                                  <div>
+                                    <span className="font-bold text-white text-sm block">
+                                      {pName}
+                                    </span>
+                                    <span className="text-xs text-slate-400 font-mono">
+                                      {itemsCount} төрлийн орцтой
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRestoreSingleRecipe(pName)
+                                    }
+                                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer"
+                                  >
+                                    ↩️ Сэргээх
+                                  </button>
+                                </div>
+                              );
+                            },
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {/* 💳 ТӨЛБӨРИЙН БЭЛЭН ЦОНХ (CHECKOUT MODAL) */}
+            <CheckoutModal
+              isOpen={showCheckoutModal}
+              onClose={() => setShowCheckoutModal(false)}
+              clientId={activeClient}
+              userPhone={userPhone}
+              initialPlan={checkoutInitialPlan}
+              initialCycle={checkoutInitialCycle}
+              currentPlan={tenantInfo?.plan || "trial"}
+            />
+            {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
+            {showUpgradeSuccess && (
+              <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+                <div className="bg-[#0B1120] border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
+                  <div className="w-20 h-20 bg-zinc-800/60 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
+                    <span className="text-4xl">🎉</span>
+                  </div>
+                  <h2 className="text-2xl font-black text-white">
+                    Баяр хүргэе!
+                  </h2>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Таны төлбөр баталгаажиж, үйлчилгээний эрх амжилттай
+                    сунгагдлаа.
+                  </p>
+
+                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl inline-block mt-2 min-w-[200px]">
+                    <span className="text-xs text-slate-500 block uppercase font-bold mb-1">
+                      Дараагийн сунгалт:
+                    </span>
+                    <span className="text-zinc-200 font-black text-lg">
+                      {tenantInfo?.formattedEndDate}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setShowUpgradeSuccess(false)}
+                    className="w-full mt-6 bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3.5 rounded-xl transition shadow-lg active:scale-95 cursor-pointer"
+                  >
+                    Үргэлжлүүлэх
                   </button>
                 </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* 5. SPREADSHEET BULK STOCK TAKE TAB */}
-    {activeTab === "inventory" && (
-      <InventoryTab
-        activeClient ={activeClient}
-        ingredients={ingredients}
-        setIngredients = {setIngredients}
-        liveAnalytics = {liveAnalytics}
-        loading ={loading}
-        fetchDatabaseData= {fetchDatabaseData}
-        translationsCache = {translationsCache}
-        setTranslationsCache = {setTranslationsCache}
-        editingTranslation = {editingTranslation}
-        setEditingTranslation = {setEditingTranslation}
-      />
-        )}
-
-        {/* 6. BULK CLIPBOARD PASTE TAB */}
-
-        {activeTab === "import" && (
-       <ImportTab
-        activeClient = {activeClient}
-        startDate = {startDate}
-        endDate = {endDate}
-        ingredients = {ingredients}
-        salesLogs = {salesLogs}
-        inventoryLogs = {inventoryLogs}
-        productsList = {productsList}
-        setProductsList = {setProductsList}
-        learnedMenus = {learnedMenus}
-        learnedCategories = {learnedCategories}
-        userRole = {userRole}
-        user = {user}
-        loading = {loading}
-        setLoading = {setLoading}
-        fetchDatabaseData = {fetchDatabaseData}
-        setAutoPilotActivity = {setAutoPilotActivity}
-        updatePendingReview = {updatePendingReview}
-       />
-        )}
-
-        {/* 7. TASK & ROLE MANAGEMENT TAB */}
-        {activeTab === "tasks" && userRole === "owner" && (
-          <TasksTab
-            activeClient = {activeClient}
-            workersList = {workersList}
-            companyRoles = {companyRoles}
-            tasks = {tasks}
-            shifts = {shifts}
-            loading = {loading}
-            setLoading = {setLoading}
-            fetchDatabaseData = {fetchDatabaseData}
-            setSelectedImageModal = {setSelectedImageModal}
-          />
-        )}
-
-        {/* DYNAMIC DAILY OPERATIONAL AUDIT TIMELINE */}
-        {userRole === "owner" &&
-          activeTab !== "inventory" &&
-          activeTab !== "import" &&
-          activeTab !== "ai_cfo" &&
-          activeTab !== "operations" &&
-          activeTab !== "sales" &&
-          activeTab !== "dashboard" &&
-          activeTab !== "settings" && (
-            <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-emerald-400" />
-                    Өдөр тутмын үйл ажиллагааны Хяналтын Лог
-                  </h3>
-                  <p className="text-sm text-slate-400 mt-1">
-                    Ажилтан тус бүрийн хийсэн бүх гүйлгээ, зураг болон баримтын
-                    хяналт
-                  </p>
-                </div>
-
-                {/* Date & Worker Range Filter Inputs */}
-                <div className="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-400">
-                      Ажилтан Хайх:
-                    </span>
-                    <input
-                      type="text"
-                      value={workerSearchQuery}
-                      onChange={(e) => setWorkerSearchQuery(e.target.value)}
-                      placeholder="Нэр бичих..."
-                      className="bg-transparent text-sm text-white font-bold outline-none border-0 p-0 focus:ring-0 w-36 placeholder:text-slate-600"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-400">
-                      Эхлэх:
-                    </span>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-400">
-                      Дуусах:
-                    </span>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="bg-transparent text-sm text-white font-bold outline-none cursor-pointer border-0 p-0"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto max-h-[400px]">
-                <table className="w-full text-left">
-                  <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
-                    <tr className="text-slate-400 text-sm font-bold uppercase border-b border-slate-800">
-                      <th className="pb-3 px-2">Төрөл</th>
-                      <th className="pb-3 px-2">Ажилтан</th>
-                      <th className="pb-3 px-2">Барааны Нэр</th>
-                      <th className="pb-3 px-2 text-right">Хэмжээ</th>
-                      <th className="pb-3 px-2 text-right">Үнэ (Cost)</th>
-                      <th className="pb-3 px-2 text-center">Баримт (Proof)</th>
-                      <th className="pb-3 px-2">Тайлбар</th>
-                      <th className="pb-3 px-2">Огноо</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm divide-y divide-slate-800/50">
-                    {inventoryLogs.filter((log) => {
-                      const logDate = log.date ? log.date.split("T")[0] : "";
-                      const dateMatch =
-                        logDate >= startDate && logDate <= endDate;
-
-                      // Live, case-insensitive partial match search logic
-                      const workerMatch =
-                        !workerSearchQuery.trim() ||
-                        (log.worker_name || "Үл мэдэгдэх")
-                          .toLowerCase()
-                          .includes(workerSearchQuery.toLowerCase().trim());
-
-                      return (
-                        dateMatch &&
-                        workerMatch &&
-                        log.client_id === activeClient
-                      );
-                    }).length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="py-8 text-center text-slate-500 italic"
-                        >
-                          Энэ хугацаанд агуулахын ямар нэгэн хөдөлгөөн
-                          бүртгэгдээгүй байна.
-                        </td>
-                      </tr>
-                    ) : (
-                      inventoryLogs
-                        .filter((log) => {
-                          const logDate = log.date
-                            ? log.date.split("T")[0]
-                            : "";
-                          const dateMatch =
-                            logDate >= startDate && logDate <= endDate;
-
-                          // Same dynamic search matching applied to the mapping loop
-                          const workerMatch =
-                            !workerSearchQuery.trim() ||
-                            (log.worker_name || "Үл мэдэгдэх")
-                              .toLowerCase()
-                              .includes(workerSearchQuery.toLowerCase().trim());
-
-                          return (
-                            dateMatch &&
-                            workerMatch &&
-                            log.client_id === activeClient
-                          );
-                        })
-                        .map((log) => {
-                          const ing = ingredients.find(
-                            (i) => i.id === log.ingredient_id,
-                          );
-                          const name = ing
-                            ? ing.name
-                            : log.non_food_item || "Unknown";
-                          const unit = ing ? ing.unit : "ш";
-                          const noteText = (log.notes || "").toLowerCase();
-                          const isPhotoVerified =
-                            noteText.includes("scan") ||
-                            noteText.includes("e-barimt") ||
-                            noteText.includes("proof") ||
-                            noteText.includes("зураг");
-
-                          return (
-                            <tr key={log.id} className="hover:bg-slate-900/30">
-                              <td className="py-3 px-2">
-                                <span
-                                  className={`px-2 py-1 rounded-lg text-sm font-black uppercase ${
-                                    log.type === "purchase"
-                                      ? "bg-blue-500/10 text-blue-400"
-                                      : log.type === "count"
-                                        ? "bg-purple-500/10 text-purple-400"
-                                        : "bg-rose-500/10 text-rose-400"
-                                  }`}
-                                >
-                                  {log.type}
-                                </span>
-                              </td>
-                              {/* АЖИЛТАН БАГАНА */}
-                              <td className="py-3 px-2 text-slate-300 font-medium">
-                                {log.worker_name || "Үл мэдэгдэх"}
-                              </td>
-                              <td className="py-3 px-2 font-bold text-slate-200">
-                                {name}
-                              </td>
-                              <td className="py-3 px-2 text-right font-semibold">
-                                {Math.abs(log.quantity).toLocaleString()} {unit}
-                              </td>
-                              <td className="py-3 px-2 text-right text-slate-400">
-                                {log.total_cost
-                                  ? `${parseFloat(log.total_cost).toLocaleString()}₮`
-                                  : "-"}
-                              </td>
-                              <td className="py-3 px-2 text-center">
-                                {log.image_url ? (
-                                  <button
-                                    onClick={() =>
-                                      setSelectedImageModal({
-                                        url: log.image_url,
-                                        title: `📸 Нотлох баримт: ${name}`,
-                                        subtitle: `${log.worker_name} • ${new Date(log.date).toLocaleString("mn-MN")}`,
-                                      })
-                                    }
-                                    className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-sm font-black transition flex items-center gap-1 mx-auto"
-                                  >
-                                    <Camera className="h-3 w-3" /> Зураг үзэх
-                                  </button>
-                                ) : isPhotoVerified ? (
-                                  <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg text-sm font-bold border border-emerald-500/20">
-                                    📸 Баримттай
-                                  </span>
-                                ) : log.type === "purchase" ? (
-                                  <span className="bg-rose-500/10 text-rose-400 px-2 py-1 rounded-lg text-sm font-bold border border-rose-500/20">
-                                    ⚠️ Зураггүй
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-500 text-sm italic">
-                                    Дотоод
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-3 px-2 text-slate-400 max-w-[200px] truncate">
-                                {log.notes || "-"}
-                              </td>
-                              <td className="py-3 px-2 text-slate-400 text-sm font-mono">
-                                {new Date(log.date).toLocaleString("mn-MN", {
-                                  year: "numeric",
-                                  month: "2-digit",
-                                  day: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                  timeZone: "Asia/Ulaanbaatar", 
-                                })}
-                              </td>
-                            </tr>
-                          );
-                        })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-        {/* 8. ⚙️ 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
-        {activeTab === "settings" && userRole === "owner" && (
-           <div className="space-y-6">
-            
-            {/* 🟢 ХЭРЭГЛЭГЧИЙН ИДЭВХТЭЙ БАГЦЫН МЭДЭЭЛЭЛ (SETTINGS) */}
-            <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                  <h3 className="font-black text-white text-sm uppercase">
-                    Идэвхтэй багц: <span className="text-emerald-400">{tenantInfo?.plan || "Professional"}</span>
-                  </h3>
-                  {tenantInfo?.isTrial && (
-                    <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-black">
-                      Туршилт
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-400">
-                  📅 Дараагийн сунгалт: <strong className="text-slate-200">{tenantInfo?.formattedEndDate || "2026.11.20"} хүртэл</strong>
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowCheckoutModal(true)}
-                className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition border border-slate-700 active:scale-95 cursor-pointer"
-              >
-                Багц солих / Сунгах
-              </button>
-            </div>
-           
-        <SettingsTab
-        user={user}            
-        startDate = {startDate}
-        endDate = {endDate}
-        activeClient = {activeClient}
-        salesLogs = {salesLogs}
-        learnedMenus={learnedMenus}
-        fixedAssets = {fixedAssets}
-        fixedOpexList = {fixedOpexList}
-        initialCash = {initialCash}
-        setInitialCash = {setInitialCash}
-        initialBank = {initialBank}
-        setInitialBank = {setInitialBank}
-        taxMode = {taxMode}
-        setTaxMode = {setTaxMode}
-        kioskLogoUrl = {kioskLogoUrl}
-        setKioskLogoUrl = {setKioskLogoUrl}
-        categoryMargins = {categoryMargins}
-        setCategoryMargins = {setCategoryMargins}
-        loading = {loading}
-        setLoading = {setLoading}
-        fetchDatabaseData = {fetchDatabaseData}
-        productRecipeStatus = {productRecipeStatus}
-        unmappedSales = {unmappedSales}
-        handleExportRecipeBackup = {handleExportRecipeBackup}
-        handleExportToExcel = {handleExportToExcel}
-        handleJsonFileSelect = {handleJsonFileSelect}
-        pendingCategoryReview={pendingCategoryReview}
-        updatePendingReview={updatePendingReview}
-        commitFinalSales={commitFinalSales}
-         />
-          </div>
-        )}
-
-        {/* 📸 FULL-SCREEN EVIDENCE IMAGE VIEWER MODAL */}
-        {selectedImageModal && (
-          <div
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={() => setSelectedImageModal(null)}
-          >
-            <div
-              className="bg-slate-900 border border-slate-700 rounded-3xl p-5 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-                <div>
-                  <h3 className="text-base font-black text-white">
-                    {selectedImageModal.title}
-                  </h3>
-                  {selectedImageModal.subtitle && (
-                    <p className="text-sm text-slate-400 mt-0.5">
-                      {selectedImageModal.subtitle}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => setSelectedImageModal(null)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl text-sm font-bold transition"
-                >
-                  ✕ Хаах
-                </button>
-              </div>
-
-              <div className="flex-1 min-h-0 py-4 flex items-center justify-center overflow-auto">
-                <img
-                  src={selectedImageModal.url}
-                  alt="Evidence Preview"
-                  className="max-h-[65vh] w-auto rounded-2xl object-contain shadow-md border border-slate-800"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-slate-800 flex justify-end">
-                <a
-                  href={selectedImageModal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition flex items-center gap-1.5"
-                >
-                  <span>Эх хувилбараар нээх</span>
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 💡 UNEXPLAINED WASTE ANALYSIS GUIDE MODAL */}
-        {showWasteGuideModal && (
-          <div
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setShowWasteGuideModal(false)}
-          >
-            <div
-              className="bg-[#0b1329] border border-slate-700 rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-start border-b border-slate-800 pb-4">
-                <div>
-                  <h3 className="text-lg md:text-xl font-black text-white flex items-center gap-2">
-                    <Search className="h-6 w-6 text-blue-400" />
-                    Алдагдлын Шинжилгээний Гарын Авлага
-                  </h3>
-                  <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
-                    Систем дээр үүссэн "Шалтгаангүй алдагдал" нь шууд хулгай
-                    гэсэн үг биш юм. Та менежерийн хувиар дараах 4 нөхцөлийг
-                    шалгаж эрсдэлийг удирдах боломжтой.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowWasteGuideModal(false)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-sm font-bold transition"
-                >
-                  ✕ Хаах
-                </button>
-              </div>
-              {/* 🤖 AI ЗӨВЛӨХТЭЙ ЯРИЛЦАХ ЗААВАР */}
-              <div className="bg-blue-500/10 border border-blue-500/30 p-5 rounded-2xl mb-6">
-                <h4 className="font-black text-blue-400 text-sm flex items-center gap-2 mb-2">
-                  <Bot className="h-5 w-5" />
-                  AI Зөвлөхөөс хэрхэн асуух вэ? (Хамгийн хурдан арга)
-                </h4>
-                <p className="text-sm text-slate-300 mb-3 leading-relaxed">
-                  Та дээрх алдагдал хулгай мөн эсэхийг өөрөө таах шаардлагагүй.{" "}
-                  <strong>"🤖 AI Зөвлөх"</strong> таб руу ороод доорх
-                  асуултуудаас хуулж асуугаарай. AI өөрөө датаг шинжлээд хулгай
-                  юу, эсвэл алдаа юу гэдгийг магадлалаар нь гаргаж өгнө.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
-                    <p className="text-xs text-slate-500 font-bold mb-1 uppercase">
-                      Жишээ асуулт 1:
-                    </p>
-                    <p className="text-sm text-white font-mono">
-                      "Өнөөдрийн 15,000₮-ийн сүүний алдагдал хулгай юу, эсвэл
-                      орц хэтрүүлэлт үү? Шинжилж өг."
-                    </p>
-                  </div>
-                  <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl">
-                    <p className="text-xs text-slate-500 font-bold mb-1 uppercase">
-                      Жишээ асуулт 2:
-                    </p>
-                    <p className="text-sm text-white font-mono">
-                      "Сүү, Кофе хоёр зэрэгцээд дутсан байна. ПОС дээр бэлэн
-                      мөнгөөр зараагүй нуусан хулгай байх магадлалтай юу?"
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* НӨХЦӨЛ 1 */}
-                <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-emerald-500/10 p-2 rounded-xl">
-                      <Coffee className="h-5 w-5 text-emerald-400" />
-                    </div>
-                    <h4 className="font-bold text-slate-200 text-sm">
-                      1. Орц хэтрүүлэлт (Overpouring)
-                    </h4>
-                  </div>
-                  <p className="text-sm text-slate-400 mb-2">
-                    <strong>Шинж тэмдэг:</strong> Аяга бүрээс 10-20мл гэх мэт
-                    маш бага хэмжээгээр, тогтмол дутаад байх.
-                  </p>
-                  <div className="bg-emerald-500/5 border-l-2 border-emerald-500 p-2.5 text-sm text-emerald-300/90 rounded-r-lg">
-                    <strong>Авах арга хэмжээ:</strong> Бариста нарт сүүний
-                    хөөсрүүлэгч савны зураасаар сүүгээ тааруулж хийхийг
-                    анхааруулах, кофены бутлагчийн (grinder) граммын тохиргоог
-                    дахин жигнэж тааруулах.
-                  </div>
-                </div>
-
-                {/* НӨХЦӨЛ 2 */}
-                <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-blue-500/10 p-2 rounded-xl">
-                      <Layers3 className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <h4 className="font-bold text-slate-200 text-sm">
-                      2. Бүртгэхээ мартсан (Forgot Log)
-                    </h4>
-                  </div>
-                  <p className="text-sm text-slate-400 mb-2">
-                    <strong>Шинж тэмдэг:</strong> Ажилтан хоолондоо хэрэглэсэн,
-                    эсвэл санамсаргүй асгасан ч Kiosk-д оруулж амжаагүй байх.
-                  </p>
-                  <div className="bg-blue-500/5 border-l-2 border-blue-500 p-2.5 text-sm text-blue-300/90 rounded-r-lg">
-                    <strong>Авах арга хэмжээ:</strong> Ажилтнаас асуух. Хэрэв
-                    асгасан байвал Kiosk руу ороод "1л сүү асгасан" гэж нөхөж
-                    оруулахад л системийн энэ алдагдал автоматаар 0 болж
-                    засагдана.
-                  </div>
-                </div>
-
-                {/* НӨХЦӨЛ 3 */}
-                <div className="bg-[#111827] p-5 rounded-2xl border border-rose-900/50 hover:border-rose-500/30 transition md:col-span-2">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-rose-500/10 p-2 rounded-xl">
-                      <DollarSign className="h-5 w-5 text-rose-400" />
-                    </div>
-                    <h4 className="font-bold text-rose-400 text-sm">
-                      3. Бэлэн мөнгөний хулгай (Un-rung Sales)
-                    </h4>
-                  </div>
-                  <p className="text-sm text-slate-400 mb-2">
-                    <strong>Шинж тэмдэг:</strong> Системд ямар ч борлуулалт
-                    (Орлого) ороогүй мөртлөө Сүү, Кофе үр, Аяга 3 зэрэг дутсан
-                    байх.
-                  </p>
-                  <div className="bg-rose-500/5 border-l-2 border-rose-500 p-2.5 text-sm text-rose-300/90 rounded-r-lg flex flex-col gap-1.5">
-                    <span>
-                      <strong>Авах арга хэмжээ:</strong> Энэ бол бариста
-                      үйлчлүүлэгчээс бэлэн мөнгө аваад ПОС-д шивэлгүй кофе хийж
-                      өгсөн хамгийн ноцтой үйлдэл юм.
-                    </span>
-                    <span>
-                      Агуулахын Тооллого цэсний "Үйл ажиллагааны Хяналтын Лог"
-                      хэсгээс тооллого дутсан яг тэр цаг мөчийг шүүж, хяналтын
-                      камертай (CCTV) тулгаж шалгана уу.
-                    </span>
-                  </div>
-                </div>
-
-                {/* НӨХЦӨЛ 4 */}
-                <div className="bg-[#111827] p-5 rounded-2xl border border-amber-900/50 hover:border-amber-500/30 transition md:col-span-2">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-amber-500/10 p-2 rounded-xl">
-                      <AlertTriangle className="h-5 w-5 text-amber-400" />
-                    </div>
-                    <h4 className="font-bold text-amber-400 text-sm">
-                      4. Физик хулгай эсвэл Том асгаралт
-                    </h4>
-                  </div>
-                  <p className="text-sm text-slate-400 mb-2">
-                    <strong>Шинж тэмдэг:</strong> Бүтэн 1 хайрцаг сүү (12л),
-                    эсвэл 1 бүтэн уут кофе гэнэт алга болох.
-                  </p>
-                  <div className="bg-amber-500/5 border-l-2 border-amber-500 p-2.5 text-sm text-amber-300/90 rounded-r-lg">
-                    <strong>Авах арга хэмжээ:</strong> Хэрэв Kiosk дээр зурагтай
-                    "Хаягдал" бүртгэгдээгүй байвал тухайн ээлжийн ажилтнаас шууд
-                    тайлбар нэхэж, хариуцлага тооцох шаардлагатай.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* 📥 JSON НӨӨЦӨӨС БҮГДИЙГ ЭСВЭЛ СОНГОЖ СЭРГЭЭХ ЦОНХ                        */}
-        {/* ========================================================================= */}
-        {jsonBackupModal && (
-          <div 
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150"
-            onClick={() => setJsonBackupModal(null)}
-          >
-            <div 
-              className="bg-[#0d1527] border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>📥 Нөөц Файлаас Жор Сэргээх</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Файлд нийт <strong className="text-purple-400">{Object.keys(jsonBackupModal.recipesByProduct).length}</strong> бүтээгдэхүүний жор байна.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setJsonBackupModal(null)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
-                >
-                  ✕ Хаах
-                </button>
-              </div>
-
-              {/* ⚡ БҮГДИЙГ НЭГ ДОР СЭРГЭЭХ ТОМ ТОВЧ */}
-              <button
-                type="button"
-                onClick={handleRestoreAllFromJson}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-2xl text-xs transition shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <span>✓ БҮХ ЖОРЫГ БӨӨНӨӨР НЬ СЭРГЭЭХ</span>
-              </button>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-800"></div>
-                <span className="flex-shrink mx-3 text-xs text-slate-500 font-bold uppercase">эсвэл тус тусад нь сонгох</span>
-                <div className="flex-grow border-t border-slate-800"></div>
-              </div>
-
-              {/* 🔍 ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
-                {Object.keys(jsonBackupModal.recipesByProduct).map((pName) => {
-                  const itemsCount = jsonBackupModal.recipesByProduct[pName].length;
-                  return (
-                    <div key={pName} className="pt-2 flex justify-between items-center text-xs">
-                      <div>
-                        <span className="font-bold text-white text-sm block">{pName}</span>
-                        <span className="text-xs text-slate-400 font-mono">{itemsCount} төрлийн орцтой</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRestoreSingleRecipe(pName)}
-                        className="bg-purple-900/40 hover:bg-purple-800/60 text-purple-300 border border-purple-500/40 px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer"
-                      >
-                        ↩️ Сэргээх
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-            </div>
-          </div>
-        )}
-    
-      </>
-    )}
-
-
-           </div>
-           {/* 💳 ТӨЛБӨРИЙН БЭЛЭН ЦОНХ (CHECKOUT MODAL) */}
-      <CheckoutModal
-        isOpen={showCheckoutModal}
-        onClose={() => setShowCheckoutModal(false)}
-        clientId={activeClient}
-        userPhone={userPhone}
-        initialPlan={checkoutInitialPlan}
-        initialCycle={checkoutInitialCycle}
-         currentPlan={tenantInfo?.plan || "trial"}
-      />
-      {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
-        {showUpgradeSuccess && (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-            <div className="bg-[#0B1120] border-2 border-emerald-500 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
-              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
-                <span className="text-4xl">🎉</span>
-              </div>
-              <h2 className="text-2xl font-black text-white">Баяр хүргэе!</h2>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                Таны төлбөр баталгаажиж, үйлчилгээний эрх амжилттай сунгагдлаа.
-              </p>
-              
-              <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl inline-block mt-2 min-w-[200px]">
-                <span className="text-xs text-slate-500 block uppercase font-bold mb-1">Дараагийн сунгалт:</span>
-                <span className="text-emerald-400 font-black text-lg">{tenantInfo?.formattedEndDate}</span>
-              </div>
-              
-              <button
-                onClick={() => setShowUpgradeSuccess(false)}
-                className="w-full mt-6 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3.5 rounded-xl transition shadow-lg active:scale-95 cursor-pointer"
-              >
-                Үргэлжлүүлэх
-              </button>
-            </div>
-          </div>
-        )}
-         </div>
         </main>
       </div>
     </div>

@@ -1,87 +1,142 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
-import { 
-  Coffee, CheckCircle, Users, LogOut, Camera, 
-  MessageSquare, CheckSquare, ListOrdered, Send, ShieldAlert,
-  ChevronRight, AlertTriangle, RotateCcw, ShieldCheck, 
-  Mic, MicOff, Wifi, WifiOff, Sparkles, Check, X,BookOpen, PlusCircle 
-} from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { useRouter } from 'next/navigation'; 
-import Link from 'next/link'; 
-import { EN_TO_MN_DICT, STATIC_DICT } from '../../lib/autoReconcile';
+import React, { useState, useEffect, useRef } from "react";
+import { supabase } from "../../lib/supabase";
+import {
+  Coffee,
+  CheckCircle,
+  Users,
+  LogOut,
+  Camera,
+  MessageSquare,
+  CheckSquare,
+  ListOrdered,
+  Send,
+  ShieldAlert,
+  ChevronRight,
+  AlertTriangle,
+  RotateCcw,
+  ShieldCheck,
+  Mic,
+  MicOff,
+  Wifi,
+  WifiOff,
+  Sparkles,
+  Check,
+  X,
+  BookOpen,
+  PlusCircle,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { EN_TO_MN_DICT, STATIC_DICT } from "../../lib/autoReconcile";
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
 const MN_NUMBERS = [
-  { w: "нэг зуун", v: 100 }, { w: "хоёр зуун", v: 200 }, { w: "гурван зуун", v: 300 },
-  { w: "арван есөн", v: 19 }, { w: "арван ес", v: 19 },
-  { w: "арван найман", v: 18 }, { w: "арван найм", v: 18 },
-  { w: "арван долоон", v: 17 }, { w: "арван долоо", v: 17 },
-  { w: "арван зургаан", v: 16 }, { w: "арван зургаа", v: 16 },
-  { w: "арван таван", v: 15 }, { w: "арван тав", v: 15 },
-  { w: "арван дөрвөн", v: 14 }, { w: "арван дөрөв", v: 14 },
-  { w: "арван гурван", v: 13 }, { w: "арван гурав", v: 13 },
-  { w: "арван хоёр", v: 12 }, { w: "арван нэгэн", v: 11 }, { w: "арван нэг", v: 11 },
-  { w: "арван", v: 10 }, { w: "арав", v: 10 },
-  { w: "хорин", v: 20 }, { w: "хорь", v: 20 },
-  { w: "гучин", v: 30 }, { w: "гуч", v: 30 },
-  { w: "дөчин", v: 40 }, { w: "дөч", v: 40 },
-  { w: "тавин", v: 50 }, { w: "тавь", v: 50 },  
-  { w: "жаран", v: 60 }, { w: "жар", v: 60 },
-  { w: "далан", v: 70 }, { w: "дал", v: 70 },
-  { w: "наян", v: 80 }, { w: "ная", v: 80 },
-  { w: "ерэн", v: 90 }, { w: "ер", v: 90 },
-  { w: "нэгэн", v: 1 }, { w: "нэг", v: 1 }, { w: "ганц", v: 1 },
-  { w: "хоёр", v: 2 }, { w: "гурав", v: 3 }, { w: "дөрвөн", v: 4 }, { w: "дөрөв", v: 4 },
-  { w: "таван", v: 5 }, { w: "тав", v: 5 }, { w: "зургаан", v: 6 }, { w: "зургаа", v: 6 },
-  { w: "долоон", v: 7 }, { w: "долоо", v: 7 }, { w: "найман", v: 8 }, { w: "найм", v: 8 },
-  { w: "есөн", v: 9 }, { w: "ес", v: 9 },
-  { w: "хагас", v: 0.5 }, { w: "тал", v: 0.5 }
+  { w: "нэг зуун", v: 100 },
+  { w: "хоёр зуун", v: 200 },
+  { w: "гурван зуун", v: 300 },
+  { w: "арван есөн", v: 19 },
+  { w: "арван ес", v: 19 },
+  { w: "арван найман", v: 18 },
+  { w: "арван найм", v: 18 },
+  { w: "арван долоон", v: 17 },
+  { w: "арван долоо", v: 17 },
+  { w: "арван зургаан", v: 16 },
+  { w: "арван зургаа", v: 16 },
+  { w: "арван таван", v: 15 },
+  { w: "арван тав", v: 15 },
+  { w: "арван дөрвөн", v: 14 },
+  { w: "арван дөрөв", v: 14 },
+  { w: "арван гурван", v: 13 },
+  { w: "арван гурав", v: 13 },
+  { w: "арван хоёр", v: 12 },
+  { w: "арван нэгэн", v: 11 },
+  { w: "арван нэг", v: 11 },
+  { w: "арван", v: 10 },
+  { w: "арав", v: 10 },
+  { w: "хорин", v: 20 },
+  { w: "хорь", v: 20 },
+  { w: "гучин", v: 30 },
+  { w: "гуч", v: 30 },
+  { w: "дөчин", v: 40 },
+  { w: "дөч", v: 40 },
+  { w: "тавин", v: 50 },
+  { w: "тавь", v: 50 },
+  { w: "жаран", v: 60 },
+  { w: "жар", v: 60 },
+  { w: "далан", v: 70 },
+  { w: "дал", v: 70 },
+  { w: "наян", v: 80 },
+  { w: "ная", v: 80 },
+  { w: "ерэн", v: 90 },
+  { w: "ер", v: 90 },
+  { w: "нэгэн", v: 1 },
+  { w: "нэг", v: 1 },
+  { w: "ганц", v: 1 },
+  { w: "хоёр", v: 2 },
+  { w: "гурав", v: 3 },
+  { w: "дөрвөн", v: 4 },
+  { w: "дөрөв", v: 4 },
+  { w: "таван", v: 5 },
+  { w: "тав", v: 5 },
+  { w: "зургаан", v: 6 },
+  { w: "зургаа", v: 6 },
+  { w: "долоон", v: 7 },
+  { w: "долоо", v: 7 },
+  { w: "найман", v: 8 },
+  { w: "найм", v: 8 },
+  { w: "есөн", v: 9 },
+  { w: "ес", v: 9 },
+  { w: "хагас", v: 0.5 },
+  { w: "тал", v: 0.5 },
 ];
-
 
 // =========================================================================
 // 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
 function advancedMongolianVoiceParser(
-  rawText: string, 
-  ingredients: any[], 
-  learnedAliases: { phrase: string; ingredient_id: string }[] = []
+  rawText: string,
+  ingredients: any[],
+  learnedAliases: { phrase: string; ingredient_id: string }[] = [],
 ) {
   let text = rawText.toLowerCase().trim();
 
   // 1. Амаар хэлсэн тоог цифр болгох
   for (const { w, v } of MN_NUMBERS) {
-    const reg = new RegExp(`(^|[\\s,.:;!?])${w}(?=[\\s,.:;!?]|$)`, 'gi');
+    const reg = new RegExp(`(^|[\\s,.:;!?])${w}(?=[\\s,.:;!?]|$)`, "gi");
     text = text.replace(reg, `$1${v} `);
   }
 
   // 2. Тоо ба нэгжийг ялгах
-  const numMatch = text.match(/(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг|хайрцаг|уут|багц|сав)?/);
+  const numMatch = text.match(
+    /(\d+(?:\.\d+)?)\s*(л|литр|l|мл|ml|кг|kg|гр|грамм|gram|ш|ширхэг|хайрцаг|уут|багц|сав)?/,
+  );
   if (!numMatch) return null;
 
   let qty = parseFloat(numMatch[1]);
-  const unitStr = numMatch[2] || '';
-  if (['л', 'литр', 'l', 'кг', 'kg'].includes(unitStr)) {
+  const unitStr = numMatch[2] || "";
+  if (["л", "литр", "l", "кг", "kg"].includes(unitStr)) {
     qty *= 1000;
   }
 
   // 3. Үйлдлийг язгуураар нь таних
-  let type: 'spoilage' | 'purchase' | 'staff_meal' | 'testing' | null = null;
-  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс/.test(text)) type = 'spoilage';
-  else if (/ава|авс|татан|ирл|нэм|худалд|оруул|авчир/.test(text)) type = 'purchase';
-  else if (/хоол|идс|уус|ажилчдын|цайны/.test(text)) type = 'staff_meal';
-  else if (/турш|амт|шалга/.test(text)) type = 'testing';
+  let type: "spoilage" | "purchase" | "staff_meal" | "testing" | null = null;
+  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс/.test(text))
+    type = "spoilage";
+  else if (/ава|авс|татан|ирл|нэм|худалд|оруул|авчир/.test(text))
+    type = "purchase";
+  else if (/хоол|идс|уус|ажилчдын|цайны/.test(text)) type = "staff_meal";
+  else if (/турш|амт|шалга/.test(text)) type = "testing";
 
   if (!type) return null;
 
   // 4. 🧠 FEEDBACK LOOP: Өмнө нь Gemini-аас суралцсан үгсийг хамгийн түрүүнд шалгах! (0.001ms)
   for (const alias of learnedAliases) {
     if (text.includes(alias.phrase.toLowerCase().trim())) {
-      const matched = ingredients.find(i => i.id === alias.ingredient_id);
+      const matched = ingredients.find((i) => i.id === alias.ingredient_id);
       if (matched) {
         return {
           is_transaction: true,
@@ -89,9 +144,9 @@ function advancedMongolianVoiceParser(
           item_id: matched.id,
           item_name: matched.name,
           unit: matched.unit,
-          quantity: type === 'purchase' ? Math.abs(qty) : -Math.abs(qty),
+          quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
           type: type,
-          notes: `${rawText} (🧠 Суралцсан үг)`
+          notes: `${rawText} (🧠 Суралцсан үг)`,
         };
       }
     }
@@ -122,7 +177,10 @@ function advancedMongolianVoiceParser(
       const mnSynonyms = EN_TO_MN_DICT[word] || [];
       for (const syn of mnSynonyms) {
         if (syn.length <= 2) {
-          const safeReg = new RegExp(`(^|[\\s,.:;!?])${syn}(?=[\\s,.:;!?]|$)`, 'i');
+          const safeReg = new RegExp(
+            `(^|[\\s,.:;!?])${syn}(?=[\\s,.:;!?]|$)`,
+            "i",
+          );
           if (safeReg.test(text)) currentScore += 20;
         } else if (text.includes(syn)) {
           currentScore += 20;
@@ -147,14 +205,16 @@ function advancedMongolianVoiceParser(
     item_id: bestMatch.id,
     item_name: bestMatch.name,
     unit: bestMatch.unit,
-    quantity: type === 'purchase' ? Math.abs(qty) : -Math.abs(qty),
+    quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
     type: type,
-    notes: `${rawText} (⚡ Local Parser)`
+    notes: `${rawText} (⚡ Local Parser)`,
   };
 }
 
 // ⚡ Зургийг 10 дахин хөнгөн болгож шахах функц
-async function compressImageForUpload(file: File): Promise<{ file: File; base64: string }> {
+async function compressImageForUpload(
+  file: File,
+): Promise<{ file: File; base64: string }> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -162,8 +222,8 @@ async function compressImageForUpload(file: File): Promise<{ file: File; base64:
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH =  850;
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 850;
         let width = img.width;
         let height = img.height;
         if (width > height && width > MAX_WIDTH) {
@@ -175,17 +235,23 @@ async function compressImageForUpload(file: File): Promise<{ file: File; base64:
         }
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (ctx) ctx.drawImage(img, 0, 0, width, height);
 
-        const base64Url = canvas.toDataURL('image/jpeg', 0.6);
-        const cleanBase64 = base64Url.split(',')[1];
-        canvas.toBlob((blob) => {
-          const compressedFile = blob 
-            ? new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' })
-            : file;
-          resolve({ file: compressedFile, base64: cleanBase64 });
-        }, 'image/jpeg', 0.75);
+        const base64Url = canvas.toDataURL("image/jpeg", 0.6);
+        const cleanBase64 = base64Url.split(",")[1];
+        canvas.toBlob(
+          (blob) => {
+            const compressedFile = blob
+              ? new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                  type: "image/jpeg",
+                })
+              : file;
+            resolve({ file: compressedFile, base64: cleanBase64 });
+          },
+          "image/jpeg",
+          0.75,
+        );
       };
       img.onerror = () => resolve({ file, base64: "" });
     };
@@ -196,18 +262,23 @@ async function compressImageForUpload(file: File): Promise<{ file: File; base64:
 // =========================================================================
 // 📸 2. UPLOAD EVIDENCE PHOTO TO SUPABASE STORAGE
 // =========================================================================
-async function uploadEvidencePhoto(file: File, folder: string = 'logs'): Promise<string | null> {
+async function uploadEvidencePhoto(
+  file: File,
+  folder: string = "logs",
+): Promise<string | null> {
   try {
     const { file: compressedFile } = await compressImageForUpload(file);
-    const fileExt = 'jpg';
+    const fileExt = "jpg";
     const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-    
+
     const { error: uploadError } = await supabase.storage
-      .from('receipts_evidence')
-      .upload(fileName, compressedFile, { cacheControl: '3600', upsert: true });
+      .from("receipts_evidence")
+      .upload(fileName, compressedFile, { cacheControl: "3600", upsert: true });
 
     if (uploadError) throw uploadError;
-    const { data: publicUrlData } = supabase.storage.from('receipts_evidence').getPublicUrl(fileName);
+    const { data: publicUrlData } = supabase.storage
+      .from("receipts_evidence")
+      .getPublicUrl(fileName);
     return publicUrlData.publicUrl;
   } catch (err) {
     console.error("Storage upload error:", err);
@@ -217,26 +288,28 @@ async function uploadEvidencePhoto(file: File, folder: string = 'logs'): Promise
 // =========================================================================
 // 🎙️ 3. KIOSK AI CHAT & VOICE RECORDING SECTION
 // =========================================================================
-function KioskAiChatSection({ 
-  selectedWorker, 
-  activeShift, 
+function KioskAiChatSection({
+  selectedWorker,
+  activeShift,
   ingredients,
   learnedAliases = [],
-  onBack 
-}: { 
-  selectedWorker: any; 
-  activeShift: any; 
+  onBack,
+}: {
+  selectedWorker: any;
+  activeShift: any;
   ingredients: any[];
   learnedAliases?: any[];
-  onBack: () => void; 
-}) 
-{  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{ sender: 'worker' | 'ai'; text: string; logId?: string }[]>([]);
+  onBack: () => void;
+}) {
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<
+    { sender: "worker" | "ai"; text: string; logId?: string }[]
+  >([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const isCancelledRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);  
+  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -247,7 +320,7 @@ function KioskAiChatSection({
     { label: "🥛 1л Сүү", text: "1 литр сүү асгарсан" },
     { label: "☕ 18г Кофе", text: "18 грамм кофе асгарсан" },
     { label: "🥚 1ш Өндөг", text: "1 ширхэг өндөг хагарсан" },
-    { label: "🥪 1ш Талх", text: "1 ширхэг талх муудсан" }
+    { label: "🥪 1ш Талх", text: "1 ширхэг талх муудсан" },
   ];
 
   useEffect(() => {
@@ -256,51 +329,61 @@ function KioskAiChatSection({
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [chatHistory, isAiLoading]);
 
-
-// 📱 ТӨХӨӨРӨМЖ ТАНИГЧ: iOS (iPhone/iPad) мөн эсэхийг шалгах
+  // 📱 ТӨХӨӨРӨМЖ ТАНИГЧ: iOS (iPhone/iPad) мөн эсэхийг шалгах
   const isAppleDevice = () => {
-    if (typeof window === 'undefined') return false;
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (typeof window === "undefined") return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
   };
 
-// ❌ INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
+  // ❌ INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
   const cancelVoiceRecording = () => {
     isCancelledRef.current = true;
     abortControllerRef.current?.abort(); // ⚡ Kills any in-flight request!
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       mediaRecorderRef.current.onstop = null; // Do not send to API!
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+      mediaRecorderRef.current.stream?.getTracks().forEach((t) => t.stop());
     }
-    
+
     setIsListening(false);
     setIsAiLoading(false);
 
     // ⚡ Erase the temporary "sending..." bubble so the screen looks clean
-    setChatHistory(prev => {
+    setChatHistory((prev) => {
       const updated = [...prev];
-      if (updated.length > 0 && updated[updated.length - 1].text.includes('Дуут бүртгэл илгээж байна')) {
+      if (
+        updated.length > 0 &&
+        updated[updated.length - 1].text.includes("Дуут бүртгэл илгээж байна")
+      ) {
         updated.pop();
       }
       return updated;
     });
   };
-// 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android ба Apple хоёуланг нь бүрэн агуулсан)
+  // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android ба Apple хоёуланг нь бүрэн агуулсан)
   const startVoiceRecording = async () => {
     // ⚡ 1. If already listening, tap to stop immediately
     if (isListening) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state === "recording"
+      ) {
         mediaRecorderRef.current.stop();
       }
       setIsListening(false);
@@ -313,23 +396,27 @@ function KioskAiChatSection({
       abortControllerRef.current = new AbortController();
 
       if (!navigator.mediaDevices?.getUserMedia) {
-        alert("iPad/iOS дээр дуу бичихийн тулд заавал HTTPS эсвэл localhost байх шаардлагатай.");
+        alert(
+          "iPad/iOS дээр дуу бичихийн тулд заавал HTTPS эсвэл localhost байх шаардлагатай.",
+        );
         return;
       }
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true }
+          audio: { echoCancellation: true, noiseSuppression: true },
         });
 
-        let chosenMime = 'audio/webm';
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          chosenMime = 'audio/webm;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          chosenMime = 'audio/mp4';
+        let chosenMime = "audio/webm";
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          chosenMime = "audio/webm;codecs=opus";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          chosenMime = "audio/mp4";
         }
 
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: chosenMime });
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: chosenMime,
+        });
         mediaRecorderRef.current = mediaRecorder;
         const audioChunks: Blob[] = [];
 
@@ -348,7 +435,7 @@ function KioskAiChatSection({
           setIsListening(false);
           setIsAiLoading(true);
           setTimeout(() => {
-            stream.getTracks().forEach(track => track.stop());
+            stream.getTracks().forEach((track) => track.stop());
           }, 100);
 
           if (audioChunks.length === 0 || isCancelledRef.current) {
@@ -356,22 +443,25 @@ function KioskAiChatSection({
             return;
           }
 
-         const cleanMime = chosenMime.split(';')[0];
-         const ext = cleanMime.includes('webm') ? 'webm' : 'mp4';
-         const audioBlob = new Blob(audioChunks, { type: cleanMime });
+          const cleanMime = chosenMime.split(";")[0];
+          const ext = cleanMime.includes("webm") ? "webm" : "mp4";
+          const audioBlob = new Blob(audioChunks, { type: cleanMime });
 
-          const slangHints = (learnedAliases || []).map(a => a.phrase).slice(0, 15).join(', ');
+          const slangHints = (learnedAliases || [])
+            .map((a) => a.phrase)
+            .slice(0, 15)
+            .join(", ");
 
           const formData = new FormData();
-          formData.append('file', audioBlob, `audio.${ext}`);
-          formData.append('mimeType', cleanMime); // ⚡ Sends real MIME so Gemini never crashes
-          formData.append('slangHints', slangHints);
+          formData.append("file", audioBlob, `audio.${ext}`);
+          formData.append("mimeType", cleanMime); // ⚡ Sends real MIME so Gemini never crashes
+          formData.append("slangHints", slangHints);
 
           try {
-            const res = await fetch('/api/transcribe', { 
-              method: 'POST', 
+            const res = await fetch("/api/transcribe", {
+              method: "POST",
               body: formData,
-              signal: abortControllerRef.current?.signal 
+              signal: abortControllerRef.current?.signal,
             });
             if (isCancelledRef.current) return;
 
@@ -382,17 +472,25 @@ function KioskAiChatSection({
               handleAiChatSubmit(undefined, undefined, data.text.trim());
             } else {
               setIsAiLoading(false);
-              setChatHistory(prev => [
+              setChatHistory((prev) => [
                 ...prev,
-                { sender: 'ai', text: data.error ? `⚠️ ${data.error}` : "🎙️ Дуу сонсогдсонгүй. Дахин тод ярина уу." }
+                {
+                  sender: "ai",
+                  text: data.error
+                    ? `⚠️ ${data.error}`
+                    : "🎙️ Дуу сонсогдсонгүй. Дахин тод ярина уу.",
+                },
               ]);
             }
           } catch (err: any) {
-            if (err.name === 'AbortError' || isCancelledRef.current) return;
+            if (err.name === "AbortError" || isCancelledRef.current) return;
             setIsAiLoading(false);
-            setChatHistory(prev => [
+            setChatHistory((prev) => [
               ...prev,
-              { sender: 'ai', text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}` }
+              {
+                sender: "ai",
+                text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+              },
             ]);
           }
         };
@@ -400,9 +498,8 @@ function KioskAiChatSection({
         mediaRecorder.start();
 
         setTimeout(() => {
-          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+          if (mediaRecorder.state === "recording") mediaRecorder.stop();
         }, 3500);
-
       } catch (err: any) {
         setIsListening(false);
         setIsAiLoading(false);
@@ -412,7 +509,9 @@ function KioskAiChatSection({
     }
 
     // 🤖 АЛХАМ 2: ХЭРЭВ ANDROID / CHROME БАЙВАЛ (Одоо буцаж орсон!)
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Энэ хөтөч дээр дуу таних боломжгүй байна.");
       return;
@@ -420,7 +519,7 @@ function KioskAiChatSection({
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'mn-MN';
+      recognition.lang = "mn-MN";
       recognition.continuous = false;
       recognition.interimResults = false;
 
@@ -448,19 +547,26 @@ function KioskAiChatSection({
     }
   };
 
-  const handleAiChatSubmit = async (e?: React.FormEvent, file?: File, directText?: string) => {
+  const handleAiChatSubmit = async (
+    e?: React.FormEvent,
+    file?: File,
+    directText?: string,
+  ) => {
     if (e) e.preventDefault();
     const textToProcess = directText || chatInput.trim();
     if (!textToProcess && !file) return;
 
     // ⚡ Optimistic Bubble: Хэрэглэгчийн бичсэн зүйл дэлгэцэнд 0 миллисекундэд шууд гарна!
-    setChatHistory(prev => [...prev, { 
-      sender: 'worker', 
-      text: file ? '📸 Зураг илгээлээ (E-Barimt/Бараа)' : textToProcess 
-    }]);
+    setChatHistory((prev) => [
+      ...prev,
+      {
+        sender: "worker",
+        text: file ? "📸 Зураг илгээлээ (E-Barimt/Бараа)" : textToProcess,
+      },
+    ]);
 
-    setChatInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setChatInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsAiLoading(true);
 
     // 📶 ОФЛАЙН ГОРИМ ШАЛГАЛТ (Интернэт тасарсан бол LocalStorage-д хадгалах)
@@ -469,16 +575,21 @@ function KioskAiChatSection({
         client_id: selectedWorker.client_id,
         notes: `${textToProcess} (Офлайн хадгалав)`,
         date: new Date().toISOString(),
-        worker_name: activeShift?.character_role || selectedWorker.full_name
+        worker_name: activeShift?.character_role || selectedWorker.full_name,
       };
-      const queue = JSON.parse(localStorage.getItem('kiosk_offline_queue') || '[]');
+      const queue = JSON.parse(
+        localStorage.getItem("kiosk_offline_queue") || "[]",
+      );
       queue.push(offlineItem);
-      localStorage.setItem('kiosk_offline_queue', JSON.stringify(queue));
+      localStorage.setItem("kiosk_offline_queue", JSON.stringify(queue));
 
-      setChatHistory(prev => [...prev, { 
-        sender: 'ai', 
-        text: "📶 **Интернэт тасарсан байна.** Мэдээллийг төхөөрөмжид түр хадгаллаа. Сүлжээ ормогц бааз руу автоматаар бүртгэгдэнэ." 
-      }]);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: "📶 **Интернэт тасарсан байна.** Мэдээллийг төхөөрөмжид түр хадгаллаа. Сүлжээ ормогц бааз руу автоматаар бүртгэгдэнэ.",
+        },
+      ]);
       setIsAiLoading(false);
       return;
     }
@@ -486,7 +597,7 @@ function KioskAiChatSection({
     let uploadedImageUrl: string | null = null;
     let base64Data: string | null = null;
 
-   if (file) {
+    if (file) {
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onerror = () => resolve(null); // ⚡ Never freeze
@@ -495,7 +606,7 @@ function KioskAiChatSection({
           img.onerror = () => resolve(null); // ⚡ Never freeze on HEIC/Safari
           img.onload = () => {
             try {
-              const canvas = document.createElement('canvas');
+              const canvas = document.createElement("canvas");
               const MAX_WIDTH = 1000;
               let width = img.width;
               let height = img.height;
@@ -508,10 +619,10 @@ function KioskAiChatSection({
               }
               canvas.width = width;
               canvas.height = height;
-              const ctx = canvas.getContext('2d');
+              const ctx = canvas.getContext("2d");
               if (!ctx) return resolve(null);
               ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]);
+              resolve(canvas.toDataURL("image/jpeg", 0.75).split(",")[1]);
             } catch (err) {
               resolve(null);
             }
@@ -528,51 +639,81 @@ function KioskAiChatSection({
       }
     } else {
       // ⚡ 0.01ms LOCAL MONGOLIAN MATCH (Сервер, AI дуудахгүйгээр шууд баазад хадгалах)
-      const localMatch = advancedMongolianVoiceParser(textToProcess, ingredients, learnedAliases);
+      const localMatch = advancedMongolianVoiceParser(
+        textToProcess,
+        ingredients,
+        learnedAliases,
+      );
       if (localMatch && localMatch.success) {
-        const { data: newLog, error } = await supabase.from('inventory_logs').insert([{
-          client_id: selectedWorker.client_id,
-          ingredient_id: localMatch.item_id,
-          quantity: localMatch.quantity,
-          type: localMatch.type,
-          notes: localMatch.notes,
-          worker_name: activeShift?.character_role || selectedWorker.full_name || 'Ажилтан',
-          date: new Date().toISOString()
-        }]).select().single();
+        const { data: newLog, error } = await supabase
+          .from("inventory_logs")
+          .insert([
+            {
+              client_id: selectedWorker.client_id,
+              ingredient_id: localMatch.item_id,
+              quantity: localMatch.quantity,
+              type: localMatch.type,
+              notes: localMatch.notes,
+              worker_name:
+                activeShift?.character_role ||
+                selectedWorker.full_name ||
+                "Ажилтан",
+              date: new Date().toISOString(),
+            },
+          ])
+          .select()
+          .single();
 
-     if (!error && newLog) {
+        if (!error && newLog) {
           // 🧠 FEEDBACK LOOP: Clean numbers/units and save the spoken phrase to learned_aliases
-           let cleanPhrase = textToProcess.toLowerCase();
+          let cleanPhrase = textToProcess.toLowerCase();
 
           // 1. Remove spoken numbers
           for (const { w } of MN_NUMBERS) {
-            cleanPhrase = cleanPhrase.replace(new RegExp(`(^|[\\s,.:;!?])${w}(?=[\\s,.:;!?]|$)`, 'gi'), ' ');
+            cleanPhrase = cleanPhrase.replace(
+              new RegExp(`(^|[\\s,.:;!?])${w}(?=[\\s,.:;!?]|$)`, "gi"),
+              " ",
+            );
           }
 
           // 2. Remove digits, units, and all verb conjugations
           cleanPhrase = cleanPhrase
-            .replace(/[\d\.]+/g, '')
-            .replace(/\b(литр|мл|кг|гр|грамм|грам|ш|ширхэг|хайрцаг|уут|сав|боодол)\b/gi, '')
-            .replace(/\b(асг|ав|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түл)[а-яөү]*\b/gi, '') // ⚡ Strips "авав", "аву", "асгачихсан"
-            .replace(/\s+/g, ' ')
+            .replace(/[\d\.]+/g, "")
+            .replace(
+              /\b(литр|мл|кг|гр|грамм|грам|ш|ширхэг|хайрцаг|уут|сав|боодол)\b/gi,
+              "",
+            )
+            .replace(
+              /\b(асг|ав|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түл)[а-яөү]*\b/gi,
+              "",
+            ) // ⚡ Strips "авав", "аву", "асгачихсан"
+            .replace(/\s+/g, " ")
             .trim();
 
-      const words = cleanPhrase.split(' ').filter(w => w.length >= 2);
-        const finalAlias = words.slice(0, 2).join(' '); // Keeps only the item noun
+          const words = cleanPhrase.split(" ").filter((w) => w.length >= 2);
+          const finalAlias = words.slice(0, 2).join(" "); // Keeps only the item noun
 
           if (finalAlias && finalAlias.length >= 2) {
-            await supabase.from('learned_aliases').upsert([{
-              client_id: selectedWorker.client_id,
-              phrase: finalAlias, // 👈 Saves ONLY clean item word(s)
-              ingredient_id: localMatch.item_id
-            }], { onConflict: 'client_id,phrase' });
+            await supabase.from("learned_aliases").upsert(
+              [
+                {
+                  client_id: selectedWorker.client_id,
+                  phrase: finalAlias, // 👈 Saves ONLY clean item word(s)
+                  ingredient_id: localMatch.item_id,
+                },
+              ],
+              { onConflict: "client_id,phrase" },
+            );
           }
 
-          setChatHistory(prev => [...prev, { 
-            sender: 'ai', 
-            text: `⚡ **Бүртгэгдлээ (Шуурхай 0.01s):**\n• Бараа: **${localMatch.item_name}**\n• Төрөл: \`${localMatch.type}\`\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
-            logId: newLog.id
-          }]);
+          setChatHistory((prev) => [
+            ...prev,
+            {
+              sender: "ai",
+              text: `⚡ **Бүртгэгдлээ (Шуурхай 0.01s):**\n• Бараа: **${localMatch.item_name}**\n• Төрөл: \`${localMatch.type}\`\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
+              logId: newLog.id,
+            },
+          ]);
           setIsAiLoading(false);
           return;
         }
@@ -580,67 +721,91 @@ function KioskAiChatSection({
     }
 
     // Хэрэв шууд танигдаагүй бол Gemini API руу илгээх
-      try {
+    try {
       // If triggered by typing text instead of voice, ensure we have an abort controller
       if (!abortControllerRef.current) {
         isCancelledRef.current = false;
         abortControllerRef.current = new AbortController();
       }
 
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
 
-       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
-
-      const res = await fetch('/api/kiosk-ai', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // 👈 НЭМСЭН
+      const res = await fetch("/api/kiosk-ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // 👈 НЭМСЭН
         },
         body: JSON.stringify({
-          workerName: activeShift?.character_role || selectedWorker.full_name || "Ажилтан",
+          workerName:
+            activeShift?.character_role ||
+            selectedWorker.full_name ||
+            "Ажилтан",
           text: textToProcess,
           imageBase64: base64Data,
-          imageUrl: uploadedImageUrl
+          imageUrl: uploadedImageUrl,
         }),
-        signal: abortControllerRef.current.signal
+        signal: abortControllerRef.current.signal,
       });
       if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
 
-              const data = await res.json();
-        if (isCancelledRef.current) return;
+      const data = await res.json();
+      if (isCancelledRef.current) return;
 
-        setChatHistory(prev => [...prev, { 
-          sender: 'ai', 
-          text: data.message || "Гүйлгээ боловсруулагдлаа.", 
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: data.message || "Гүйлгээ боловсруулагдлаа.",
           logId: data.log_id,
-          learnedAliasId: data.learned_alias_id // 👈 Баазад шинээр сурсан үгийн ID хадгалах
-        }]);
+          learnedAliasId: data.learned_alias_id, // 👈 Баазад шинээр сурсан үгийн ID хадгалах
+        },
+      ]);
     } catch (err: any) {
-      if (err.name === 'AbortError' || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
-      setChatHistory(prev => [...prev, { sender: 'ai', text: `❌ Алдаа: ${err.message || 'Сервертэй холбогдож чадсангүй.'}` }]);
+      if (err.name === "AbortError" || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+        },
+      ]);
     } finally {
       if (!isCancelledRef.current) setIsAiLoading(false);
     }
   };
 
-
   // 2. handleUndo функцийг шинэчлэх (learnedAliasId хүлээн авдаг болгоно):
-  const handleUndo = async (logId: string, index: number, learnedAliasId?: string) => {
+  const handleUndo = async (
+    logId: string,
+    index: number,
+    learnedAliasId?: string,
+  ) => {
     setIsAiLoading(true);
     try {
       // А. Агуулахын лог устгах
-      const { error } = await supabase.from('inventory_logs').delete().eq('id', logId);
+      const { error } = await supabase
+        .from("inventory_logs")
+        .delete()
+        .eq("id", logId);
       if (error) throw error;
 
       // Б. ⚡ Хэрэв буруу үг сурсан байвал түүнийг баазаас устгаж "мартах"
       if (learnedAliasId) {
-        await supabase.from('learned_aliases').delete().eq('id', learnedAliasId);
+        await supabase
+          .from("learned_aliases")
+          .delete()
+          .eq("id", learnedAliasId);
       }
 
       const newHistory = [...chatHistory];
-      newHistory[index] = { sender: 'ai', text: "↩️ Бүртгэл цуцлагдаж, буруу таасан үгийг систем санах ойгоосоо устгалаа." };
+      newHistory[index] = {
+        sender: "ai",
+        text: "↩️ Бүртгэл цуцлагдаж, буруу таасан үгийг систем санах ойгоосоо устгалаа.",
+      };
       setChatHistory(newHistory);
     } catch (err) {
       alert("Буцаах үйлдэл амжилтгүй.");
@@ -650,20 +815,22 @@ function KioskAiChatSection({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0d1527] rounded-3xl border border-slate-800 shadow-xl p-3 sm:p-4 overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-zinc-900 rounded-3xl border border-slate-800 shadow-xl p-3 sm:p-4 overflow-hidden">
       {/* Дэд толгой */}
       <div className="flex justify-between items-center pb-2.5 border-b border-slate-800/80 shrink-0">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-blue-400" />
-          <h2 className="font-bold text-blue-400 text-sm sm:text-base">AI Туслах & Зарлага</h2>
+          <MessageSquare className="h-5 w-5 text-zinc-300" />
+          <h2 className="font-bold text-zinc-300 text-sm sm:text-base">
+            AI Туслах & Зарлага
+          </h2>
           {!isOnline && (
-            <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span className="bg-zinc-800 text-zinc-300 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
               <WifiOff className="h-3 w-3" /> Офлайн
             </span>
           )}
         </div>
-        <button 
-          onClick={onBack} 
+        <button
+          onClick={onBack}
           className="bg-slate-900 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-800 hover:bg-slate-800 text-slate-300 active:scale-95 transition"
         >
           ← Буцах
@@ -674,24 +841,32 @@ function KioskAiChatSection({
       <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-3 overscroll-contain pr-1">
         {chatHistory.length === 0 && (
           <div className="text-center text-slate-400 text-xs sm:text-sm mt-4 space-y-2">
-            <div className="bg-blue-500/10 p-3.5 rounded-2xl border border-blue-500/20 w-fit mx-auto">
-              <Mic className="h-7 w-7 text-blue-400" />
+            <div className="bg-zinc-800/60 p-3.5 rounded-2xl border border-zinc-700/20 w-fit mx-auto">
+              <Mic className="h-7 w-7 text-zinc-300" />
             </div>
-            <p className="font-black text-white text-base">Монголоор ярьж эсвэл зураг дарж бүртгэнэ үү</p>
+            <p className="font-black text-white text-base">
+              Монголоор ярьж эсвэл зураг дарж бүртгэнэ үү
+            </p>
             <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Микрофон товчийг дараад <strong>"2 литр сүү асгарсан"</strong> гэж хэлэхэд л AI шууд ойлгоно!
+              Микрофон товчийг дараад <strong>"2 литр сүү асгарсан"</strong> гэж
+              хэлэхэд л AI шууд ойлгоно!
             </p>
           </div>
         )}
 
         {chatHistory.map((msg, i) => (
-          <div key={i} className={`flex ${msg.sender === 'worker' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${
-              msg.sender === 'worker' 
-                ? 'bg-blue-600 text-white rounded-tr-none font-medium shadow-md' 
-                : 'bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800/80 shadow-md'
-            }`}>
-              {msg.sender === 'worker' ? (
+          <div
+            key={i}
+            className={`flex ${msg.sender === "worker" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${
+                msg.sender === "worker"
+                  ? "bg-white text-white rounded-tr-none font-medium shadow-md"
+                  : "bg-slate-900 text-slate-100 rounded-tl-none border border-slate-800/80 shadow-md"
+              }`}
+            >
+              {msg.sender === "worker" ? (
                 msg.text
               ) : (
                 <div className="prose prose-invert max-w-none text-xs leading-relaxed font-normal">
@@ -700,20 +875,22 @@ function KioskAiChatSection({
                   </ReactMarkdown>
                 </div>
               )}
-              
+
               {msg.logId && (
-                <button 
-                  onClick={() => handleUndo(msg.logId!, i, (msg as any).learnedAliasId)}
+                <button
+                  onClick={() =>
+                    handleUndo(msg.logId!, i, (msg as any).learnedAliasId)
+                  }
                   className="mt-2.5 w-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition"
                 >
-                  <RotateCcw className="h-3 w-3" /> Буцаах 
+                  <RotateCcw className="h-3 w-3" /> Буцаах
                 </button>
               )}
             </div>
           </div>
         ))}
         {isAiLoading && (
-          <div className="flex items-center gap-2 text-blue-400 text-xs font-bold px-2 py-1 bg-blue-500/10 rounded-xl w-fit">
+          <div className="flex items-center gap-2 text-zinc-300 text-xs font-bold px-2 py-1 bg-zinc-800/60 rounded-xl w-fit">
             <span className="animate-spin text-sm">☕</span>
             <span>AI бүртгэж байна...</span>
           </div>
@@ -727,7 +904,9 @@ function KioskAiChatSection({
           <button
             key={idx}
             type="button"
-            onClick={() => handleAiChatSubmit(undefined, undefined, preset.text)}
+            onClick={() =>
+              handleAiChatSubmit(undefined, undefined, preset.text)
+            }
             className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition flex items-center gap-1 shrink-0"
           >
             <span>{preset.label}</span>
@@ -737,51 +916,54 @@ function KioskAiChatSection({
 
       {/* Оруулах талбар + Зураг + Дуу хоолой (Mic) */}
       <div className="pt-1.5 shrink-0 w-full">
-        <form 
-          onSubmit={(e) => handleAiChatSubmit(e)} 
-          className="bg-[#1e293b] border border-slate-700 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg focus-within:border-blue-500 w-full"
+        <form
+          onSubmit={(e) => handleAiChatSubmit(e)}
+          className="bg-zinc-900] border border-slate-700 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg focus-within:border-zinc-700 w-full"
         >
-          <textarea 
+          <textarea
             ref={textareaRef}
             rows={1}
-            value={chatInput} 
-            onChange={e => {
+            value={chatInput}
+            onChange={(e) => {
               setChatInput(e.target.value);
-              e.target.style.height = 'auto';
+              e.target.style.height = "auto";
               e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
-            }} 
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (chatInput.trim()) handleAiChatSubmit();
               }
             }}
-            placeholder={isListening ? "🎙️ Ярьж байна... '2 литр сүү асгасан' гэж хэлнэ үү" : "Зарлага бичих эсвэл микрофоноор ярих..."} 
-            className={`w-full bg-transparent text-white text-[15px] leading-relaxed resize-none outline-none placeholder:text-slate-500 px-1 ${isListening ? 'animate-pulse text-emerald-400 font-bold' : ''}`} 
-            style={{ minHeight: '38px', maxHeight: '100px' }}
+            placeholder={
+              isListening
+                ? "🎙️ Ярьж байна... '2 литр сүү асгасан' гэж хэлнэ үү"
+                : "Зарлага бичих эсвэл микрофоноор ярих..."
+            }
+            className={`w-full bg-transparent text-white text-[15px] leading-relaxed resize-none outline-none placeholder:text-slate-500 px-1 ${isListening ? " text-zinc-200 font-bold" : ""}`}
+            style={{ minHeight: "38px", maxHeight: "100px" }}
           />
 
-    <div className="flex justify-between items-center pt-1.5 border-t border-slate-800/60 shrink-0 w-full gap-1">
+          <div className="flex justify-between items-center pt-1.5 border-t border-slate-800/60 shrink-0 w-full gap-1">
             {/* ⬅️ Зүүн талын товчнууд: Камер, Цомог, Ярих, Цуцлах */}
             <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 overflow-x-auto no-scrollbar py-0.5">
-              
               {/* 📸 1. Камераар шууд зураг дарах */}
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                id="kiosk-ai-camera" 
-                className="hidden" 
-                onChange={(e) => { 
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                id="kiosk-ai-camera"
+                className="hidden"
+                onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
                     handleAiChatSubmit(undefined, e.target.files[0]);
-                    e.target.value = ''; // iOS дээр дахин зураг сонгоход гацахаас сэргийлнэ
-                  } 
+                    e.target.value = ""; // iOS дээр дахин зураг сонгоход гацахаас сэргийлнэ
+                  }
                 }}
               />
-              <label 
-                htmlFor="kiosk-ai-camera" 
-                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-emerald-400 font-bold text-xs sm:text-xs transition shrink-0 select-none"
+              <label
+                htmlFor="kiosk-ai-camera"
+                className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-zinc-200 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="Шууд камераар зураг дарах"
               >
                 <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -789,20 +971,20 @@ function KioskAiChatSection({
               </label>
 
               {/* 🖼️ 2. Галерей / Утасны цомгоос зураг оруулах */}
-              <input 
-                type="file" 
-                accept="image/*" 
-                id="kiosk-ai-gallery" 
-                className="hidden" 
-                onChange={(e) => { 
+              <input
+                type="file"
+                accept="image/*"
+                id="kiosk-ai-gallery"
+                className="hidden"
+                onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
                     handleAiChatSubmit(undefined, e.target.files[0]);
-                    e.target.value = ''; // iOS reset
-                  } 
+                    e.target.value = ""; // iOS reset
+                  }
                 }}
               />
-              <label 
-                htmlFor="kiosk-ai-gallery" 
+              <label
+                htmlFor="kiosk-ai-gallery"
                 className="h-8 sm:h-9 px-2 sm:px-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-slate-300 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="iPad эсвэл утасны цомгоос сонгох"
               >
@@ -815,13 +997,17 @@ function KioskAiChatSection({
                 type="button"
                 onClick={startVoiceRecording}
                 className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl flex items-center gap-1 font-bold text-xs sm:text-xs active:scale-95 transition-all shrink-0 select-none ${
-                  isListening 
-                    ? 'bg-rose-600 text-white animate-bounce shadow-[0_0_12px_rgba(225,29,72,0.6)]' 
-                    : 'bg-slate-800 hover:bg-slate-700 text-blue-400'
+                  isListening
+                    ? "bg-rose-600 text-white animate-bounce shadow-[0_0_12px_rgba(225,29,72,0.6)]"
+                    : "bg-slate-800 hover:bg-slate-700 text-zinc-300"
                 }`}
                 title={isListening ? "Дуу бичихийг зогсоох" : "Дуугаар ярих"}
               >
-                {isListening ? <MicOff className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" /> : <Mic className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />}
+                {isListening ? (
+                  <MicOff className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                )}
                 <span>{isListening ? "Сонсож байна..." : "Ярих"}</span>
               </button>
 
@@ -840,13 +1026,13 @@ function KioskAiChatSection({
             </div>
 
             {/* ➡️ Баруун талын Илгээх товч (Хэзээ ч доошоо унахгүй, байрандаа цэвэрхэн үлдэнэ) */}
-            <button 
-              type="submit" 
-              disabled={isAiLoading || !chatInput.trim()} 
+            <button
+              type="submit"
+              disabled={isAiLoading || !chatInput.trim()}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-xs flex items-center gap-1.5 transition-all shrink-0 select-none ml-1 ${
-                chatInput.trim() && !isAiLoading 
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md active:scale-95 cursor-pointer' 
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                chatInput.trim() && !isAiLoading
+                  ? "bg-white hover:bg-zinc-200 text-white shadow-md active:scale-95 cursor-pointer"
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
               }`}
             >
               <span>{isAiLoading ? "..." : "Илгээх"}</span>
@@ -863,48 +1049,58 @@ function KioskAiChatSection({
 // 📱 4. MAIN COMPONENT: KIOSK PAGE
 // =========================================================================
 function KioskPage() {
-  const router = useRouter(); 
-  const [step, setStep] = useState<'select_worker' | 'pin_code' | 'shift_handover' | 'menu' | 'ai_chat' | 'tasks' | 'incident_report' | 'close_shift'>('select_worker');
-// 🌐 ХОС ХЭЛ БА БААЗААС СУРСАН ОРЧУУЛГУУД
+  const router = useRouter();
+  const [step, setStep] = useState<
+    | "select_worker"
+    | "pin_code"
+    | "shift_handover"
+    | "menu"
+    | "ai_chat"
+    | "tasks"
+    | "incident_report"
+    | "close_shift"
+  >("select_worker");
+  // 🌐 ХОС ХЭЛ БА БААЗААС СУРСАН ОРЧУУЛГУУД
 
-
-const [tenantClientId, setTenantClientId] = useState<string>('');
-const [clientLogo, setClientLogo] = useState<string | null>(null);
-const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
+  const [tenantClientId, setTenantClientId] = useState<string>("");
+  const [clientLogo, setClientLogo] = useState<string | null>(null);
+  const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [workers, setWorkers] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [learnedAliases, setLearnedAliases] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState("");
   const [activeShift, setActiveShift] = useState<any>(null);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
   // 🌐 ХОС ХЭЛНИЙ ТОХИРГОО (tenantClientId-ийн дараа байрлана)
-  const [lang, setLang] = useState<'mn' | 'en'>('mn');
-  const [translationsCache, setTranslationsCache] = useState<Record<string, string>>({});
+  const [lang, setLang] = useState<"mn" | "en">("mn");
+  const [translationsCache, setTranslationsCache] = useState<
+    Record<string, string>
+  >({});
   // 1. Системийн 4 горимын текстүүд
   const UI_TEXT = {
     mn: {
       spoilage: "Хаягдал",
       meal: "Хоол",
       test: "Туршилт",
-      purchase: "Орлого"
+      purchase: "Орлого",
     },
     en: {
       spoilage: "Waste",
       meal: "Meal",
       test: "Test",
-      purchase: "Purchase"
-    }
+      purchase: "Purchase",
+    },
   };
 
   // 2. Баазад хадгалагдсан орчуулгыг татах
   useEffect(() => {
     if (tenantClientId) {
       supabase
-        .from('learned_translations')
-        .select('original_text, translated_text')
-        .ilike('client_id', tenantClientId)
+        .from("learned_translations")
+        .select("original_text, translated_text")
+        .ilike("client_id", tenantClientId)
         .then(({ data }) => {
           if (data) {
             const map: Record<string, string> = {};
@@ -917,14 +1113,14 @@ const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
     }
   }, [tenantClientId]);
 
-// 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Толинд байхгүй бол AI-аар шууд орчуулж баазад цээжилнэ)
+  // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Толинд байхгүй бол AI-аар шууд орчуулж баазад цээжилнэ)
 
- // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Эхний үгээр тасдаж алдаа гаргахгүй хувилбар)
+  // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Эхний үгээр тасдаж алдаа гаргахгүй хувилбар)
   const tName = (rawName: string) => {
     if (!rawName) return "";
-    
+
     // Англи горим: Хаалтыг арилгаж цэвэр англи нэр гаргана
-    if (lang === 'en') {
+    if (lang === "en") {
       const m = rawName.match(/^(.*?)\s*\(/);
       return m ? m[1].trim() : rawName;
     }
@@ -939,29 +1135,32 @@ const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
     // 2. Баазад өмнө нь зөв хадгалсан орчуулга байвал тэрийг авна
     if (translationsCache[clean]) return translationsCache[clean];
 
- // 3. ЗӨВХӨН БҮХЭЛ НЭРЭЭРЭЭ толь бичигт байвал авна
-    if (typeof STATIC_DICT !== 'undefined' && STATIC_DICT[clean]) {
-      return STATIC_DICT[clean]; // 
+    // 3. ЗӨВХӨН БҮХЭЛ НЭРЭЭРЭЭ толь бичигт байвал авна
+    if (typeof STATIC_DICT !== "undefined" && STATIC_DICT[clean]) {
+      return STATIC_DICT[clean]; //
     }
- 
-  // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
+
+    // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
     if (!translationsCache[clean]) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        fetch('/api/kiosk-ai', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token || ''}` // 👈 Токен дамжуулна
+        fetch("/api/kiosk-ai", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token || ""}`, // 👈 Токен дамжуулна
           },
-          body: JSON.stringify({ action: 'translate', text: rawName })
+          body: JSON.stringify({ action: "translate", text: rawName }),
         })
-        .then(res => res.json())
-        .then(d => {
-          if (d.success && d.translation) {
-            setTranslationsCache(prev => ({ ...prev, [clean]: d.translation }));
-          }
-        })
-        .catch(() => {});
+          .then((res) => res.json())
+          .then((d) => {
+            if (d.success && d.translation) {
+              setTranslationsCache((prev) => ({
+                ...prev,
+                [clean]: d.translation,
+              }));
+            }
+          })
+          .catch(() => {});
       });
     }
 
@@ -970,18 +1169,25 @@ const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
 
   const tUnit = (u: string) => {
     if (!u) return "";
-    if (lang === 'en') return (u === 'ш' ? 'pc' : u === 'мл' ? 'ml' : u === 'гр' ? 'g' : u);
-    return (u.includes('ml') ? 'мл' : u.includes('gram') || u === 'g' ? 'гр' : u.includes('pc') || u.includes('item') ? 'ш' : u);
+    if (lang === "en")
+      return u === "ш" ? "pc" : u === "мл" ? "ml" : u === "гр" ? "g" : u;
+    return u.includes("ml")
+      ? "мл"
+      : u.includes("gram") || u === "g"
+        ? "гр"
+        : u.includes("pc") || u.includes("item")
+          ? "ш"
+          : u;
   };
   // Shift Handover Start States
-  const [handoverNote, setHandoverNote] = useState('');
+  const [handoverNote, setHandoverNote] = useState("");
   const [handoverFile, setHandoverFile] = useState<File | null>(null);
 
   // Incident Report States (Previous Shift Damage)
-  const [incidentWorker, setIncidentWorker] = useState('');
-  const [incidentItem, setIncidentItem] = useState('');
-  const [incidentQty, setIncidentQty] = useState('');
-  const [incidentNote, setIncidentNote] = useState('');
+  const [incidentWorker, setIncidentWorker] = useState("");
+  const [incidentItem, setIncidentItem] = useState("");
+  const [incidentQty, setIncidentQty] = useState("");
+  const [incidentNote, setIncidentNote] = useState("");
   const [incidentFile, setIncidentFile] = useState<File | null>(null);
 
   // Tasks & Shift Close States
@@ -990,301 +1196,362 @@ const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [posZFile, setPosZFile] = useState<File | null>(null);
   // ⚡ ШИНЭ: Kiosk 2-Tap Горим & Numpad State-үүд
-  const [kioskMode, setKioskMode] = useState<'spoilage' | 'staff_meal' | 'testing' | 'purchase'>('spoilage');
+  const [kioskMode, setKioskMode] = useState<
+    "spoilage" | "staff_meal" | "testing" | "purchase"
+  >("spoilage");
   const [quickItemModal, setQuickItemModal] = useState<any | null>(null);
-  const [quickQty, setQuickQty] = useState<string>('');
-  const [purchaseCost, setPurchaseCost] = useState<string>('');
-  const [kioskSearch, setKioskSearch] = useState<string>('');
-  const [recentToast, setRecentToast] = useState<{ id: string; text: string } | null>(null);
+  const [quickQty, setQuickQty] = useState<string>("");
+  const [purchaseCost, setPurchaseCost] = useState<string>("");
+  const [kioskSearch, setKioskSearch] = useState<string>("");
+  const [recentToast, setRecentToast] = useState<{
+    id: string;
+    text: string;
+  } | null>(null);
   // 🛒 САГСНЫ STATE (Олон барааг бөөнд нь зураг дарахад зориулав)
-  const [purchaseCart, setPurchaseCart] = useState<Array<{
-    ing_id: string;
-    name: string;
-    unit: string;
-    qty: number;
-    cost: number;
-  }>>([]);
+  const [purchaseCart, setPurchaseCart] = useState<
+    Array<{
+      ing_id: string;
+      name: string;
+      unit: string;
+      qty: number;
+      cost: number;
+    }>
+  >([]);
   const [showCartModal, setShowCartModal] = useState(false);
   const [cartFile, setCartFile] = useState<File | null>(null);
   // 💵 Бэлэн мөнгө гаргах (Cash Out) & Хаалтын касс тоолох State-үүд
   const [cashOutModal, setCashOutModal] = useState(false);
-  const [cashOutType, setCashOutType] = useState<'owner_draw' | 'petty_cash'>('owner_draw');
-  const [cashOutAmount, setCashOutAmount] = useState('');
-  const [cashOutNote, setCashOutNote] = useState('');
+  const [cashOutType, setCashOutType] = useState<"owner_draw" | "petty_cash">(
+    "owner_draw",
+  );
+  const [cashOutAmount, setCashOutAmount] = useState("");
+  const [cashOutNote, setCashOutNote] = useState("");
   const [cashOutFile, setCashOutFile] = useState<File | null>(null);
-  const [actualCashDrawer, setActualCashDrawer] = useState(''); // Ээлж хаах үеийн бодит бэлэн мөнгө
+  const [actualCashDrawer, setActualCashDrawer] = useState(""); // Ээлж хаах үеийн бодит бэлэн мөнгө
   // 📖 1. Дижитал Жор (SOP) харах State-үүд
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [recipesList, setRecipesList] = useState<any[]>([]);
-  const [selectedProductRecipe, setSelectedProductRecipe] = useState<string | null>(null);
-// 📸 1. E-Barimt-гүй үед барааны зураг хавсаргах State
+  const [selectedProductRecipe, setSelectedProductRecipe] = useState<
+    string | null
+  >(null);
+  // 📸 1. E-Barimt-гүй үед барааны зураг хавсаргах State
   const [noEbarimtFile, setNoEbarimtFile] = useState<File | null>(null);
-  const [purchasePayMethod, setPurchasePayMethod] = useState<'bank' | 'cash'>('bank');
+  const [purchasePayMethod, setPurchasePayMethod] = useState<"bank" | "cash">(
+    "bank",
+  );
   const [isScanningReceipt, setIsScanningReceipt] = useState(false);
-// 📋 Өнөөдрийн бүх үйлдлүүдийн гүйдэг жагсаалт:
+  // 📋 Өнөөдрийн бүх үйлдлүүдийн гүйдэг жагсаалт:
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
   const [showLogsDrawer, setShowLogsDrawer] = useState(false);
   const [previewLogImage, setPreviewLogImage] = useState<string | null>(null);
-   // ➕ ШИНЭ БАРАА НЭМЭХЭД ДУТАГДАЖ БАЙСАН STATE-ҮҮД:
+  // ➕ ШИНЭ БАРАА НЭМЭХЭД ДУТАГДАЖ БАЙСАН STATE-ҮҮД:
   const [showAddNewItemModal, setShowAddNewItemModal] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemUnit, setNewItemUnit] = useState('ш');
-  const [newItemQty, setNewItemQty] = useState('');
-  const [newItemCost, setNewItemCost] = useState('');
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemUnit, setNewItemUnit] = useState("ш");
+  const [newItemQty, setNewItemQty] = useState("");
+  const [newItemCost, setNewItemCost] = useState("");
   const [newItemFile, setNewItemFile] = useState<File | null>(null);
   // 🧾 2. E-Barimt уншсаны дараа ШАЛГАХ / ЗАСАХ (Preview/Approve) Modal-ийн State
   const [ebarimtReview, setEbarimtReview] = useState<{
     file: File;
     previewUrl: string;
-    items: Array<{ item_name: string; quantity: number; total_cost: number; is_food: boolean }>;
-    payMethod: 'bank' | 'cash';
+    items: Array<{
+      item_name: string;
+      quantity: number;
+      total_cost: number;
+      is_food: boolean;
+    }>;
+    payMethod: "bank" | "cash";
   } | null>(null);
 
-  useEffect(() => { 
+  useEffect(() => {
     initKioskContext();
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('kiosk_device_locked', 'true');
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("kiosk_device_locked", "true");
     }
 
     // 📶 ОФЛАЙН ГОРИМ ДЭЭР ХАДГАЛАГДСАН ӨГӨГДЛИЙГ АВТОМАТААР БААЗ РУУ СИНХРОНЧЛОХ
     const syncOfflineLogs = async () => {
-      const offlineQueue = JSON.parse(localStorage.getItem('kiosk_offline_queue') || '[]');
+      const offlineQueue = JSON.parse(
+        localStorage.getItem("kiosk_offline_queue") || "[]",
+      );
       if (offlineQueue.length === 0 || !navigator.onLine) return;
 
       try {
-        const { error } = await supabase.from('inventory_logs').insert(offlineQueue);
+        const { error } = await supabase
+          .from("inventory_logs")
+          .insert(offlineQueue);
         if (!error) {
-          localStorage.removeItem('kiosk_offline_queue');
-          console.log("Офлайн үед хадгалсан логууд амжилттай баазад синк хийгдлээ.");
+          localStorage.removeItem("kiosk_offline_queue");
+          console.log(
+            "Офлайн үед хадгалсан логууд амжилттай баазад синк хийгдлээ.",
+          );
         }
       } catch (err) {
         console.warn("Sync failed, will retry later:", err);
       }
     };
 
-    window.addEventListener('online', syncOfflineLogs);
+    window.addEventListener("online", syncOfflineLogs);
     syncOfflineLogs();
 
-    return () => window.removeEventListener('online', syncOfflineLogs);
+    return () => window.removeEventListener("online", syncOfflineLogs);
   }, []);
 
   useEffect(() => {
-  if (!recentToast) return;
+    if (!recentToast) return;
 
-  const timer = setTimeout(() => {
-    setRecentToast(null);
-  }, 4000); // 4 seconds
+    const timer = setTimeout(() => {
+      setRecentToast(null);
+    }, 4000); // 4 seconds
 
-  return () => clearTimeout(timer);
-}, [recentToast]);
-const fetchTodayLogs = async (client: string) => {
+    return () => clearTimeout(timer);
+  }, [recentToast]);
+  const fetchTodayLogs = async (client: string) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     // 💡 ТҮГЖЭЭ: Яг одоо нэвтэрч орсон байгаа ажилтны нэрийг авах
-    const currentWorkerName = activeShift?.character_role || selectedWorker?.full_name || selectedWorker?.email.split('@')[0];
+    const currentWorkerName =
+      activeShift?.character_role ||
+      selectedWorker?.full_name ||
+      selectedWorker?.email.split("@")[0];
 
     const { data } = await supabase
-      .from('inventory_logs')
-      .select('id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)')
-      .ilike('client_id', client)
-      .gte('date', todayStart.toISOString())
-      .eq('worker_name', currentWorkerName) // 👈 АЛТАН ДҮРЭМ: Зөвхөн энэ хүний үйлдлийг л татна!
-      .order('date', { ascending: false })
+      .from("inventory_logs")
+      .select(
+        "id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)",
+      )
+      .ilike("client_id", client)
+      .gte("date", todayStart.toISOString())
+      .eq("worker_name", currentWorkerName) // 👈 АЛТАН ДҮРЭМ: Зөвхөн энэ хүний үйлдлийг л татна!
+      .order("date", { ascending: false })
       .limit(30);
 
     if (data) setTodayLogs(data);
   };
 
-const initKioskContext = async () => {
-  setIsLoadingKiosk(true);
-  try {
-    let resolvedClient: string = '';
+  const initKioskContext = async () => {
+    setIsLoadingKiosk(true);
+    try {
+      let resolvedClient: string = "";
 
-    // 1. URL дээрээс шалгах (/kiosk?clientId=...)
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      resolvedClient = urlParams.get('clientId') || '';
-    }
-
-    // 2. Хэрэв URL-д байхгүй бол нэвтэрсэн session-оос авах
-    if (!resolvedClient) {
-      const { data: { session } } = await supabase.auth.getSession();
-      resolvedClient = session?.user?.user_metadata?.client_id || '';
-    }
-
-    // 3. Хэрэв олдохгүй бол localStorage-аас авах
-    if (!resolvedClient && typeof window !== 'undefined') {
-      resolvedClient = localStorage.getItem('kiosk_client_id') || '';
-    }
-
-    // Хэрэв салбар тодорхойлогдсон бол
-    if (resolvedClient.trim()) {
-      const cleanName = resolvedClient.trim();
-      setTenantClientId(cleanName);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('kiosk_client_id', cleanName);
+      // 1. URL дээрээс шалгах (/kiosk?clientId=...)
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        resolvedClient = urlParams.get("clientId") || "";
       }
-      await fetchKioskData(cleanName);
-    } else {
-      setTenantClientId('');
+
+      // 2. Хэрэв URL-д байхгүй бол нэвтэрсэн session-оос авах
+      if (!resolvedClient) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        resolvedClient = session?.user?.user_metadata?.client_id || "";
+      }
+
+      // 3. Хэрэв олдохгүй бол localStorage-аас авах
+      if (!resolvedClient && typeof window !== "undefined") {
+        resolvedClient = localStorage.getItem("kiosk_client_id") || "";
+      }
+
+      // Хэрэв салбар тодорхойлогдсон бол
+      if (resolvedClient.trim()) {
+        const cleanName = resolvedClient.trim();
+        setTenantClientId(cleanName);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("kiosk_client_id", cleanName);
+        }
+        await fetchKioskData(cleanName);
+      } else {
+        setTenantClientId("");
+      }
+    } finally {
+      setIsLoadingKiosk(false);
     }
-  } finally {
-    setIsLoadingKiosk(false);
-  }
-};
-const fetchKioskData = async (client: string) => {
-  const target = client.trim();
+  };
+  const fetchKioskData = async (client: string) => {
+    const target = client.trim();
 
-  // 1. 👥 Ажилтнуудыг татах
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('*')
-    .ilike('client_id', target)
-    .neq('role', 'owner');
-  
-  if (profiles) setWorkers(profiles);
+    // 1. 👥 Ажилтнуудыг татах
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("*")
+      .ilike("client_id", target)
+      .neq("role", "owner");
 
-  // 2. 🛡️ Аюулгүй RPC функцээр Логог татах (Яг бидний бэкэндэд хийснээр):
-  const { data: branding } = await supabase
-    .rpc('get_kiosk_branding', { target_client_id: target });
+    if (profiles) setWorkers(profiles);
 
-  if (branding?.logo_url) {
-    setClientLogo(branding.logo_url);
-  } else {
-    setClientLogo(null);
-  }
+    // 2. 🛡️ Аюулгүй RPC функцээр Логог татах (Яг бидний бэкэндэд хийснээр):
+    const { data: branding } = await supabase.rpc("get_kiosk_branding", {
+      target_client_id: target,
+    });
 
-  // 3. Түүхий эд, жор татах хэсэг хэвээрээ байна...
-  const { data: ingData } = await supabase
-    .from('ingredients')
-    .select('id, name, unit, current_stock, is_critical, last_counted_at, client_id, is_suspicious_promoted, promoted_until')
-    .ilike('client_id', target)
-    .order('name', { ascending: true });
+    if (branding?.logo_url) {
+      setClientLogo(branding.logo_url);
+    } else {
+      setClientLogo(null);
+    }
 
-  if (ingData) setIngredients(ingData);
+    // 3. Түүхий эд, жор татах хэсэг хэвээрээ байна...
+    const { data: ingData } = await supabase
+      .from("ingredients")
+      .select(
+        "id, name, unit, current_stock, is_critical, last_counted_at, client_id, is_suspicious_promoted, promoted_until",
+      )
+      .ilike("client_id", target)
+      .order("name", { ascending: true });
 
-  const { data: aliasesData } = await supabase
-    .from('learned_aliases')
-    .select('phrase, ingredient_id')
-    .ilike('client_id', target);
+    if (ingData) setIngredients(ingData);
 
-  if (aliasesData) setLearnedAliases(aliasesData);
+    const { data: aliasesData } = await supabase
+      .from("learned_aliases")
+      .select("phrase, ingredient_id")
+      .ilike("client_id", target);
 
-  const { data: recData } = await supabase
-    .from('recipes')
-    .select('product_name, amount, ingredient_id, ingredients(name, unit)')
-    .ilike('client_id', target);
+    if (aliasesData) setLearnedAliases(aliasesData);
 
-  if (recData) setRecipesList(recData);
-};
+    const { data: recData } = await supabase
+      .from("recipes")
+      .select("product_name, amount, ingredient_id, ingredients(name, unit)")
+      .ilike("client_id", target);
+
+    if (recData) setRecipesList(recData);
+  };
 
   const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
     const { data: allTasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .ilike('client_id', tenantId)
-      .eq('is_active', true);
+      .from("tasks")
+      .select("*")
+      .ilike("client_id", tenantId)
+      .eq("is_active", true);
 
-    const workerName = worker.email.split('@')[0];
+    const workerName = worker.email.split("@")[0];
     const workerDisplayName = (worker.full_name || workerName).trim();
-    const workerRoleLower = (worker.role || '').toLowerCase().trim();
+    const workerRoleLower = (worker.role || "").toLowerCase().trim();
     const workerNameLower = workerDisplayName.toLowerCase().trim();
-    const isBarista = workerRoleLower.includes('barista') || workerRoleLower.includes('бариста');
-    const isCook = workerRoleLower.includes('cook') || workerRoleLower.includes('chef') || workerRoleLower.includes('тогооч');
+    const isBarista =
+      workerRoleLower.includes("barista") ||
+      workerRoleLower.includes("бариста");
+    const isCook =
+      workerRoleLower.includes("cook") ||
+      workerRoleLower.includes("chef") ||
+      workerRoleLower.includes("тогооч");
 
-    const matchedTemplateTasks = (allTasks || []).filter((t: any) => {
-      if (t.is_active === false) return false;
-      const tRole = (t.role || '').toLowerCase().trim();
-      if (tRole === 'бүх ажилтан' || tRole.includes('бүх')) return true;
-      if (tRole === workerNameLower || tRole.includes(workerNameLower)) return true;
-      if (isBarista && (tRole.includes('бариста') || tRole.includes('barista'))) return true;
-      if (isCook && (tRole.includes('тогооч') || tRole.includes('cook') || tRole.includes('chef'))) return true;
-      return false;
-    }).map((t: any) => ({ id: t.id, name: t.task_name, weight: t.weight || 10, done: false }));
+    const matchedTemplateTasks = (allTasks || [])
+      .filter((t: any) => {
+        if (t.is_active === false) return false;
+        const tRole = (t.role || "").toLowerCase().trim();
+        if (tRole === "бүх ажилтан" || tRole.includes("бүх")) return true;
+        if (tRole === workerNameLower || tRole.includes(workerNameLower))
+          return true;
+        if (
+          isBarista &&
+          (tRole.includes("бариста") || tRole.includes("barista"))
+        )
+          return true;
+        if (
+          isCook &&
+          (tRole.includes("тогооч") ||
+            tRole.includes("cook") ||
+            tRole.includes("chef"))
+        )
+          return true;
+        return false;
+      })
+      .map((t: any) => ({
+        id: t.id,
+        name: t.task_name,
+        weight: t.weight || 10,
+        done: false,
+      }));
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     const { data: todayShifts } = await supabase
-      .from('shifts')
-      .select('daily_tasks_checklist')
-      .eq('client_id', tenantId)
-      .gte('start_time', todayStart.toISOString());
+      .from("shifts")
+      .select("daily_tasks_checklist")
+      .eq("client_id", tenantId)
+      .gte("start_time", todayStart.toISOString());
 
     const completedTasksToday = new Set<string>();
     (todayShifts || []).forEach((s: any) => {
       let list = s.daily_tasks_checklist;
-      if (typeof list === 'string') list = JSON.parse(list);
+      if (typeof list === "string") list = JSON.parse(list);
       if (Array.isArray(list)) {
         list.forEach((item: any) => {
-          if (item.done && item.name) completedTasksToday.add(item.name.toLowerCase().trim());
+          if (item.done && item.name)
+            completedTasksToday.add(item.name.toLowerCase().trim());
         });
       }
     });
 
-    return matchedTemplateTasks.map(t => ({
+    return matchedTemplateTasks.map((t) => ({
       ...t,
-      done: completedTasksToday.has(t.name.toLowerCase().trim())
+      done: completedTasksToday.has(t.name.toLowerCase().trim()),
     }));
   };
 
-const openTasksScreen = () => {
+  const openTasksScreen = () => {
     // ⚡ Шууд дэлгэцийг нээнэ (0ms)
-    setStep('tasks');
+    setStep("tasks");
 
     // Цаана нь датаг сэмхэн шинэчлэх (Background sync)
     if (selectedWorker) {
       loadLiveTodayTasks(tenantClientId, selectedWorker).then((liveTasks) => {
         setTasks(liveTasks);
         if (activeShift) {
-          supabase.from('shifts').update({ daily_tasks_checklist: liveTasks }).eq('id', activeShift.id);
+          supabase
+            .from("shifts")
+            .update({ daily_tasks_checklist: liveTasks })
+            .eq("id", activeShift.id);
         }
       });
     }
   };
 
   const handleKeypadPress = (digit: string) => {
-    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+    if (typeof window !== "undefined" && window.navigator?.vibrate) {
       window.navigator.vibrate(8);
     }
-    setPin(p => p.length < 4 ? p + digit : p);
+    setPin((p) => (p.length < 4 ? p + digit : p));
   };
 
-const handleVerifyPin = async () => {
+  const handleVerifyPin = async () => {
     if (!selectedWorker) return;
-    const validPin = selectedWorker.pin_code || '1234';
+    const validPin = selectedWorker.pin_code || "1234";
 
     if (pin !== validPin) {
       setMsg("❌ Буруу PIN код!");
-      setPin('');
+      setPin("");
       return;
     }
 
     // ⚡ Хоёр хүсэлтийг зэрэг дуудаж хугацааг хэмнэнэ
     const [shiftRes, liveTasks] = await Promise.all([
       supabase
-        .from('shifts')
-        .select('*')
-        .eq('client_id', tenantClientId)
-        .eq('is_active', true)
-        .order('start_time', { ascending: false })
+        .from("shifts")
+        .select("*")
+        .eq("client_id", tenantClientId)
+        .eq("is_active", true)
+        .order("start_time", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      loadLiveTodayTasks(tenantClientId, selectedWorker)
+      loadLiveTodayTasks(tenantClientId, selectedWorker),
     ]);
 
     setTasks(liveTasks);
 
     if (!shiftRes.data) {
-      setStep('shift_handover');
+      setStep("shift_handover");
     } else {
       setActiveShift(shiftRes.data);
-      setStep('menu');
+      setStep("menu");
     }
 
-    setPin('');
-    setMsg('');
+    setPin("");
+    setMsg("");
   };
   const handleStartShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1292,32 +1559,38 @@ const handleVerifyPin = async () => {
 
     let startImgUrl = null;
     if (handoverFile) {
-      startImgUrl = await uploadEvidencePhoto(handoverFile, 'handover_starts');
+      startImgUrl = await uploadEvidencePhoto(handoverFile, "handover_starts");
     }
 
-    const workerName = selectedWorker.email.split('@')[0];
+    const workerName = selectedWorker.email.split("@")[0];
     const workerDisplayName = (selectedWorker.full_name || workerName).trim();
     const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
 
-    const { data: newShift, error } = await supabase.from('shifts').insert([{
-      client_id: tenantClientId,
-      character_role: fullNameRole,
-      is_active: true,
-      start_notes: handoverNote || 'Ээлж хэвийн хүлээн авсан.',
-      start_evidence_image: startImgUrl,
-      daily_tasks_checklist: tasks,
-      telegram_chat_id: selectedWorker.telegram_chat_id || 0
-    }]).select().single();
+    const { data: newShift, error } = await supabase
+      .from("shifts")
+      .insert([
+        {
+          client_id: tenantClientId,
+          character_role: fullNameRole,
+          is_active: true,
+          start_notes: handoverNote || "Ээлж хэвийн хүлээн авсан.",
+          start_evidence_image: startImgUrl,
+          daily_tasks_checklist: tasks,
+          telegram_chat_id: selectedWorker.telegram_chat_id || 0,
+        },
+      ])
+      .select()
+      .single();
 
     if (error || !newShift) {
-      setMsg(`❌ Алдаа: ${error?.message || 'Ээлж үүсгэж чадсангүй.'}`);
+      setMsg(`❌ Алдаа: ${error?.message || "Ээлж үүсгэж чадсангүй."}`);
       setIsAiLoading(false);
       return;
     }
 
     setActiveShift(newShift);
     setIsAiLoading(false);
-    setStep('menu');
+    setStep("menu");
   };
 
   const handleReportIncident = async (e: React.FormEvent) => {
@@ -1327,34 +1600,36 @@ const handleVerifyPin = async () => {
 
     let damageImgUrl = null;
     if (incidentFile) {
-      damageImgUrl = await uploadEvidencePhoto(incidentFile, 'damage_proofs');
+      damageImgUrl = await uploadEvidencePhoto(incidentFile, "damage_proofs");
     }
 
-    const ing = ingredients.find(i => i.id === incidentItem);
+    const ing = ingredients.find((i) => i.id === incidentItem);
     const qty = parseFloat(incidentQty) || 0;
     const lossCost = ing ? qty * (parseFloat(ing.unit_price) || 0) : 0;
 
-    await supabase.from('inventory_logs').insert([{
-      client_id: tenantClientId,
-      ingredient_id: ing ? ing.id : null,
-      quantity: -Math.abs(qty),
-      total_cost: lossCost,
-      type: 'spoilage',
-      incident_type: 'previous_shift_damage',
-      reported_against_worker: incidentWorker || 'Өмнөх ээлжийн ажилтан',
-      image_url: damageImgUrl,
-      notes: `Өмнөх ээлжийн алдагдал: ${incidentNote || 'Шалтгаангүй хаягдал илэрсэн'}`,
-      worker_name: activeShift?.character_role || selectedWorker.full_name,
-      date: new Date().toISOString()
-    }]);
+    await supabase.from("inventory_logs").insert([
+      {
+        client_id: tenantClientId,
+        ingredient_id: ing ? ing.id : null,
+        quantity: -Math.abs(qty),
+        total_cost: lossCost,
+        type: "spoilage",
+        incident_type: "previous_shift_damage",
+        reported_against_worker: incidentWorker || "Өмнөх ээлжийн ажилтан",
+        image_url: damageImgUrl,
+        notes: `Өмнөх ээлжийн алдагдал: ${incidentNote || "Шалтгаангүй хаягдал илэрсэн"}`,
+        worker_name: activeShift?.character_role || selectedWorker.full_name,
+        date: new Date().toISOString(),
+      },
+    ]);
 
     setIsAiLoading(false);
     alert("⚠️ Өмнөх ээлжийн алдагдал менежерийн хяналтад бүртгэгдлээ!");
-    setIncidentItem('');
-    setIncidentQty('');
-    setIncidentNote('');
+    setIncidentItem("");
+    setIncidentQty("");
+    setIncidentNote("");
     setIncidentFile(null);
-    setStep('menu');
+    setStep("menu");
   };
 
   const completeTask = async (index: number) => {
@@ -1363,47 +1638,61 @@ const handleVerifyPin = async () => {
     updatedTasks[index].done = true;
     setTasks(updatedTasks);
     if (activeShift) {
-      await supabase.from('shifts').update({ daily_tasks_checklist: updatedTasks }).eq('id', activeShift.id);
+      await supabase
+        .from("shifts")
+        .update({ daily_tasks_checklist: updatedTasks })
+        .eq("id", activeShift.id);
     }
   };
 
-  
-
-const loadInventoryToCount = () => {
-    setMsg('');
-    const twelveHoursAgo = new Date(Date.now() - (12 * 60 * 60 * 1000)).toISOString();
+  const loadInventoryToCount = () => {
+    setMsg("");
+    const twelveHoursAgo = new Date(
+      Date.now() - 12 * 60 * 60 * 1000,
+    ).toISOString();
 
     // 1. А-Class (Чухал) бараанууд түрүүлж орно
     const criticalItems = ingredients.filter(
-      (i) => i.is_critical && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo)
+      (i) =>
+        i.is_critical &&
+        (!i.last_counted_at || i.last_counted_at < twelveHoursAgo),
     );
 
     // 2. Үлдсэн 5 суудлыг хамгийн удаан тоологдоогүй бараануудаар нөхнө
     const remainingSlots = Math.max(0, 5 - criticalItems.length);
     const cycleItems = ingredients
-      .filter((i) => !i.is_critical && (!i.last_counted_at || i.last_counted_at < twelveHoursAgo))
-      .sort((a, b) => new Date(a.last_counted_at || '2000-01-01').getTime() - new Date(b.last_counted_at || '2000-01-01').getTime())
+      .filter(
+        (i) =>
+          !i.is_critical &&
+          (!i.last_counted_at || i.last_counted_at < twelveHoursAgo),
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.last_counted_at || "2000-01-01").getTime() -
+          new Date(b.last_counted_at || "2000-01-01").getTime(),
+      )
       .slice(0, remainingSlots);
 
     // ⚡ Аналитик дуудаж хүлээхгүй шууд дэлгэцийг нээнэ!
     setInventoryToCount([...criticalItems, ...cycleItems]);
     setCounts({});
-    setActualCashDrawer('');
+    setActualCashDrawer("");
     setPosZFile(null);
-    setStep('close_shift');
+    setStep("close_shift");
   };
 
+  // ⚡ 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
 
-
-// ⚡ 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
- 
-const handleCloseShift = () => {
+  const handleCloseShift = () => {
     // 1. ШАЛГАЛТУУД (Дутуу зүйл байвал шууд анхааруулна)
     const uncountedItems = inventoryToCount.filter(
-      (i) => counts[i.id] === undefined || counts[i.id].toString().trim() === ""
+      (i) =>
+        counts[i.id] === undefined || counts[i.id].toString().trim() === "",
     );
     if (uncountedItems.length > 0) {
-      setMsg(`⚠️ Тооллого дутуу байна: ${uncountedItems.map((i) => i.name).join(", ")}`);
+      setMsg(
+        `⚠️ Тооллого дутуу байна: ${uncountedItems.map((i) => i.name).join(", ")}`,
+      );
       return;
     }
 
@@ -1412,7 +1701,11 @@ const handleCloseShift = () => {
       return;
     }
 
-    if (actualCashDrawer.trim() === "" || isNaN(Number(actualCashDrawer)) || Number(actualCashDrawer) < 0) {
+    if (
+      actualCashDrawer.trim() === "" ||
+      isNaN(Number(actualCashDrawer)) ||
+      Number(actualCashDrawer) < 0
+    ) {
       setMsg("⚠️ Кассын бэлэн мөнгийг бичнэ үү (Байхгүй бол 0)!");
       return;
     }
@@ -1424,7 +1717,9 @@ const handleCloseShift = () => {
     const currentShift = activeShift;
     const itemsCounted = [...inventoryToCount];
     const itemCounts = { ...counts };
-    const completedTaskIds = tasks.filter((t: any) => t.done && t.id).map((t: any) => t.id);
+    const completedTaskIds = tasks
+      .filter((t: any) => t.done && t.id)
+      .map((t: any) => t.id);
 
     // ⚡ 3. ДЭЛГЭЦ ШУУД 0 МИЛЛИСЕКУНДЭД АМЖИЛТТАЙ ГЭЖ СОЛИГДОНО! (Хүлээхгүй)
     setMsg("🌙 Ээлж амжилттай хаагдлаа!");
@@ -1450,7 +1745,8 @@ const handleCloseShift = () => {
           quantity: parseFloat(itemCounts[item.id]) || 0,
           type: "count",
           notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
-          worker_name: currentShift?.character_role || selectedWorker?.full_name,
+          worker_name:
+            currentShift?.character_role || selectedWorker?.full_name,
           date: endTime,
         }));
 
@@ -1464,22 +1760,34 @@ const handleCloseShift = () => {
             type: "count",
             notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(cashVal) || 0).toLocaleString()}₮`,
             payment_method: "cash",
-            worker_name: currentShift?.character_role || selectedWorker?.full_name,
+            worker_name:
+              currentShift?.character_role || selectedWorker?.full_name,
             date: endTime,
           });
         }
 
-        const logsPromise = supabase.from("inventory_logs").insert(countLogsToInsert);
-        
-        const shiftPromise = currentShift ? supabase.from("shifts").update({
-          is_active: false,
-          end_time: endTime,
-          pos_z_image_url: posZUrl,
-        }).eq("id", currentShift.id) : Promise.resolve();
+        const logsPromise = supabase
+          .from("inventory_logs")
+          .insert(countLogsToInsert);
 
-        const tasksPromise = completedTaskIds.length > 0
-          ? supabase.from("tasks").update({ is_active: false }).in("id", completedTaskIds)
+        const shiftPromise = currentShift
+          ? supabase
+              .from("shifts")
+              .update({
+                is_active: false,
+                end_time: endTime,
+                pos_z_image_url: posZUrl,
+              })
+              .eq("id", currentShift.id)
           : Promise.resolve();
+
+        const tasksPromise =
+          completedTaskIds.length > 0
+            ? supabase
+                .from("tasks")
+                .update({ is_active: false })
+                .in("id", completedTaskIds)
+            : Promise.resolve();
 
         // 🚀 Бүгдийг зэрэг гүйцэтгэнэ
         await Promise.all([logsPromise, shiftPromise, tasksPromise]);
@@ -1490,60 +1798,64 @@ const handleCloseShift = () => {
     })();
   };
 
-
   return (
-    <div className="h-[100dvh] w-full bg-[#070b14] text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
-      
+    <div className="h-[100dvh] w-full bg-zinc-950 text-slate-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       {/* 🔝 HEADER */}
       <header className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-slate-800/80 pb-2.5 mb-2 shrink-0 px-1">
-      <div className="flex items-center gap-2.5">
-    {isLoadingKiosk ? (
-      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-slate-800/80 animate-pulse shrink-0" />
-    ) : clientLogo ? (
-      /* 2. Зөвхөн эзэн лого оруулсан үед л зургийг харуулна */
-      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center shrink-0">
-        <img 
-          src={clientLogo} 
-          alt={`${tenantClientId} Logo`} 
-          className="h-full w-full object-cover"
-        />
-      </div>
-    ) : null /* 3. Хэрэв лого оруулаагүй бол ямар ч дүрс гарахгүй, хоосон байна */}
+        <div className="flex items-center gap-2.5">
+          {
+            isLoadingKiosk ? (
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-slate-800/80  shrink-0" />
+            ) : clientLogo ? (
+              /* 2. Зөвхөн эзэн лого оруулсан үед л зургийг харуулна */
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center shrink-0">
+                <img
+                  src={clientLogo}
+                  alt={`${tenantClientId} Logo`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : null /* 3. Хэрэв лого оруулаагүй бол ямар ч дүрс гарахгүй, хоосон байна */
+          }
 
-    <div>
-      {/* Салбарын нэр */}
-      {tenantClientId ? (
-        <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none">
-          {tenantClientId} KIOSK
-        </h1>
-      ) : (
-        <div className="h-4 w-28 bg-slate-800 animate-pulse rounded" />
-      )}
-      <p className="text-[10px] sm:text-xs text-emerald-400 font-bold uppercase mt-1">
-        Smart Operations
-      </p>
-    </div>
-  </div>
+          <div>
+            {/* Салбарын нэр */}
+            {tenantClientId ? (
+              <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none">
+                {tenantClientId} KIOSK
+              </h1>
+            ) : (
+              <div className="h-4 w-28 bg-slate-800  rounded" />
+            )}
+            <p className="text-[10px] sm:text-xs text-zinc-200 font-bold uppercase mt-1">
+              Smart Operations
+            </p>
+          </div>
+        </div>
 
-    <div className="flex items-center gap-2">
-      {/* 🌐 ХЭЛ СОЛИХ ТОВЧ */}
-      <button 
-        type="button"
-        onClick={() => setLang(lang === 'mn' ? 'en' : 'mn')}
-        className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
-      >
-        {lang === 'mn' ? '🇲🇳 MN' : '🇺🇸 EN'}
-      </button>
-       <Link 
-        href="/login?from=kiosk"
-        className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
-      >
-        🔒 Dashboard
-      </Link>
+        <div className="flex items-center gap-2">
+          {/* 🌐 ХЭЛ СОЛИХ ТОВЧ */}
+          <button
+            type="button"
+            onClick={() => setLang(lang === "mn" ? "en" : "mn")}
+            className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
+          >
+            {lang === "mn" ? "🇲🇳 MN" : "🇺🇸 EN"}
+          </button>
+          <Link
+            href="/login?from=kiosk"
+            className="text-slate-300 hover:text-white text-xs font-bold bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 active:scale-95 transition"
+          >
+            🔒 Dashboard
+          </Link>
           {/* 🟢 ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
           {selectedWorker && (
-            <button 
-              onClick={() => { setSelectedWorker(null); setStep('select_worker'); setMsg(''); }} 
+            <button
+              onClick={() => {
+                setSelectedWorker(null);
+                setStep("select_worker");
+                setMsg("");
+              }}
               className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition flex items-center gap-1"
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -1551,65 +1863,72 @@ const handleCloseShift = () => {
             </button>
           )}
         </div>
-
       </header>
 
       {/* 🚀 MAIN CONTENT */}
       <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
-        
         {msg && (
-          <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20 animate-pulse flex items-center justify-center gap-2 shrink-0">
+          <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20  flex items-center justify-center gap-2 shrink-0">
             <ShieldAlert className="h-4 w-4 shrink-0" />
             <span>{msg}</span>
           </div>
         )}
 
         {/* 1. SELECT WORKER */}
-        {step === 'select_worker' && (
-          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+        {step === "select_worker" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="text-center pt-2 shrink-0">
-              <div className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/20 w-fit mx-auto mb-2">
-                <Users className="text-emerald-400 h-7 w-7"/>
+              <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-2">
+                <Users className="text-zinc-200 h-7 w-7" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-white">Ажилтнаа сонгоно уу</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Өөрийн нэр дээр дарж ээлжиндээ нэвтэрнэ үү</p>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                Ажилтнаа сонгоно уу
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Өөрийн нэр дээр дарж ээлжиндээ нэвтэрнэ үү
+              </p>
             </div>
 
-                    <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
-                    {/* ⚡ 1. Хэрэв дата ачаалж байгаа бол түр зуур 2 саарал товчлуур лугшина (Гацалтгүй шууд онгойно) */}
-                    {isLoadingKiosk ? (
-                      <div className="space-y-3 animate-pulse">
-                        <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
-                        <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
-                      </div>
-                    ) : workers.length === 0 ? (
-                      /* 2. Ажилтан байхгүй бол */
-                      <div className="text-center text-slate-500 text-xs py-8">
-                        Энэ салбарт ажилтан бүртгэгдээгүй байна.<br />(Dashboard-аас ажилтан нэмнэ үү)
-                      </div>
-                    ) : (
-                      /* 3. Ажилтнууд бэлэн болмогц товчлуурууд гарна */
-                      workers.map(w => (
-                        <button 
-                          key={w.id} 
-                          onClick={() => { setSelectedWorker(w); setStep('pin_code'); }} 
-                          className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-emerald-500/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full cursor-pointer"
-                        >
-                          <div>
-                            <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-emerald-400 transition">
-                              {w.full_name || w.email.split('@')[0]}
-                            </span>
-                            <span className="text-xs text-emerald-400 font-bold uppercase mt-0.5 block">
-                              🏷️ {w.role}
-                            </span>
-                          </div>
-                          <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-emerald-400 font-black text-xs">
-                            ➔
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
+            <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
+              {/* ⚡ 1. Хэрэв дата ачаалж байгаа бол түр зуур 2 саарал товчлуур лугшина (Гацалтгүй шууд онгойно) */}
+              {isLoadingKiosk ? (
+                <div className="space-y-3 ">
+                  <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
+                  <div className="h-20 bg-slate-900/60 border border-slate-800 rounded-2xl w-full" />
+                </div>
+              ) : workers.length === 0 ? (
+                /* 2. Ажилтан байхгүй бол */
+                <div className="text-center text-slate-500 text-xs py-8">
+                  Энэ салбарт ажилтан бүртгэгдээгүй байна.
+                  <br />
+                  (Dashboard-аас ажилтан нэмнэ үү)
+                </div>
+              ) : (
+                /* 3. Ажилтнууд бэлэн болмогц товчлуурууд гарна */
+                workers.map((w) => (
+                  <button
+                    key={w.id}
+                    onClick={() => {
+                      setSelectedWorker(w);
+                      setStep("pin_code");
+                    }}
+                    className="bg-zinc-950 hover:bg-slate-800 active:scale-95 border-2 border-slate-800 hover:border-zinc-700/50 p-4 rounded-2xl text-left transition-all shadow-md flex justify-between items-center group w-full cursor-pointer"
+                  >
+                    <div>
+                      <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-zinc-200 transition">
+                        {w.full_name || w.email.split("@")[0]}
+                      </span>
+                      <span className="text-xs text-zinc-200 font-bold uppercase mt-0.5 block">
+                        🏷️ {w.role}
+                      </span>
+                    </div>
+                    <div className="bg-slate-950 p-2.5 rounded-xl text-slate-500 group-hover:text-zinc-200 font-black text-xs">
+                      ➔
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
 
             <div className="text-center text-xs text-slate-500 pb-1 shrink-0">
               {tenantClientId} Kitchen Kiosk • Voice & AI Powered
@@ -1618,176 +1937,222 @@ const handleCloseShift = () => {
         )}
 
         {/* 2. PIN PAD */}
-        {step === 'pin_code' && (
-      
-          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
-            
+        {step === "pin_code" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between items-center overflow-hidden touch-none">
             <div className="text-center w-full shrink-0 pt-1">
-              <h2 className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">PIN код оруулна уу</h2>
-              <p className="text-xs text-slate-300 font-medium mt-0.5">Өөрийн хувийн нууц кодыг оруулна уу</p>
+              <h2 className="text-xl sm:text-2xl font-black text-zinc-200 tracking-tight">
+                PIN код оруулна уу
+              </h2>
+              <p className="text-xs text-slate-300 font-medium mt-0.5">
+                Өөрийн хувийн нууц кодыг оруулна уу
+              </p>
               <div className="mt-1.5 inline-block bg-slate-950 px-3.5 py-1 rounded-xl border border-slate-800">
-                <span className="text-xs sm:text-sm text-emerald-300 font-black">
-                  👤 {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]} ({selectedWorker?.role})
+                <span className="text-xs sm:text-sm text-zinc-300 font-black">
+                  👤{" "}
+                  {selectedWorker?.full_name ||
+                    selectedWorker?.email.split("@")[0]}{" "}
+                  ({selectedWorker?.role})
                 </span>
               </div>
             </div>
-            
 
-            <div className="bg-[#060b17] border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
+            <div className="bg-zinc-950 border border-slate-800 rounded-2xl py-2 px-6 flex justify-center items-center gap-4 w-full max-w-[200px] my-1 shrink-0">
               {[0, 1, 2, 3].map((dotIndex) => (
-                <div 
-                  key={dotIndex} 
+                <div
+                  key={dotIndex}
                   className={`h-3.5 w-3.5 rounded-full transition-all duration-75 ${
-                    pin.length > dotIndex ? 'bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-110' : 'bg-slate-800'
+                    pin.length > dotIndex
+                      ? "bg-zinc-200 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-110"
+                      : "bg-slate-800"
                   }`}
                 />
               ))}
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full flex-1 max-h-[50vh] sm:max-h-[52vh] my-1 px-1">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                <button 
-                  key={num} 
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+                <button
+                  key={num}
                   type="button"
-                  onPointerDown={(e) => { e.preventDefault(); handleKeypadPress(num); }}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleKeypadPress(num);
+                  }}
                   className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-3xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
                 >
                   {num}
                 </button>
               ))}
-              
-              <button 
+
+              <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault(); setPin(''); }}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  setPin("");
+                }}
                 className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#2a0e1c] hover:bg-[#3d1429] active:scale-95 border-2 border-rose-900/40 text-rose-400 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform"
               >
                 Clear
               </button>
 
-              <button 
+              <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault(); handleKeypadPress('0'); }}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleKeypadPress("0");
+                }}
                 className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-slate-800 hover:bg-slate-700 active:bg-slate-700 active:scale-95 border-2 border-slate-800/90 rounded-2xl text-2xl sm:text-3xl font-black text-white shadow-md flex items-center justify-center select-none transition-transform"
               >
                 0
               </button>
 
-              <button 
+              <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault(); handleVerifyPin(); }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-emerald-500 active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center select-none transition-transform"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleVerifyPin();
+                }}
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center select-none transition-transform"
               >
                 OK
               </button>
-              
             </div>
-                                    {/* 🔐 PIN МАРТСАН ЭСВЭЛ СОЛИХ ТОВЧНУУД */}
-          <div className="flex gap-4 justify-center items-center pt-2">
-            
-            {/* 1. Хуучин PIN-ээ мэдэж байгаа үед өөрөө солих */}
-            <button
-              type="button"
-              onClick={async () => {
-                const oldPin = prompt("Одоогийн 4 оронтой PIN-ээ оруулна уу:");
-                if (!oldPin) return;
-                if (oldPin !== (selectedWorker.pin_code || '1234')) {
-                  alert("❌ Одоогийн PIN буруу байна!");
-                  return;
-                }
-                const newPin = prompt("Шинэ 4 оронтой PIN оруулна уу:");
-                if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
-                  alert("❌ Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
-                  return;
-                }
-                const { error } = await supabase.from('profiles').update({ pin_code: newPin }).eq('id', selectedWorker.id);
-                if (error) alert(error.message);
-                else {
-                  alert("✅ Таны PIN код амжилттай солигдлоо!");
-                  fetchKioskData(tenantClientId);
-                }
-              }}
-              className="text-xs text-slate-400 hover:text-white underline font-semibold"
-            >
-              PIN солих
-            </button>
+            {/* 🔐 PIN МАРТСАН ЭСВЭЛ СОЛИХ ТОВЧНУУД */}
+            <div className="flex gap-4 justify-center items-center pt-2">
+              {/* 1. Хуучин PIN-ээ мэдэж байгаа үед өөрөө солих */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const oldPin = prompt(
+                    "Одоогийн 4 оронтой PIN-ээ оруулна уу:",
+                  );
+                  if (!oldPin) return;
+                  if (oldPin !== (selectedWorker.pin_code || "1234")) {
+                    alert("❌ Одоогийн PIN буруу байна!");
+                    return;
+                  }
+                  const newPin = prompt("Шинэ 4 оронтой PIN оруулна уу:");
+                  if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
+                    alert("❌ Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
+                    return;
+                  }
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ pin_code: newPin })
+                    .eq("id", selectedWorker.id);
+                  if (error) alert(error.message);
+                  else {
+                    alert("✅ Таны PIN код амжилттай солигдлоо!");
+                    fetchKioskData(tenantClientId);
+                  }
+                }}
+                className="text-xs text-slate-400 hover:text-white underline font-semibold"
+              >
+                PIN солих
+              </button>
 
-            <span className="text-slate-700">•</span>
+              <span className="text-slate-700">•</span>
 
-            {/* 2. Бүр мартчихсан үед Менежер/Эзнээр сэргээлгэх */}
-            <button
-              type="button"
-              onClick={async () => {
-                const masterCode = prompt("Менежер эсвэл Эзний зөвшөөрлийн Master код (9999) оруулна уу:");
-                if (masterCode !== '9999' && masterCode !== '0000') {
-                  alert("❌ Менежерийн код буруу байна!");
-                  return;
-                }
-                const newPin = prompt(`${selectedWorker.full_name}-д зориулсан шинэ 4 оронтой PIN оруулна уу:`);
-                if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
-                  alert("❌ PIN заавал 4 оронтой тоо байх ёстой!");
-                  return;
-                }
-                const { error } = await supabase.from('profiles').update({ pin_code: newPin }).eq('id', selectedWorker.id);
-                if (error) alert(error.message);
-                else {
-                  alert(`✅ ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`);
-                  fetchKioskData(tenantClientId);
-                }
-              }}
-              className="text-xs text-rose-400/80 hover:text-rose-400 underline font-semibold"
-            >
-              PIN мартсан
-            </button>
-
-          </div>
+              {/* 2. Бүр мартчихсан үед Менежер/Эзнээр сэргээлгэх */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const masterCode = prompt(
+                    "Менежер эсвэл Эзний зөвшөөрлийн Master код (9999) оруулна уу:",
+                  );
+                  if (masterCode !== "9999" && masterCode !== "0000") {
+                    alert("❌ Менежерийн код буруу байна!");
+                    return;
+                  }
+                  const newPin = prompt(
+                    `${selectedWorker.full_name}-д зориулсан шинэ 4 оронтой PIN оруулна уу:`,
+                  );
+                  if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
+                    alert("❌ PIN заавал 4 оронтой тоо байх ёстой!");
+                    return;
+                  }
+                  const { error } = await supabase
+                    .from("profiles")
+                    .update({ pin_code: newPin })
+                    .eq("id", selectedWorker.id);
+                  if (error) alert(error.message);
+                  else {
+                    alert(
+                      `✅ ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`,
+                    );
+                    fetchKioskData(tenantClientId);
+                  }
+                }}
+                className="text-xs text-rose-400/80 hover:text-rose-400 underline font-semibold"
+              >
+                PIN мартсан
+              </button>
+            </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
-              
-              <p className="text-xs text-slate-400">💡 Анхдагч PIN: <strong className="text-white">1234</strong></p>
-              
-              <button 
-                onClick={() => { setStep('select_worker'); setPin(''); setMsg(''); }} 
+              <p className="text-xs text-slate-400">
+                💡 Анхдагч PIN: <strong className="text-white">1234</strong>
+              </p>
+
+              <button
+                onClick={() => {
+                  setStep("select_worker");
+                  setPin("");
+                  setMsg("");
+                }}
                 className="text-xs text-slate-400 hover:text-white font-bold"
               >
                 ← Буцах
               </button>
-              
             </div>
- 
           </div>
- 
         )}
 
         {/* 3. SHIFT START HANDOVER */}
-        {step === 'shift_handover' && (
-          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+        {step === "shift_handover" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="text-center shrink-0">
-              <div className="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/20 w-fit mx-auto mb-2">
-                <ShieldCheck className="text-blue-400 h-7 w-7"/>
+              <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-2">
+                <ShieldCheck className="text-zinc-300 h-7 w-7" />
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-white">Шинэ Ээлж Эхлүүлэх</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Гал тогооны цэвэрлэгээ, хөргөгчийн төлөвийг шалгаж хүлээн авна уу</p>
+              <h2 className="text-lg sm:text-xl font-black text-white">
+                Шинэ Ээлж Эхлүүлэх
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Гал тогооны цэвэрлэгээ, хөргөгчийн төлөвийг шалгаж хүлээн авна
+                уу
+              </p>
             </div>
 
-            <form onSubmit={handleStartShiftSubmit} className="space-y-4 my-auto">
+            <form
+              onSubmit={handleStartShiftSubmit}
+              className="space-y-4 my-auto"
+            >
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   📸 Ээлж хүлээж авах үеийн зураг (Нотлох зураг)
                 </label>
                 <div className="flex items-center gap-2">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    capture="environment" 
-                    id="handover-start-cam" 
-                    className="hidden" 
-                    onChange={e => { if (e.target.files?.[0]) setHandoverFile(e.target.files[0]); }}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    id="handover-start-cam"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0])
+                        setHandoverFile(e.target.files[0]);
+                    }}
                   />
-                  <label 
-                    htmlFor="handover-start-cam" 
-                    className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-blue-500 transition"
+                  <label
+                    htmlFor="handover-start-cam"
+                    className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-zinc-700 transition"
                   >
-                    <Camera className="h-4 w-4 text-blue-400" />
-                    <span>{handoverFile ? `✅ ${handoverFile.name.substring(0, 20)}...` : "Гал тогооны зураг дарах"}</span>
+                    <Camera className="h-4 w-4 text-zinc-300" />
+                    <span>
+                      {handoverFile
+                        ? `✅ ${handoverFile.name.substring(0, 20)}...`
+                        : "Гал тогооны зураг дарах"}
+                    </span>
                   </label>
                 </div>
               </div>
@@ -1796,27 +2161,34 @@ const handleCloseShift = () => {
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   📝 Тэмдэглэл / Хүлээлцэх тайлбар
                 </label>
-                <textarea 
+                <textarea
                   rows={3}
                   value={handoverNote}
-                  onChange={e => setHandoverNote(e.target.value)}
+                  onChange={(e) => setHandoverNote(e.target.value)}
                   placeholder="Жишээ: Өмнөх ээлжээс хөргөгч цэвэрхэн, сүү 4 хайрцаг үлдсэн..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs font-medium outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs font-medium outline-none focus:border-zinc-700"
                 />
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isAiLoading}
-                className="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-zinc-200 active:scale-95 text-white font-black py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
               >
-                <span>{isAiLoading ? "Эхлүүлж байна..." : "☀️ Ээлж Албан Ёсоор Эхлүүлэх"}</span>
+                <span>
+                  {isAiLoading
+                    ? "Эхлүүлж байна..."
+                    : "☀️ Ээлж Албан Ёсоор Эхлүүлэх"}
+                </span>
               </button>
             </form>
 
             <div className="text-center">
-              <button 
-                onClick={() => { setStep('select_worker'); setSelectedWorker(null); }} 
+              <button
+                onClick={() => {
+                  setStep("select_worker");
+                  setSelectedWorker(null);
+                }}
                 className="text-xs text-slate-400 hover:text-white font-bold"
               >
                 ← Буцах
@@ -1825,18 +2197,16 @@ const handleCloseShift = () => {
           </div>
         )}
 
-{/* 4. MAIN ACTION MENU & DIGITAL KITCHEN */}
-        {step === 'menu' && (
-          <div className="w-full h-full bg-[#0d1527] p-3 sm:p-4 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
-            
-       {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
-       
+        {/* 4. MAIN ACTION MENU & DIGITAL KITCHEN */}
+        {step === "menu" && (
+          <div className="w-full h-full bg-zinc-900 p-3 sm:p-4 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
+            {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
+
             {recentToast && (
-              <div className="absolute bottom-20 left-3 right-3 z-30 bg-emerald-500 text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in duration-150">
-                
+              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in duration-150">
                 {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
                 <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
-                  <span className="bg-slate-950 text-emerald-400 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                  <span className="bg-slate-950 text-zinc-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
                     Бүртгэгдсэн:
                   </span>
                   <span className="font-black text-[11px] sm:text-xs leading-snug whitespace-normal break-words">
@@ -1850,12 +2220,15 @@ const handleCloseShift = () => {
                     onClick={async () => {
                       const idToUndo = recentToast.id;
                       setRecentToast(null);
-                      await supabase.from('inventory_logs').delete().eq('id', idToUndo);
+                      await supabase
+                        .from("inventory_logs")
+                        .delete()
+                        .eq("id", idToUndo);
                       await fetchKioskData(tenantClientId);
-                      setMsg('↩️ Бүртгэл цуцлагдлаа.');
-                      setTimeout(() => setMsg(''), 3000);
+                      setMsg("↩️ Бүртгэл цуцлагдлаа.");
+                      setTimeout(() => setMsg(""), 3000);
                     }}
-                    className="bg-slate-950 text-emerald-400 hover:text-white px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
+                    className="bg-slate-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
                   >
                     ↩️ Буцаах
                   </button>
@@ -1872,22 +2245,20 @@ const handleCloseShift = () => {
 
             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
-        {/* 🔝 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
+              {/* 🔝 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
               <div className="flex justify-between items-center pb-3 border-b border-slate-800/80 mb-3 px-1">
-                
                 {/* 👤 Ажилтан тусдаа тод статус пайзтай */}
-             
-                  
-                  <div className="flex items-center gap-2 bg-slate-900  rounded-xl shadow-inner">
-                    <span className="relative flex h-2 w-2 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-xs sm:text-sm font-black text-white uppercase tracking-tight truncate max-w-[100px] sm:max-w-[150px]">
-                      {selectedWorker?.full_name || selectedWorker?.email.split('@')[0]}
-                    </span>
-                  </div>
-                
+
+                <div className="flex items-center gap-2 bg-slate-900  rounded-xl shadow-inner">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                  </span>
+                  <span className="text-xs sm:text-sm font-black text-white uppercase tracking-tight truncate max-w-[100px] sm:max-w-[150px]">
+                    {selectedWorker?.full_name ||
+                      selectedWorker?.email.split("@")[0]}
+                  </span>
+                </div>
 
                 {/* Авсаархан 3 товч (Үгсийг богиносгосон) */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
@@ -1897,7 +2268,7 @@ const handleCloseShift = () => {
                       fetchTodayLogs(tenantClientId);
                       setShowLogsDrawer(true);
                     }}
-                    className="bg-slate-900 hover:bg-slate-800 text-blue-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    className="bg-slate-900 hover:bg-slate-800 text-zinc-300 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <ListOrdered className="h-3.5 w-3.5" />
                     <span className="hidden min-[360px]:inline">Түүх</span>
@@ -1910,7 +2281,7 @@ const handleCloseShift = () => {
                       setShowRecipeModal(true);
                       setSelectedProductRecipe(null);
                     }}
-                    className="bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    className="bg-slate-900 hover:bg-slate-800 text-zinc-200 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
                     <span className="hidden min-[360px]:inline">Жор</span>
@@ -1918,8 +2289,8 @@ const handleCloseShift = () => {
 
                   <button
                     type="button"
-                    onClick={() => setStep('ai_chat')}
-                    className="bg-slate-900 hover:bg-slate-800 text-purple-400 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                    onClick={() => setStep("ai_chat")}
+                    className="bg-slate-900 hover:bg-slate-800 text-zinc-300 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <Mic className="h-3.5 w-3.5" />
                     <span className="hidden min-[360px]:inline">Чат</span>
@@ -1928,39 +2299,47 @@ const handleCloseShift = () => {
               </div>
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
-              <div className="grid grid-cols-4 gap-1 bg-[#060b17] p-1 rounded-2xl border border-slate-800">
+              <div className="grid grid-cols-4 gap-1 bg-zinc-950 p-1 rounded-2xl border border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setKioskMode('spoilage')}
+                  onClick={() => setKioskMode("spoilage")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
-                    kioskMode === 'spoilage' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    kioskMode === "spoilage"
+                      ? "bg-rose-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
                   <span>🗑️ {UI_TEXT[lang].spoilage}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setKioskMode('staff_meal')}
+                  onClick={() => setKioskMode("staff_meal")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
-                    kioskMode === 'staff_meal' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    kioskMode === "staff_meal"
+                      ? "bg-white text-white shadow-md"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
                   <span>🍽️ {UI_TEXT[lang].meal}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setKioskMode('testing')}
+                  onClick={() => setKioskMode("testing")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
-                    kioskMode === 'testing' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    kioskMode === "testing"
+                      ? "bg-purple-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
                   <span>🧪 {UI_TEXT[lang].test}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setKioskMode('purchase')}
+                  onClick={() => setKioskMode("purchase")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
-                    kioskMode === 'purchase' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    kioskMode === "purchase"
+                      ? "bg-emerald-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-white"
                   }`}
                 >
                   <span>📦 {UI_TEXT[lang].purchase}</span>
@@ -1968,121 +2347,127 @@ const handleCloseShift = () => {
               </div>
             </div>
 
-     {/* 📦 1. ОЛОН БАРААТАЙ E-BARIMT УНШУУЛАХ КАРТ */}
-            {kioskMode === 'purchase' && (
-              <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border-2 border-emerald-500/40 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-lg">
+            {/* 📦 1. ОЛОН БАРААТАЙ E-BARIMT УНШУУЛАХ КАРТ */}
+            {kioskMode === "purchase" && (
+              <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border-2 border-zinc-700/40 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-lg">
                 <div>
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
                     <span>🧾 Олон бараатай E-Barimt уншуулах</span>
                   </h4>
-              
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
-              {/* Шууд камераар зураг авах */}
+                  {/* Шууд камераар зураг авах */}
                   <input
                     type="file"
                     accept="image/*"
                     capture="environment"
                     id="kiosk-receipt-cam"
                     className="hidden"
-                onChange={async (e) => {
-                            if (e.target.files?.[0]) {
-                              const rawFile = e.target.files[0];
-                              setIsScanningReceipt(true);
+                    onChange={async (e) => {
+                      if (e.target.files?.[0]) {
+                        const rawFile = e.target.files[0];
+                        setIsScanningReceipt(true);
 
-                              // ⚡ iPad дээр зургийг 0.05 секундэд 97% жижигрүүлж авна:
-                              const { file: compressedFile, base64 } = await compressImageForUpload(rawFile);
+                        // ⚡ iPad дээр зургийг 0.05 секундэд 97% жижигрүүлж авна:
+                        const { file: compressedFile, base64 } =
+                          await compressImageForUpload(rawFile);
 
-                              try {
-                            const { data: { session } } = await supabase.auth.getSession();
-                          const token = session?.access_token || '';
+                        try {
+                          const {
+                            data: { session },
+                          } = await supabase.auth.getSession();
+                          const token = session?.access_token || "";
 
-                          const res = await fetch('/api/kiosk-ai', {
-                            method: 'POST',
-                            headers: { 
-                              'Content-Type': 'application/json',
-                              'Authorization': `Bearer ${token}` // 👈 НЭМСЭН
+                          const res = await fetch("/api/kiosk-ai", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              Authorization: `Bearer ${token}`, // 👈 НЭМСЭН
                             },
-                            body: JSON.stringify({ imageBase64: base64 })
+                            body: JSON.stringify({ imageBase64: base64 }),
                           });
-                                const data = await res.json();
-                                setIsScanningReceipt(false);
+                          const data = await res.json();
+                          setIsScanningReceipt(false);
 
-                                if (data.success && data.purchases) {
-                                  setEbarimtReview({
-                                    file: compressedFile, // 👈 Жижигхэн шахсан файлыг хадгалалтад бэлдэнэ
-                                    previewUrl: URL.createObjectURL(compressedFile),
-                                    items: data.purchases,
-                                    payMethod: 'bank'
-                                  });
-                                } else {
-                                  alert(data.message || "Баримтыг уншиж чадсангүй.");
-                                }
-                              } catch (err) {
-                                setIsScanningReceipt(false);
-                                alert("Сүлжээний алдаа гарлаа.");
-                              }
-                            }
-                          }}
-                
-                
+                          if (data.success && data.purchases) {
+                            setEbarimtReview({
+                              file: compressedFile, // 👈 Жижигхэн шахсан файлыг хадгалалтад бэлдэнэ
+                              previewUrl: URL.createObjectURL(compressedFile),
+                              items: data.purchases,
+                              payMethod: "bank",
+                            });
+                          } else {
+                            alert(data.message || "Баримтыг уншиж чадсангүй.");
+                          }
+                        } catch (err) {
+                          setIsScanningReceipt(false);
+                          alert("Сүлжээний алдаа гарлаа.");
+                        }
+                      }
+                    }}
                   />
                   <label
                     htmlFor="kiosk-receipt-cam"
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1 active:scale-95 shadow"
+                    className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-3 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1 active:scale-95 shadow"
                   >
                     <Camera className="h-3.5 w-3.5" />
                     <span>Камер</span>
                   </label>
 
-                    {/* Галерей / Цомгоос сонгох */}
+                  {/* Галерей / Цомгоос сонгох */}
                   <input
                     type="file"
                     accept="image/*"
                     id="kiosk-receipt-gallery"
                     className="hidden"
-                 onChange={async (e) => {
-              if (e.target.files?.[0]) {
-                const file = e.target.files[0];
-                setIsScanningReceipt(true); // 👈 Сканнерын дэлгэцийг нээх
+                    onChange={async (e) => {
+                      if (e.target.files?.[0]) {
+                        const file = e.target.files[0];
+                        setIsScanningReceipt(true); // 👈 Сканнерын дэлгэцийг нээх
 
-                const reader = new FileReader();
-                reader.onload = async () => {
-                  const base64 = (reader.result as string).split(',')[1];
-                  try {
-                 const { data: { session } } = await supabase.auth.getSession();
-                  const token = session?.access_token || '';
+                        const reader = new FileReader();
+                        reader.onload = async () => {
+                          const base64 = (reader.result as string).split(
+                            ",",
+                          )[1];
+                          try {
+                            const {
+                              data: { session },
+                            } = await supabase.auth.getSession();
+                            const token = session?.access_token || "";
 
-                  const res = await fetch('/api/kiosk-ai', {
-                    method: 'POST',
-                    headers: { 
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${token}` // 👈 НЭМСЭН
-                    },
-                    body: JSON.stringify({ imageBase64: base64 })
-                  });
-                    const data = await res.json();
-                    setIsScanningReceipt(false); // 👈 Уншиж дуусмагц сканнерыг хаах
+                            const res = await fetch("/api/kiosk-ai", {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`, // 👈 НЭМСЭН
+                              },
+                              body: JSON.stringify({ imageBase64: base64 }),
+                            });
+                            const data = await res.json();
+                            setIsScanningReceipt(false); // 👈 Уншиж дуусмагц сканнерыг хаах
 
-                        if (data.success && data.purchases) {
-                          setEbarimtReview({
-                            file: file,
-                            previewUrl: URL.createObjectURL(file),
-                            items: data.purchases,
-                            payMethod: 'bank'
-                          });
-                        } else {
-                          alert(data.message || "Баримтыг уншиж чадсангүй.");
-                        }
-                      } catch (err) {
-                        setIsScanningReceipt(false);
-                        alert("Холболтын алдаа гарлаа.");
+                            if (data.success && data.purchases) {
+                              setEbarimtReview({
+                                file: file,
+                                previewUrl: URL.createObjectURL(file),
+                                items: data.purchases,
+                                payMethod: "bank",
+                              });
+                            } else {
+                              alert(
+                                data.message || "Баримтыг уншиж чадсангүй.",
+                              );
+                            }
+                          } catch (err) {
+                            setIsScanningReceipt(false);
+                            alert("Холболтын алдаа гарлаа.");
+                          }
+                        };
+                        reader.readAsDataURL(file);
                       }
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
+                    }}
                   />
                   <label
                     htmlFor="kiosk-receipt-gallery"
@@ -2102,32 +2487,33 @@ const handleCloseShift = () => {
                   value={kioskSearch}
                   onChange={(e) => setKioskSearch(e.target.value)}
                   placeholder="🔍 Бараа хайх (нэг товшилтоор бүртгэнэ)..."
-                  className="w-full bg-[#060b17] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-zinc-700"
                 />
-                   {/* ➕ ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
-             {kioskSearch.trim() && !ingredients.some(i => {
-                  const q = kioskSearch.toLowerCase().trim();
-                  return tName(i.name).toLowerCase().trim() === q; // 👈 Зөвхөн идэвхтэй хэлээрээ шалгана
-                }) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNewItemName(kioskSearch.trim());
-                      setNewItemQty('');
-                      setNewItemCost('');
-                      setNewItemFile(null);
-                      setShowAddNewItemModal(true);
-                    }}
-                    className="w-full bg-emerald-500/10 hover:bg-emerald-500/20 border-2 border-dashed border-emerald-500/40 text-emerald-400 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    <span>Шинэ түүхий эд: "{kioskSearch.trim()}" үүсгэх</span>
-                  </button>
-                )}
+                {/* ➕ ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
+                {kioskSearch.trim() &&
+                  !ingredients.some((i) => {
+                    const q = kioskSearch.toLowerCase().trim();
+                    return tName(i.name).toLowerCase().trim() === q; // 👈 Зөвхөн идэвхтэй хэлээрээ шалгана
+                  }) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewItemName(kioskSearch.trim());
+                        setNewItemQty("");
+                        setNewItemCost("");
+                        setNewItemFile(null);
+                        setShowAddNewItemModal(true);
+                      }}
+                      className="w-full bg-zinc-800/60 hover:bg-zinc-800 border-2 border-dashed border-zinc-700/40 text-zinc-200 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      <span>Шинэ түүхий эд: "{kioskSearch.trim()}" үүсгэх</span>
+                    </button>
+                  )}
               </div>
 
               <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-max">
-             {ingredients
+                {ingredients
                   .filter((ing) => {
                     if (kioskSearch.trim()) {
                       const q = kioskSearch.toLowerCase().trim();
@@ -2140,7 +2526,10 @@ const handleCloseShift = () => {
                   .sort((a, b) => {
                     if (a.is_critical && !b.is_critical) return -1;
                     if (!a.is_critical && b.is_critical) return 1;
-                    return (parseFloat(b.current_stock) || 0) - (parseFloat(a.current_stock) || 0);
+                    return (
+                      (parseFloat(b.current_stock) || 0) -
+                      (parseFloat(a.current_stock) || 0)
+                    );
                   })
                   .slice(0, 15)
                   .map((ing) => (
@@ -2149,28 +2538,44 @@ const handleCloseShift = () => {
                       type="button"
                       onClick={() => {
                         setQuickItemModal(ing);
-                        setQuickQty('');
-                        setPurchaseCost('');
+                        setQuickQty("");
+                        setPurchaseCost("");
                       }}
-                      className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 border border-slate-800 hover:border-slate-700 p-3 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[80px]"
+                      className="bg-zinc-950 hover:bg-slate-800 active:scale-95 border border-slate-800 hover:border-slate-700 p-3 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[80px]"
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span className="font-bold text-sm sm:text-base text-white line-clamp-2 leading-snug">
-                       {tName(ing.name)}
+                          {tName(ing.name)}
                         </span>
                         {ing.is_critical && (
-                          <span className="text-[8px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.2 rounded shrink-0">
+                          <span className="text-[8px] font-black bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded shrink-0">
                             ★ A
                           </span>
                         )}
                       </div>
-                      
+
                       <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs text-slate-400 font-medium">{tUnit(ing.unit)}</span>
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
-                          kioskMode === 'spoilage' ? 'bg-rose-500/10 text-rose-400' : kioskMode === 'staff_meal' ? 'bg-blue-500/10 text-blue-400' : kioskMode === 'testing' ? 'bg-purple-500/10 text-purple-400' : 'bg-emerald-500/10 text-emerald-400'
-                        }`}>
-                          {kioskMode === 'spoilage' ? 'Хасах' : kioskMode === 'staff_meal' ? 'Хоол' : kioskMode === 'testing' ? 'Туршилт' : 'Нэмэх'}
+                        <span className="text-xs text-slate-400 font-medium">
+                          {tUnit(ing.unit)}
+                        </span>
+                        <span
+                          className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                            kioskMode === "spoilage"
+                              ? "bg-rose-500/10 text-rose-400"
+                              : kioskMode === "staff_meal"
+                                ? "bg-zinc-800/60 text-zinc-300"
+                                : kioskMode === "testing"
+                                  ? "bg-purple-500/10 text-zinc-300"
+                                  : "bg-zinc-800/60 text-zinc-200"
+                          }`}
+                        >
+                          {kioskMode === "spoilage"
+                            ? "Хасах"
+                            : kioskMode === "staff_meal"
+                              ? "Хоол"
+                              : kioskMode === "testing"
+                                ? "Туршилт"
+                                : "Нэмэх"}
                         </span>
                       </div>
                     </button>
@@ -2183,7 +2588,7 @@ const handleCloseShift = () => {
               <button
                 type="button"
                 onClick={openTasksScreen}
-                className="p-2.5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl border border-purple-500/30 text-purple-400 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>Даалгавар</span>
@@ -2193,11 +2598,11 @@ const handleCloseShift = () => {
                 type="button"
                 onClick={() => {
                   setCashOutModal(true);
-                  setCashOutAmount('');
-                  setCashOutNote('');
+                  setCashOutAmount("");
+                  setCashOutNote("");
                   setCashOutFile(null);
                 }}
-                className="p-2.5 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 rounded-2xl border border-amber-500/30 text-amber-400 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-700 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <span className="text-sm">💵</span>
                 <span>Мөнгө гаргах</span>
@@ -2206,7 +2611,7 @@ const handleCloseShift = () => {
               <button
                 type="button"
                 onClick={loadInventoryToCount}
-                className="p-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 rounded-2xl border border-emerald-500/30 text-emerald-400 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-800 text-zinc-200 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <ListOrdered className="h-4 w-4" />
                 <span>Ээлж Хаах</span>
@@ -2222,17 +2627,21 @@ const handleCloseShift = () => {
                 onClick={() => setShowRecipeModal(false)}
               >
                 <div
-                  className="bg-[#0d1527] border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-                        <BookOpen className="h-5 w-5 text-emerald-400" />
+                      <div className="bg-zinc-800/60 p-2 rounded-xl border border-zinc-700/20">
+                        <BookOpen className="h-5 w-5 text-zinc-200" />
                       </div>
                       <div>
-                        <h3 className="font-black text-white text-base">Стандарт Жор & Заавар (SOP)</h3>
-                        <p className="text-xs text-slate-400">Хэнээс ч асуухгүйгээр жороо яг граммаар нь хийнэ үү</p>
+                        <h3 className="font-black text-white text-base">
+                          Стандарт Жор & Заавар (SOP)
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Хэнээс ч асуухгүйгээр жороо яг граммаар нь хийнэ үү
+                        </p>
                       </div>
                     </div>
                     <button
@@ -2247,17 +2656,21 @@ const handleCloseShift = () => {
                   {/* Бүтээгдэхүүн сонгох хэсэг */}
                   {!selectedProductRecipe ? (
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                      <p className="text-xs font-bold text-slate-400 mb-2">Цэс сонгоно уу:</p>
+                      <p className="text-xs font-bold text-slate-400 mb-2">
+                        Цэс сонгоно уу:
+                      </p>
                       <div className="grid grid-cols-2 gap-2">
-                        {Array.from(new Set(recipesList.map((r: any) => r.product_name))).map((pName: any) => (
+                        {Array.from(
+                          new Set(recipesList.map((r: any) => r.product_name)),
+                        ).map((pName: any) => (
                           <button
                             key={pName}
                             type="button"
                             onClick={() => setSelectedProductRecipe(pName)}
-                            className="bg-[#0b1329] hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl text-left font-bold text-xs text-white flex justify-between items-center active:scale-95 transition"
+                            className="bg-zinc-950 hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl text-left font-bold text-xs text-white flex justify-between items-center active:scale-95 transition"
                           >
                             <span>{pName}</span>
-                            <span className="text-emerald-400 text-sm">➔</span>
+                            <span className="text-zinc-200 text-sm">➔</span>
                           </button>
                         ))}
                       </div>
@@ -2265,10 +2678,14 @@ const handleCloseShift = () => {
                   ) : (
                     /* Сонгосон жорын орцын задаргаа */
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                      <div className="flex justify-between items-center bg-[#060b17] p-3 rounded-2xl border border-slate-800">
+                      <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-2xl border border-slate-800">
                         <div>
-                          <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Сонгосон Жор:</span>
-                          <h4 className="text-base font-black text-white">{selectedProductRecipe}</h4>
+                          <span className="text-xs text-zinc-200 font-bold uppercase tracking-wider">
+                            Сонгосон Жор:
+                          </span>
+                          <h4 className="text-base font-black text-white">
+                            {selectedProductRecipe}
+                          </h4>
                         </div>
                         <button
                           type="button"
@@ -2280,26 +2697,38 @@ const handleCloseShift = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Орц, хэмжээ (Граммаар):</p>
-                        <div className="divide-y divide-slate-800/80 bg-[#060b17] rounded-2xl border border-slate-800 overflow-hidden">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          Орц, хэмжээ (Граммаар):
+                        </p>
+                        <div className="divide-y divide-slate-800/80 bg-zinc-950 rounded-2xl border border-slate-800 overflow-hidden">
                           {recipesList
-                            .filter((r: any) => r.product_name === selectedProductRecipe)
+                            .filter(
+                              (r: any) =>
+                                r.product_name === selectedProductRecipe,
+                            )
                             .map((item: any, idx: number) => (
-                              <div key={idx} className="flex justify-between items-center p-3 text-xs">
+                              <div
+                                key={idx}
+                                className="flex justify-between items-center p-3 text-xs"
+                              >
                                 <span className="font-bold text-slate-200">
                                   {tName(item.ingredients?.name || "Орц")}
                                 </span>
-                                <span className="font-mono font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                                 {item.amount} {tUnit(item.ingredients?.unit || "гр/мл")}
+                                <span className="font-mono font-black text-zinc-200 bg-zinc-800/60 px-2.5 py-1 rounded-lg border border-zinc-700/20">
+                                  {item.amount}{" "}
+                                  {tUnit(item.ingredients?.unit || "гр/мл")}
                                 </span>
                               </div>
                             ))}
                         </div>
                       </div>
 
-                      <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-2xl text-xs text-blue-300 space-y-1">
+                      <div className="bg-zinc-800/60 border border-zinc-700/20 p-3 rounded-2xl text-xs text-blue-300 space-y-1">
                         <p className="font-bold">💡 Санамж:</p>
-                        <p>Дээрх граммыг яг баримталснаар кофены амт үргэлж стандартын дагуу 100% жигд гарна.</p>
+                        <p>
+                          Дээрх граммыг яг баримталснаар кофены амт үргэлж
+                          стандартын дагуу 100% жигд гарна.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -2316,7 +2745,7 @@ const handleCloseShift = () => {
                 onClick={() => setCashOutModal(false)}
               >
                 <div
-                  className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center border-b border-slate-800 pb-2">
@@ -2332,75 +2761,108 @@ const handleCloseShift = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 bg-[#060b17] p-1 rounded-2xl border border-slate-800">
+                  <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-slate-800">
                     <button
                       type="button"
-                      onClick={() => setCashOutType('owner_draw')}
+                      onClick={() => setCashOutType("owner_draw")}
                       className={`py-2 rounded-xl text-xs font-black transition ${
-                        cashOutType === 'owner_draw' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                        cashOutType === "owner_draw"
+                          ? "bg-amber-500 text-slate-950 shadow-md"
+                          : "text-slate-400 hover:text-white"
                       }`}
                     >
                       👑 Эзний таталт
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCashOutType('petty_cash')}
+                      onClick={() => setCashOutType("petty_cash")}
                       className={`py-2 rounded-xl text-xs font-black transition ${
-                        cashOutType === 'petty_cash' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                        cashOutType === "petty_cash"
+                          ? "bg-white text-white shadow-md"
+                          : "text-slate-400 hover:text-white"
                       }`}
                     >
                       🧼 Жижиг зардал (CU)
                     </button>
                   </div>
 
-                  <div className="bg-[#060b17] border border-slate-800 rounded-2xl p-3 text-center">
+                  <div className="bg-zinc-950 border border-slate-800 rounded-2xl p-3 text-center">
                     <span className="text-3xl font-black text-white font-mono">
-                      {cashOutAmount ? Number(cashOutAmount).toLocaleString() : '0'}
+                      {cashOutAmount
+                        ? Number(cashOutAmount).toLocaleString()
+                        : "0"}
                     </span>
-                    <span className="ml-1 text-sm font-bold text-amber-400">₮</span>
+                    <span className="ml-1 text-sm font-bold text-zinc-300">
+                      ₮
+                    </span>
                   </div>
 
                   <input
                     type="text"
                     value={cashOutNote}
                     onChange={(e) => setCashOutNote(e.target.value)}
-                    placeholder={cashOutType === 'owner_draw' ? 'Тайлбар (Захирал хувийн хэрэгцээнд авсан)' : 'Юу авсан бэ? (Саван, уут)'}
-                    className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-500"
+                    placeholder={
+                      cashOutType === "owner_draw"
+                        ? "Тайлбар (Захирал хувийн хэрэгцээнд авсан)"
+                        : "Юу авсан бэ? (Саван, уут)"
+                    }
+                    className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-500"
                   />
 
-                  {cashOutType === 'petty_cash' && (
+                  {cashOutType === "petty_cash" && (
                     <div className="flex gap-2">
                       <input
                         type="file"
                         accept="image/*"
                         id="petty-cash-receipt"
                         className="hidden"
-                        onChange={(e) => { if (e.target.files?.[0]) setCashOutFile(e.target.files[0]); }}
+                        onChange={(e) => {
+                          if (e.target.files?.[0])
+                            setCashOutFile(e.target.files[0]);
+                        }}
                       />
                       <label
                         htmlFor="petty-cash-receipt"
-                        className="w-full bg-slate-900 border border-slate-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-blue-500 transition"
+                        className="w-full bg-slate-900 border border-slate-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-zinc-700 transition"
                       >
-                        <Camera className="h-4 w-4 text-blue-400" />
-                        <span>{cashOutFile ? `✅ ${cashOutFile.name.substring(0, 18)}...` : 'Баримт/Барааны зураг заавал дарах'}</span>
+                        <Camera className="h-4 w-4 text-zinc-300" />
+                        <span>
+                          {cashOutFile
+                            ? `✅ ${cashOutFile.name.substring(0, 18)}...`
+                            : "Баримт/Барааны зураг заавал дарах"}
+                        </span>
                       </label>
                     </div>
                   )}
 
                   <div className="grid grid-cols-3 gap-2">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0'].map((digit) => (
+                    {[
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6",
+                      "7",
+                      "8",
+                      "9",
+                      "000",
+                      "0",
+                    ].map((digit) => (
                       <button
                         key={digit}
                         type="button"
                         onClick={() => setCashOutAmount((prev) => prev + digit)}
-                        className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 text-white font-black text-lg py-2.5 rounded-2xl border border-slate-800 transition"
+                        className="bg-zinc-950 hover:bg-slate-800 active:scale-95 text-white font-black text-lg py-2.5 rounded-2xl border border-slate-800 transition"
                       >
                         {digit}
                       </button>
                     ))}
                     <button
                       type="button"
-                      onClick={() => setCashOutAmount((prev) => prev.slice(0, -1))}
+                      onClick={() =>
+                        setCashOutAmount((prev) => prev.slice(0, -1))
+                      }
                       className="bg-rose-500/10 text-rose-400 font-bold text-xs py-2.5 rounded-2xl border border-rose-500/20 active:scale-95 flex items-center justify-center"
                     >
                       ← Засах
@@ -2409,63 +2871,91 @@ const handleCloseShift = () => {
 
                   <button
                     type="button"
-                    disabled={!cashOutAmount || parseFloat(cashOutAmount) <= 0 || (cashOutType === 'petty_cash' && !cashOutFile) || isAiLoading}
-                  onClick={() => {
-                        const amount = parseFloat(cashOutAmount);
-                        const fileToUpload = cashOutFile;
-                        const typeToSave = cashOutType;
-                        const noteToSave = cashOutNote;
+                    disabled={
+                      !cashOutAmount ||
+                      parseFloat(cashOutAmount) <= 0 ||
+                      (cashOutType === "petty_cash" && !cashOutFile) ||
+                      isAiLoading
+                    }
+                    onClick={() => {
+                      const amount = parseFloat(cashOutAmount);
+                      const fileToUpload = cashOutFile;
+                      const typeToSave = cashOutType;
+                      const noteToSave = cashOutNote;
 
-                        // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
-                        setCashOutModal(false);
-                        setCashOutAmount('');
-                        setCashOutNote('');
-                        setCashOutFile(null);
+                      // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
+                      setCashOutModal(false);
+                      setCashOutAmount("");
+                      setCashOutNote("");
+                      setCashOutFile(null);
 
-                        // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
-                        setRecentToast({
-                          id: 'temp-' + Date.now(),
-                          text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
-                        });
+                      // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
+                      setRecentToast({
+                        id: "temp-" + Date.now(),
+                        text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
+                      });
 
-                        // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
-                        (async () => {
-                          try {
-                            let uploadedImg = null;
-                            if (fileToUpload) uploadedImg = await uploadEvidencePhoto(fileToUpload, 'petty_cash');
+                      // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
+                      (async () => {
+                        try {
+                          let uploadedImg = null;
+                          if (fileToUpload)
+                            uploadedImg = await uploadEvidencePhoto(
+                              fileToUpload,
+                              "petty_cash",
+                            );
 
-                            const noteText = typeToSave === 'owner_draw'
-                              ? `Эзний хувийн таталт (Cash Draw): ${noteToSave || 'Бэлнээр авсан'}`
-                              : `Жижиг зардал (Petty Cash): ${noteToSave || 'Ахуйн хэрэгсэл'}`;
+                          const noteText =
+                            typeToSave === "owner_draw"
+                              ? `Эзний хувийн таталт (Cash Draw): ${noteToSave || "Бэлнээр авсан"}`
+                              : `Жижиг зардал (Petty Cash): ${noteToSave || "Ахуйн хэрэгсэл"}`;
 
-                            const { data: newLog } = await supabase.from('inventory_logs').insert([{
-                              client_id: tenantClientId,
-                              ingredient_id: null,
-                              non_food_item: typeToSave === 'owner_draw' ? 'Эзний таталт' : (noteToSave || 'Ахуйн зардал'),
-                              quantity: 1,
-                              total_cost: amount,
-                              type: typeToSave === 'owner_draw' ? 'other' : 'purchase',
-                              payment_method: 'cash',
-                              notes: noteText,
-                              image_url: uploadedImg,
-                              worker_name: activeShift?.character_role || selectedWorker.full_name,
-                              date: new Date().toISOString()
-                            }]).select().single();
+                          const { data: newLog } = await supabase
+                            .from("inventory_logs")
+                            .insert([
+                              {
+                                client_id: tenantClientId,
+                                ingredient_id: null,
+                                non_food_item:
+                                  typeToSave === "owner_draw"
+                                    ? "Эзний таталт"
+                                    : noteToSave || "Ахуйн зардал",
+                                quantity: 1,
+                                total_cost: amount,
+                                type:
+                                  typeToSave === "owner_draw"
+                                    ? "other"
+                                    : "purchase",
+                                payment_method: "cash",
+                                notes: noteText,
+                                image_url: uploadedImg,
+                                worker_name:
+                                  activeShift?.character_role ||
+                                  selectedWorker.full_name,
+                                date: new Date().toISOString(),
+                              },
+                            ])
+                            .select()
+                            .single();
 
-                            if (newLog) {
-                              setRecentToast({
-                                id: newLog.id,
-                                text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === 'owner_draw' ? 'Эзний таталт' : 'Жижиг зардал'})`
-                              });
-                            }
-                          } catch (e) {
-                            console.error("Cash out background error:", e);
+                          if (newLog) {
+                            setRecentToast({
+                              id: newLog.id,
+                              text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
+                            });
                           }
-                        })();
-                      }}
+                        } catch (e) {
+                          console.error("Cash out background error:", e);
+                        }
+                      })();
+                    }}
                     className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95"
                   >
-                    {isAiLoading ? 'Хадгалж байна...' : (cashOutType === 'petty_cash' && !cashOutFile) ? '📸 ЗУРАГ ДАРНА УУ' : 'МӨНГӨ ГАРГАХЫГ БАТЛАХ'}
+                    {isAiLoading
+                      ? "Хадгалж байна..."
+                      : cashOutType === "petty_cash" && !cashOutFile
+                        ? "📸 ЗУРАГ ДАРНА УУ"
+                        : "МӨНГӨ ГАРГАХЫГ БАТЛАХ"}
                   </button>
                 </div>
               </div>
@@ -2480,17 +2970,33 @@ const handleCloseShift = () => {
                 onClick={() => setQuickItemModal(null)}
               >
                 <div
-                  className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                     <div>
-                      <span className={`text-xs font-black uppercase px-2 py-0.5 rounded ${
-                        kioskMode === 'spoilage' ? 'bg-rose-500/20 text-rose-400' : kioskMode === 'staff_meal' ? 'bg-blue-500/20 text-blue-400' : kioskMode === 'testing' ? 'bg-purple-500/20 text-purple-400' : 'bg-emerald-500/20 text-emerald-400'
-                      }`}>
-                        {kioskMode === 'spoilage' ? '🗑️ Хаягдал бүртгэх' : kioskMode === 'staff_meal' ? '🍽️ Ажилтны хоолонд' : kioskMode === 'testing' ? '🧪 Туршилт / Тохируулга' : '📦 Орлого авах'}
+                      <span
+                        className={`text-xs font-black uppercase px-2 py-0.5 rounded ${
+                          kioskMode === "spoilage"
+                            ? "bg-rose-500/20 text-rose-400"
+                            : kioskMode === "staff_meal"
+                              ? "bg-zinc-200/20 text-zinc-300"
+                              : kioskMode === "testing"
+                                ? "bg-purple-500/20 text-zinc-300"
+                                : "bg-zinc-800 text-zinc-200"
+                        }`}
+                      >
+                        {kioskMode === "spoilage"
+                          ? "🗑️ Хаягдал бүртгэх"
+                          : kioskMode === "staff_meal"
+                            ? "🍽️ Ажилтны хоолонд"
+                            : kioskMode === "testing"
+                              ? "🧪 Туршилт / Тохируулга"
+                              : "📦 Орлого авах"}
                       </span>
-                      <h3 className="text-base font-black text-white mt-1">{quickItemModal.name}</h3>
+                      <h3 className="text-base font-black text-white mt-1">
+                        {quickItemModal.name}
+                      </h3>
                     </div>
                     <button
                       type="button"
@@ -2501,26 +3007,28 @@ const handleCloseShift = () => {
                     </button>
                   </div>
 
-                  <div className="bg-[#060b17] border border-slate-800 rounded-2xl p-3 text-center">
+                  <div className="bg-zinc-950 border border-slate-800 rounded-2xl p-3 text-center">
                     <span className="text-3xl font-black text-white font-mono">
-                      {quickQty || '0'}
+                      {quickQty || "0"}
                     </span>
                     <span className="ml-2 text-xs font-bold text-slate-400">
                       {quickItemModal.unit}
                     </span>
                   </div>
 
-     {/* Хэрэв ОРЛОГО бол: Үнэ бичих ба Үнийн өсөлтийг бодитоор харуулах */}
-                  {kioskMode === 'purchase' && (
+                  {/* Хэрэв ОРЛОГО бол: Үнэ бичих ба Үнийн өсөлтийг бодитоор харуулах */}
+                  {kioskMode === "purchase" && (
                     <div className="space-y-2 pt-1 border-t border-slate-800">
                       <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1">Нийт төлсөн үнэ (₮):</label>
+                        <label className="block text-xs font-bold text-slate-400 mb-1">
+                          Нийт төлсөн үнэ (₮):
+                        </label>
                         <input
                           type="number"
                           value={purchaseCost}
                           onChange={(e) => setPurchaseCost(e.target.value)}
                           placeholder="Төлсөн нийт үнийг бичнэ үү..."
-                          className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500"
+                          className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
                         />
                       </div>
 
@@ -2528,7 +3036,8 @@ const handleCloseShift = () => {
                       {(() => {
                         const qtyNum = parseFloat(quickQty) || 0;
                         const costNum = parseFloat(purchaseCost) || 0;
-                        const oldPrice = parseFloat(quickItemModal.unit_price) || 0;
+                        const oldPrice =
+                          parseFloat(quickItemModal.unit_price) || 0;
                         if (qtyNum > 0 && costNum > 0 && oldPrice > 0) {
                           const currentUnitPrice = Math.round(costNum / qtyNum);
                           const diff = currentUnitPrice - oldPrice;
@@ -2536,17 +3045,21 @@ const handleCloseShift = () => {
 
                           if (diff > 0) {
                             return (
-                              <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center animate-pulse">
+                              <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center ">
                                 <span className="text-xs font-black text-rose-400">
-                                  🔺 ҮНЭ ӨССӨН БАЙНА: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
+                                  🔺 ҮНЭ ӨССӨН БАЙНА:{" "}
+                                  {oldPrice.toLocaleString()}₮ ➔{" "}
+                                  {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
                                 </span>
                               </div>
                             );
                           } else if (diff < 0) {
                             return (
-                              <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-xl text-center">
-                                <span className="text-xs font-black text-emerald-400">
-                                  🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}%)
+                              <div className="bg-zinc-800/60 border border-zinc-800 p-2 rounded-xl text-center">
+                                <span className="text-xs font-black text-zinc-200">
+                                  🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮
+                                  ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}
+                                  %)
                                 </span>
                               </div>
                             );
@@ -2564,13 +3077,16 @@ const handleCloseShift = () => {
                             capture="environment"
                             id="single-pur-cam"
                             className="hidden"
-                            onChange={(e) => { if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]); }}
+                            onChange={(e) => {
+                              if (e.target.files?.[0])
+                                setNoEbarimtFile(e.target.files[0]);
+                            }}
                           />
                           <label
                             htmlFor="single-pur-cam"
-                            className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                            className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
                           >
-                            <Camera className="h-4 w-4 text-emerald-400" />
+                            <Camera className="h-4 w-4 text-zinc-200" />
                             <span>Камер</span>
                           </label>
 
@@ -2579,29 +3095,48 @@ const handleCloseShift = () => {
                             accept="image/*"
                             id="single-pur-gallery"
                             className="hidden"
-                            onChange={(e) => { if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]); }}
+                            onChange={(e) => {
+                              if (e.target.files?.[0])
+                                setNoEbarimtFile(e.target.files[0]);
+                            }}
                           />
                           <label
                             htmlFor="single-pur-gallery"
-                            className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                            className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
                           >
                             <span>🖼️ Цомог</span>
                           </label>
                         </div>
 
-                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
-                          {noEbarimtFile ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...` : '⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!'}
+                        <p
+                          className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-rose-400 "}`}
+                        >
+                          {noEbarimtFile
+                            ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
+                            : "⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
                         </p>
                       </div>
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-2">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'].map((digit) => (
+                    {[
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6",
+                      "7",
+                      "8",
+                      "9",
+                      ".",
+                      "0",
+                    ].map((digit) => (
                       <button
                         key={digit}
                         type="button"
                         onClick={() => setQuickQty((prev) => prev + digit)}
-                        className="bg-[#0b1329] hover:bg-slate-800 active:scale-95 text-white font-black text-xl py-3 rounded-2xl border border-slate-800 transition"
+                        className="bg-zinc-950 hover:bg-slate-800 active:scale-95 text-white font-black text-xl py-3 rounded-2xl border border-slate-800 transition"
                       >
                         {digit}
                       </button>
@@ -2614,69 +3149,105 @@ const handleCloseShift = () => {
                       ← Засах
                     </button>
                   </div>
-              {/* ✅ УХААЛАГ БАТЛАХ ТОВЧ (Дарахад автоматаар камер нээгдэнэ) */}
+                  {/* ✅ УХААЛАГ БАТЛАХ ТОВЧ (Дарахад автоматаар камер нээгдэнэ) */}
                   <button
                     type="button"
-                     disabled={
-                      !quickQty || 
-                      parseFloat(quickQty) <= 0 || 
-                      (kioskMode === 'purchase' && (!purchaseCost || parseFloat(purchaseCost) <= 0)) || 
+                    disabled={
+                      !quickQty ||
+                      parseFloat(quickQty) <= 0 ||
+                      (kioskMode === "purchase" &&
+                        (!purchaseCost || parseFloat(purchaseCost) <= 0)) ||
                       isAiLoading
                     }
                     onClick={() => {
                       const costVal = parseFloat(purchaseCost) || 0;
-                      
+
                       // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
-                      if (kioskMode === 'purchase' && costVal >= 10000 && !noEbarimtFile) {
-                        document.getElementById('single-pur-cam')?.click();
+                      if (
+                        kioskMode === "purchase" &&
+                        costVal >= 10000 &&
+                        !noEbarimtFile
+                      ) {
+                        document.getElementById("single-pur-cam")?.click();
                         return; // Зураг дартал хадгалахгүй түр хүлээнэ
                       }
 
                       // ... (Цаашаа хуучин хадгалах ложик хэвээрээ үргэлжилнэ)
                       const qtyNum = parseFloat(quickQty);
-                      const finalQty = kioskMode === 'purchase' ? Math.abs(qtyNum) : -Math.abs(qtyNum);
+                      const finalQty =
+                        kioskMode === "purchase"
+                          ? Math.abs(qtyNum)
+                          : -Math.abs(qtyNum);
                       const itemToSave = quickItemModal;
                       const fileToUpload = noEbarimtFile;
                       const payMethod = purchasePayMethod;
 
                       setQuickItemModal(null);
-                      setQuickQty('');
-                      setPurchaseCost('');
+                      setQuickQty("");
+                      setPurchaseCost("");
                       setNoEbarimtFile(null);
 
-                      const modeLabel = kioskMode === 'spoilage' ? 'Хаягдал' : kioskMode === 'staff_meal' ? 'Хоол' : kioskMode === 'testing' ? 'Туршилт' : 'Орлого';
-                      
+                      const modeLabel =
+                        kioskMode === "spoilage"
+                          ? "Хаягдал"
+                          : kioskMode === "staff_meal"
+                            ? "Хоол"
+                            : kioskMode === "testing"
+                              ? "Туршилт"
+                              : "Орлого";
+
                       (async () => {
                         try {
                           let uploadedUrl = null;
-                          if (kioskMode === 'purchase' && fileToUpload) {
-                            uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'purchases_proofs');
+                          if (kioskMode === "purchase" && fileToUpload) {
+                            uploadedUrl = await uploadEvidencePhoto(
+                              fileToUpload,
+                              "purchases_proofs",
+                            );
                           }
 
-                          const { data: newLog, error } = await supabase.from('inventory_logs').insert([{
-                            client_id: tenantClientId,
-                            ingredient_id: itemToSave.id,
-                            quantity: finalQty,
-                            total_cost: costVal,
-                            type: kioskMode,
-                            payment_method: kioskMode === 'purchase' ? payMethod : 'bank',
-                            image_url: uploadedUrl,
-                            is_ebarimt: false,
-                            notes: `Kiosk 2-Tap (${kioskMode})`,
-                            worker_name: activeShift?.character_role || selectedWorker?.full_name,
-                            date: new Date().toISOString()
-                          }]).select().single();
+                          const { data: newLog, error } = await supabase
+                            .from("inventory_logs")
+                            .insert([
+                              {
+                                client_id: tenantClientId,
+                                ingredient_id: itemToSave.id,
+                                quantity: finalQty,
+                                total_cost: costVal,
+                                type: kioskMode,
+                                payment_method:
+                                  kioskMode === "purchase" ? payMethod : "bank",
+                                image_url: uploadedUrl,
+                                is_ebarimt: false,
+                                notes: `Kiosk 2-Tap (${kioskMode})`,
+                                worker_name:
+                                  activeShift?.character_role ||
+                                  selectedWorker?.full_name,
+                                date: new Date().toISOString(),
+                              },
+                            ])
+                            .select()
+                            .single();
 
                           // ⚡ 100мл Apple syrup-ийн нэгжийн үнийг (13₮) баазад шууд шинэчлэх:
-                      if (kioskMode === 'purchase' && costVal > 0 && qtyNum > 0) {
-                        const latestUnitPrice = Math.round(costVal / qtyNum); // 1300₮ / 100мл = 13₮
-                        await supabase.from('ingredients').update({ unit_price: latestUnitPrice }).eq('id', itemToSave.id);
-                      }
+                          if (
+                            kioskMode === "purchase" &&
+                            costVal > 0 &&
+                            qtyNum > 0
+                          ) {
+                            const latestUnitPrice = Math.round(
+                              costVal / qtyNum,
+                            ); // 1300₮ / 100мл = 13₮
+                            await supabase
+                              .from("ingredients")
+                              .update({ unit_price: latestUnitPrice })
+                              .eq("id", itemToSave.id);
+                          }
 
                           if (!error && newLog) {
                             setRecentToast({
                               id: newLog.id,
-                              text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + '₮' : modeLabel})`
+                              text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel})`,
                             });
                             fetchKioskData(tenantClientId);
                           }
@@ -2685,48 +3256,57 @@ const handleCloseShift = () => {
                         }
                       })();
                     }}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
                   >
-                    {isAiLoading 
-                      ? 'Хадгалж байна...' 
-                      : (kioskMode === 'purchase' && (parseFloat(purchaseCost) || 0) >= 10000 && !noEbarimtFile)
-                        ? '📸 ЗУРАГ ДАРЖ БАТЛАХ' 
-                        : (kioskMode === 'purchase' && !noEbarimtFile)
-                          ? 'БАТЛАХ (Зураггүй оруулах)' 
-                          : 'БАТЛАХ (OK)'}
+                    {isAiLoading
+                      ? "Хадгалж байна..."
+                      : kioskMode === "purchase" &&
+                          (parseFloat(purchaseCost) || 0) >= 10000 &&
+                          !noEbarimtFile
+                        ? "📸 ЗУРАГ ДАРЖ БАТЛАХ"
+                        : kioskMode === "purchase" && !noEbarimtFile
+                          ? "БАТЛАХ (Зураггүй оруулах)"
+                          : "БАТЛАХ (OK)"}
                   </button>
-                     {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
-                  {kioskMode === 'purchase' && (
+                  {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
+                  {kioskMode === "purchase" && (
                     <button
                       type="button"
-                      disabled={!quickQty || parseFloat(quickQty) <= 0 || !purchaseCost || parseFloat(purchaseCost) <= 0}
+                      disabled={
+                        !quickQty ||
+                        parseFloat(quickQty) <= 0 ||
+                        !purchaseCost ||
+                        parseFloat(purchaseCost) <= 0
+                      }
                       onClick={() => {
-                        setPurchaseCart(prev => [...prev, {
-                          ing_id: quickItemModal.id,
-                          name: quickItemModal.name,
-                          unit: quickItemModal.unit,
-                          qty: parseFloat(quickQty),
-                          cost: parseFloat(purchaseCost)
-                        }]);
+                        setPurchaseCart((prev) => [
+                          ...prev,
+                          {
+                            ing_id: quickItemModal.id,
+                            name: quickItemModal.name,
+                            unit: quickItemModal.unit,
+                            qty: parseFloat(quickQty),
+                            cost: parseFloat(purchaseCost),
+                          },
+                        ]);
                         setQuickItemModal(null);
-                        setQuickQty('');
-                        setPurchaseCost('');
+                        setQuickQty("");
+                        setPurchaseCost("");
                         setNoEbarimtFile(null);
                       }}
-                      className="w-full bg-blue-500/10 hover:bg-blue-500/20 disabled:opacity-40 text-blue-400 border border-blue-500/30 font-black py-3 rounded-2xl text-[13px] sm:text-sm transition active:scale-95 mt-2"
+                      className="w-full bg-zinc-800/60 hover:bg-zinc-200/20 disabled:opacity-40 text-zinc-300 border border-zinc-800 font-black py-3 rounded-2xl text-[13px] sm:text-sm transition active:scale-95 mt-2"
                     >
                       🛒 САГСАНД ХАДГАЛАХ (Бөөнд нь зураг дарах)
                     </button>
                   )}
-
                 </div>
               </div>
             )}
 
             {/* ========================================================= */}
-    {/* 2. ТАНЫ ХОЁР ДАХЬ ЦОНХ: E-BARIMT ШАЛГАХ БИЕ ДААСАН МОДАЛ    */}
-    {/* ========================================================= */}
-    {/* ========================================================================= */}
+            {/* 2. ТАНЫ ХОЁР ДАХЬ ЦОНХ: E-BARIMT ШАЛГАХ БИЕ ДААСАН МОДАЛ    */}
+            {/* ========================================================= */}
+            {/* ========================================================================= */}
             {/* 🧾 E-BARIMT ШАЛГАХ, ЗАСАХ, БАТЛАХ & БУЦААХ (UNDO) МОДАЛ */}
             {/* ========================================================================= */}
             {ebarimtReview && (
@@ -2735,7 +3315,7 @@ const handleCloseShift = () => {
                 onClick={() => setEbarimtReview(null)}
               >
                 <div
-                  className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[90vh] flex flex-col"
+                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[90vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Толгой хэсэг */}
@@ -2744,7 +3324,9 @@ const handleCloseShift = () => {
                       <h3 className="text-base font-black text-white flex items-center gap-1.5">
                         <span>🧾 E-Barimt Шалгах</span>
                       </h3>
-                      <p className="text-xs text-slate-400">AI-ийн таньсан тоо, үнийг шалгаж засна уу</p>
+                      <p className="text-xs text-slate-400">
+                        AI-ийн таньсан тоо, үнийг шалгаж засна уу
+                      </p>
                     </div>
                     {/* ЦУЦЛАХ ТОВЧ (Баазад юу ч хадгалагдахгүй, цэвэрхэн хаагдана) */}
                     <button
@@ -2757,15 +3339,19 @@ const handleCloseShift = () => {
                   </div>
 
                   {/* Эх баримтын зургийн thumbnail */}
-                  <div className="flex items-center gap-3 bg-[#060b17] p-2.5 rounded-2xl border border-slate-800 shrink-0">
+                  <div className="flex items-center gap-3 bg-zinc-950 p-2.5 rounded-2xl border border-slate-800 shrink-0">
                     <img
                       src={ebarimtReview.previewUrl}
                       alt="Receipt"
                       className="h-12 w-12 object-cover rounded-xl border border-slate-700 shrink-0"
                     />
                     <div className="text-xs">
-                      <span className="text-emerald-400 font-bold block">📸 Баримтын эх зураг бэлэн</span>
-                      <span className="text-slate-400">Нийт {ebarimtReview.items.length} бараа илэрсэн</span>
+                      <span className="text-zinc-200 font-bold block">
+                        📸 Баримтын эх зураг бэлэн
+                      </span>
+                      <span className="text-slate-400">
+                        Нийт {ebarimtReview.items.length} бараа илэрсэн
+                      </span>
                     </div>
                   </div>
 
@@ -2773,18 +3359,32 @@ const handleCloseShift = () => {
                   <div className="grid grid-cols-2 gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() => setEbarimtReview({ ...ebarimtReview, payMethod: 'bank' })}
+                      onClick={() =>
+                        setEbarimtReview({
+                          ...ebarimtReview,
+                          payMethod: "bank",
+                        })
+                      }
                       className={`py-1.5 rounded-xl text-xs font-bold transition ${
-                        ebarimtReview.payMethod === 'bank' ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#060b17] text-slate-400'
+                        ebarimtReview.payMethod === "bank"
+                          ? "bg-white text-white shadow-sm"
+                          : "bg-zinc-950 text-slate-400"
                       }`}
                     >
                       💳 Банк / Дансаар
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEbarimtReview({ ...ebarimtReview, payMethod: 'cash' })}
+                      onClick={() =>
+                        setEbarimtReview({
+                          ...ebarimtReview,
+                          payMethod: "cash",
+                        })
+                      }
                       className={`py-1.5 rounded-xl text-xs font-bold transition ${
-                        ebarimtReview.payMethod === 'cash' ? 'bg-amber-500 text-slate-950 font-black shadow-sm' : 'bg-[#060b17] text-slate-400'
+                        ebarimtReview.payMethod === "cash"
+                          ? "bg-amber-500 text-slate-950 font-black shadow-sm"
+                          : "bg-zinc-950 text-slate-400"
                       }`}
                     >
                       💵 Кассын бэлнээр
@@ -2794,13 +3394,21 @@ const handleCloseShift = () => {
                   {/* ✏️ ТАНЬСАН БАРААНУУДЫН ЖАГСААЛТ (ШУУД ЗАСАХ БОЛОМЖТОЙ) */}
                   <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/80">
                     {ebarimtReview.items.map((item, idx) => (
-                      <div key={idx} className="pt-2 flex justify-between items-center gap-2 text-xs">
+                      <div
+                        key={idx}
+                        className="pt-2 flex justify-between items-center gap-2 text-xs"
+                      >
                         {/* Буруу уншсан барааг устгах [✕] товч */}
                         <button
                           type="button"
                           onClick={() => {
-                            const updated = ebarimtReview.items.filter((_, i) => i !== idx);
-                            setEbarimtReview({ ...ebarimtReview, items: updated });
+                            const updated = ebarimtReview.items.filter(
+                              (_, i) => i !== idx,
+                            );
+                            setEbarimtReview({
+                              ...ebarimtReview,
+                              items: updated,
+                            });
                           }}
                           className="text-rose-400 hover:text-rose-300 font-black p-1 text-sm shrink-0"
                           title="Энэ барааг хасах"
@@ -2809,20 +3417,25 @@ const handleCloseShift = () => {
                         </button>
 
                         <div className="flex-1 min-w-0">
-                          <span className="font-bold text-white block truncate">{item.item_name}</span>
+                          <span className="font-bold text-white block truncate">
+                            {item.item_name}
+                          </span>
                           {/* Нийт үнийг засах input */}
                           <div className="flex items-center gap-1 mt-0.5">
                             <span className="text-xs text-slate-500">Үнэ:</span>
                             <input
                               type="number"
-                              value={item.total_cost || ''}
+                              value={item.total_cost || ""}
                               onChange={(e) => {
                                 const newCost = parseFloat(e.target.value) || 0;
                                 const updated = [...ebarimtReview.items];
                                 updated[idx].total_cost = newCost;
-                                setEbarimtReview({ ...ebarimtReview, items: updated });
+                                setEbarimtReview({
+                                  ...ebarimtReview,
+                                  items: updated,
+                                });
                               }}
-                              className="w-20 bg-[#060b17] border border-slate-800 rounded px-1 py-0.5 text-emerald-400 font-mono text-xs outline-none"
+                              className="w-20 bg-zinc-950 border border-slate-800 rounded px-1 py-0.5 text-zinc-200 font-mono text-xs outline-none"
                             />
                             <span className="text-xs text-slate-500">₮</span>
                           </div>
@@ -2833,14 +3446,17 @@ const handleCloseShift = () => {
                           <span className="text-xs text-slate-500">Тоо:</span>
                           <input
                             type="number"
-                            value={item.quantity || ''}
+                            value={item.quantity || ""}
                             onChange={(e) => {
                               const newQty = parseFloat(e.target.value) || 0;
                               const updated = [...ebarimtReview.items];
                               updated[idx].quantity = newQty;
-                              setEbarimtReview({ ...ebarimtReview, items: updated });
+                              setEbarimtReview({
+                                ...ebarimtReview,
+                                items: updated,
+                              });
                             }}
-                            className="w-14 bg-[#060b17] border border-slate-700 rounded-lg py-1 text-center text-white font-bold text-xs outline-none focus:border-emerald-500"
+                            className="w-14 bg-zinc-950 border border-slate-700 rounded-lg py-1 text-center text-white font-bold text-xs outline-none focus:border-zinc-700"
                           />
                         </div>
                       </div>
@@ -2848,10 +3464,15 @@ const handleCloseShift = () => {
                   </div>
 
                   {/* Нийт дүн */}
-                  <div className="bg-[#060b17] p-2.5 rounded-xl border border-slate-800 flex justify-between items-center text-xs shrink-0">
-                    <span className="text-slate-400 font-medium">Нийт баримтын дүн:</span>
-                    <span className="font-mono font-black text-emerald-400 text-sm">
-                      {ebarimtReview.items.reduce((sum, it) => sum + (it.total_cost || 0), 0).toLocaleString()} ₮
+                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center text-xs shrink-0">
+                    <span className="text-slate-400 font-medium">
+                      Нийт баримтын дүн:
+                    </span>
+                    <span className="font-mono font-black text-zinc-200 text-sm">
+                      {ebarimtReview.items
+                        .reduce((sum, it) => sum + (it.total_cost || 0), 0)
+                        .toLocaleString()}{" "}
+                      ₮
                     </span>
                   </div>
 
@@ -2867,454 +3488,587 @@ const handleCloseShift = () => {
 
                       // ⚡ 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
                       setRecentToast({
-                        id: 'temp-' + Date.now(),
-                        text: `⚡ ${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`
+                        id: "temp-" + Date.now(),
+                        text: `⚡ ${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`,
                       });
 
                       // ⚡ 3. ЗУРАГ БА ЛОГИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ
                       (async () => {
                         try {
-                          const uploadedImgUrl = await uploadEvidencePhoto(reviewData.file, 'receipts_evidence');
+                          const uploadedImgUrl = await uploadEvidencePhoto(
+                            reviewData.file,
+                            "receipts_evidence",
+                          );
 
                           const logsToInsert = reviewData.items.map((it) => {
                             const isFood = it.is_food !== false; // Default to true unless AI flags it as non-food
                             const matchedIng = isFood
-                              ? ingredients.find((ing) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim())
+                              ? ingredients.find(
+                                  (ing) =>
+                                    ing.name.toLowerCase().trim() ===
+                                    it.item_name.toLowerCase().trim(),
+                                )
                               : null;
                             return {
                               client_id: tenantClientId,
-                               // If it's FOOD and in catalog -> Inventory Asset (COGS)
+                              // If it's FOOD and in catalog -> Inventory Asset (COGS)
                               // If it's NOT food (soap, paper, gloves) -> OPEX Expense
                               ingredient_id: matchedIng ? matchedIng.id : null,
                               non_food_item: matchedIng ? null : it.item_name,
                               quantity: Math.abs(it.quantity),
                               total_cost: it.total_cost || 0,
-                              type: 'purchase',
+                              type: "purchase",
                               payment_method: reviewData.payMethod,
                               image_url: uploadedImgUrl,
                               is_ebarimt: true,
-                               notes: isFood ? '🧾 E-Barimt (Хүнс)' : '🧾 E-Barimt (Хүнсний бус OPEX)',
-                              worker_name: activeShift?.character_role || selectedWorker.full_name,
-                              date: new Date().toISOString()
+                              notes: isFood
+                                ? "🧾 E-Barimt (Хүнс)"
+                                : "🧾 E-Barimt (Хүнсний бус OPEX)",
+                              worker_name:
+                                activeShift?.character_role ||
+                                selectedWorker.full_name,
+                              date: new Date().toISOString(),
                             };
                           });
 
                           const { data: insertedData } = await supabase
-                            .from('inventory_logs')
+                            .from("inventory_logs")
                             .insert(logsToInsert)
-                            .select('id');
+                            .select("id");
 
-                            // ⚡ Баримтаар орж ирсэн хүнсний түүхий эдүүдийн нэгжийн үнийг каталогид шинэчлэх:
-                              for (const it of reviewData.items) {
-                                if (it.is_food && it.quantity > 0 && it.total_cost > 0) {
-                                  const matchedIng = ingredients.find((ing: any) => ing.name.toLowerCase().trim() === it.item_name.toLowerCase().trim());
-                                  if (matchedIng) {
-                                    const latestUnitPrice = Math.round(it.total_cost / it.quantity);
-                                    await supabase.from('ingredients').update({ unit_price: latestUnitPrice }).eq('id', matchedIng.id);
-                                  }
-                                }
+                          // ⚡ Баримтаар орж ирсэн хүнсний түүхий эдүүдийн нэгжийн үнийг каталогид шинэчлэх:
+                          for (const it of reviewData.items) {
+                            if (
+                              it.is_food &&
+                              it.quantity > 0 &&
+                              it.total_cost > 0
+                            ) {
+                              const matchedIng = ingredients.find(
+                                (ing: any) =>
+                                  ing.name.toLowerCase().trim() ===
+                                  it.item_name.toLowerCase().trim(),
+                              );
+                              if (matchedIng) {
+                                const latestUnitPrice = Math.round(
+                                  it.total_cost / it.quantity,
+                                );
+                                await supabase
+                                  .from("ingredients")
+                                  .update({ unit_price: latestUnitPrice })
+                                  .eq("id", matchedIng.id);
                               }
+                            }
+                          }
 
-                          const insertedIds = (insertedData || []).map((d: any) => d.id);
+                          const insertedIds = (insertedData || []).map(
+                            (d: any) => d.id,
+                          );
                           setRecentToast({
-                            id: insertedIds[0] || 'bulk',
-                            text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`
+                            id: insertedIds[0] || "bulk",
+                            text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
                           });
 
                           fetchKioskData(tenantClientId);
-                              } catch (e) {
-                                console.error("E-barimt save error:", e);
-                              }
-                            })();
-                          }}
-                          className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 shrink-0"
+                        } catch (e) {
+                          console.error("E-barimt save error:", e);
+                        }
+                      })();
+                    }}
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 shrink-0"
                   >
-                    {isAiLoading ? 'Баазад хадгалж байна...' : '✅ ШАЛГААД БҮГДИЙГ БАТЛАХ'}
+                    {isAiLoading
+                      ? "Баазад хадгалж байна..."
+                      : "✅ ШАЛГААД БҮГДИЙГ БАТЛАХ"}
                   </button>
                 </div>
               </div>
             )}
-                {/* ========================================================================= */}
-    {/* 5. 👉 ЭНД ТАНЫ showAddNewItemModal (ШИНЭ БАРАА ҮҮСГЭХ) ЦОНХ БАЙРЛАНА:       */}
-    {/* ========================================================================= */}
-    {showAddNewItemModal && (
-      <div
-        className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
-        onClick={() => setShowAddNewItemModal(false)}
-      >
-        <div
-          className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-            <div>
-              <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
-                Шинэ бараа үүсгэх
-              </span>
-              <h3 className="text-base font-black text-white mt-1">{newItemName}</h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAddNewItemModal(false)}
-              className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs font-bold"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Нэгж сонгох: мл, гр, ш */}
-          <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1">Хэмжих нэгж:</label>
-            <div className="grid grid-cols-3 gap-1.5 bg-[#060b17] p-1 rounded-xl border border-slate-800">
-              {['ш', 'мл', 'гр'].map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setNewItemUnit(u)}
-                  className={`py-1.5 rounded-lg text-xs font-bold transition ${
-                    newItemUnit === u ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400'
-                  }`}
+            {/* ========================================================================= */}
+            {/* 5. 👉 ЭНД ТАНЫ showAddNewItemModal (ШИНЭ БАРАА ҮҮСГЭХ) ЦОНХ БАЙРЛАНА:       */}
+            {/* ========================================================================= */}
+            {showAddNewItemModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
+                onClick={() => setShowAddNewItemModal(false)}
+              >
+                <div
+                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-sm shadow-2xl space-y-3"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {u}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <div>
+                      <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-zinc-800 text-zinc-200">
+                        Шинэ бараа үүсгэх
+                      </span>
+                      <h3 className="text-base font-black text-white mt-1">
+                        {newItemName}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddNewItemModal(false)}
+                      className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-xl text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-          {/* Тоо хэмжээ ба Нийт үнэ */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Авсан тоо:</label>
-              <input
-                type="number"
-                value={newItemQty}
-                onChange={(e) => setNewItemQty(e.target.value)}
-                placeholder="Жишээ: 5"
-                className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-white font-bold outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Нийт үнэ (₮):</label>
-              <input
-                type="number"
-                value={newItemCost}
-                onChange={(e) => setNewItemCost(e.target.value)}
-                placeholder="Жишээ: 25000"
-                className="w-full bg-[#060b17] border border-slate-800 rounded-xl p-2.5 text-center text-xs text-emerald-400 font-mono font-bold outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
+                  {/* Нэгж сонгох: мл, гр, ш */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                      Хэмжих нэгж:
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-950 p-1 rounded-xl border border-slate-800">
+                      {["ш", "мл", "гр"].map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setNewItemUnit(u)}
+                          className={`py-1.5 rounded-lg text-xs font-bold transition ${
+                            newItemUnit === u
+                              ? "bg-white text-slate-950 font-black"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* 📸 Зураг заавал шаардах хэсэг */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-400">Шинэ барааны зураг (Заавал):</label>
-            <div className="flex gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                id="new-item-cam"
-                className="hidden"
-                onChange={(e) => { if (e.target.files?.[0]) setNewItemFile(e.target.files[0]); }}
-              />
-              <label
-                htmlFor="new-item-cam"
-                className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
-              >
-                <Camera className="h-4 w-4 text-emerald-400" />
-                <span>Камер</span>
-              </label>
+                  {/* Тоо хэмжээ ба Нийт үнэ */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Авсан тоо:
+                      </label>
+                      <input
+                        type="number"
+                        value={newItemQty}
+                        onChange={(e) => setNewItemQty(e.target.value)}
+                        placeholder="Жишээ: 5"
+                        className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-white font-bold outline-none focus:border-zinc-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Нийт үнэ (₮):
+                      </label>
+                      <input
+                        type="number"
+                        value={newItemCost}
+                        onChange={(e) => setNewItemCost(e.target.value)}
+                        placeholder="Жишээ: 25000"
+                        className="w-full bg-zinc-950 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
+                      />
+                    </div>
+                  </div>
 
-              <input
-                type="file"
-                accept="image/*"
-                id="new-item-gallery"
-                className="hidden"
-                onChange={(e) => { if (e.target.files?.[0]) setNewItemFile(e.target.files[0]); }}
-              />
-              <label
-                htmlFor="new-item-gallery"
-                className="flex-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
-              >
-                <span>🖼️ Цомог</span>
-              </label>
-            </div>
+                  {/* 📸 Зураг заавал шаардах хэсэг */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-400">
+                      Шинэ барааны зураг (Заавал):
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        id="new-item-cam"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.[0])
+                            setNewItemFile(e.target.files[0]);
+                        }}
+                      />
+                      <label
+                        htmlFor="new-item-cam"
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                      >
+                        <Camera className="h-4 w-4 text-zinc-200" />
+                        <span>Камер</span>
+                      </label>
 
-            <p className={`text-xs font-bold text-center ${newItemFile ? 'text-emerald-400' : 'text-rose-400 animate-pulse'}`}>
-              {newItemFile ? `✅ Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...` : '⚠️ Зургийг заавал дарна уу!'}
-            </p>
-          </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="new-item-gallery"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.[0])
+                            setNewItemFile(e.target.files[0]);
+                        }}
+                      />
+                      <label
+                        htmlFor="new-item-gallery"
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-slate-300 transition"
+                      >
+                        <span>🖼️ Цомог</span>
+                      </label>
+                    </div>
 
-      {/* ✅ ШИНЭ БАРААНЫ УХААЛАГ БАТЛАХ ТОВЧ (Камер автоматаар нээгдэнэ) */}
-          <button
-            type="button"
-               disabled={
-              !newItemQty || 
-              parseFloat(newItemQty) <= 0 || 
-              !newItemCost || 
-              parseFloat(newItemCost) <= 0 || 
-              isAiLoading
-            }
-            onClick={() => {
-              const cost = parseFloat(newItemCost) || 0;
-              
-              // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
-              if (cost >= 10000 && !newItemFile) {
-                document.getElementById('new-item-cam')?.click();
-                return;
-              }
+                    <p
+                      className={`text-xs font-bold text-center ${newItemFile ? "text-zinc-200" : "text-rose-400 "}`}
+                    >
+                      {newItemFile
+                        ? `✅ Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
+                        : "⚠️ Зургийг заавал дарна уу!"}
+                    </p>
+                  </div>
 
-              // ... (Цаашаа хуучин хадгалах ложик хэвээрээ үргэлжилнэ)
-              const nameToSave = newItemName;
-              const qty = parseFloat(newItemQty);
-              const unitToSave = newItemUnit;
-              const fileToUpload = newItemFile;
-              const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
-
-              setShowAddNewItemModal(false);
-              setNewItemName('');
-              setNewItemQty('');
-              setNewItemCost('');
-              setNewItemFile(null);
-              setKioskSearch('');
-
-              (async () => {
-                try {
-                  let uploadedUrl = null;
-                  if (fileToUpload) {
-                    uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'new_items');
-                  }
-
-                  const { data: createdIng } = await supabase.from('ingredients').insert([{
-                    client_id: tenantClientId,
-                    name: nameToSave,
-                    unit: unitToSave,
-                    unit_price: unitPrice,
-                    current_stock: qty
-                  }]).select().single();
-
-                  if (createdIng) {
-                    const { data: newLog } = await supabase.from('inventory_logs').insert([{
-                      client_id: tenantClientId,
-                      ingredient_id: createdIng.id,
-                      quantity: qty,
-                      total_cost: cost,
-                      type: 'purchase',
-                      payment_method: 'bank',
-                      image_url: uploadedUrl,
-                      is_ebarimt: false,
-                      notes: 'Kiosk дээр шинээр үүсгэж орлого авсан',
-                      worker_name: activeShift?.character_role || selectedWorker?.full_name,
-                      date: new Date().toISOString()
-                    }]).select().single();
-
-                    if (newLog) {
-                      setRecentToast({
-                        id: newLog.id,
-                        text: `Шинэ бараа: ${nameToSave} (${qty} ${unitToSave})`
-                      });
-                      fetchKioskData(tenantClientId); 
+                  {/* ✅ ШИНЭ БАРААНЫ УХААЛАГ БАТЛАХ ТОВЧ (Камер автоматаар нээгдэнэ) */}
+                  <button
+                    type="button"
+                    disabled={
+                      !newItemQty ||
+                      parseFloat(newItemQty) <= 0 ||
+                      !newItemCost ||
+                      parseFloat(newItemCost) <= 0 ||
+                      isAiLoading
                     }
-                  }
-                } catch (err) {
-                  console.error("New item background save error:", err);
-                }
-              })();
-            }}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-[13px] sm:text-xs transition shadow-lg active:scale-95"
-          >
-            {isAiLoading 
-              ? 'Үүсгэж байна...' 
-              : ((parseFloat(newItemCost) || 0) >= 10000 && !newItemFile)
-                ? '📸 ЗУРАГ ДАРЖ ҮҮСГЭХ' 
-                : !newItemFile 
-                  ? 'БАТЛАХ (Зураггүй үүсгэх)' 
-                  : 'ШИНЭ БАРААГ БАТЛАХ'}
-          </button>
-        </div>
-      </div>
-    )}
+                    onClick={() => {
+                      const cost = parseFloat(newItemCost) || 0;
+
+                      // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
+                      if (cost >= 10000 && !newItemFile) {
+                        document.getElementById("new-item-cam")?.click();
+                        return;
+                      }
+
+                      // ... (Цаашаа хуучин хадгалах ложик хэвээрээ үргэлжилнэ)
+                      const nameToSave = newItemName;
+                      const qty = parseFloat(newItemQty);
+                      const unitToSave = newItemUnit;
+                      const fileToUpload = newItemFile;
+                      const unitPrice = qty > 0 ? Math.round(cost / qty) : 0;
+
+                      setShowAddNewItemModal(false);
+                      setNewItemName("");
+                      setNewItemQty("");
+                      setNewItemCost("");
+                      setNewItemFile(null);
+                      setKioskSearch("");
+
+                      (async () => {
+                        try {
+                          let uploadedUrl = null;
+                          if (fileToUpload) {
+                            uploadedUrl = await uploadEvidencePhoto(
+                              fileToUpload,
+                              "new_items",
+                            );
+                          }
+
+                          const { data: createdIng } = await supabase
+                            .from("ingredients")
+                            .insert([
+                              {
+                                client_id: tenantClientId,
+                                name: nameToSave,
+                                unit: unitToSave,
+                                unit_price: unitPrice,
+                                current_stock: qty,
+                              },
+                            ])
+                            .select()
+                            .single();
+
+                          if (createdIng) {
+                            const { data: newLog } = await supabase
+                              .from("inventory_logs")
+                              .insert([
+                                {
+                                  client_id: tenantClientId,
+                                  ingredient_id: createdIng.id,
+                                  quantity: qty,
+                                  total_cost: cost,
+                                  type: "purchase",
+                                  payment_method: "bank",
+                                  image_url: uploadedUrl,
+                                  is_ebarimt: false,
+                                  notes:
+                                    "Kiosk дээр шинээр үүсгэж орлого авсан",
+                                  worker_name:
+                                    activeShift?.character_role ||
+                                    selectedWorker?.full_name,
+                                  date: new Date().toISOString(),
+                                },
+                              ])
+                              .select()
+                              .single();
+
+                            if (newLog) {
+                              setRecentToast({
+                                id: newLog.id,
+                                text: `Шинэ бараа: ${nameToSave} (${qty} ${unitToSave})`,
+                              });
+                              fetchKioskData(tenantClientId);
+                            }
+                          }
+                        } catch (err) {
+                          console.error("New item background save error:", err);
+                        }
+                      })();
+                    }}
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-slate-950 font-black py-3 rounded-2xl text-[13px] sm:text-xs transition shadow-lg active:scale-95"
+                  >
+                    {isAiLoading
+                      ? "Үүсгэж байна..."
+                      : (parseFloat(newItemCost) || 0) >= 10000 && !newItemFile
+                        ? "📸 ЗУРАГ ДАРЖ ҮҮСГЭХ"
+                        : !newItemFile
+                          ? "БАТЛАХ (Зураггүй үүсгэх)"
+                          : "ШИНЭ БАРААГ БАТЛАХ"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ========================================================================= */}
             {/* 📸 БАРИМТЫГ УНШИЖ БАЙГААГ МЭДЭГДЭХ ТОМ ХӨДӨЛГӨӨНТ ЦОНХ */}
             {/* ========================================================================= */}
             {isScanningReceipt && (
               <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none">
-                <div className="bg-[#0d1527] border border-slate-700 p-8 rounded-3xl max-w-xs w-full text-center shadow-2xl space-y-4">
-                  
+                <div className="bg-zinc-900 border border-slate-700 p-8 rounded-3xl max-w-xs w-full text-center shadow-2xl space-y-4">
                   {/* Лугших хөдөлгөөнт лого */}
                   <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                    <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
-                    <div className="relative bg-emerald-500/20 p-5 rounded-full border-2 border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
-                      <Camera className="h-8 w-8 text-emerald-400 animate-pulse" />
+                    <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
+                    <div className="relative bg-zinc-800 p-5 rounded-full border-2 border-zinc-700/40 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
+                      <Camera className="h-8 w-8 text-zinc-200 " />
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-base font-black text-white tracking-tight">AI Баримтыг Уншиж Байна...</h3>
-                    <p className="text-xs text-slate-400 mt-1">Түр хүлээнэ үү. Бараа, тоо, үнийг ялгаж байна.</p>
+                    <h3 className="text-base font-black text-white tracking-tight">
+                      AI Баримтыг Уншиж Байна...
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Түр хүлээнэ үү. Бараа, тоо, үнийг ялгаж байна.
+                    </p>
                   </div>
 
                   <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
-                    <div className="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full w-2/3 animate-pulse rounded-full" />
+                    <div className="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full w-2/3  rounded-full" />
                   </div>
                 </div>
               </div>
             )}
-        {/* ========================================================================= */}
-      {/* 📋 ӨНӨӨДРИЙН БҮХ БҮРТГЭЛИЙГ ДЭЛГЭРЭНГҮЙ ХАРУУЛАХ ТУХТАЙ ЦОНХ (DRAWER)        */}
-      {/* ========================================================================= */}
-      {showLogsDrawer && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
-          onClick={() => setShowLogsDrawer(false)}
-        >
-          <div 
-            className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[85vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
-              <div>
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  <span>📋 Өнөөдрийн бүх бүртгэлүүд</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Нийт {todayLogs.length} үйлдэл хийгдсэн байна. Буруу бичсэн бол буцаана уу.
-                </p>
-              </div>
-              <button
-                type="button"
+            {/* ========================================================================= */}
+            {/* 📋 ӨНӨӨДРИЙН БҮХ БҮРТГЭЛИЙГ ДЭЛГЭРЭНГҮЙ ХАРУУЛАХ ТУХТАЙ ЦОНХ (DRAWER)        */}
+            {/* ========================================================================= */}
+            {showLogsDrawer && (
+              <div
+                className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150"
                 onClick={() => setShowLogsDrawer(false)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"
               >
-                ✕ Хаах
-              </button>
-            </div>
+                <div
+                  className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl space-y-3 max-h-[85vh] flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
+                    <div>
+                      <h3 className="text-base font-black text-white flex items-center gap-2">
+                        <span>📋 Өнөөдрийн бүх бүртгэлүүд</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Нийт {todayLogs.length} үйлдэл хийгдсэн байна. Буруу
+                        бичсэн бол буцаана уу.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLogsDrawer(false)}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      ✕ Хаах
+                    </button>
+                  </div>
 
-            {/* ГҮЙДЭГ КАРТУУДЫН ЖАГСААЛТ */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
-                {todayLogs.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic text-center py-8">
-                    Өнөөдөр хараахан ямар нэг бүртгэл хийгдээгүй байна.
-                  </p>
-                ) : (
-                  todayLogs.map((log) => {
-                    const isPurchase = log.type === 'purchase';
-                    const isSpoilage = log.type === 'spoilage';
-                    const isStaffMeal = log.type === 'staff_meal';
-                    const isTesting = log.type === 'testing';
-                    const isCashOut = log.type === 'count' && log.non_food_item?.includes('Касс');
-                    
-                    const itemName = log.ingredients?.name || log.non_food_item || "Тодорхойгүй";
-                    const unit = log.ingredients?.unit || "ш";
-                    const cost = parseFloat(log.total_cost) || 0;
-                    const qty = Math.abs(parseFloat(log.quantity) || 0);
-                    const timeStr = log.date ? new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                  {/* ГҮЙДЭГ КАРТУУДЫН ЖАГСААЛТ */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
+                    {todayLogs.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic text-center py-8">
+                        Өнөөдөр хараахан ямар нэг бүртгэл хийгдээгүй байна.
+                      </p>
+                    ) : (
+                      todayLogs.map((log) => {
+                        const isPurchase = log.type === "purchase";
+                        const isSpoilage = log.type === "spoilage";
+                        const isStaffMeal = log.type === "staff_meal";
+                        const isTesting = log.type === "testing";
+                        const isCashOut =
+                          log.type === "count" &&
+                          log.non_food_item?.includes("Касс");
 
-                    return (
-                      <div key={log.id} className="pt-2 flex justify-between items-center gap-2 text-xs">
-                        {/* Зүүн тал: Барааны нэр, төрөл, зураг */}
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {log.image_url ? (
-                            <img 
-                              src={log.image_url} 
-                              alt="receipt" 
-                              onClick={() => setPreviewLogImage(log.image_url)}
-                              className="h-10 w-10 object-cover rounded-xl border border-slate-700 cursor-pointer shrink-0 hover:scale-105 transition"
-                              title="Томруулж харах"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sm shrink-0">
-                              {isPurchase ? '📦' : isSpoilage ? '🗑️' : isStaffMeal ? '🍽️' : isTesting ? '🧪' : '💵'}
-                            </div>
-                          )}
+                        const itemName =
+                          log.ingredients?.name ||
+                          log.non_food_item ||
+                          "Тодорхойгүй";
+                        const unit = log.ingredients?.unit || "ш";
+                        const cost = parseFloat(log.total_cost) || 0;
+                        const qty = Math.abs(parseFloat(log.quantity) || 0);
+                        const timeStr = log.date
+                          ? new Date(log.date).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "";
 
-                          <div className="truncate">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-white text-sm truncate">{itemName}</span>
-                              <span className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase ${
-                                isPurchase ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                isSpoilage ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                                isStaffMeal ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                              }`}>
-                                {isPurchase ? 'Орлого' : isSpoilage ? 'Хаягдал' : isStaffMeal ? 'Хоол' : isTesting ? 'Туршилт' : 'Зардал'}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-slate-400 font-mono text-xs mt-0.5">
-                              <span>{qty} {unit}</span>
-                              {cost > 0 && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-emerald-400 font-bold">{cost.toLocaleString()} ₮</span>
-                                </>
+                        return (
+                          <div
+                            key={log.id}
+                            className="pt-2 flex justify-between items-center gap-2 text-xs"
+                          >
+                            {/* Зүүн тал: Барааны нэр, төрөл, зураг */}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {log.image_url ? (
+                                <img
+                                  src={log.image_url}
+                                  alt="receipt"
+                                  onClick={() =>
+                                    setPreviewLogImage(log.image_url)
+                                  }
+                                  className="h-10 w-10 object-cover rounded-xl border border-slate-700 cursor-pointer shrink-0 hover:scale-105 transition"
+                                  title="Томруулж харах"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sm shrink-0">
+                                  {isPurchase
+                                    ? "📦"
+                                    : isSpoilage
+                                      ? "🗑️"
+                                      : isStaffMeal
+                                        ? "🍽️"
+                                        : isTesting
+                                          ? "🧪"
+                                          : "💵"}
+                                </div>
                               )}
-                              <span>•</span>
-                              <span className="text-slate-500 font-sans">{timeStr}</span>
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Баруун тал: Буцаах (Устгах) товч */}
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!confirm(`"${itemName}" бүртгэлийг устгаж буцаах уу?`)) return;
-                            setTodayLogs(prev => prev.filter(l => l.id !== log.id));
-                            await supabase.from('inventory_logs').delete().eq('id', log.id);
-                            await fetchKioskData(tenantClientId);
-                          }}
-                          className="bg-slate-900 hover:bg-rose-500/20 hover:text-rose-300 text-slate-400 border border-slate-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
-                          title="Бүртгэлийг цуцлах"
-                        >
-                          ↩️ Буцаах
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
+                              <div className="truncate">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-white text-sm truncate">
+                                    {itemName}
+                                  </span>
+                                  <span
+                                    className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase ${
+                                      isPurchase
+                                        ? "bg-zinc-800/60 text-zinc-200 border border-zinc-700/20"
+                                        : isSpoilage
+                                          ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                          : isStaffMeal
+                                            ? "bg-zinc-800/60 text-zinc-300 border border-zinc-700/20"
+                                            : "bg-purple-500/10 text-zinc-300 border border-zinc-800/20"
+                                    }`}
+                                  >
+                                    {isPurchase
+                                      ? "Орлого"
+                                      : isSpoilage
+                                        ? "Хаягдал"
+                                        : isStaffMeal
+                                          ? "Хоол"
+                                          : isTesting
+                                            ? "Туршилт"
+                                            : "Зардал"}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-slate-400 font-mono text-xs mt-0.5">
+                                  <span>
+                                    {qty} {unit}
+                                  </span>
+                                  {cost > 0 && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-zinc-200 font-bold">
+                                        {cost.toLocaleString()} ₮
+                                      </span>
+                                    </>
+                                  )}
+                                  <span>•</span>
+                                  <span className="text-slate-500 font-sans">
+                                    {timeStr}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Баруун тал: Буцаах (Устгах) товч */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (
+                                  !confirm(
+                                    `"${itemName}" бүртгэлийг устгаж буцаах уу?`,
+                                  )
+                                )
+                                  return;
+                                setTodayLogs((prev) =>
+                                  prev.filter((l) => l.id !== log.id),
+                                );
+                                await supabase
+                                  .from("inventory_logs")
+                                  .delete()
+                                  .eq("id", log.id);
+                                await fetchKioskData(tenantClientId);
+                              }}
+                              className="bg-slate-900 hover:bg-rose-500/20 hover:text-rose-300 text-slate-400 border border-slate-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
+                              title="Бүртгэлийг цуцлах"
+                            >
+                              ↩️ Буцаах
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
             {/* 🖼️ Зургийг томоор харах цонх */}
             {previewLogImage && (
-              <div 
+              <div
                 className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
                 onClick={() => setPreviewLogImage(null)}
               >
                 <div className="max-w-md w-full max-h-[80vh] flex flex-col items-center">
-                  <img src={previewLogImage} alt="preview" className="max-h-[75vh] w-auto rounded-2xl object-contain shadow-2xl" />
-                  <span className="text-xs text-slate-400 mt-2 font-bold">Дэлгэц дээр дарж хаана</span>
+                  <img
+                    src={previewLogImage}
+                    alt="preview"
+                    className="max-h-[75vh] w-auto rounded-2xl object-contain shadow-2xl"
+                  />
+                  <span className="text-xs text-slate-400 mt-2 font-bold">
+                    Дэлгэц дээр дарж хаана
+                  </span>
                 </div>
               </div>
             )}
-
           </div>
         )}
 
         {/* 5. AI CHAT INTERFACE */}
-        {step === 'ai_chat' && (
-          <KioskAiChatSection 
-            selectedWorker={selectedWorker} 
-            activeShift={activeShift} 
+        {step === "ai_chat" && (
+          <KioskAiChatSection
+            selectedWorker={selectedWorker}
+            activeShift={activeShift}
             ingredients={ingredients}
             learnedAliases={learnedAliases}
-            onBack={() => setStep('menu')} 
+            onBack={() => setStep("menu")}
           />
         )}
 
         {/* 6. DAILY TASKS */}
-        {step === 'tasks' && (
-          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
-            <h2 className="text-lg sm:text-xl font-black text-purple-400 mb-2 flex items-center gap-2 shrink-0">
+        {step === "tasks" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+            <h2 className="text-lg sm:text-xl font-black text-zinc-300 mb-2 flex items-center gap-2 shrink-0">
               <CheckSquare className="h-5 w-5" /> Өнөөдрийн Даалгавар (SOP)
             </h2>
 
             {tasks.length === 0 ? (
-              <p className="text-center text-slate-400 py-8 text-sm my-auto">Өнөөдөр хийх даалгавар байхгүй байна.</p>
+              <p className="text-center text-slate-400 py-8 text-sm my-auto">
+                Өнөөдөр хийх даалгавар байхгүй байна.
+              </p>
             ) : (
               <div className="space-y-2 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
                 {tasks.map((t, idx) => (
@@ -3323,27 +4077,33 @@ const handleCloseShift = () => {
                     disabled={t.done}
                     onClick={() => completeTask(idx)}
                     className={`w-full p-3.5 rounded-xl flex items-center justify-between border transition active:scale-95 ${
-                      t.done 
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60' 
-                        : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-white'
+                      t.done
+                        ? "bg-zinc-800/60 border-zinc-800 text-zinc-200 opacity-60"
+                        : "bg-slate-950 hover:bg-slate-900 border-slate-800 text-white"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       {t.done ? (
-                        <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
+                        <CheckCircle className="h-5 w-5 text-zinc-200 shrink-0" />
                       ) : (
                         <div className="h-5 w-5 rounded-lg border-2 border-slate-600 shrink-0" />
                       )}
-                      <span className="font-bold text-sm text-left">{t.name}</span>
+                      <span className="font-bold text-sm text-left">
+                        {t.name}
+                      </span>
                     </div>
-                    {t.done && <span className="text-xs font-black text-emerald-400 shrink-0">Хийсэн ✅</span>}
+                    {t.done && (
+                      <span className="text-xs font-black text-zinc-200 shrink-0">
+                        Хийсэн ✅
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
             )}
 
-            <button 
-              onClick={() => setStep('menu')} 
+            <button
+              onClick={() => setStep("menu")}
               className="w-full mt-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shrink-0 active:scale-95"
             >
               ← Буцах
@@ -3352,33 +4112,43 @@ const handleCloseShift = () => {
         )}
 
         {/* 7. INCIDENT REPORTING */}
-        {step === 'incident_report' && (
-          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+        {step === "incident_report" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="shrink-0 mb-3">
-              <h2 className="text-lg font-black text-amber-400 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" /> Өмнөх Ээлжийн Алдагдал Бүртгэх
+              <h2 className="text-lg font-black text-zinc-300 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" /> Өмнөх Ээлжийн Алдагдал
+                Бүртгэх
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Өмнөх ээлжийн ажилтны хаягдал эсвэл гэмтсэн барааг менежерт тайлагнана
+                Өмнөх ээлжийн ажилтны хаягдал эсвэл гэмтсэн барааг менежерт
+                тайлагнана
               </p>
             </div>
 
-            <form onSubmit={handleReportIncident} className="space-y-3 flex-1 overflow-y-auto pr-1">
+            <form
+              onSubmit={handleReportIncident}
+              className="space-y-3 flex-1 overflow-y-auto pr-1"
+            >
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   1. Өмнөх ээлжинд ажилласан ажилтан
                 </label>
-                <select 
+                <select
                   value={incidentWorker}
-                  onChange={e => setIncidentWorker(e.target.value)}
+                  onChange={(e) => setIncidentWorker(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
                 >
                   <option value="">-- Ажилтан сонгох --</option>
-                  {workers.filter(w => w.id !== selectedWorker?.id).map(w => (
-                    <option key={w.id} value={w.full_name || w.email.split('@')[0]}>
-                      {w.full_name || w.email.split('@')[0]} ({w.role})
-                    </option>
-                  ))}
+                  {workers
+                    .filter((w) => w.id !== selectedWorker?.id)
+                    .map((w) => (
+                      <option
+                        key={w.id}
+                        value={w.full_name || w.email.split("@")[0]}
+                      >
+                        {w.full_name || w.email.split("@")[0]} ({w.role})
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -3386,15 +4156,17 @@ const handleCloseShift = () => {
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   2. Алдагдсан / Муудсан түүхий эд
                 </label>
-                <select 
+                <select
                   required
                   value={incidentItem}
-                  onChange={e => setIncidentItem(e.target.value)}
+                  onChange={(e) => setIncidentItem(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
                 >
                   <option value="">-- Түүхий эд сонгох --</option>
-                  {ingredients.map(ing => (
-                    <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+                  {ingredients.map((ing) => (
+                    <option key={ing.id} value={ing.id}>
+                      {ing.name} ({ing.unit})
+                    </option>
                   ))}
                 </select>
               </div>
@@ -3403,12 +4175,12 @@ const handleCloseShift = () => {
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   3. Алдагдсан тоо хэмжээ
                 </label>
-                <input 
-                  type="number" 
-                  step="any" 
+                <input
+                  type="number"
+                  step="any"
                   required
                   value={incidentQty}
-                  onChange={e => setIncidentQty(e.target.value)}
+                  onChange={(e) => setIncidentQty(e.target.value)}
                   placeholder="Тоо оруулна уу (жнь: 2)"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold"
                 />
@@ -3418,20 +4190,26 @@ const handleCloseShift = () => {
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   4. Нотлох зураг авах (Evidence Photo)
                 </label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment" 
-                  id="incident-camera-input" 
-                  className="hidden" 
-                  onChange={e => { if (e.target.files?.[0]) setIncidentFile(e.target.files[0]); }}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  id="incident-camera-input"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) setIncidentFile(e.target.files[0]);
+                  }}
                 />
-                <label 
-                  htmlFor="incident-camera-input" 
+                <label
+                  htmlFor="incident-camera-input"
                   className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 hover:border-amber-500 transition"
                 >
-                  <Camera className="h-4 w-4 text-amber-400" />
-                  <span>{incidentFile ? `✅ ${incidentFile.name.substring(0, 18)}...` : "Зураг дарах"}</span>
+                  <Camera className="h-4 w-4 text-zinc-300" />
+                  <span>
+                    {incidentFile
+                      ? `✅ ${incidentFile.name.substring(0, 18)}...`
+                      : "Зураг дарах"}
+                  </span>
                 </label>
               </div>
 
@@ -3439,25 +4217,25 @@ const handleCloseShift = () => {
                 <label className="block text-xs font-bold text-slate-400 mb-1">
                   5. Тайлбар
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={incidentNote}
-                  onChange={e => setIncidentNote(e.target.value)}
+                  onChange={(e) => setIncidentNote(e.target.value)}
                   placeholder="Жишээ: Шөнө хөргөгчний хаалга дутуу хаагдсан..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-medium"
                 />
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setStep('menu')} 
+                <button
+                  type="button"
+                  onClick={() => setStep("menu")}
                   className="flex-1 bg-slate-950 border border-slate-800 py-3 rounded-xl text-xs font-bold text-slate-300"
                 >
                   Буцах
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isAiLoading}
                   className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs transition"
                 >
@@ -3467,43 +4245,63 @@ const handleCloseShift = () => {
             </form>
           </div>
         )}
-{/* 8. CLOSE SHIFT & POS Z-REPORT */}
-        {step === 'close_shift' && (
-          <div className="w-full h-full bg-[#0d1527] p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
+        {/* 8. CLOSE SHIFT & POS Z-REPORT */}
+        {step === "close_shift" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden">
             <div className="shrink-0 mb-2">
-              <h2 className="text-lg sm:text-xl font-black text-emerald-400 mb-0.5 flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-black text-zinc-200 mb-0.5 flex items-center gap-2">
                 <ListOrdered className="h-5 w-5" /> Ээлжийн Тооллого & Z-Тайлан
               </h2>
-              <p className="text-xs text-slate-400">Хөргөгч/лангуун дахь үлдэгдлийг тоолж, Z-тайлангийн зураг оруулна уу.</p>
+              <p className="text-xs text-slate-400">
+                Хөргөгч/лангуун дахь үлдэгдлийг тоолж, Z-тайлангийн зураг
+                оруулна уу.
+              </p>
             </div>
-            
+
             <div className="space-y-2 py-1 flex-1 overflow-y-auto overscroll-contain pr-1">
               {/* 🔄 САРЫН ЦИКЛИЙН ЯВЦ (KIOSK ДЭЭР АЖИЛТАНД ХАРАГДАХ) */}
-            <div className="bg-[#060b17] p-2.5 rounded-xl border border-slate-800 mb-2 flex items-center justify-between text-sm font-mono">
-              <span className="text-slate-400 font-sans">Энэ сарын циклийн гүйцэтгэл:</span>
-              <span className="text-emerald-400 font-black">
-                🔄 {ingredients.filter(i => i.last_counted_at && new Date(i.last_counted_at) >= new Date(Date.now() - 30*24*60*60*1000)).length} / {ingredients.length} бараа
-              </span>
-            </div>
+              <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 mb-2 flex items-center justify-between text-sm font-mono">
+                <span className="text-slate-400 font-sans">
+                  Энэ сарын циклийн гүйцэтгэл:
+                </span>
+                <span className="text-zinc-200 font-black">
+                  🔄{" "}
+                  {
+                    ingredients.filter(
+                      (i) =>
+                        i.last_counted_at &&
+                        new Date(i.last_counted_at) >=
+                          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                    ).length
+                  }{" "}
+                  / {ingredients.length} бараа
+                </span>
+              </div>
               {/* POS Z-REPORT UPLOAD */}
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
                   🧾 ПОС-ын Z-Тайлангийн зураг (End-of-day Z-Report)
                 </p>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment" 
-                  id="pos-z-camera" 
-                  className="hidden" 
-                  onChange={e => { if (e.target.files?.[0]) setPosZFile(e.target.files[0]); }}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  id="pos-z-camera"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) setPosZFile(e.target.files[0]);
+                  }}
                 />
-                <label 
-                  htmlFor="pos-z-camera" 
-                  className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-emerald-400 hover:border-emerald-500 transition"
+                <label
+                  htmlFor="pos-z-camera"
+                  className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-200 hover:border-zinc-700 transition"
                 >
                   <Camera className="h-4 w-4" />
-                  <span>{posZFile ? `✅ ${posZFile.name.substring(0, 20)}...` : "Z-Тайлангийн зураг дарах"}</span>
+                  <span>
+                    {posZFile
+                      ? `✅ ${posZFile.name.substring(0, 20)}...`
+                      : "Z-Тайлангийн зураг дарах"}
+                  </span>
                 </label>
               </div>
 
@@ -3518,53 +4316,71 @@ const handleCloseShift = () => {
                     value={actualCashDrawer}
                     onChange={(e) => setActualCashDrawer(e.target.value)}
                     placeholder="Кассын шүүгээнд яг хэдэн төгрөг байна вэ? (Байхгүй бол 0)"
-                    className="w-full bg-[#060b17] border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-emerald-400 font-mono font-black outline-none focus:border-emerald-500"
+                    className="w-full bg-zinc-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-zinc-200 font-mono font-black outline-none focus:border-zinc-700"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">₮</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
+                    ₮
+                  </span>
                 </div>
               </div>
 
               {/* PARETO 80/20 CYCLE COUNT ITEMS */}
-              {inventoryToCount.map(item => {
-                const stock = parseFloat(item.current_stock ?? item.live_stock ?? 0);
+              {inventoryToCount.map((item) => {
+                const stock = parseFloat(
+                  item.current_stock ?? item.live_stock ?? 0,
+                );
                 const par = parseFloat(item.par_level ?? 0);
                 const isUrgent = par > 0 && stock <= par;
 
                 return (
-                  <div key={item.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-3">
+                  <div
+                    key={item.id}
+                    className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center gap-3"
+                  >
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="font-bold text-sm text-white">{item.name}</p>
-                        
+                        <p className="font-bold text-sm text-white">
+                          {item.name}
+                        </p>
+
                         {/* 🏷️ ПАЙЗНУУД */}
                         {isUrgent ? (
-                          <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-black animate-pulse">
+                          <span className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded font-black ">
                             🚨 Яаралтай (Нөөц бага)
                           </span>
                         ) : item.todayUsage > 0 ? (
-                          <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black">
-                            ⚡ Өдрийн эргэлт ({Math.round(item.moneyMoved || 0).toLocaleString()}₮)
+                          <span className="text-xs bg-zinc-800 text-zinc-200 border border-zinc-800 px-1.5 py-0.5 rounded font-black">
+                            ⚡ Өдрийн эргэлт (
+                            {Math.round(item.moneyMoved || 0).toLocaleString()}
+                            ₮)
                           </span>
                         ) : (
-                          <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold">
+                          <span className="text-xs bg-zinc-200/20 text-zinc-300 border border-zinc-800 px-1.5 py-0.5 rounded font-bold">
                             🔄 Сар бүрийн цикл
                           </span>
                         )}
                       </div>
 
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Тоолох нэгж: <strong className="text-slate-300 font-bold">{item.unit}</strong>
+                        Тоолох нэгж:{" "}
+                        <strong className="text-slate-300 font-bold">
+                          {item.unit}
+                        </strong>
                       </p>
                     </div>
 
-                    <input 
-                      type="number" 
-                      step="any" 
-                      required 
-                      placeholder="Тоо..." 
-                      value={counts[item.id] !== undefined ? counts[item.id] : ''} 
-                      onChange={e => setCounts({...counts, [item.id]: e.target.value})} 
-                      className="w-24 h-10 bg-slate-900 px-3 rounded-xl text-center text-white border border-slate-700 font-bold text-base focus:border-emerald-500 outline-none" 
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      placeholder="Тоо..."
+                      value={
+                        counts[item.id] !== undefined ? counts[item.id] : ""
+                      }
+                      onChange={(e) =>
+                        setCounts({ ...counts, [item.id]: e.target.value })
+                      }
+                      className="w-24 h-10 bg-slate-900 px-3 rounded-xl text-center text-white border border-slate-700 font-bold text-base focus:border-zinc-700 outline-none"
                     />
                   </div>
                 );
@@ -3572,33 +4388,37 @@ const handleCloseShift = () => {
             </div>
 
             <div className="flex gap-2.5 mt-2.5 shrink-0">
-              <button 
-                type="button" 
-                onClick={() => setStep('menu')} 
+              <button
+                type="button"
+                onClick={() => setStep("menu")}
                 className="flex-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-3 rounded-xl text-xs transition active:scale-95"
               >
                 Буцах
               </button>
-              
+
               {/* 🔒 ЗӨВХӨН ЭНЭ ТОВЧ ДЭЭР Z-ТАЙЛАН БА КАССЫН БЭЛЭН МӨНГӨНИЙ ШАЛГАЛТ НЭМЭГДСЭН: */}
-              <button 
+              <button
                 type="button"
-                onClick={handleCloseShift} 
+                onClick={handleCloseShift}
                 disabled={
-                  isAiLoading || 
-                  inventoryToCount.some(i => counts[i.id] === undefined || counts[i.id].toString().trim() === '') ||
-                  !posZFile ||                     // 👈 Z-Тайлангийн зураггүй бол цоожтой
-                  actualCashDrawer.trim() === ''   // 👈 Кассын мөнгө хоосон бол цоожтой (0 байвал зөвшөөрнө)
-                } 
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                  isAiLoading ||
+                  inventoryToCount.some(
+                    (i) =>
+                      counts[i.id] === undefined ||
+                      counts[i.id].toString().trim() === "",
+                  ) ||
+                  !posZFile || // 👈 Z-Тайлангийн зураггүй бол цоожтой
+                  actualCashDrawer.trim() === "" // 👈 Кассын мөнгө хоосон бол цоожтой (0 байвал зөвшөөрнө)
+                }
+                className="flex-1 bg-white hover:bg-zinc-200 active:scale-95 text-slate-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
               >
-                {isAiLoading 
-                  ? 'Хааж байна...' 
-                  : !posZFile 
-                  ? '📸 Z-ТАЙЛАНГИЙН ЗУРАГ ДАРНА УУ' 
-                  : actualCashDrawer.trim() === '' 
-                  ? '💵 КАССЫН МӨНГӨӨ БИЧНЭ ҮҮ' 
-                  : 'Хаах & Илгээх'}
+                {isAiLoading
+                  ? "Хааж байна..."
+                  : !posZFile
+                    ? "📸 Z-ТАЙЛАНГИЙН ЗУРАГ ДАРНА УУ"
+                    : actualCashDrawer.trim() === ""
+                      ? "💵 КАССЫН МӨНГӨӨ БИЧНЭ ҮҮ"
+                      : "Хаах & Илгээх"}
               </button>
             </div>
           </div>
@@ -3607,18 +4427,28 @@ const handleCloseShift = () => {
         {/* 🛒 ХӨВӨГЧ САГСНЫ ТОВЧЛУУР (Бараа нэмэгдсэн үед л гарч ирнэ) */}
         {/* ========================================================================= */}
         {purchaseCart.length > 0 && !showCartModal && !quickItemModal && (
-          <div 
+          <div
             onClick={() => setShowCartModal(true)}
-            className="absolute bottom-20 left-4 right-4 z-40 bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex justify-between items-center border border-blue-400 cursor-pointer animate-bounce transition-all active:scale-95"
+            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-white p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex justify-between items-center border border-blue-400 cursor-pointer animate-bounce transition-all active:scale-95"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl drop-shadow-md">🛒</span>
               <div>
-                <p className="text-sm font-black">{purchaseCart.length} бараа сагсанд байна</p>
-                <p className="text-xs text-blue-200 font-mono font-bold">Нийт: {purchaseCart.reduce((s, i) => s + i.cost, 0).toLocaleString()} ₮</p>
+                <p className="text-sm font-black">
+                  {purchaseCart.length} бараа сагсанд байна
+                </p>
+                <p className="text-xs text-blue-200 font-mono font-bold">
+                  Нийт:{" "}
+                  {purchaseCart
+                    .reduce((s, i) => s + i.cost, 0)
+                    .toLocaleString()}{" "}
+                  ₮
+                </p>
               </div>
             </div>
-            <span className="bg-slate-950/40 px-3.5 py-2 rounded-xl text-xs font-black uppercase">Батлах ➔</span>
+            <span className="bg-slate-950/40 px-3.5 py-2 rounded-xl text-xs font-black uppercase">
+              Батлах ➔
+            </span>
           </div>
         )}
 
@@ -3627,14 +4457,15 @@ const handleCloseShift = () => {
         {/* ========================================================================= */}
         {showCartModal && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-[#0d1527] border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
-              
+            <div className="bg-zinc-900 border border-slate-700 rounded-3xl p-4 w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3 shrink-0">
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
                     <span>🛒 Олон барааны сагс</span>
                   </h3>
-                  <p className="text-xs text-slate-400">Гаднаас бөөндөж авсан барааг 1 зургаар батлах</p>
+                  <p className="text-xs text-slate-400">
+                    Гаднаас бөөндөж авсан барааг 1 зургаар батлах
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -3648,16 +4479,27 @@ const handleCloseShift = () => {
               {/* Сагсан дахь бараанууд */}
               <div className="flex-1 overflow-y-auto space-y-2 py-3 pr-1 divide-y divide-slate-800/50">
                 {purchaseCart.map((item, idx) => (
-                  <div key={idx} className="pt-2 flex justify-between items-center text-sm">
+                  <div
+                    key={idx}
+                    className="pt-2 flex justify-between items-center text-sm"
+                  >
                     <div>
                       <p className="font-bold text-slate-200">{item.name}</p>
-                      <p className="text-xs text-slate-500 font-mono">{item.qty} {item.unit}</p>
+                      <p className="text-xs text-slate-500 font-mono">
+                        {item.qty} {item.unit}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-emerald-400 font-black font-mono">{item.cost.toLocaleString()} ₮</span>
+                      <span className="text-zinc-200 font-black font-mono">
+                        {item.cost.toLocaleString()} ₮
+                      </span>
                       <button
                         type="button"
-                        onClick={() => setPurchaseCart(prev => prev.filter((_, i) => i !== idx))}
+                        onClick={() =>
+                          setPurchaseCart((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
                         className="text-rose-400 hover:text-rose-300 bg-rose-500/10 h-7 w-7 rounded-lg font-bold flex items-center justify-center"
                       >
                         ✕
@@ -3669,12 +4511,19 @@ const handleCloseShift = () => {
 
               {/* Нийт дүн ба Зураг дарах хэсэг */}
               {(() => {
-                const totalCartCost = purchaseCart.reduce((s, i) => s + i.cost, 0);
+                const totalCartCost = purchaseCart.reduce(
+                  (s, i) => s + i.cost,
+                  0,
+                );
                 return (
                   <div className="shrink-0 space-y-3 pt-3 border-t border-slate-800">
-                    <div className="flex justify-between items-center bg-[#060b17] p-3 rounded-xl border border-slate-800">
-                      <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Нийт төлсөн дүн:</span>
-                      <span className="font-mono font-black text-emerald-400 text-lg">{totalCartCost.toLocaleString()} ₮</span>
+                    <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">
+                        Нийт төлсөн дүн:
+                      </span>
+                      <span className="font-mono font-black text-zinc-200 text-lg">
+                        {totalCartCost.toLocaleString()} ₮
+                      </span>
                     </div>
 
                     {/* Зураг дарах (10,000₮-өөс дээш бол заавал) */}
@@ -3685,13 +4534,16 @@ const handleCloseShift = () => {
                         capture="environment"
                         id="cart-cam"
                         className="hidden"
-                        onChange={(e) => { if (e.target.files?.[0]) setCartFile(e.target.files[0]); }}
+                        onChange={(e) => {
+                          if (e.target.files?.[0])
+                            setCartFile(e.target.files[0]);
+                        }}
                       />
                       <label
                         htmlFor="cart-cam"
-                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-blue-500 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
                       >
-                        <Camera className="h-4 w-4 text-blue-400" />
+                        <Camera className="h-4 w-4 text-zinc-300" />
                         <span>Камер</span>
                       </label>
 
@@ -3700,28 +4552,37 @@ const handleCloseShift = () => {
                         accept="image/*"
                         id="cart-gallery"
                         className="hidden"
-                        onChange={(e) => { if (e.target.files?.[0]) setCartFile(e.target.files[0]); }}
+                        onChange={(e) => {
+                          if (e.target.files?.[0])
+                            setCartFile(e.target.files[0]);
+                        }}
                       />
                       <label
                         htmlFor="cart-gallery"
-                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-blue-500 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-slate-300 transition"
                       >
                         <span>🖼️ Цомог</span>
                       </label>
                     </div>
 
-                    <p className={`text-xs font-bold text-center ${cartFile ? 'text-emerald-400' : (totalCartCost >= 10000 ? 'text-rose-400 animate-pulse' : 'text-slate-500')}`}>
-                      {cartFile ? `✅ Зураг бэлэн: ${cartFile.name.substring(0, 15)}...` : (totalCartCost >= 10000 ? '⚠️ баримт/барааны зураг заавал дарна уу!' : 'Зураг хавсаргах нь сайн дурынх')}
+                    <p
+                      className={`text-xs font-bold text-center ${cartFile ? "text-zinc-200" : totalCartCost >= 10000 ? "text-rose-400 " : "text-slate-500"}`}
+                    >
+                      {cartFile
+                        ? `✅ Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
+                        : totalCartCost >= 10000
+                          ? "⚠️ баримт/барааны зураг заавал дарна уу!"
+                          : "Зураг хавсаргах нь сайн дурынх"}
                     </p>
 
-                <button
+                    <button
                       type="button"
                       // ✅ 1. ЗӨВХӨН УНШИЖ БАЙХАД Л ТҮГЖИНЭ (Камер нээгдэхэд саад болохгүй)
                       disabled={purchaseCart.length === 0 || isAiLoading}
                       onClick={() => {
                         // 💡 2. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
                         if (totalCartCost >= 10000 && !cartFile) {
-                          document.getElementById('cart-cam')?.click();
+                          document.getElementById("cart-cam")?.click();
                           return;
                         }
 
@@ -3733,45 +4594,58 @@ const handleCloseShift = () => {
                         setCartFile(null);
 
                         setRecentToast({
-                          id: 'temp-' + Date.now(),
-                          text: `🛒 Сагсан дахь ${itemsToProcess.length} бараа хадгалагдаж байна...`
+                          id: "temp-" + Date.now(),
+                          text: `🛒 Сагсан дахь ${itemsToProcess.length} бараа хадгалагдаж байна...`,
                         });
 
                         (async () => {
                           try {
                             let uploadedUrl = null;
                             if (fileToUpload) {
-                              uploadedUrl = await uploadEvidencePhoto(fileToUpload, 'purchases_proofs');
+                              uploadedUrl = await uploadEvidencePhoto(
+                                fileToUpload,
+                                "purchases_proofs",
+                              );
                             }
 
-                            const logsToInsert = itemsToProcess.map(it => ({
+                            const logsToInsert = itemsToProcess.map((it) => ({
                               client_id: tenantClientId,
                               ingredient_id: it.ing_id,
                               quantity: Math.abs(it.qty),
                               total_cost: it.cost,
-                              type: 'purchase',
+                              type: "purchase",
                               payment_method: purchasePayMethod,
                               image_url: uploadedUrl,
                               is_ebarimt: false,
                               notes: `🛒 Бөөний сагсаар (Нийт зурагтай)`,
-                              worker_name: activeShift?.character_role || selectedWorker?.full_name,
-                              date: new Date().toISOString()
+                              worker_name:
+                                activeShift?.character_role ||
+                                selectedWorker?.full_name,
+                              date: new Date().toISOString(),
                             }));
 
-                            const { data: insertedData } = await supabase.from('inventory_logs').insert(logsToInsert).select('id');
+                            const { data: insertedData } = await supabase
+                              .from("inventory_logs")
+                              .insert(logsToInsert)
+                              .select("id");
 
                             // ⚡ Сагсан дахь бүх барааны нэгжийн шинэ үнийг каталогид шинэчлэх:
-                      for (const it of itemsToProcess) {
-                        if (it.cost > 0 && it.qty > 0) {
-                          const latestUnitPrice = Math.round(it.cost / it.qty);
-                          await supabase.from('ingredients').update({ unit_price: latestUnitPrice }).eq('id', it.ing_id);
-                        }
-                      }
-                            
+                            for (const it of itemsToProcess) {
+                              if (it.cost > 0 && it.qty > 0) {
+                                const latestUnitPrice = Math.round(
+                                  it.cost / it.qty,
+                                );
+                                await supabase
+                                  .from("ingredients")
+                                  .update({ unit_price: latestUnitPrice })
+                                  .eq("id", it.ing_id);
+                              }
+                            }
+
                             if (insertedData && insertedData.length > 0) {
                               setRecentToast({
                                 id: insertedData[0].id,
-                                text: `✅ Сагсан дахь ${itemsToProcess.length} бараа амжилттай бүртгэгдлээ!`
+                                text: `✅ Сагсан дахь ${itemsToProcess.length} бараа амжилттай бүртгэгдлээ!`,
                               });
                               fetchKioskData(tenantClientId);
                             }
@@ -3780,12 +4654,12 @@ const handleCloseShift = () => {
                           }
                         })();
                       }}
-                      className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
+                      className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-white font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
                     >
-                      {isAiLoading 
-                        ? 'Хадгалж байна...' 
-                        : (totalCartCost >= 10000 && !cartFile) 
-                          ? '📸 ЗУРАГ ДАРЖ БАТЛАХ' 
+                      {isAiLoading
+                        ? "Хадгалж байна..."
+                        : totalCartCost >= 10000 && !cartFile
+                          ? "📸 ЗУРАГ ДАРЖ БАТЛАХ"
                           : `САГСЫГ БАТЛАХ (${totalCartCost.toLocaleString()}₮)`}
                     </button>
                   </div>
@@ -3794,7 +4668,6 @@ const handleCloseShift = () => {
             </div>
           </div>
         )}
-
       </main>
     </div>
   );

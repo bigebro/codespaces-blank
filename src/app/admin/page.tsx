@@ -14,7 +14,9 @@ export default function MasterAdminPage() {
   // 1. Эрх шалгах: Зөвхөн админ хүнд л дэлгэцийг нээнэ
   const checkAdmin = useCallback(async () => {
     try {
-      const { data: { session } } = await supabaseMaster.auth.getSession();
+      const {
+        data: { session },
+      } = await supabaseMaster.auth.getSession();
       if (!session) {
         router.replace("/master-login");
         return;
@@ -60,13 +62,15 @@ export default function MasterAdminPage() {
         { event: "INSERT", schema: "public", table: "payment_requests" },
         (payload) => {
           try {
-            const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+            const audio = new Audio(
+              "https://actions.google.com/sounds/v1/alarms/beep_short.ogg",
+            );
             audio.play();
           } catch (e) {}
 
           setRequests((prev) => [payload.new, ...prev]);
           alert(`🔔 Шинэ хүсэлт ирлээ: ${payload.new.client_id}`);
-        }
+        },
       )
       .subscribe();
 
@@ -77,7 +81,12 @@ export default function MasterAdminPage() {
 
   // ✅ БАТЛАХ ҮЙЛДЭЛ (Approve - БҮРЭН ШАЛГАЛТТАЙ)
   const handleApprove = async (req: any) => {
-    if (!confirm(`"${req.client_id}"-ийн ${Number(req.amount).toLocaleString()}₮ төлбөрийг баталгаажуулах уу?`)) return;
+    if (
+      !confirm(
+        `"${req.client_id}"-ийн ${Number(req.amount).toLocaleString()}₮ төлбөрийг баталгаажуулах уу?`,
+      )
+    )
+      return;
 
     setLoading(true);
 
@@ -90,7 +99,10 @@ export default function MasterAdminPage() {
 
     const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
     let baseDate = new Date();
-    if (tenant?.subscription_end_date && new Date(tenant.subscription_end_date) > new Date()) {
+    if (
+      tenant?.subscription_end_date &&
+      new Date(tenant.subscription_end_date) > new Date()
+    ) {
       baseDate = new Date(tenant.subscription_end_date);
     }
     baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
@@ -101,7 +113,7 @@ export default function MasterAdminPage() {
       .update({
         plan: req.plan,
         status: "active",
-        subscription_end_date: baseDate.toISOString()
+        subscription_end_date: baseDate.toISOString(),
       })
       .ilike("client_id", req.client_id.trim());
 
@@ -116,7 +128,7 @@ export default function MasterAdminPage() {
       .from("payment_requests")
       .update({
         status: "approved",
-        approved_at: new Date().toISOString()
+        approved_at: new Date().toISOString(),
       })
       .eq("id", req.id);
 
@@ -126,18 +138,20 @@ export default function MasterAdminPage() {
       return;
     }
 
-    alert(`✅ Амжилттай баталлаа! "${req.client_id}"-ийн эрх ${baseDate.toLocaleDateString("mn-MN")} хүртэл сунгагдлаа.`);
+    alert(
+      `✅ Амжилттай баталлаа! "${req.client_id}"-ийн эрх ${baseDate.toLocaleDateString("mn-MN")} хүртэл сунгагдлаа.`,
+    );
     await fetchRequests();
-     // Dashboard руу шууд дохио буудах (Broadcast)
+    // Dashboard руу шууд дохио буудах (Broadcast)
     const channelName = `shop-updates-${req.client_id.replace(/\s+/g, "_")}`;
     const broadcastChannel = supabaseMaster.channel(channelName);
-    
+
     broadcastChannel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
+      if (status === "SUBSCRIBED") {
         await broadcastChannel.send({
-          type: 'broadcast',
-          event: 'payment_approved',
-          payload: { message: "approved" }
+          type: "broadcast",
+          event: "payment_approved",
+          payload: { message: "approved" },
         });
         // Дохиог илгээгээд сувгийг хаана
         setTimeout(() => supabaseMaster.removeChannel(broadcastChannel), 500);
@@ -147,7 +161,9 @@ export default function MasterAdminPage() {
 
   // ❌ ЦУЦЛАХ ҮЙЛДЭЛ (Reject)
   const handleReject = async (req: any) => {
-    const reason = prompt("Цуцлах шалтгаанаа бичнэ үү (Жишээ нь: Дансанд мөнгө ороогүй):");
+    const reason = prompt(
+      "Цуцлах шалтгаанаа бичнэ үү (Жишээ нь: Дансанд мөнгө ороогүй):",
+    );
     if (reason === null) return;
 
     setLoading(true);
@@ -155,7 +171,7 @@ export default function MasterAdminPage() {
       .from("payment_requests")
       .update({
         status: "rejected",
-        notes: reason || "Мөнгө дансанд ороогүй"
+        notes: reason || "Мөнгө дансанд ороогүй",
       })
       .eq("id", req.id);
 
@@ -177,7 +193,9 @@ export default function MasterAdminPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
         <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-bold tracking-wider uppercase">Админ эрхийг шалгаж байна...</p>
+        <p className="text-xs font-bold tracking-wider uppercase">
+          Админ эрхийг шалгаж байна...
+        </p>
       </div>
     );
   }
@@ -185,7 +203,6 @@ export default function MasterAdminPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
-        
         {/* ТОЛГОЙ ХЭСЭГ */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
           <div>
@@ -196,25 +213,28 @@ export default function MasterAdminPage() {
               Бүх салбарын төлбөр, эрхийг удирдах төв
             </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2">
-              <Bell className="h-5 w-5 text-emerald-400 animate-pulse" />
-              <span className="font-bold text-emerald-400">
-                Хүлээгдэж буй: {requests.filter(r => r.status === 'pending').length}
+            <div className="bg-zinc-800/60 border border-zinc-700/20 px-4 py-2 rounded-xl flex items-center gap-2">
+              <Bell className="h-5 w-5 text-zinc-200 " />
+              <span className="font-bold text-zinc-200">
+                Хүлээгдэж буй:{" "}
+                {requests.filter((r) => r.status === "pending").length}
               </span>
             </div>
 
-            <button 
-              onClick={fetchRequests} 
+            <button
+              onClick={fetchRequests}
               className="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
               title="Шинэчлэх"
             >
-              <RefreshCw className={`h-4 w-4 text-slate-300 ${loading ? "animate-spin text-emerald-400" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 text-slate-300 ${loading ? "animate-spin text-zinc-200" : ""}`}
+              />
             </button>
 
-            <button 
-              onClick={handleLogout} 
+            <button
+              onClick={handleLogout}
               className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl transition cursor-pointer"
               title="Админаас гарах"
             >
@@ -239,50 +259,85 @@ export default function MasterAdminPage() {
               </thead>
               <tbody className="divide-y divide-slate-800/50 text-sm">
                 {loading ? (
-                  <tr><td colSpan={6} className="text-center p-8 text-slate-500">Уншиж байна...</td></tr>
+                  <tr>
+                    <td colSpan={6} className="text-center p-8 text-slate-500">
+                      Уншиж байна...
+                    </td>
+                  </tr>
                 ) : requests.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center p-8 text-slate-500">Одоогоор төлбөрийн хүсэлт байхгүй байна.</td></tr>
+                  <tr>
+                    <td colSpan={6} className="text-center p-8 text-slate-500">
+                      Одоогоор төлбөрийн хүсэлт байхгүй байна.
+                    </td>
+                  </tr>
                 ) : (
                   requests.map((req) => (
-                    <tr key={req.id} className="hover:bg-slate-800/30 transition">
+                    <tr
+                      key={req.id}
+                      className="hover:bg-slate-800/30 transition"
+                    >
                       <td className="p-4 text-xs text-slate-400 font-mono">
                         {new Date(req.created_at).toLocaleString("mn-MN")}
                       </td>
                       <td className="p-4">
-                        <div className="font-bold text-white text-base">{req.client_id}</div>
-                        <div className="text-xs text-slate-400 font-mono mt-0.5">📞 {req.phone_number}</div>
+                        <div className="font-bold text-white text-base">
+                          {req.client_id}
+                        </div>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5">
+                          📞 {req.phone_number}
+                        </div>
                       </td>
                       <td className="p-4">
-                        <span className="bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider">
-                          {req.plan} ({req.billing_cycle === 'yearly' ? '1 Жил' : req.billing_cycle === 'upgrade' ? 'Ахиулах' : '1 Сар'})
+                        <span className="bg-slate-800 text-zinc-200 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider">
+                          {req.plan} (
+                          {req.billing_cycle === "yearly"
+                            ? "1 Жил"
+                            : req.billing_cycle === "upgrade"
+                              ? "Ахиулах"
+                              : "1 Сар"}
+                          )
                         </span>
                       </td>
                       <td className="p-4 text-right font-black text-white font-mono text-lg">
                         {Number(req.amount).toLocaleString()} ₮
                       </td>
                       <td className="p-4 text-center">
-                        {req.status === 'pending' && <span className="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded text-xs font-bold animate-pulse">Хүлээгдэж буй ⏳</span>}
-                        {req.status === 'approved' && <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded text-xs font-bold">Батлагдсан ✅</span>}
-                        {req.status === 'rejected' && <span className="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded text-xs font-bold">Цуцлагдсан ❌</span>}
+                        {req.status === "pending" && (
+                          <span className="text-zinc-300 bg-zinc-800/60 border border-amber-500/20 px-2 py-1 rounded text-xs font-bold ">
+                            Хүлээгдэж буй ⏳
+                          </span>
+                        )}
+                        {req.status === "approved" && (
+                          <span className="text-zinc-200 bg-zinc-800/60 border border-zinc-700/20 px-2 py-1 rounded text-xs font-bold">
+                            Батлагдсан ✅
+                          </span>
+                        )}
+                        {req.status === "rejected" && (
+                          <span className="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded text-xs font-bold">
+                            Цуцлагдсан ❌
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-right">
-                        {req.status === 'pending' ? (
+                        {req.status === "pending" ? (
                           <div className="flex items-center justify-end gap-2">
-                            <button 
+                            <button
                               onClick={() => handleReject(req)}
                               className="bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                             >
                               <XCircle className="h-4 w-4" /> Цуцлах
                             </button>
-                            <button 
+                            <button
                               onClick={() => handleApprove(req)}
-                              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1 shadow-lg active:scale-95 cursor-pointer"
+                              className="bg-white hover:bg-zinc-200 text-zinc-950 px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1 shadow-lg active:scale-95 cursor-pointer"
                             >
                               <CheckCircle2 className="h-4 w-4" /> БАТЛАХ
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-500 font-bold">{req.notes || 'Шийдэгдсэн'}</span>
+                          <span className="text-xs text-slate-500 font-bold">
+                            {req.notes || "Шийдэгдсэн"}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -292,7 +347,6 @@ export default function MasterAdminPage() {
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );
