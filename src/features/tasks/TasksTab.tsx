@@ -93,7 +93,7 @@ export default function TasksTab({
                     full_name: workerName,
                     role: workerRole, // 👈 Эзний үүсгэсэн бодит үүрэг орно!
                     pin_code: workerPin,
-                    email: `${workerName.toLowerCase().replace(/\s+/g, "")}@${activeClient.toLowerCase().replace(/\s+/g, "")}.internal`,
+                    email: null, 
                   },
                 ]);
 
@@ -155,7 +155,7 @@ export default function TasksTab({
           {/* Role Creator */}
           <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
-              1. Албан тушаал / Үүрэг үүсгэх
+              Албан тушаал / Үүрэг үүсгэх
             </h3>
             <form
               onSubmit={async (e) => {

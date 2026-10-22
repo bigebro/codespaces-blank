@@ -6,178 +6,69 @@ import { useRouter } from "next/navigation";
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 // 🚀 THE QUANTUM FORCE & MATTER OPERALINK LOGO
-function OperlinkLogo({ className = "h-12 w-12" }: { className?: string }) {
+export function OperlinkLogo({
+  className = "h-10 w-auto text-white",
+}: {
+  className?: string;
+}) {
   return (
-    <svg
-      viewBox="0 0 512 512"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
+    <svg viewBox="0 0 520 100" className={className} aria-label="OPERLINK">
       <defs>
-        <linearGradient
-          id="vectorGrad"
-          x1="56"
-          y1="456"
-          x2="456"
-          y2="56"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stopColor="#00f59b" stopOpacity="0" />
-          <stop offset="30%" stopColor="#00f59b" stopOpacity="0.5" />
-          <stop offset="50%" stopColor="#ffffff" />
-          <stop offset="70%" stopColor="#00c8ff" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="#00c8ff" stopOpacity="0" />
-        </linearGradient>
-
-        <linearGradient
-          id="energyGrad"
-          x1="56"
-          y1="456"
-          x2="456"
-          y2="56"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stopColor="#00f59b" />
-          <stop offset="50%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#00c8ff" />
-        </linearGradient>
-
-        <linearGradient
-          id="statorGrad"
-          x1="120"
-          y1="120"
-          x2="392"
-          y2="392"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stopColor="#00f59b" />
-          <stop offset="30%" stopColor="#005577" />
-          <stop offset="70%" stopColor="#005577" />
-          <stop offset="100%" stopColor="#00c8ff" />
-        </linearGradient>
-
-        <radialGradient
-          id="coreHalo"
-          cx="256"
-          cy="256"
-          r="60"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-          <stop offset="25%" stopColor="#00f59b" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#00f59b" stopOpacity="0" />
-        </radialGradient>
-
-        <filter id="neonCyan" x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow
-            dx="0"
-            dy="0"
-            stdDeviation="12"
-            floodColor="#00c8ff"
-            floodOpacity="0.8"
-          />
-        </filter>
-        <filter id="neonEmerald" x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow
-            dx="0"
-            dy="0"
-            stdDeviation="10"
-            floodColor="#00f59b"
-            floodOpacity="0.6"
-          />
-        </filter>
+        {/* Slices the logo perfectly in half horizontally */}
+        <clipPath id="top-slice">
+          <rect x="0" y="0" width="520" height="48" />
+        </clipPath>
+        <clipPath id="bottom-slice">
+          <rect x="0" y="52" width="520" height="48" />
+        </clipPath>
       </defs>
 
-      {/* 1. OUTER HUD RING */}
-      <circle
-        cx="256"
-        cy="256"
-        r="220"
-        stroke="#00c8ff"
-        strokeOpacity="0.2"
-        strokeWidth="2"
-        strokeDasharray="4 12"
-      />
-      <circle cx="411.5" cy="411.5" r="4" fill="#00f59b" />
-      <circle cx="100.5" cy="411.5" r="4" fill="#00f59b" />
-      <circle cx="100.5" cy="100.5" r="4" fill="#00f59b" />
-      <circle cx="411.5" cy="100.5" r="4" fill="#00f59b" />
-
-      {/* 2. THE FORCE VECTOR */}
-      <line
-        x1="56"
-        y1="456"
-        x2="456"
-        y2="56"
-        stroke="url(#vectorGrad)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-
-      {/* 3. BACK ORBIT */}
-      <g transform="rotate(-45 256 256)">
-        <path
-          d="M 56 256 A 200 60 0 0 1 456 256"
-          stroke="url(#energyGrad)"
-          strokeWidth="10"
-          strokeOpacity="0.4"
-          strokeLinecap="round"
-          fill="none"
-        />
+      {/* TOP HALF - Shifted left for the shear effect */}
+      <g clipPath="url(#top-slice)" transform="translate(-2, 0)">
+        <LogoGeometry />
       </g>
 
-      {/* 4. MATTER STATORS */}
-      <g filter="url(#neonEmerald)">
-        <path
-          d="M 286.9 351.1 A 100 100 0 0 1 160.9 225.1"
-          stroke="url(#statorGrad)"
-          strokeWidth="28"
-          strokeLinecap="round"
-          fill="none"
-        />
-        <path
-          d="M 225.1 160.9 A 100 100 0 0 1 351.1 286.9"
-          stroke="url(#statorGrad)"
-          strokeWidth="28"
-          strokeLinecap="round"
-          fill="none"
-        />
+      {/* BOTTOM HALF - Shifted right for the shear effect */}
+      <g clipPath="url(#bottom-slice)" transform="translate(2, 0)">
+        <LogoGeometry />
       </g>
-
-      <path
-        d="M 280.9 349.5 A 100 100 0 0 1 162.7 231.3"
-        stroke="#050a12"
-        strokeWidth="4"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M 231.1 162.5 A 100 100 0 0 1 349.3 280.7"
-        stroke="#050a12"
-        strokeWidth="4"
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      {/* 5. FRONT ORBIT */}
-      <g transform="rotate(-45 256 256)" filter="url(#neonCyan)">
-        <path
-          d="M 456 256 A 200 60 0 0 1 56 256"
-          stroke="url(#energyGrad)"
-          strokeWidth="14"
-          strokeLinecap="round"
-          fill="none"
-        />
-      </g>
-
-      {/* 6. QUANTUM CORE */}
-      <circle cx="256" cy="256" r="45" fill="url(#coreHalo)" />
-      <circle cx="256" cy="256" r="8" fill="#ffffff" filter="url(#neonCyan)" />
     </svg>
   );
 }
 
+// Reusable geometry so we can slice it in half above
+function LogoGeometry() {
+  return (
+    <>
+      {/* The 'O' - Embedded perfectly as your Reticle Logo */}
+      <g transform="translate(10, 20)">
+        <circle cx="30" cy="30" r="26" stroke="currentColor" strokeWidth="3" fill="none" />
+        <path d="M 33 41 A 12 12 0 0 1 19 27" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
+        <path d="M 27 19 A 12 12 0 0 1 41 33" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
+        <line x1="9" y1="51" x2="51" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="30" cy="30" r="2.5" fill="currentColor" />
+      </g>
+
+      {/* The 'PERLINK' - Custom Engineered Forward-Leaning Geometric Path */}
+      <g transform="translate(90, 0) skewX(-12)" fill="currentColor">
+        {/* P */}
+        <path fillRule="evenodd" clipRule="evenodd" d="M0 25h30a15 15 0 0 1 15 15 15 15 0 0 1-15 15H12v20H0V25zm12 12h18a3 3 0 0 1 3 3 3 3 0 0 1-3 3H12V37z" />
+        {/* E */}
+        <path d="M 60 25 h 40 v 11 h -28 v 8 h 22 v 11 h -22 v 9 h 28 v 11 h -40 z" />
+        {/* R */}
+        <path fillRule="evenodd" clipRule="evenodd" d="M115 25h30a15 15 0 0 1 15 15 15 15 0 0 1-15 15h-0l15 20h-14.5l-14.5-20h-4v20h-12V25zm12 12h18a3 3 0 0 1 3 3 3 3 0 0 1-3 3H127V37z" />
+        {/* L */}
+        <path d="M 175 25 v 50 h 35 v -11 h -23 v -39 z" />
+        {/* I */}
+        <path d="M 225 25 v 50 h 12 v -50 z" />
+        {/* N */}
+        <path d="M252 25 H264 L285 55 V25 H297 V75 H285 L264 45 V75 H252 Z" />
+        {/* K */}
+        <path d="M312 25 V75 H324 V55 L340 75 H357 L334 50 L357 25 H340 L324 45 V25 Z" />
+      </g>
+    </>
+  );
+}
 export default function LoginPage() {
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -370,7 +261,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-zinc-900/40 p-8 rounded-2xl border border-zinc-900 shadow-2xl backdrop-blur-md">
         {/* ТОМОРСОН ЛОГО БА ЦЭВЭРХЭН ГАРЧИГ (Дэд тайлбаргүй) */}
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center ">
+          <div className="bg-black p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center ">
             <OperlinkLogo className="h-12 w-12" />
           </div>
 

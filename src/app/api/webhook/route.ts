@@ -73,7 +73,7 @@ const WORKER_BOT_PROMPT = `
   [ХАТУУ МӨРДӨХ ДҮРЭМ]:
   1. Таны цорын ганц үүрэг: Ажилтны бичсэн зарлага, хаягдал, татан авалтыг ойлгох.
   2. Ажилтан санхүүгийн ашиг, орлого, тайлан асуувал ШУУД ингэж татгалзан хариулна: 
-     "🔒 Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
+     "Уучлаарай, би зөвхөн орлого, зарлага, хаягдал бүртгэх үүрэгтэй туслах байна. Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой."
 `;
 
 // ⚡ Google гацсан үед ажиллах Groq Fallback
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
           }
         }
 
-        const promptText = `✅ [ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Систем дээрх үлдэгдэл: ${Math.round(systemStock * 10) / 10} ${unitStr})\n\nЗөвхөн тоогоор бичнэ үү:`;
+        const promptText = `[ ${itemName} ] үлдэгдэл хэдэн ${unitStr} байна вэ?\n(Систем дээрх үлдэгдэл: ${Math.round(systemStock * 10) / 10} ${unitStr})\n\nЗөвхөн тоогоор бичнэ үү:`;
         await sendTelegramMessageWithForceReply(currentChatId, promptText);
         return NextResponse.json({ status: "ok" });
       }
@@ -213,7 +213,7 @@ export async function POST(request: Request) {
         await editTelegramMessage(
           currentChatId,
           messageId,
-          `✅ **Үүрэг сонгогдлоо!**\n\nТаны дүр: **${fullNameRole}**${taskText}\n\nАжилдаа амжилт хүсье!`,
+          `**Үүрэг сонгогдлоо!**\n\nТаны дүр: **${fullNameRole}**${taskText}\n\nАжилдаа амжилт хүсье!`,
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
         await editTelegramMessage(
           currentChatId,
           messageId,
-          "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:",
+          "**Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:",
           buttons,
         );
         return NextResponse.json({ status: "ok" });
@@ -273,7 +273,7 @@ export async function POST(request: Request) {
       if (callbackData === "ignore") {
         await answerTelegramCallback(
           callbackQueryId,
-          "✅ Энэ бараа тоологдсон байна.",
+          "Энэ бараа тоологдсон байна.",
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -297,7 +297,7 @@ export async function POST(request: Request) {
         await editTelegramMessage(
           currentChatId,
           messageId,
-          "✅ Чек-лист тооллого амжилттай хийгдэж дууслаа.",
+          "Чек-лист тооллого амжилттай хийгдэж дууслаа.",
         );
 
         if (activeShift) {
@@ -305,7 +305,7 @@ export async function POST(request: Request) {
         } else {
           await sendTelegramMessageWithMenu(
             currentChatId,
-            "🌙 Таны ээлж хаагдсан. Сайхан амраарай!",
+            "Таны ээлж хаагдсан. Сайхан амраарай!",
           );
         }
         return NextResponse.json({ status: "ok" });
@@ -384,7 +384,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ status: "ok" });
         }
 
-        let successMessage = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
+        let successMessage = "**Татан авалт амжилттай бүртгэгдлээ:**\n\n";
         const logsToInsert: any[] = [];
         const workerName = message.from?.first_name || "Ажилтан";
         const currentDate = new Date().toISOString();
@@ -534,25 +534,25 @@ export async function POST(request: Request) {
           if (allDone) {
             await sendTelegramMessage(
               currentChatId,
-              `👍 [${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\nЧек-лист 100% биеллээ! 🎉`,
+              `[${itemName}] барааг ${qty} ${ingredient.unit} гэж бүртгэлээ.\nЧек-лист 100% биеллээ! 🎉`,
             );
             await generateShiftScorecard(activeShift, currentChatId);
           } else {
             let buttons = checklist.map((item: any) => {
               if (item.done)
                 return [
-                  { text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` },
+                  { text: `${item.name} (Тоолов)`, callback_data: `ignore` },
                 ];
               return [
                 {
-                  text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,
+                  text: `${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,
                   callback_data: `cnt_${item.name}`,
                 },
               ];
             });
             buttons.push([
               {
-                text: "🔒 Ээлж хаах (Дуусаагүй байна)",
+                text: "Ээлж хаах (Дуусаагүй байна)",
                 callback_data: "close_shift_locked",
               },
             ]);
@@ -637,7 +637,7 @@ export async function POST(request: Request) {
 
       await sendTelegramMessage(
         currentChatId,
-        `✅ Амжилттай холбогдлоо!\n\nБүртгэл: ${emailInput}\nСалбар: ${actualBranch}`,
+        `Амжилттай холбогдлоо!\n\nБүртгэл: ${emailInput}\nСалбар: ${actualBranch}`,
       );
       return NextResponse.json({ status: "ok" });
     }
@@ -647,7 +647,7 @@ export async function POST(request: Request) {
     // =========================================================================
     if (incomingText === "/start") {
       const welcomeText =
-        "Сайн байна уу? 'Operlink' туслах ботод тавтай морилно уу! ☕✨\n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
+        "Сайн байна уу? 'Operlink' туслах ботод тавтай морилно уу! \n\nЦэсний товчнууд ашиглан ээлж эхлүүлэх, хаах, тайлан харах боломжтой.";
       await sendTelegramMessageWithMenu(currentChatId, welcomeText);
       return NextResponse.json({ status: "ok" });
     }
@@ -660,13 +660,13 @@ export async function POST(request: Request) {
     if (
       incomingText === "/report" ||
       lowercaseMsg === "тайлан харах" ||
-      lowercaseMsg === "📊 тайлан харах" ||
+      lowercaseMsg === "тайлан харах" ||
       lowercaseMsg === "report"
     ) {
       if (userProfile?.role !== "owner" && userProfile?.role !== "admin") {
         await sendTelegramMessage(
           currentChatId,
-          "🔒 Уучлаарай, санхүүгийн тайланг зөвхөн Эзэн болон Админы эрхээр харах боломжтой.",
+          "Уучлаарай, санхүүгийн тайланг зөвхөн Эзэн болон Админы эрхээр харах боломжтой.",
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -698,17 +698,17 @@ export async function POST(request: Request) {
       const fin = data.financial_ladder || {};
 
       const reportMarkdown =
-        `📊 **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n` +
-        `📅 *Тайлант хугацаа: ${targetStart ? targetStart.substring(0, 7) : "Одоогийн"}*\n\n` +
+        ` **САНХҮҮГИЙН ТАЙЛАН (${tenantClientId}):**\n` +
+        `*Тайлант хугацаа: ${targetStart ? targetStart.substring(0, 7) : "Одоогийн"}*\n\n` +
         `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
         `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
         `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
         `• **OPEX зардал:** ${Math.round(fin.opex || 0).toLocaleString()} ₮\n` +
         `• **EBIT (Татварын өмнөх):** ${Math.round(fin.ebit || 0).toLocaleString()} ₮\n` +
         `• **ЦЭВЭР АШИГ:** ${Math.round(fin.net_profit || 0).toLocaleString()} ₮ *(${fin.net_margin || "0%"})*\n\n` +
-        `🗑 **Бодит алдагдал (Waste):** ${Math.round(data.total_waste_loss || 0).toLocaleString()} ₮\n` +
-        `⚡ **Ажлын бүтээмж:** ${data.efficiency || "0%"}\n\n` +
-        `💎 **ТОП ХАЯГДАЛТАЙ БАРАА:**\n` +
+        ` **Бодит алдагдал (Waste):** ${Math.round(data.total_waste_loss || 0).toLocaleString()} ₮\n` +
+        ` **Ажлын бүтээмж:** ${data.efficiency || "0%"}\n\n` +
+        ` **ТОП ХАЯГДАЛТАЙ БАРАА:**\n` +
         (data.top_wasters?.length > 0
           ? data.top_wasters
               .map(
@@ -717,7 +717,7 @@ export async function POST(request: Request) {
               )
               .join("\n")
           : "• Бүртгэгдсэн хаягдал байхгүй байна.") +
-        `\n\n💡 *Та санхүү, хаягдлын талаар ямар ч асуултаа шууд бичиж асууж болно.*`;
+        `\n\n*Та санхүү, хаягдлын талаар ямар ч асуултаа шууд бичиж асууж болно.*`;
 
       await sendTelegramMessage(currentChatId, reportMarkdown);
       return NextResponse.json({ status: "ok" });
@@ -729,7 +729,7 @@ export async function POST(request: Request) {
     if (
       incomingText === "/shift_start" ||
       lowercaseMsg === "ээлж эхлэх" ||
-      lowercaseMsg === "☀️ ээлж эхлэх"
+      lowercaseMsg === "ээлж эхлэх"
     ) {
       const { data: activeShift } = await supabaseAdmin
         .from("shifts")
@@ -749,7 +749,7 @@ export async function POST(request: Request) {
       const firstName = message.from?.first_name || "Ажилтан";
       const fullNameRole = `${profileRole} (${firstName})`;
 
-      if (profileRole === "Бариста ☕" || profileRole === "Тогооч 🍳") {
+      if (profileRole === "Бариста" || profileRole === "Тогооч") {
         const { data: roleTasks } = await supabaseAdmin
           .from("tasks")
           .select("*")
@@ -792,7 +792,7 @@ export async function POST(request: Request) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               chat_id: currentChatId,
-              text: `✅ **Ээлж амжилттай эхэллээ!**\n\nҮүрэг: **${fullNameRole}**${taskText}\n\n*Хэрэв өнөөдөр өөр үүрэгтэй ажиллах бол доорх товчийг дарж солино уу:*`,
+              text: `**Ээлж амжилттай эхэллээ!**\n\nҮүрэг: **${fullNameRole}**${taskText}\n\n*Хэрэв өнөөдөр өөр үүрэгтэй ажиллах бол доорх товчийг дарж солино уу:*`,
               reply_markup: {
                 inline_keyboard: [
                   [
@@ -878,7 +878,7 @@ export async function POST(request: Request) {
         ]);
         await sendTelegramMessageWithInlineKeyboard(
           currentChatId,
-          "📋 **Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:",
+          "**Ажлын Даалгавар:** Хийсэн ажлуудаа тэмдэглэнэ үү:",
           buttons,
         );
       } else {
@@ -968,7 +968,7 @@ export async function POST(request: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: currentChatId,
-          text: "🧠 *Бодож байна...*",
+          text: "*Бодож байна...*",
           parse_mode: "Markdown",
         }),
       },
@@ -1532,7 +1532,7 @@ async function generateInventoryChecklist(
 
     buttons.push([
       {
-        text: "🔒 Ээлж хаах (Дуусаагүй байна)",
+        text: "Ээлж хаах (Дуусаагүй байна)",
         callback_data: "close_shift_locked",
       },
     ]);
@@ -1619,7 +1619,7 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
 
   await sendTelegramMessageWithMenu(
     chatId,
-    `✅ **Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа!`,
+    `**Ээлж амжилттай хаагдлаа!**\n\nӨнөөдрийн тооллого болон өдрийн хаалтын процессууд системд хадгалагдлаа. Сайн ажиллалаа!`,
   );
 
   const durationMs =
@@ -1630,30 +1630,30 @@ async function generateShiftScorecard(activeShift: any, chatId: number | null) {
   const auditAlerts: string[] = [];
   if (manualPurchases > 0) {
     auditAlerts.push(
-      `⚠️ **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.**`,
+      ` **${manualPurchases} татан авалт зураггүй гараар шивэгдсэн байна.**`,
     );
   } else if (totalPurchases > 0 && manualPurchases === 0) {
     auditAlerts.push(
-      `✅ Бүх татан авалтууд зураг болон E-Barimt-аар баталгаажсан.`,
+      `Бүх татан авалтууд зураг болон E-Barimt-аар баталгаажсан.`,
     );
   }
 
   if (loggedWasteEvents === 0) {
-    auditAlerts.push(`⚠️ Ээлжийн турш ямар ч хаягдал бүртгэгдсэнгүй.`);
+    auditAlerts.push(`Ээлжийн турш ямар ч хаягдал бүртгэгдсэнгүй.`);
   } else {
     auditAlerts.push(
-      `✅ ${loggedWasteEvents} удаагийн хаягдлыг үнэн зөв бүртгэсэн.`,
+      `${loggedWasteEvents} удаагийн хаягдлыг үнэн зөв бүртгэсэн.`,
     );
   }
 
   const ownerScorecardText =
-    `👑 **ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН**\n\n` +
-    `🏢 **Салбар:** ${tenantClientId}\n` +
-    `👤 **Ажилтан:** ${role}\n` +
-    `⏱ **Ажилласан:** ${hours} цаг ${minutes} минут\n` +
-    `📋 **Тоолсон бараа:** ${itemsCounted} ш\n` +
-    `🗑 **Бүртгэсэн хаягдал:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
-    `🛡 **АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
+    `**ЭЗЭНД ЗОРИУЛСАН ЭЭЛЖИЙН ХЯНАЛТЫН ТАЙЛАН**\n\n` +
+    `**Салбар:** ${tenantClientId}\n` +
+    ` **Ажилтан:** ${role}\n` +
+    `**Ажилласан:** ${hours} цаг ${minutes} минут\n` +
+    `**Тоолсон бараа:** ${itemsCounted} ш\n` +
+    `**Бүртгэсэн хаягдал:** ${Math.round(totalWasteCost).toLocaleString()} ₮\n\n` +
+    `**АЮУЛГҮЙ БАЙДЛЫН ҮНЭЛГЭЭ:**\n` +
     auditAlerts.map((alert) => `• ${alert}`).join("\n");
 
   const { data: owners } = await supabaseAdmin

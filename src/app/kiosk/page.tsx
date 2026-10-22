@@ -29,8 +29,13 @@ import {
   Utensils,
   Beaker,
   Package,
-  DollarSign, Image as ImageIcon, Wallet,
-   Banknote, Crown, Receipt, ChefHat
+  DollarSign,
+  Image as ImageIcon,
+  Wallet,
+  Banknote,
+  Crown,
+  Receipt,
+  ChefHat,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1379,12 +1384,13 @@ function KioskPage() {
   const fetchKioskData = async (client: string) => {
     const target = client.trim();
 
-    // 1. 👥 Ажилтнуудыг татах
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("*")
-      .ilike("client_id", target)
-      .neq("role", "owner");
+    const { data: profiles, error } = await supabase.rpc("get_kiosk_staff", {
+      target_client_id: target,
+    });
+
+    if (error) {
+      console.error("Error loading kiosk staff:", error);
+    }
 
     if (profiles) setWorkers(profiles);
 
@@ -1432,7 +1438,9 @@ function KioskPage() {
       .ilike("client_id", tenantId)
       .eq("is_active", true);
 
-    const workerName = worker.email.split("@")[0];
+    const workerName = worker?.email
+      ? worker.email.split("@")[0]
+      : worker?.full_name || "Ажилтан";
     const workerDisplayName = (worker.full_name || workerName).trim();
     const workerRoleLower = (worker.role || "").toLowerCase().trim();
     const workerNameLower = workerDisplayName.toLowerCase().trim();
@@ -1526,9 +1534,16 @@ function KioskPage() {
 
   const handleVerifyPin = async () => {
     if (!selectedWorker) return;
-    const validPin = selectedWorker.pin_code || "1234";
 
-    if (pin !== validPin) {
+    const { data: isValid, error: pinError } = await supabase.rpc(
+      "verify_kiosk_pin",
+      {
+        target_worker_id: selectedWorker.id,
+        entered_pin: pin,
+      },
+    );
+
+    if (pinError || !isValid) {
       setMsg("❌ Буруу PIN код!");
       setPin("");
       return;
@@ -1852,7 +1867,7 @@ function KioskPage() {
             href="/login?from=kiosk"
             className="text-zinc-300 hover:text-white text-xs font-bold bg-zinc-900 px-2 py-1.5 rounded-xl border border-zinc-800 active:scale-95 transition"
           >
-            🔒 Dashboard
+            Dashboard
           </Link>
           {/* 🟢 ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
           {selectedWorker && (
@@ -1922,10 +1937,11 @@ function KioskPage() {
                   >
                     <div>
                       <span className="text-base sm:text-lg font-black text-white uppercase block group-hover:text-zinc-200 transition">
-                        {w.full_name || w.email.split("@")[0]}
+                        {w.full_name ||
+                          (w.email ? w.email.split("@")[0] : "Ажилтан")}
                       </span>
                       <span className="text-xs text-zinc-200 font-bold uppercase mt-0.5 block">
-                        🏷️ {w.role}
+                        {w.role}
                       </span>
                     </div>
                     <div className="bg-zinc-950 p-2.5 rounded-xl text-zinc-500 group-hover:text-zinc-200 font-black text-xs">
@@ -2621,8 +2637,8 @@ function KioskPage() {
                 }}
                 className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-700 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
-            <Banknote className="h-4 w-4" />
-        <span>Мөнгө гаргах</span>
+                <Banknote className="h-4 w-4" />
+                <span>Мөнгө гаргах</span>
               </button>
 
               <button
@@ -2778,35 +2794,35 @@ function KioskPage() {
                       ✕
                     </button>
                   </div>
-            <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
-              {/* 👑 ЭЗНИЙ ТАТАЛТ (Яг голдоо тэгшхэн байрлана) */}
-              <button
-                type="button"
-                onClick={() => setCashOutType("owner_draw")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  cashOutType === "owner_draw"
-                    ? "bg-white text-zinc-950 shadow-sm"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <Crown className="h-4 w-4 shrink-0" />
-                <span>Эзний таталт</span>
-              </button>
+                  <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
+                    {/* 👑 ЭЗНИЙ ТАТАЛТ (Яг голдоо тэгшхэн байрлана) */}
+                    <button
+                      type="button"
+                      onClick={() => setCashOutType("owner_draw")}
+                      className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        cashOutType === "owner_draw"
+                          ? "bg-white text-zinc-950 shadow-sm"
+                          : "text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <Crown className="h-4 w-4 shrink-0" />
+                      <span>Эзний таталт</span>
+                    </button>
 
-              {/* 🧾 ЖИЖИГ ЗАРДАЛ (Яг голдоо тэгшхэн байрлана) */}
-              <button
-                type="button"
-                onClick={() => setCashOutType("petty_cash")}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  cashOutType === "petty_cash"
-                    ? "bg-white text-zinc-950 shadow-sm"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <Receipt className="h-4 w-4 shrink-0" />
-                <span>Жижиг зардал (CU)</span>
-              </button>
-            </div>
+                    {/* 🧾 ЖИЖИГ ЗАРДАЛ (Яг голдоо тэгшхэн байрлана) */}
+                    <button
+                      type="button"
+                      onClick={() => setCashOutType("petty_cash")}
+                      className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        cashOutType === "petty_cash"
+                          ? "bg-white text-zinc-950 shadow-sm"
+                          : "text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <Receipt className="h-4 w-4 shrink-0" />
+                      <span>Жижиг зардал (CU)</span>
+                    </button>
+                  </div>
 
                   <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 text-center">
                     <span className="text-3xl font-black text-white font-mono">
@@ -3126,7 +3142,9 @@ function KioskPage() {
                             htmlFor="single-pur-gallery"
                             className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                           >
-                            <span className="flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> Цомог</span>
+                            <span className="flex items-center gap-1.5">
+                              <ImageIcon className="h-3.5 w-3.5" /> Цомог
+                            </span>
                           </label>
                         </div>
 

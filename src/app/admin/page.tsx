@@ -24,7 +24,7 @@ export default function MasterAdminPage() {
 
       const { data: isAdmin } = await supabaseMaster.rpc("is_master_admin");
       if (!isAdmin) {
-        alert("🔒 Зөвхөн платформын эзэн хандах эрхтэй!");
+        alert("Зөвхөн платформын эзэн хандах эрхтэй!");
         await supabaseMaster.auth.signOut();
         router.replace("/master-login");
         return;
