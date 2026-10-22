@@ -361,13 +361,13 @@ function Home() {
       id: "HOT_BEVERAGE",
       name: "☕ Халуун ундаа",
       icon: "☕",
-      color: "text-zinc-300 bg-zinc-800/60 border-zinc-700",
+      color: "text-amber-300 bg-amber-500/10 border-amber-500/30",
     },
     {
       id: "COLD_BEVERAGE",
       name: "🍹 Хүйтэн ундаа",
       icon: "🍹",
-      color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
     },
     {
       id: "FOOD_PREP",
@@ -379,13 +379,13 @@ function Home() {
       id: "BAKERY_DESSERT",
       name: "🥐 Бэйкэри & Десерт",
       icon: "🥐",
-      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
     },
     {
       id: "RETAIL_FMCG",
       name: "🥤 Бэлэн бараа (Лааз/Сав)",
       icon: "🥤",
-      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+      color: "text-zinc-300 bg-zinc-800/60 border-blue-500/30",
     },
     {
       id: "GENERAL",
@@ -1227,7 +1227,7 @@ function Home() {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center justify-between cursor-pointer ${
                       opt.value === value
-                        ? "bg-purple-600/30 text-zinc-300 font-bold border border-zinc-800/30"
+                        ? "bg-zinc-200/30 text-zinc-300 font-bold border border-zinc-800/30"
                         : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
@@ -2208,17 +2208,17 @@ function Home() {
   // ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй
   //   if (loading && userRole !=="owner") {
   //   return (
-  //     <div className="min-h-screen bg-[#0B1120] flex flex-col items-center justify-center select-none">
+  //     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center select-none">
   //       <div className="relative w-12 h-12 flex items-center justify-center mb-4">
   //         <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
-  //         <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+  //         <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin" />
   //       </div>
   //     </div>
   //   );
   // }
 
   return (
-    <div className="flex h-screen bg-[#0B1120] overflow-hidden text-slate-100 font-sans antialiased selection:bg-zinc-800">
+    <div className="flex h-screen bg-zinc-950 overflow-hidden text-slate-100 font-sans antialiased selection:bg-zinc-800">
       {/* ========================================== */}
       {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
       {/* ========================================== */}
@@ -2246,14 +2246,12 @@ function Home() {
         {/* Logo & Close Button Area */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80">
           <div className="flex items-center gap-2">
-            <div className="bg-[#07131d] p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
+            <div className="bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 shadow-[0_0_15px_rgba(0,245,155,0.15)] flex items-center justify-center">
               <OperlinkLogo className="h-5 w-5" />
             </div>
             <span className="font-black text-lg tracking-tight text-white uppercase">
               OPER
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
-                LINK
-              </span>
+              <span className="text-white">LINK</span>
             </span>
           </div>
 
@@ -2429,7 +2427,7 @@ function Home() {
             <button
               type="button"
               onClick={() => setShowCheckoutModal(true)}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
+              className="w-full bg-white hover:bg-zinc-200 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
             >
               <span className="flex items-center gap-1.5">
                 <span>⚡</span>
@@ -2471,7 +2469,7 @@ function Home() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* TOP HEADER BAR */}
         {/* TOP HEADER BAR */}
-        <header className="h-16 bg-[#0B1120]/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
+        <header className="h-16 bg-zinc-950/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
           <div className="flex items-center gap-2 sm:gap-4">
             {/* 👈 HAMBURGER MENU (Зөвхөн цэс хураагдсан үед л гарч ирнэ) */}
             {!isSidebarOpen && (
@@ -2519,7 +2517,7 @@ function Home() {
           <div className="max-w-7xl mx-auto w-full max-w-full relative">
             {/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
             {tenantInfo?.isExpired && (
-              <div className="fixed inset-0 z-50 bg-[#0B1120]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+              <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
                 <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 " />
                 <h2 className="text-2xl font-black text-white mb-2">
                   Үйлчилгээний эрх зогссон байна
@@ -2544,9 +2542,9 @@ function Home() {
             {tenantInfo &&
               tenantInfo.daysLeft <= 3 &&
               !tenantInfo.isExpired && (
-                <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-zinc-700 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-zinc-300 text-base">⚠️</span>
+                    <span className="text-amber-400 text-base">⚠️</span>
                     <p className="text-xs text-slate-300">
                       Таны{" "}
                       {tenantInfo.isTrial
@@ -2559,7 +2557,7 @@ function Home() {
                   <button
                     type="button"
                     onClick={() => setShowCheckoutModal(true)}
-                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
+                    className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow cursor-pointer"
                   >
                     {tenantInfo.isTrial
                       ? "Албан ёсны эрх авах ➔"
@@ -2580,7 +2578,7 @@ function Home() {
                     <div className="relative z-10 flex items-center justify-center">
                       <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
                       {/* Арай томруулсан цагираг: h-10 w-10 */}
-                      <div className="h-10 w-10 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
+                      <div className="h-10 w-10 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
                     </div>
                   </div>
 
@@ -2756,7 +2754,7 @@ function Home() {
                     activeTab !== "sales" &&
                     activeTab !== "dashboard" &&
                     activeTab !== "settings" && (
-                      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
+                      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8 mt-8">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-800">
                           <div>
                             <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
@@ -2915,7 +2913,7 @@ function Home() {
                                               log.type === "purchase"
                                                 ? "bg-zinc-800/60 text-zinc-300"
                                                 : log.type === "count"
-                                                  ? "bg-purple-500/10 text-zinc-300"
+                                                  ? "bg-zinc-800/60 text-zinc-300"
                                                   : "bg-rose-500/10 text-rose-400"
                                             }`}
                                           >
@@ -3011,7 +3009,7 @@ function Home() {
                               </span>
                             </h3>
                             {tenantInfo?.isTrial && (
-                              <span className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 rounded font-black">
+                              <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-black">
                                 Туршилт
                               </span>
                             )}
@@ -3151,7 +3149,7 @@ function Home() {
                           </button>
                         </div>
                         {/* 🤖 AI ЗӨВЛӨХТЭЙ ЯРИЛЦАХ ЗААВАР */}
-                        <div className="bg-zinc-800/60 border border-zinc-800 p-5 rounded-2xl mb-6">
+                        <div className="bg-zinc-800/60 border border-blue-500/30 p-5 rounded-2xl mb-6">
                           <h4 className="font-black text-zinc-300 text-sm flex items-center gap-2 mb-2">
                             <Bot className="h-5 w-5" />
                             AI Зөвлөхөөс хэрхэн асуух вэ? (Хамгийн хурдан арга)
@@ -3188,7 +3186,7 @@ function Home() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* НӨХЦӨЛ 1 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-zinc-800/60 p-2 rounded-xl">
                                 <Coffee className="h-5 w-5 text-zinc-200" />
@@ -3210,7 +3208,7 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 2 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-zinc-800/60 p-2 rounded-xl">
                                 <Layers3 className="h-5 w-5 text-zinc-300" />
@@ -3224,7 +3222,7 @@ function Home() {
                               хэрэглэсэн, эсвэл санамсаргүй асгасан ч Kiosk-д
                               оруулж амжаагүй байх.
                             </p>
-                            <div className="bg-zinc-200/5 border-l-2 border-zinc-700 p-2.5 text-sm text-blue-300/90 rounded-r-lg">
+                            <div className="bg-blue-500/5 border-l-2 border-blue-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
                               <strong>Авах арга хэмжээ:</strong> Ажилтнаас
                               асуух. Хэрэв асгасан байвал Kiosk руу ороод "1л
                               сүү асгасан" гэж нөхөж оруулахад л системийн энэ
@@ -3233,7 +3231,7 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 3 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-rose-900/50 hover:border-rose-500/30 transition md:col-span-2">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-rose-900/50 hover:border-rose-500/30 transition md:col-span-2">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="bg-rose-500/10 p-2 rounded-xl">
                                 <DollarSign className="h-5 w-5 text-rose-400" />
@@ -3264,12 +3262,12 @@ function Home() {
                           </div>
 
                           {/* НӨХЦӨЛ 4 */}
-                          <div className="bg-[#111827] p-5 rounded-2xl border border-amber-900/50 hover:border-zinc-700 transition md:col-span-2">
+                          <div className="bg-zinc-900 p-5 rounded-2xl border border-amber-900/50 hover:border-amber-500/30 transition md:col-span-2">
                             <div className="flex items-center gap-3 mb-3">
-                              <div className="bg-zinc-800/60 p-2 rounded-xl">
-                                <AlertTriangle className="h-5 w-5 text-zinc-300" />
+                              <div className="bg-amber-500/10 p-2 rounded-xl">
+                                <AlertTriangle className="h-5 w-5 text-amber-400" />
                               </div>
-                              <h4 className="font-bold text-zinc-300 text-sm">
+                              <h4 className="font-bold text-amber-400 text-sm">
                                 4. Физик хулгай эсвэл Том асгаралт
                               </h4>
                             </div>
@@ -3277,7 +3275,7 @@ function Home() {
                               <strong>Шинж тэмдэг:</strong> Бүтэн 1 хайрцаг сүү
                               (12л), эсвэл 1 бүтэн уут кофе гэнэт алга болох.
                             </p>
-                            <div className="bg-amber-500/5 border-l-2 border-amber-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
+                            <div className="bg-amber-500/5 border-l-2 border-amber-500 p-2.5 text-sm text-amber-300/90 rounded-r-lg">
                               <strong>Авах арга хэмжээ:</strong> Хэрэв Kiosk
                               дээр зурагтай "Хаягдал" бүртгэгдээгүй байвал
                               тухайн ээлжийн ажилтнаас шууд тайлбар нэхэж,
@@ -3396,7 +3394,7 @@ function Home() {
             {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
             {showUpgradeSuccess && (
               <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-                <div className="bg-[#0B1120] border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
+                <div className="bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">
                   <div className="w-20 h-20 bg-zinc-800/60 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
                     <span className="text-4xl">🎉</span>
                   </div>

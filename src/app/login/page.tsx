@@ -370,7 +370,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-slate-900/40 p-8 rounded-2xl border border-slate-900 shadow-2xl backdrop-blur-md">
         {/* ТОМОРСОН ЛОГО БА ЦЭВЭРХЭН ГАРЧИГ (Дэд тайлбаргүй) */}
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center shadow-[0_0_25px_rgba(0,245,155,0.2)]">
+          <div className="bg-zinc-800/60 p-3 rounded-2xl border border-zinc-700/20 mb-4 flex items-center justify-center ">
             <OperlinkLogo className="h-12 w-12" />
           </div>
 

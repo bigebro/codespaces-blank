@@ -143,7 +143,7 @@ export default function CheckoutModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
       {/* 📱 УТАС БА КОМПЬЮТЕРТ 100% ТОХИРСОН БҮТЭЦ: max-h-[92dvh] flex flex-col */}
-      <div className="bg-[#0B1120] border border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
+      <div className="bg-zinc-950 border border-slate-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
         {/* Толгой хэсэг */}
         <div className="flex justify-between items-center border-b border-slate-800 pb-2.5 shrink-0">
           <div>
@@ -166,7 +166,7 @@ export default function CheckoutModal({
         {/* Шалгаж байх үед */}
         {checkingPending ? (
           <div className="py-12 text-center text-slate-500 text-xs">
-            <div className="h-6 w-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <div className="h-6 w-6 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
             <span>Төлөв шалгаж байна...</span>
           </div>
         ) : hasPendingRequest && !isSubmitted ? (
@@ -201,7 +201,7 @@ export default function CheckoutModal({
             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 my-2 overscroll-contain">
               {/* 💡 БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
               {isUpgradingStarterToPro ? (
-                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-blue-300 flex items-center gap-2">
+                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
                   <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
                   <div>
                     <span className="font-bold block text-white">
@@ -295,7 +295,7 @@ export default function CheckoutModal({
                     <strong>албан ёсны гэрээгээр</strong> шийдэгддэг.
                   </p>
 
-                  <div className="bg-[#0B1120] p-2.5 rounded-xl border border-slate-800 text-xs space-y-1 font-mono">
+                  <div className="bg-zinc-950 p-2.5 rounded-xl border border-slate-800 text-xs space-y-1 font-mono">
                     <p className="text-slate-400">
                       Байгууллага:{" "}
                       <strong className="text-white">{clientId}</strong>
@@ -334,7 +334,7 @@ export default function CheckoutModal({
                         className={`py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer ${cycle === "yearly" ? "bg-slate-800 text-zinc-200 font-black shadow" : "text-slate-400"}`}
                       >
                         <span>Жилээр</span>
-                        <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-emerald-400/30 font-black">
+                        <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-zinc-700/30 font-black">
                           🎁 2 сар үнэгүй
                         </span>
                       </button>
@@ -409,7 +409,7 @@ export default function CheckoutModal({
                     </span>
 
                     <div className="max-h-36 overflow-y-auto bg-slate-950 p-3 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-2.5 leading-relaxed font-sans shadow-inner">
-                      <div className="bg-[#0B1120] p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           1. Мэдээллийн өмчлөл:
                         </strong>
@@ -417,7 +417,7 @@ export default function CheckoutModal({
                         Борлуулалтын орлогын бүх мэдээлэл нь зөвхөн Харилцагчийн
                         хувийн өмч байна.
                       </div>
-                      <div className="bg-[#0B1120] p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           2. Нууцлал хамгаалалт:
                         </strong>
@@ -426,7 +426,7 @@ export default function CheckoutModal({
                         хатуу хориглоно. Бүх өгөгдөл Amazon Web Services (AWS)
                         шифрлэлтээр хамгаалагдана.
                       </div>
-                      <div className="bg-[#0B1120] p-2 rounded-xl border border-slate-800/80">
+                      <div className="bg-zinc-950 p-2 rounded-xl border border-slate-800/80">
                         <strong className="text-zinc-200 block mb-0.5">
                           3. Устгах эрх:
                         </strong>

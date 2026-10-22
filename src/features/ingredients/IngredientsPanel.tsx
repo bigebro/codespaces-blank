@@ -193,7 +193,7 @@ export default function IngredientsPanel({
                       if (e.key === "Enter") handleSaveNewIng();
                     }}
                     placeholder="Түүхий эдийн нэр..."
-                    className="w-full bg-zinc-950 border border-zinc-700/60 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none focus:border-emerald-400"
+                    className="w-full bg-zinc-950 border border-zinc-700/60 rounded-lg px-2.5 py-1 text-sm text-white font-bold outline-none focus:border-zinc-700"
                   />
                 </td>
                 <td className="py-2 px-3">
@@ -308,7 +308,7 @@ export default function IngredientsPanel({
                   return (
                     <tr
                       key={ing.id}
-                      className="bg-blue-950/40 border-b-2 border-zinc-700/60"
+                      className="bg-zinc-900/60 border-b-2 border-zinc-700/60"
                     >
                       <td className="py-2 px-3"></td>
                       <td className="py-2 px-3">
@@ -470,7 +470,7 @@ export default function IngredientsPanel({
                               par: (ing.par_level || 0).toString(),
                             });
                           }}
-                          className="h-7 w-7 rounded-xl bg-slate-950 border border-slate-800 hover:border-purple-400 hover:text-zinc-300 text-slate-400 flex items-center justify-center transition active:scale-95 shrink-0"
+                          className="h-7 w-7 rounded-xl bg-slate-950 border border-slate-800 hover:border-zinc-700 hover:text-zinc-300 text-slate-400 flex items-center justify-center transition active:scale-95 shrink-0"
                           title="Мөр дотор засах"
                         >
                           ✏️

@@ -188,7 +188,7 @@ export default function InventoryTab({
 
         {loading ? (
           <div className="relative flex items-center gap-2 text-zinc-200 text-xs font-bold animate-in fade-in duration-200 justify-center">
-            <div className="translate-y-2.5 h-4 w-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <div className="translate-y-2.5 h-4 w-4 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin " />
             <span className="hidden sm:inline-block tracking-wide"></span>
           </div>
         ) : (

@@ -35,7 +35,7 @@ export default function TasksTab({
         {" "}
         {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
         {/* 🚀 АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 mb-8 space-y-6">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 mb-8 space-y-6">
           {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
             <div>
@@ -153,7 +153,7 @@ export default function TasksTab({
         {/* SECTION 1: CREATE ROLES & ASSIGN ROLES TO WORKERS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Role Creator */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
               1. Албан тушаал / Үүрэг үүсгэх
             </h3>
@@ -219,7 +219,7 @@ export default function TasksTab({
           </div>
 
           {/* Assign Roles to Registered Workers */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-2">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
             <h3 className="text-base font-bold mb-4 text-zinc-300">
               {" "}
               Ажилтнуудад үүрэг оноох
@@ -329,7 +329,7 @@ export default function TasksTab({
         {/* SECTION 2: CREATE & VIEW TASKS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Task Form */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-1 h-fit">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-1 h-fit">
             <h3 className="text-base font-bold mb-4 text-zinc-200">
               3. Шинэ даалгавар үүсгэх
             </h3>
@@ -435,7 +435,7 @@ export default function TasksTab({
           </div>
 
           {/* Tasks List */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-2">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-2">
             <h3 className="text-base font-bold mb-4">Бүртгэлтэй Даалгаврууд</h3>
             <div className="overflow-x-auto max-h-[350px]">
               <table className="w-full text-left text-sm">
@@ -511,7 +511,7 @@ export default function TasksTab({
           </div>
 
           {/* Closed Shifts Report Table */}
-          <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 md:col-span-3 mt-8">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 md:col-span-3 mt-8">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-zinc-300">
               <Activity className="h-5 w-5" /> Хаагдсан ээлжүүдийн түүх (Shift
               History)

@@ -22,7 +22,7 @@ const UNIVERSAL_CATEGORIES = [
     id: "COLD_BEVERAGE",
     name: "🍹 Хүйтэн ундаа",
     icon: "🍹",
-    color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+    color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
   },
   {
     id: "FOOD_PREP",
@@ -34,13 +34,13 @@ const UNIVERSAL_CATEGORIES = [
     id: "BAKERY_DESSERT",
     name: "🥐 Бэйкэри & Десерт",
     icon: "🥐",
-    color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
   },
   {
     id: "RETAIL_FMCG",
     name: "🥤 Бэлэн бараа (Лааз/Сав)",
     icon: "🥤",
-    color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+    color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
   },
   {
     id: "GENERAL",
@@ -702,7 +702,7 @@ export default function ProductsPanel({
                           `✅ "${selectedOldName}"-ийн жорыг "${posName}"-тай амжилттай холболоо!`,
                         );
                       }}
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
+                      className="bg-white hover:bg-zinc-200 text-zinc-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
                     >
                       🔗 Сольж нэгтгэх
                     </button>
@@ -833,7 +833,7 @@ export default function ProductsPanel({
           <tbody className="divide-y divide-slate-800/60 bg-slate-950/40 font-medium">
             {/* Шинэ цэс нэмэх инлайн мөр */}
             {isAddingProdRow && (
-              <tr className="bg-blue-950/40 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
+              <tr className="bg-zinc-900/60 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
                 <td className="py-2 px-3 text-zinc-300 font-bold">New</td>
                 <td className="py-2 px-3">
                   <select
@@ -952,7 +952,7 @@ export default function ProductsPanel({
                   return (
                     <tr
                       key={`edit-${prod.id}-${idx}`}
-                      className="bg-blue-950/40 border-b-2 border-zinc-700/60"
+                      className="bg-zinc-900/60 border-b-2 border-zinc-700/60"
                     >
                       <td className="py-2 px-3"></td>
                       <td className="py-2 px-3">
@@ -1143,7 +1143,7 @@ export default function ProductsPanel({
                                 );
                               }
                             }}
-                            className="bg-purple-600/20 hover:bg-purple-600/30 text-zinc-300 border border-zinc-800/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm cursor-pointer"
+                            className="bg-zinc-200/20 hover:bg-zinc-200/30 text-zinc-300 border border-zinc-800/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm cursor-pointer"
                           >
                             <span>📖 + Орц угсрах</span>
                           </button>

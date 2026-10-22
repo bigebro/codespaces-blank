@@ -120,7 +120,7 @@ export default function GeneralSettings({
     <div className="space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
           <h3 className="text-base font-bold mb-4 text-zinc-200 flex items-center gap-2">
             🏦 1. Мөнгөн Данс & Татварын Горим
           </h3>
@@ -281,7 +281,7 @@ export default function GeneralSettings({
         </div>
 
         {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
-        <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 lg:col-span-2">
+        <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 lg:col-span-2">
           <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
             🏢 2. Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
           </h3>
@@ -383,7 +383,7 @@ export default function GeneralSettings({
         </div>
       </div>
       {/* 3. ҮНДСЭН ХӨРӨНГӨ (ТОНОГ ТӨХӨӨРӨМЖ, ШАРАХ ШҮҮГЭЭ, КОФЕ МАШИН) */}
-      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800">
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800">
         <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
           🍳 3. Үндсэн Хөрөнгө & Тоног Төхөөрөмжийн Бүртгэл (Элэгдэл тооцоо)
         </h3>
@@ -504,7 +504,7 @@ export default function GeneralSettings({
       </div>
 
       {/* 🎯 4. АНГИЛЛЫН АШГИЙН МАРЖИНГИЙН БОДЛОГО (TARGET MARGINS) */}
-      <div className="bg-[#111827] p-6 rounded-2xl border border-slate-800 shadow-xl mt-8">
+      <div className="bg-zinc-900 p-6 rounded-2xl border border-slate-800 shadow-xl mt-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
           <div>
             <h3 className="text-base font-black text-zinc-300 flex items-center gap-2">
@@ -523,7 +523,7 @@ export default function GeneralSettings({
             type="button"
             disabled={loading}
             onClick={handleSaveCategoryMargins}
-            className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
+            className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
           >
             💾 Маржингийн Бодлого Хадгалах
           </button>
@@ -566,7 +566,7 @@ export default function GeneralSettings({
                           [cat.id]: val,
                         }));
                       }}
-                      className="w-full bg-[#0B1120] border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
+                      className="w-full bg-zinc-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white font-mono font-black outline-none"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-300 font-mono">
                       %

@@ -1962,7 +1962,7 @@ function KioskPage() {
                   key={dotIndex}
                   className={`h-3.5 w-3.5 rounded-full transition-all duration-75 ${
                     pin.length > dotIndex
-                      ? "bg-zinc-200 shadow-[0_0_12px_rgba(16,185,129,0.9)] scale-110"
+                      ? "bg-zinc-200  scale-110"
                       : "bg-slate-800"
                   }`}
                 />
@@ -2012,7 +2012,7 @@ function KioskPage() {
                   e.preventDefault();
                   handleVerifyPin();
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-slate-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform"
               >
                 OK
               </button>
@@ -2203,7 +2203,7 @@ function KioskPage() {
             {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
 
             {recentToast && (
-              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-emerald-400 animate-in fade-in duration-150">
+              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-slate-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
                 {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
                 <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
                   <span className="bg-slate-950 text-zinc-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
@@ -2327,7 +2327,7 @@ function KioskPage() {
                   onClick={() => setKioskMode("testing")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === "testing"
-                      ? "bg-purple-600 text-white shadow-md"
+                      ? "bg-zinc-200 text-white shadow-md"
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
@@ -2338,7 +2338,7 @@ function KioskPage() {
                   onClick={() => setKioskMode("purchase")}
                   className={`py-3 rounded-xl text-sm font-black transition flex items-center justify-center gap-1 ${
                     kioskMode === "purchase"
-                      ? "bg-emerald-600 text-white shadow-md"
+                      ? "bg-white text-zinc-950 shadow-md"
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
@@ -2565,7 +2565,7 @@ function KioskPage() {
                               : kioskMode === "staff_meal"
                                 ? "bg-zinc-800/60 text-zinc-300"
                                 : kioskMode === "testing"
-                                  ? "bg-purple-500/10 text-zinc-300"
+                                  ? "bg-zinc-800/60 text-zinc-300"
                                   : "bg-zinc-800/60 text-zinc-200"
                           }`}
                         >
@@ -2588,7 +2588,7 @@ function KioskPage() {
               <button
                 type="button"
                 onClick={openTasksScreen}
-                className="p-2.5 bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800/60 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>Даалгавар</span>
@@ -2723,7 +2723,7 @@ function KioskPage() {
                         </div>
                       </div>
 
-                      <div className="bg-zinc-800/60 border border-zinc-700/20 p-3 rounded-2xl text-xs text-blue-300 space-y-1">
+                      <div className="bg-zinc-800/60 border border-zinc-700/20 p-3 rounded-2xl text-xs text-zinc-300 space-y-1">
                         <p className="font-bold">💡 Санамж:</p>
                         <p>
                           Дээрх граммыг яг баримталснаар кофены амт үргэлж
@@ -2767,7 +2767,7 @@ function KioskPage() {
                       onClick={() => setCashOutType("owner_draw")}
                       className={`py-2 rounded-xl text-xs font-black transition ${
                         cashOutType === "owner_draw"
-                          ? "bg-amber-500 text-slate-950 shadow-md"
+                          ? "bg-white text-zinc-950 shadow-md"
                           : "text-slate-400 hover:text-white"
                       }`}
                     >
@@ -2949,7 +2949,7 @@ function KioskPage() {
                         }
                       })();
                     }}
-                    className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95"
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95"
                   >
                     {isAiLoading
                       ? "Хадгалж байна..."
@@ -2982,7 +2982,7 @@ function KioskPage() {
                             : kioskMode === "staff_meal"
                               ? "bg-zinc-200/20 text-zinc-300"
                               : kioskMode === "testing"
-                                ? "bg-purple-500/20 text-zinc-300"
+                                ? "bg-zinc-800/60 text-zinc-300"
                                 : "bg-zinc-800 text-zinc-200"
                         }`}
                       >
@@ -3383,7 +3383,7 @@ function KioskPage() {
                       }
                       className={`py-1.5 rounded-xl text-xs font-bold transition ${
                         ebarimtReview.payMethod === "cash"
-                          ? "bg-amber-500 text-slate-950 font-black shadow-sm"
+                          ? "bg-white text-zinc-950 font-black shadow-sm"
                           : "bg-zinc-950 text-slate-400"
                       }`}
                     >
@@ -3833,7 +3833,7 @@ function KioskPage() {
                   {/* Лугших хөдөлгөөнт лого */}
                   <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
                     <div className="absolute inset-0 bg-zinc-800 rounded-full animate-ping" />
-                    <div className="relative bg-zinc-800 p-5 rounded-full border-2 border-zinc-700/40 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
+                    <div className="relative bg-zinc-800 p-5 rounded-full border-2 border-zinc-700/40 ">
                       <Camera className="h-8 w-8 text-zinc-200 " />
                     </div>
                   </div>
@@ -3958,7 +3958,7 @@ function KioskPage() {
                                           ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                           : isStaffMeal
                                             ? "bg-zinc-800/60 text-zinc-300 border border-zinc-700/20"
-                                            : "bg-purple-500/10 text-zinc-300 border border-zinc-800/20"
+                                            : "bg-zinc-800/60 text-zinc-300 border border-zinc-800/20"
                                     }`}
                                   >
                                     {isPurchase
@@ -4237,7 +4237,7 @@ function KioskPage() {
                 <button
                   type="submit"
                   disabled={isAiLoading}
-                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs transition"
+                  className="flex-1 bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs transition"
                 >
                   {isAiLoading ? "Хадгалж байна..." : "Бүртгэх"}
                 </button>
@@ -4429,7 +4429,7 @@ function KioskPage() {
         {purchaseCart.length > 0 && !showCartModal && !quickItemModal && (
           <div
             onClick={() => setShowCartModal(true)}
-            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-white p-3.5 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex justify-between items-center border border-blue-400 cursor-pointer animate-bounce transition-all active:scale-95"
+            className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-white p-3.5 rounded-2xl  flex justify-between items-center border border-zinc-700 cursor-pointer animate-bounce transition-all active:scale-95"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl drop-shadow-md">🛒</span>

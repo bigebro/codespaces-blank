@@ -192,7 +192,7 @@ export default function MasterAdminPage() {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin" />
         <p className="text-xs font-bold tracking-wider uppercase">
           Админ эрхийг шалгаж байна...
         </p>

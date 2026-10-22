@@ -88,27 +88,25 @@ export default function PremiumLandingPage() {
   return (
     <div
       suppressHydrationWarning={true}
-      className="min-h-screen bg-[#050a12] text-slate-50 font-sans selection:bg-white/30 overflow-hidden relative"
+      className="min-h-screen bg-zinc-950 text-slate-50 font-sans selection:bg-white/30 overflow-hidden relative"
     >
       {/* BACKGROUND GLOW EFFECTS */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500 via-transparent to-transparent blur-3xl rounded-full mix-blend-screen"></div>
+        <div className="absolute inset-0 blur-3xl rounded-full mix-blend-screen"></div>
       </div>
 
       {/* 1. NAVBAR WITH THE NEW POWERFUL LOGO */}
-      <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-white/5 bg-[#050a12]/50 backdrop-blur-xl">
+      <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center border-b border-white/5 bg-zinc-950/50 backdrop-blur-xl">
         <div
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => router.push("/")}
         >
-          <div className="bg-[#07131d] p-1.5 rounded-2xl border border-zinc-800 ">
+          <div className="bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 ">
             <OperlinkLogo className="h-7 w-7" />
           </div>
           <span className="text-2xl font-black tracking-tight text-white uppercase">
             OPER
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
-              LINK
-            </span>
+            <span className="text-white">LINK</span>
           </span>
         </div>
         <div className="flex items-center gap-6 z-50">
@@ -138,9 +136,7 @@ export default function PremiumLandingPage() {
 
         <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
           Operlink танай бизнесийг авч явна. <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-300">
-            Таны бизнесийн ашгийн хөшүүрэг.
-          </span>
+          <span className="text-white">Таны бизнесийн ашгийн хөшүүрэг.</span>
         </h1>
 
         <p className="text-slate-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
@@ -151,9 +147,9 @@ export default function PremiumLandingPage() {
 
         {/* Video Placeholder */}
         <div className="relative max-w-4xl mx-auto mb-12 rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 aspect-video shadow-2xl backdrop-blur-sm group cursor-pointer">
-          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-cyan-500/5 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="absolute inset-0 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(255,255,255,0.3)] group-hover:scale-110 transition-transform duration-300">
+            <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center mb-4  group-hover:scale-110 transition-transform duration-300">
               <Play className="h-8 w-8 text-slate-950 fill-current ml-1" />
             </div>
             <p className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
@@ -177,7 +173,7 @@ export default function PremiumLandingPage() {
       {/* 3. HORMOZI GRAND SLAM OFFER */}
       <section className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-cyan-900/40 p-1 rounded-3xl">
-          <div className="bg-[#07131d] rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
+          <div className="bg-zinc-900 rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
@@ -229,8 +225,8 @@ export default function PremiumLandingPage() {
           {/* Result 2 */}
           <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
             <div>
-              <div className="h-14 w-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6 border border-cyan-500/20 group-hover:scale-105 transition-transform">
-                <Zap className="h-7 w-7 text-cyan-400" />
+              <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
+                <Zap className="h-7 w-7 text-zinc-300" />
               </div>
               <h3 className="text-xl font-bold text-white mb-3">
                 2. Таны Бизнесийн Ашгийн Хөшүүрэг
@@ -241,7 +237,7 @@ export default function PremiumLandingPage() {
                 хүргэнэ.
               </p>
             </div>
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+            <div className="mt-6 pt-4 border-t border-slate-800/80 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
               <span>Өндөр бүтээмж • Ухаалаг өсөлт</span>
             </div>
           </div>
@@ -270,7 +266,7 @@ export default function PremiumLandingPage() {
 
       {/* 5. PROFIT SIMULATOR */}
       <section className="max-w-4xl mx-auto px-6 py-16">
-        <div className="bg-[#07131d] p-8 sm:p-12 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="bg-zinc-900 p-8 sm:p-12 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/60 blur-3xl rounded-full pointer-events-none"></div>
 
           <div className="text-center mb-10 relative z-10">
@@ -351,7 +347,7 @@ export default function PremiumLandingPage() {
           </p>
 
           {/* 🔘 САР БҮР / ЖИЛЭЭР (2 САР ҮНЭГҮЙ) СОНГОГЧ */}
-          <div className="inline-flex items-center bg-[#07131d] p-1.5 rounded-2xl border border-slate-800 shadow-xl">
+          <div className="inline-flex items-center bg-zinc-900 p-1.5 rounded-2xl border border-slate-800 shadow-xl">
             <button
               type="button"
               onClick={() => setIsYearly(false)}
@@ -373,7 +369,7 @@ export default function PremiumLandingPage() {
               }`}
             >
               <span>Жилээр төлөх</span>
-              <span className="text-[10px] bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-emerald-400/30 font-black">
+              <span className="text-[10px] bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-zinc-700/30 font-black">
                 🎁 2 САР ҮНЭГҮЙ
               </span>
             </button>
@@ -431,7 +427,7 @@ export default function PremiumLandingPage() {
           </div>
 
           {/* 2. Professional (Highlighted) */}
-          <div className="bg-[#07131d] p-8 sm:p-10 rounded-[2rem] border-2 border-zinc-700 relative  flex flex-col justify-between transform md:scale-105 z-10">
+          <div className="bg-zinc-900 p-8 sm:p-10 rounded-[2rem] border-2 border-zinc-700 relative  flex flex-col justify-between transform md:scale-105 z-10">
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white text-slate-950 font-black text-xs uppercase px-4 py-1.5 rounded-full whitespace-nowrap">
               Хамгийн их сонгогддог
             </div>

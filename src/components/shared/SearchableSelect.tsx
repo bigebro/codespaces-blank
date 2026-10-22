@@ -151,7 +151,7 @@ export default function SearchableSelect({
                   setIsOpen(false);
                   setSearch("");
                 }}
-                className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-purple-500/20 text-zinc-300 border border-zinc-700 hover:bg-purple-500/30 transition flex items-center justify-between cursor-pointer mb-1"
+                className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-zinc-800/60 text-zinc-300 border border-zinc-700 hover:bg-purple-500/30 transition flex items-center justify-between cursor-pointer mb-1"
               >
                 <span>➕ Шинээр үүсгэх: "{search.trim()}"</span>
                 <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded font-mono">
@@ -181,16 +181,16 @@ export default function SearchableSelect({
                     }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm transition flex items-center justify-between cursor-pointer ${
                       isHighlighted
-                        ? "bg-purple-600 text-white font-black shadow-md scale-[1.01]"
+                        ? "bg-zinc-200 text-white font-black shadow-md scale-[1.01]"
                         : isSelected
-                          ? "bg-purple-950/60 text-zinc-300 font-bold border border-zinc-700"
+                          ? "bg-zinc-900 text-zinc-300 font-bold border border-zinc-700"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
                     <span className="truncate">{opt.label}</span>
                     {opt.sublabel && (
                       <span
-                        className={`text-[11px] ml-2 font-mono shrink-0 ${isHighlighted ? "text-purple-200" : "text-slate-500"}`}
+                        className={`text-[11px] ml-2 font-mono shrink-0 ${isHighlighted ? "text-zinc-300" : "text-slate-500"}`}
                       >
                         {opt.sublabel}
                       </span>

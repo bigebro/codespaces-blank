@@ -233,7 +233,7 @@ export default function RecipeHistoryModal({
                           className={`px-2 py-0.5 rounded text-xs font-black uppercase ${
                             isDeleted
                               ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                              : "bg-purple-500/20 text-zinc-300 border border-zinc-800/30"
+                              : "bg-zinc-800/60 text-zinc-300 border border-zinc-800/30"
                           }`}
                         >
                           {isDeleted

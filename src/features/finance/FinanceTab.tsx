@@ -199,7 +199,7 @@ export default function FinanceTab({
                           {filteredSpikes.map((alert: any) => (
                             <div
                               key={alert.id}
-                              className="bg-[#0B1120] p-3 rounded-xl border border-rose-500/20 space-y-1 shadow-sm"
+                              className="bg-zinc-950 p-3 rounded-xl border border-rose-500/20 space-y-1 shadow-sm"
                             >
                               <div className="flex justify-between items-start gap-1">
                                 <span
@@ -395,7 +395,7 @@ export default function FinanceTab({
                 setActiveTab("settings");
                 setCatalogTab("recipes");
               }}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow-md cursor-pointer"
+              className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow-md cursor-pointer"
             >
               🔗 Жоргүй цэсийг холбох ➔
             </button>
@@ -618,7 +618,7 @@ export default function FinanceTab({
             </div>
 
             {/* 🔍 ШАЛТГААНГҮЙ АЛДАГДЛЫН ДҮГНЭЛТ (ЭЗЭНД ӨГӨХ AI ОНОШ) */}
-            <div className="bg-[#0B1120] p-4 rounded-xl border border-slate-800 space-y-2">
+            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-800 space-y-2">
               <div className="flex justify-between items-center text-xm">
                 <span className="text-slate-400 font-bold uppercase tracking-wider">
                   Шалтгаангүй Зөрүү (Бүртгэлгүй Зарлага):
@@ -829,7 +829,7 @@ export default function FinanceTab({
                         return (
                           <div
                             key={idx}
-                            className="bg-[#0B1120] p-4 rounded-xl border border-amber-500/20 shadow-sm flex flex-col justify-between"
+                            className="bg-zinc-950 p-4 rounded-xl border border-amber-500/20 shadow-sm flex flex-col justify-between"
                           >
                             <div>
                               <div className="flex justify-between items-start gap-1 mb-2">

@@ -132,7 +132,7 @@ export default function SettingsTab({
       id: "COLD_BEVERAGE",
       name: "🍹 Хүйтэн ундаа",
       icon: "🍹",
-      color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-cyan-500/30",
     },
     {
       id: "FOOD_PREP",
@@ -144,13 +144,13 @@ export default function SettingsTab({
       id: "BAKERY_DESSERT",
       name: "🥐 Бэйкэри & Десерт",
       icon: "🥐",
-      color: "text-zinc-300 bg-purple-500/10 border-zinc-800/30",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800/30",
     },
     {
       id: "RETAIL_FMCG",
       name: "🥤 Бэлэн бараа (Лааз/Сав)",
       icon: "🥤",
-      color: "text-blue-300 bg-zinc-800/60 border-zinc-800",
+      color: "text-zinc-300 bg-zinc-800/60 border-zinc-800",
     },
     {
       id: "GENERAL",
@@ -259,7 +259,7 @@ export default function SettingsTab({
                 }}
                 className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
                   catalogTab === "recipes"
-                    ? "bg-purple-600 text-white shadow-md"
+                    ? "bg-zinc-200 text-white shadow-md"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -276,7 +276,7 @@ export default function SettingsTab({
           {/* ТОЛГОЙ БА 3 ТАБ СОЛИГЧ-ийн яг доор */}
           {loading ? (
             <div className="flex justify-center items-center py-20">
-              <div className="h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
+              <div className="h-8 w-8 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
             </div>
           ) : (
             <>
@@ -414,7 +414,7 @@ export default function SettingsTab({
                                   ? "bg-zinc-800/60 text-zinc-300 border-zinc-800"
                                   : item.method.includes("AI") &&
                                       !item.isUnknown
-                                    ? "bg-purple-500/10 text-zinc-300 border-zinc-800/30"
+                                    ? "bg-zinc-800/60 text-zinc-300 border-zinc-800/30"
                                     : item.method.includes("Гараар")
                                       ? "bg-zinc-800/60 text-zinc-200 border-zinc-800"
                                       : "bg-zinc-800/60 text-zinc-300 border-zinc-700 "
