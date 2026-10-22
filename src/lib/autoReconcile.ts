@@ -430,8 +430,8 @@ export function getSimilarity(s1: string, s2: string): number {
   return (longer.length - costs[shorter.length]) / parseFloat(longer.length.toString());
 }
 
-// Нэрэн дотор хэмжээ, хямдралын үг байгаа эсэхийг ялгах
-export function getVariantModifier(Name: string): string | null {
+export function getVariantModifier(name: string): string | null {
+  const cleanName = sanitizeName(name); // 👈 cleanName-ийг энд үүсгэж өгнө
   const words = cleanName.split(' ');
   for (const w of words) {
     if (VARIANT_WORDS.has(w)) return w;
