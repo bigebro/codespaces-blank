@@ -137,9 +137,9 @@ export default function AiCfoChat({
           <div className="text-center text-zinc-500 text-sm mt-10">
             <p className="mb-4">Жишээ асуултууд:</p>
             <ul className="space-y-2 inline-block text-left">
-              <li>👉 "Энэ сарын нийт хаягдал хэдэн төгрөг болсон бэ?"</li>
-              <li>👉 "Латтены ашгийн маржин хэд байна?"</li>
-              <li>👉 "Гүзээлзгэнэтэй шинэ цайны жор зохиож өг"</li>
+              <li>"Энэ сарын нийт хаягдал хэдэн төгрөг болсон бэ?"</li>
+              <li>"Латтены ашгийн маржин хэд байна?"</li>
+              <li>"Гүзээлзгэнэтэй шинэ цайны жор зохиож өг"</li>
             </ul>
           </div>
         )}

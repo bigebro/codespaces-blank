@@ -95,7 +95,7 @@ export default function FinanceTab({
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
                 <h4 className="text-base font-black text-zinc-300 flex items-center gap-2">
-                  ⚠️ Үйлчилгээний эрхийн хугацаа дууссан байна
+                  Үйлчилгээний эрхийн хугацаа дууссан байна
                 </h4>
                 <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
                   Та системээ тасралтгүй ашиглахын тулд сарын төлбөрөө доорх
@@ -293,12 +293,12 @@ export default function FinanceTab({
                   </span>
                   <span className="text-xs font-black tracking-wide">
                     {isHealthy &&
-                      `🟢 ${score.toFixed(1)}% НИЙЦЭЛТЭЙ • Зөрчилгүй (Хэвийн)`}
+                      ` ${score.toFixed(1)}% НИЙЦЭЛТЭЙ • Зөрчилгүй (Хэвийн)`}
                     {isWarning &&
-                      `🟡 ${score.toFixed(1)}% НИЙЦЭЛТЭЙ • Бага зэргийн зөрүүтэй (Хянах)`}
+                      ` ${score.toFixed(1)}% НИЙЦЭЛТЭЙ • Бага зэргийн зөрүүтэй (Хянах)`}
                     {!isHealthy &&
                       !isWarning &&
-                      `🔴 ${score.toFixed(1)}% НИЙЦЭЛТЭЙ • Өндөр зөрүүтэй (Алдагдал)`}
+                      ` ${score.toFixed(1)}% НИЙЦЭЛТЭЙ • Өндөр зөрүүтэй (Алдагдал)`}
                   </span>
                 </div>
               );
@@ -316,7 +316,7 @@ export default function FinanceTab({
               }}
               className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
             >
-              ☀️ Өнөөдөр
+              Өнөөдөр
             </button>
             {/* 2. 7 ХОНОГ (Буцааж нэмсэн) */}
             <button
@@ -333,7 +333,7 @@ export default function FinanceTab({
               }}
               className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
             >
-              📅 7 хоног
+              7 хоног
             </button>
 
             <select
@@ -349,7 +349,7 @@ export default function FinanceTab({
                     value={ym}
                     className="bg-zinc-950 text-white font-bold"
                   >
-                    📅 {year} оны {month}-р сар
+                     {year} оны {month}-р сар
                   </option>
                 );
               })}
@@ -632,7 +632,7 @@ export default function FinanceTab({
                 >
                   {(liveAnalytics?.total_unexplained_waste || 0) > 1000
                     ? `-${Math.round(liveAnalytics.total_unexplained_waste).toLocaleString()} ₮`
-                    : "0 ₮ (Бүх зардал тайлбарлагдсан ✅)"}
+                    : "0 ₮ (Бүх зардал тайлбарлагдсан )"}
                 </span>
               </div>
               <p className="text-xs text-zinc-500 leading-relaxed">
@@ -660,7 +660,7 @@ export default function FinanceTab({
                 onClick={() => setShowWasteGuideModal(true)}
                 className="text-xs font-bold text-zinc-300 bg-zinc-800/60 hover:bg-zinc-200/20 px-2 py-1 rounded-lg transition"
               >
-                💡 Заавар
+                Заавар
               </button>
             </div>
 
@@ -764,11 +764,11 @@ export default function FinanceTab({
             );
 
             return (
-              <div className="bg-zinc-900 p-5 sm:p-6 rounded-2xl border border-amber-500/40 shadow-xl space-y-4 animate-in fade-in duration-200">
+              <div className="bg-zinc-900 p-5 sm:p-6 rounded-2xl border border-zinc-700/50 shadow-xl space-y-4 animate-in fade-in duration-200">
                 {/* ТОЛГОЙ ХЭСЭГ */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="bg-zinc-800/60 p-2 rounded-xl border border-amber-500/20 shrink-0">
+                    <div className="bg-zinc-800/60 p-2 rounded-xl border border-zinc-700 shrink-0">
                       <AlertTriangle className="h-5 w-5 text-zinc-300" />
                     </div>
                     <div>
@@ -788,7 +788,7 @@ export default function FinanceTab({
                       value={marginSearch}
                       onChange={(e) => setMarginSearch(e.target.value)}
                       placeholder="Цэс хайх..."
-                      className="bg-zinc-950 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-zinc-500 outline-none w-36 sm:w-48 font-bold"
+                      className="bg-zinc-950 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-zinc-500 outline-none w-36 sm:w-48 font-bold"
                     />
                     <span className="text-xs font-black text-zinc-300 bg-zinc-800/60 border border-zinc-700 px-3 py-1.5 rounded-xl shrink-0 font-mono">
                       {liveAnalytics.margin_guard_alerts.length} цэс
@@ -829,7 +829,7 @@ export default function FinanceTab({
                         return (
                           <div
                             key={idx}
-                            className="bg-zinc-950 p-4 rounded-xl border border-amber-500/20 shadow-sm flex flex-col justify-between"
+                            className="bg-zinc-950 p-4 rounded-xl border border-zinc-700 shadow-sm flex flex-col justify-between"
                           >
                             <div>
                               <div className="flex justify-between items-start gap-1 mb-2">
@@ -943,7 +943,7 @@ export default function FinanceTab({
                                       );
                                     } else {
                                       alert(
-                                        `✅ "${targetProd.name}"-ийн зарах үнэ ${currentEditingPrice.toLocaleString()} ₮ болж шинэчлэгдлээ!`,
+                                        ` "${targetProd.name}"-ийн зарах үнэ ${currentEditingPrice.toLocaleString()} ₮ болж шинэчлэгдлээ!`,
                                       );
 
                                       // Санах ойноос устгах

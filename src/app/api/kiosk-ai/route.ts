@@ -90,10 +90,6 @@ const WORKER_KIOSK_PROMPT = `
   - Санхүүгийн ашиг, орлого асуувал: "Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой." гэж хариул.
 `;
 
-
-
-
-
 async function callGroqFallback(systemPrompt: string, userText: string) {
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) throw new Error("GROQ_API_KEY тохируулагдаагүй байна.");
@@ -184,15 +180,26 @@ async function callGeminiStreamWithFailover(
 export async function POST(request: Request) {
   try {
     // 🔒 1. Токенийг авах
-    const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const token = (request.headers.get("authorization") || "")
+      .replace(/^Bearer\s+/i, "")
+      .trim();
     if (!token) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     // 🔒 2. createClient үүсгэхгүйгээр шууд supabaseAdmin-аар шалгах (Хамгийн хурдан, цэвэрхэн)
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(token);
     if (authError || !user) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     // 🔒 3. Хэрэглэгчийн жинхэнэ салбар, үүргийг татах
@@ -203,7 +210,10 @@ export async function POST(request: Request) {
       .single();
 
     if (!profile?.client_id) {
-      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
     }
 
     // 🔒 4. Body-г зөвхөн ганц удаа унших
@@ -218,10 +228,12 @@ export async function POST(request: Request) {
     const action = body.action || null;
     const logId = body.logId || null;
 
-// src/app/api/kiosk-ai/route.ts доторх categorize хэсэг:
-if (action === "categorize" && body.names && Array.isArray(body.names)) {
-  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
-const prompt = `
+    // src/app/api/kiosk-ai/route.ts доторх categorize хэсэг:
+    if (action === "categorize" && body.names && Array.isArray(body.names)) {
+      const key = (process.env.GEMINI_API_KEY || "")
+        .replace(/["']/g, "")
+        .trim();
+      const prompt = `
     You are a data classifier for a Mongolian Coffee Shop & Restaurant.
     Classify the following menu items into ONE of these 6 STRICT categories:
     
@@ -243,84 +255,99 @@ const prompt = `
     ${JSON.stringify(body.names)}
   `;
 
-  let resultJson: Record<string, string> | null = null;
+      let resultJson: Record<string, string> | null = null;
 
-  // 1. Google Gemini 3.5 Flash-Lite-аар унших
-  if (key) {
-    try {
-      const ai = new GoogleGenerativeAI(key);
-      const model = ai.getGenerativeModel({
-        model: "gemini-3.5-flash-lite",
-        generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
+      // 1. Google Gemini 3.5 Flash-Lite-аар унших
+      if (key) {
+        try {
+          const ai = new GoogleGenerativeAI(key);
+          const model = ai.getGenerativeModel({
+            model: "gemini-3.5-flash-lite",
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            } as any,
+          });
+          const response = await model.generateContent(prompt);
+          const resultText = response.response
+            .text()
+            .replace(/```json|```/g, "")
+            .trim();
+          resultJson = JSON.parse(resultText);
+        } catch (err) {
+          console.warn("Categorize Gemini failed, falling back to Groq:", err);
+        }
+      }
+
+      // 2. Хэрэв Gemini алдаа өгвөл Groq (Llama/OpenAI OSS) нөөц рүү үсрэх
+      if (!resultJson) {
+        try {
+          const groqResult = await callGroqFallback(
+            "You are an expert F&B classifier. Return ONLY a valid JSON object mapping product name to category.",
+            prompt,
+          );
+          resultJson = JSON.parse(
+            groqResult.replace(/```json|```/g, "").trim(),
+          );
+        } catch (groqErr) {
+          console.error("Categorize Groq fallback failed:", groqErr);
+        }
+      }
+
+      if (resultJson) {
+        return NextResponse.json({ success: true, categories: resultJson });
+      }
+
+      return NextResponse.json({
+        success: false,
+        message: "AI ангилал хийж чадсангүй.",
       });
-      const response = await model.generateContent(prompt);
-      const resultText = response.response.text().replace(/```json|```/g, "").trim();
-      resultJson = JSON.parse(resultText);
-    } catch (err) {
-      console.warn("Categorize Gemini failed, falling back to Groq:", err);
     }
-  }
 
-  // 2. Хэрэв Gemini алдаа өгвөл Groq (Llama/OpenAI OSS) нөөц рүү үсрэх
-  if (!resultJson) {
-    try {
-      const groqResult = await callGroqFallback(
-        "You are an expert F&B classifier. Return ONLY a valid JSON object mapping product name to category.",
-        prompt
-      );
-      resultJson = JSON.parse(groqResult.replace(/```json|```/g, "").trim());
-    } catch (groqErr) {
-      console.error("Categorize Groq fallback failed:", groqErr);
-    }
-  }
+    // 🌐 ШИНЭ ҮГИЙГ AI-ААР 1 УДАА ОРЧУУЛЖ БААЗАД ЦЭЭЖЛЭХ (0 ТОКЕН ЛООП)
+    if (action === "translate" && body.text) {
+      const original = String(body.text).trim();
+      const lowerOriginal = original.toLowerCase();
 
-  if (resultJson) {
-    return NextResponse.json({ success: true, categories: resultJson });
-  }
+      // 1. Баазад өмнө нь цээжилсэн эсэхийг түрүүлж шалгах (AI дуудахгүй)
+      const { data: cached } = await supabaseAdmin
+        .from("learned_translations")
+        .select("translated_text")
+        .eq("client_id", clientId)
+        .ilike("original_text", lowerOriginal)
+        .maybeSingle();
 
-  return NextResponse.json({ success: false, message: "AI ангилал хийж чадсангүй." });
-}
+      if (cached) {
+        return NextResponse.json({
+          success: true,
+          translation: cached.translated_text,
+        });
+      }
 
-// 🌐 ШИНЭ ҮГИЙГ AI-ААР 1 УДАА ОРЧУУЛЖ БААЗАД ЦЭЭЖЛЭХ (0 ТОКЕН ЛООП)
-if (action === "translate" && body.text) {
-  const original = String(body.text).trim();
-  const lowerOriginal = original.toLowerCase();
+      // 2. Баазад байхгүй бол AI-аас ганц удаа асуух
+      let translated = "";
 
-  // 1. Баазад өмнө нь цээжилсэн эсэхийг түрүүлж шалгах (AI дуудахгүй)
-  const { data: cached } = await supabaseAdmin
-    .from("learned_translations")
-    .select("translated_text")
-    .eq("client_id", clientId)
-    .ilike("original_text", lowerOriginal)
-    .maybeSingle();
+      // 🧠 FEW-SHOT LEARNING: Хамгийн сүүлд амжилттай сурсан 20 үгийг баазаас татах
+      const { data: recentLearnings } = await supabaseAdmin
+        .from("learned_translations")
+        .select("original_text, translated_text")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-  if (cached) {
-    return NextResponse.json({ success: true, translation: cached.translated_text });
-  }
+      // AI-д зориулсан жишээнүүдийн жагсаалтыг угсрах
+      let examplesContext = "";
+      if (recentLearnings && recentLearnings.length > 0) {
+        examplesContext =
+          "Examples of past translations in our cafe (Match this exact style!):\n" +
+          recentLearnings
+            .map((ex) => `- "${ex.original_text}" -> "${ex.translated_text}"`)
+            .join("\n") +
+          "\n";
+      }
 
-
-
-// 2. Баазад байхгүй бол AI-аас ганц удаа асуух
-  let translated = "";
-
-  // 🧠 FEW-SHOT LEARNING: Хамгийн сүүлд амжилттай сурсан 20 үгийг баазаас татах
-  const { data: recentLearnings } = await supabaseAdmin
-    .from("learned_translations")
-    .select("original_text, translated_text")
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  // AI-д зориулсан жишээнүүдийн жагсаалтыг угсрах
-  let examplesContext = "";
-  if (recentLearnings && recentLearnings.length > 0) {
-    examplesContext = "Examples of past translations in our cafe (Match this exact style!):\n" +
-      recentLearnings.map(ex => `- "${ex.original_text}" -> "${ex.translated_text}"`).join("\n") +
-      "\n";
-  }
-  
-  // 🚨 AI-д өгөх ТӨГС тушаал (Дүрэм + Өмнөх жишээнүүд хамт явна)
-  const prompt = `You are a professional Mongolian translator for a restaurant POS system.
+      // 🚨 AI-д өгөх ТӨГС тушаал (Дүрэм + Өмнөх жишээнүүд хамт явна)
+      const prompt = `You are a professional Mongolian translator for a restaurant POS system.
 Translate the following food/beverage ingredient or menu item name into clean Mongolian.
 CRITICAL RULES:
 1. Output ONLY the translated name. Nothing else.
@@ -330,60 +357,80 @@ CRITICAL RULES:
 ${examplesContext}
 Text to translate: "${original}"`;
 
-  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
-  if (key) {
-    try {
-      const ai = new GoogleGenerativeAI(key);
-      const model = ai.getGenerativeModel({
-        model: "gemini-3.5-flash-lite",
-        generationConfig: { temperature: 0.1 }
-      });
-      const res = await model.generateContent(prompt);
-      translated = res.response.text().trim();
-    } catch (e) {}
-  }
+      const key = (process.env.GEMINI_API_KEY || "")
+        .replace(/["']/g, "")
+        .trim();
+      if (key) {
+        try {
+          const ai = new GoogleGenerativeAI(key);
+          const model = ai.getGenerativeModel({
+            model: "gemini-3.5-flash-lite",
+            generationConfig: { temperature: 0.1 },
+          });
+          const res = await model.generateContent(prompt);
+          translated = res.response.text().trim();
+        } catch (e) {}
+      }
 
-  // Gemini ажиллаагүй бол Groq нөөц рүү үсрэх
-  if (!translated) {
-    try {
-      translated = (await callGroqFallback("Translate to Mongolian Cyrillic F&B term only.", prompt)).trim();
-    } catch (e) {}
-  }
+      // Gemini ажиллаагүй бол Groq нөөц рүү үсрэх
+      if (!translated) {
+        try {
+          translated = (
+            await callGroqFallback(
+              "Translate to Mongolian Cyrillic F&B term only.",
+              prompt,
+            )
+          ).trim();
+        } catch (e) {}
+      }
 
-  // 3. AI-ийн орчуулгыг баазад ХАДГАЛАХ (Дараагийн удаа дахиж AI ажиллахгүй)
-  if (translated) {
-    await supabaseAdmin.from("learned_translations").upsert([{
-      client_id: clientId,
-      original_text: lowerOriginal,
-      translated_text: translated
-    }], { onConflict: "client_id,original_text" });
+      // 3. AI-ийн орчуулгыг баазад ХАДГАЛАХ (Дараагийн удаа дахиж AI ажиллахгүй)
+      if (translated) {
+        await supabaseAdmin.from("learned_translations").upsert(
+          [
+            {
+              client_id: clientId,
+              original_text: lowerOriginal,
+              translated_text: translated,
+            },
+          ],
+          { onConflict: "client_id,original_text" },
+        );
 
-    return NextResponse.json({ success: true, translation: translated });
-  }
+        return NextResponse.json({ success: true, translation: translated });
+      }
 
-  return NextResponse.json({ success: false, translation: original });
-}
+      return NextResponse.json({ success: false, translation: original });
+    }
 
-// 🧠 ПОС-ЫН НЭРИЙГ СУУРЬ ЦЭСТЭЙ ТААРУУЛАХ AI (20 жишээн дээр суралцана)
-if (action === "resolve_pos_menu" && body.unmatchedPosNames && Array.isArray(body.unmatchedPosNames)) {
-  const unmatched = body.unmatchedPosNames;
-  const officialMenu = body.officialMenuNames || [];
+    // 🧠 ПОС-ЫН НЭРИЙГ СУУРЬ ЦЭСТЭЙ ТААРУУЛАХ AI (20 жишээн дээр суралцана)
+    if (
+      action === "resolve_pos_menu" &&
+      body.unmatchedPosNames &&
+      Array.isArray(body.unmatchedPosNames)
+    ) {
+      const unmatched = body.unmatchedPosNames;
+      const officialMenu = body.officialMenuNames || [];
 
-  // 1. learned_menus-ээс өмнө нь сурсан сүүлийн 20 жишээг татах
-  const { data: pastLearnings } = await supabaseAdmin
-    .from("learned_menus")
-    .select("pos_name, official_product_name")
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: false })
-    .limit(20);
+      // 1. learned_menus-ээс өмнө нь сурсан сүүлийн 20 жишээг татах
+      const { data: pastLearnings } = await supabaseAdmin
+        .from("learned_menus")
+        .select("pos_name, official_product_name")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-  let fewShotContext = "";
-  if (pastLearnings && pastLearnings.length > 0) {
-    fewShotContext = "Examples of how this cafe previously mapped POS abbreviations to official menu items:\n" +
-      pastLearnings.map(l => `- "${l.pos_name}" -> "${l.official_product_name}"`).join("\n") + "\n";
-  }
+      let fewShotContext = "";
+      if (pastLearnings && pastLearnings.length > 0) {
+        fewShotContext =
+          "Examples of how this cafe previously mapped POS abbreviations to official menu items:\n" +
+          pastLearnings
+            .map((l) => `- "${l.pos_name}" -> "${l.official_product_name}"`)
+            .join("\n") +
+          "\n";
+      }
 
-  const prompt = `You are an expert F&B menu resolver for a POS system.
+      const prompt = `You are an expert F&B menu resolver for a POS system.
 Match each unfamiliar POS line item name to the EXACT corresponding item from the Official Menu list.
 
 RULES:
@@ -398,31 +445,39 @@ ${JSON.stringify(officialMenu)}
 POS items to resolve:
 ${JSON.stringify(unmatched)}`;
 
-  let matchesJson: Record<string, string | null> = {};
-  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+      let matchesJson: Record<string, string | null> = {};
+      const key = (process.env.GEMINI_API_KEY || "")
+        .replace(/["']/g, "")
+        .trim();
 
-  if (key) {
-    try {
-      const ai = new GoogleGenerativeAI(key);
-      const model = ai.getGenerativeModel({
-        model: "gemini-3.5-flash-lite",
-        generationConfig: { temperature: 0.1, responseMimeType: "application/json" } as any,
-      });
-      const res = await model.generateContent(prompt);
-      matchesJson = JSON.parse(res.response.text().trim());
-    } catch (e) {}
-  }
+      if (key) {
+        try {
+          const ai = new GoogleGenerativeAI(key);
+          const model = ai.getGenerativeModel({
+            model: "gemini-3.5-flash-lite",
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            } as any,
+          });
+          const res = await model.generateContent(prompt);
+          matchesJson = JSON.parse(res.response.text().trim());
+        } catch (e) {}
+      }
 
-  // Fallback Groq
-  if (Object.keys(matchesJson).length === 0) {
-    try {
-      const groqRes = await callGroqFallback("You are an F&B menu resolver. Output ONLY valid JSON mapping.", prompt);
-      matchesJson = JSON.parse(groqRes.trim());
-    } catch (e) {}
-  }
+      // Fallback Groq
+      if (Object.keys(matchesJson).length === 0) {
+        try {
+          const groqRes = await callGroqFallback(
+            "You are an F&B menu resolver. Output ONLY valid JSON mapping.",
+            prompt,
+          );
+          matchesJson = JSON.parse(groqRes.trim());
+        } catch (e) {}
+      }
 
-  return NextResponse.json({ success: true, matches: matchesJson });
-}
+      return NextResponse.json({ success: true, matches: matchesJson });
+    }
 
     // 1. UNDO
     if (action === "undo" && logId) {
@@ -497,8 +552,10 @@ ${JSON.stringify(unmatched)}`;
       `;
 
       let transcribedText = "";
-   
-      const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+
+      const key = (process.env.GEMINI_API_KEY || "")
+        .replace(/["']/g, "")
+        .trim();
 
       if (key) {
         try {
@@ -552,10 +609,8 @@ ${JSON.stringify(unmatched)}`;
         });
       }
 
-      
-
       const logsToInsert: any[] = [];
-      let successMsg = "✅ **Татан авалт амжилттай бүртгэгдлээ:**\n\n";
+      let successMsg = "**Татан авалт амжилттай бүртгэгдлээ:**\n\n";
       const currentDate = new Date().toISOString();
 
       for (const item of aiAnalysis.purchases) {
@@ -630,17 +685,16 @@ ${JSON.stringify(unmatched)}`;
         }
       }
 
-  
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         purchases: aiAnalysis.purchases,
-        });
+      });
     }
     // 3. ТЕКСТ БИЧИХ ҮЕД
     if (text) {
       const lower = text.toLowerCase().trim();
 
-// ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
+      // ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
       if (!isOwner) {
         const { data: learnedAliases } = await supabaseAdmin
           .from("learned_aliases")
@@ -655,7 +709,9 @@ ${JSON.stringify(unmatched)}`;
 
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
           const ingredient = ingredients?.find(
-            (i) => i.name.toLowerCase().trim() === aiAnalysis.item_name.toLowerCase().trim(),
+            (i) =>
+              i.name.toLowerCase().trim() ===
+              aiAnalysis.item_name.toLowerCase().trim(),
           );
           if (ingredient) {
             // 1. Зарлагын лог хадгалах
@@ -678,19 +734,25 @@ ${JSON.stringify(unmatched)}`;
             // 2. ⚡ ЗӨВХӨН ЦЭВЭР ҮГ СУРАХ (Алдаатай урт өгүүлбэр цээжлэхгүй!)
             let newlyLearnedId: string | null = null;
             if (aiAnalysis.extracted_phrase) {
-              const cleanPhrase = aiAnalysis.extracted_phrase.toLowerCase().trim();
-              const alreadyKnown = 
-                ingredient.name.toLowerCase() === cleanPhrase || 
-                (learnedAliases || []).some(a => a.phrase === cleanPhrase);
+              const cleanPhrase = aiAnalysis.extracted_phrase
+                .toLowerCase()
+                .trim();
+              const alreadyKnown =
+                ingredient.name.toLowerCase() === cleanPhrase ||
+                (learnedAliases || []).some((a) => a.phrase === cleanPhrase);
 
               if (!alreadyKnown && cleanPhrase.length >= 2) {
-                const { data: aliasData } = await supabaseAdmin.from("learned_aliases").insert([
-                  {
-                    client_id: clientId,
-                    phrase: cleanPhrase,
-                    ingredient_id: ingredient.id,
-                  },
-                ]).select().single();
+                const { data: aliasData } = await supabaseAdmin
+                  .from("learned_aliases")
+                  .insert([
+                    {
+                      client_id: clientId,
+                      phrase: cleanPhrase,
+                      ingredient_id: ingredient.id,
+                    },
+                  ])
+                  .select()
+                  .single();
                 if (aliasData) newlyLearnedId = aliasData.id;
               }
             }
@@ -708,7 +770,8 @@ ${JSON.stringify(unmatched)}`;
         return NextResponse.json({
           success: true,
           is_log: false,
-          message: "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна.",
+          message:
+            "🔒 Зөвхөн гал тогооны зарлага, хаягдал бүртгэх үүрэгтэй туслах байна.",
         });
       }
 
@@ -793,7 +856,7 @@ ${JSON.stringify(unmatched)}`;
         });
       }
 
-     // =========================================================================
+      // =========================================================================
       // ⚡ FORMAT ALL ANALYTICS DETAILS FOR 100% AI VISIBILITY
       // =========================================================================
 
@@ -837,26 +900,31 @@ ${JSON.stringify(unmatched)}`;
         .join(", ");
 
       // 5. Margin Guard (Price Hike Suggestions)
-      const marginGuardText = (analyticsData.margin_guard_alerts || []).length > 0
-        ? (analyticsData.margin_guard_alerts || [])
-            .map(
-              (a: any) =>
-                `• ${a.product_name}: CurrentPrice ${a.selling_price}₮ -> SUGGESTED: ${a.suggested_price}₮ (+${a.price_gap}₮) | Cost: ${a.cost_price}₮, Margin: ${a.current_margin_pct} (Target: ${a.target_margin_pct})`,
-            )
-            .join("\n")
-        : "None (All products have healthy margins >= 75%)";
+      const marginGuardText =
+        (analyticsData.margin_guard_alerts || []).length > 0
+          ? (analyticsData.margin_guard_alerts || [])
+              .map(
+                (a: any) =>
+                  `• ${a.product_name}: CurrentPrice ${a.selling_price}₮ -> SUGGESTED: ${a.suggested_price}₮ (+${a.price_gap}₮) | Cost: ${a.cost_price}₮, Margin: ${a.current_margin_pct} (Target: ${a.target_margin_pct})`,
+              )
+              .join("\n")
+          : "None (All products have healthy margins >= 75%)";
 
       // 6. Cross-Shift Fraud & Worker Incidents Matrix
-      const fraudMatrixText = Object.keys(analyticsData.worker_fraud_matrix || {}).length > 0
-        ? Object.entries(analyticsData.worker_fraud_matrix || {})
-            .map(([worker, data]: any) => {
-              const incidents = (data.incidents || [])
-                .map((inc: any) => `[${inc.date}] reported by ${inc.reporter}: "${inc.notes}" (-${inc.loss_amount}₮)`)
-                .join("; ");
-              return `• Worker: ${worker} | Incidents: ${data.totalIncidents} | TotalLoss: ${data.totalLossAmount}₮ | Details: ${incidents}`;
-            })
-            .join("\n")
-        : "No cross-shift damage or incident reports recorded.";
+      const fraudMatrixText =
+        Object.keys(analyticsData.worker_fraud_matrix || {}).length > 0
+          ? Object.entries(analyticsData.worker_fraud_matrix || {})
+              .map(([worker, data]: any) => {
+                const incidents = (data.incidents || [])
+                  .map(
+                    (inc: any) =>
+                      `[${inc.date}] reported by ${inc.reporter}: "${inc.notes}" (-${inc.loss_amount}₮)`,
+                  )
+                  .join("; ");
+                return `• Worker: ${worker} | Incidents: ${data.totalIncidents} | TotalLoss: ${data.totalLossAmount}₮ | Details: ${incidents}`;
+              })
+              .join("\n")
+          : "No cross-shift damage or incident reports recorded.";
 
       // 7. Cashflow In & Out Breakdown
       const cf = analyticsData.cashflow_summary || {};
@@ -874,25 +942,35 @@ Final Balances: CashInHand:${cf.end_cash_balance || 0}₮, BankAccount:${cf.end_
       const purchasesText = `TotalPurchases: ${pur.total_purchases || 0}₮ | WithEBarimt: ${pur.with_ebarimt || 0}₮ | WithoutEBarimt: ${pur.without_ebarimt || 0}₮ | NewEquipmentBought: ${pur.fixed_assets_invested || 0}₮`;
 
       // 9. Fixed Assets & Depreciation (Equipment)
-      const faText = (analyticsData.fixed_assets || []).length > 0
-        ? (analyticsData.fixed_assets || [])
-            .map((f: any) => `• ${f.name} (${f.code}): InitialCost ${f.initialCost}₮ | UsefulMonths: ${f.usefulMonths} | MonthlyDep: ${f.monthlyDep}₮ | CurrentBookValue: ${f.bookValue}₮`)
-            .join("\n")
-        : "No fixed assets recorded.";
+      const faText =
+        (analyticsData.fixed_assets || []).length > 0
+          ? (analyticsData.fixed_assets || [])
+              .map(
+                (f: any) =>
+                  `• ${f.name} (${f.code}): InitialCost ${f.initialCost}₮ | UsefulMonths: ${f.usefulMonths} | MonthlyDep: ${f.monthlyDep}₮ | CurrentBookValue: ${f.bookValue}₮`,
+              )
+              .join("\n")
+          : "No fixed assets recorded.";
 
       // 10. Official Waste Act (Tax Law 14 Write-offs)
-      const wasteActText = (analyticsData.waste_act_items || []).length > 0
-        ? (analyticsData.waste_act_items || []).slice(0, 10)
-            .map((w: any) => `• ${w.name}: TheoUsage ${w.theo_usage}${w.unit}, ActualUsage ${w.actual_usage}${w.unit}, Gap ${w.gap_qty}${w.unit} | Loss: ${w.loss_amount}₮ | Legal Cause: ${w.cause}`)
-            .join("\n")
-        : "None";
+      const wasteActText =
+        (analyticsData.waste_act_items || []).length > 0
+          ? (analyticsData.waste_act_items || [])
+              .slice(0, 10)
+              .map(
+                (w: any) =>
+                  `• ${w.name}: TheoUsage ${w.theo_usage}${w.unit}, ActualUsage ${w.actual_usage}${w.unit}, Gap ${w.gap_qty}${w.unit} | Loss: ${w.loss_amount}₮ | Legal Cause: ${w.cause}`,
+              )
+              .join("\n")
+          : "None";
 
       // 11. ABC Pareto Cycle Count Status
       const abc = analyticsData.abc_summary || {};
       const abcText = `TotalItems: ${abc.total_items || 0} | A-Class:${abc.a_count || 0}, B-Class:${abc.b_count || 0}, C-Class:${abc.c_count || 0} | CountedIn30Days:${abc.counted_in_cycle || 0}, Uncounted:${abc.uncounted_in_cycle || 0}, RecommendedCountPerShift:${abc.suggested_cycle_per_shift || 0}`;
 
       // 12. Recent Shifts & SOP Compliance
-      const shiftsText = (analyticsData.recent_shifts || []).slice(0, 5)
+      const shiftsText = (analyticsData.recent_shifts || [])
+        .slice(0, 5)
         .map((s: any) => {
           const tasks = s.tasks_done || [];
           const doneCount = tasks.filter((t: any) => t.done).length;
@@ -901,8 +979,12 @@ Final Balances: CashInHand:${cf.end_cash_balance || 0}₮, BankAccount:${cf.end_
         .join("\n");
 
       // 13. Recent Activity Logs (Last 10 actions)
-      const recentLogsText = (analyticsData.recent_worker_logs || []).slice(0, 10)
-        .map((l: any) => `[${l.date} ${l.time}] ${l.worker} logged ${l.type} on ${l.item}: ${l.qty}${l.unit} (Notes: ${l.notes || "None"})`)
+      const recentLogsText = (analyticsData.recent_worker_logs || [])
+        .slice(0, 10)
+        .map(
+          (l: any) =>
+            `[${l.date} ${l.time}] ${l.worker} logged ${l.type} on ${l.item}: ${l.qty}${l.unit} (Notes: ${l.notes || "None"})`,
+        )
         .join("\n");
 
       // =========================================================================
@@ -981,8 +1063,8 @@ User Question: ${text}`;
         );
       } catch (geminiErr: any) {
         console.warn(
-          "⚠️ Gemini гацлаа. Groq нөөц сервер ажиллаж байна...",
-            geminiErr.message,
+          "Gemini гацлаа. Groq нөөц сервер ажиллаж байна...",
+          geminiErr.message,
         );
 
         try {
@@ -992,7 +1074,7 @@ User Question: ${text}`;
           console.error("❌ Groq бас ажилласангүй:", groqErr.message);
           return NextResponse.json({
             success: false,
-            message: `⚠️ Серверийн саатал: ${groqErr.message}`,
+            message: `Серверийн саатал: ${groqErr.message}`,
           });
         }
       }

@@ -593,7 +593,8 @@ export default function IngredientsPanel({
           <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
-                ✏️ Түүхий эд засах
+                  <Edit2 className="h-4 w-4" />
+                Түүхий эд засах
               </h3>
               <button
                 onClick={() => setEditingIngredient(null)}

@@ -443,7 +443,7 @@ export default function ImportTab({
         const cols = splitRow(row);
         if (cols.length < 2) {
           alert(
-            `⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
+            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
           );
           setLoading(false);
           return;
@@ -709,21 +709,21 @@ export default function ImportTab({
                 productsToReview[item.index].isUnknown = false;
               } else {
                 productsToReview[item.index].category = "GENERAL";
-                productsToReview[item.index].method = "⚠️ Шалгах шаардлагатай";
+                productsToReview[item.index].method = "Шалгах шаардлагатай";
                 productsToReview[item.index].isUnknown = true;
               }
             });
           } else {
             needsAiClassification.forEach((item) => {
               productsToReview[item.index].category = "GENERAL";
-              productsToReview[item.index].method = "⚠️ Шалгах шаардлагатай";
+              productsToReview[item.index].method = "Шалгах шаардлагатай";
               productsToReview[item.index].isUnknown = true;
             });
           }
         } catch (err) {
           needsAiClassification.forEach((item) => {
             productsToReview[item.index].category = "GENERAL";
-            productsToReview[item.index].method = "⚠️ Шалгах шаардлагатай";
+            productsToReview[item.index].method = "Шалгах шаардлагатай";
             productsToReview[item.index].isUnknown = true;
           });
         }
@@ -868,7 +868,7 @@ export default function ImportTab({
         // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
         if (cols.length < 2) {
           alert(
-            `⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
+            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
           );
           setLoading(false);
           return;
@@ -1009,7 +1009,7 @@ export default function ImportTab({
       setOverwritePurchases(false);
       await fetchDatabaseData(activeClient);
       alert(
-        `✅ Амжилттай! Нийт ${purchasesToInsert.length} татан авалт хадгалагдлаа.`,
+        ` Амжилттай! Нийт ${purchasesToInsert.length} татан авалт хадгалагдлаа.`,
       );
       setTimeout(() => setPurchaseImportSuccess(false), 4000);
     } catch (err: any) {
@@ -1044,7 +1044,7 @@ export default function ImportTab({
         // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
         if (cols.length < 2) {
           alert(
-            `⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
+            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
           );
           setLoading(false);
           return;
@@ -1104,9 +1104,7 @@ export default function ImportTab({
       setIngredientsImportSuccess(true);
       setIngredientsPasteText("");
       await fetchDatabaseData(activeClient);
-      alert(
-        `✅ Амжилттай! Нийт ${itemsToUpsert.length} түүхий эд хадгалагдлаа.`,
-      );
+      alert(` Амжилттай! Нийт ${itemsToUpsert.length} түүхий эд хадгалагдлаа.`);
       setTimeout(() => setIngredientsImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Алдаа: ${err.message}`);
@@ -1295,7 +1293,7 @@ export default function ImportTab({
       setRecipesPasteText("");
       await fetchDatabaseData(activeClient);
       alert(
-        `✅ Амжилттай! Нийт ${recipesToUpsert.length} технологийн карт (жор) хадгалагдлаа.`,
+        ` Амжилттай! Нийт ${recipesToUpsert.length} технологийн карт (жор) хадгалагдлаа.`,
       );
       setTimeout(() => setRecipesImportSuccess(false), 4000);
     } catch (err: any) {
@@ -1331,7 +1329,7 @@ export default function ImportTab({
         const cols = splitRow(row);
         if (cols.length < 2) {
           alert(
-            `⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
+            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
           );
           setLoading(false);
           return;
@@ -1383,7 +1381,7 @@ export default function ImportTab({
       setProductsPasteText("");
       await fetchDatabaseData(activeClient);
       alert(
-        `✅ Амжилттай! Нийт ${productsToUpsert.length} цэсийг систем автоматаар ухаалгаар ангилж хадгаллаа.`,
+        ` Амжилттай! Нийт ${productsToUpsert.length} цэсийг систем автоматаар ухаалгаар ангилж хадгаллаа.`,
       );
       setTimeout(() => setProductsImportSuccess(false), 4000);
     } catch (err: any) {
@@ -1441,7 +1439,7 @@ export default function ImportTab({
         // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
         if (cols.length < 2) {
           alert(
-            `⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
+            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
           );
           setLoading(false);
           return;
@@ -1463,7 +1461,7 @@ export default function ImportTab({
           note = cols[4] || "";
         } else {
           // 2. Хэрэв Огнооны багана БАЙХГҮЙ бол: [Төрөл, Бараа, Хэмжээ, Тайлбар]
-          dateVal = activeMonthFallback; // ✅ Сонгогдсон сарын (9-р сарын) огноог өгнө
+          dateVal = activeMonthFallback; //  Сонгогдсон сарын (9-р сарын) огноог өгнө
           rawType = cols[0]?.toLowerCase() || "spoilage";
           ingName = cleanCell(cols[1] || "");
           qty = parseFloat((cols[2] || "0").replace(/[^0-9.-]/g, "")) || 0;
@@ -1500,7 +1498,7 @@ export default function ImportTab({
             quantity: -Math.abs(qty),
             type: dbType,
             notes: note || `${dbType} logged in bulk`,
-            date: dateVal, // ✅ Сонгосон сард заавал багтана!
+            date: dateVal, //  Сонгосон сард заавал багтана!
             worker_name: `${currentActor} (Хаягдал)`,
           });
         }
@@ -1528,7 +1526,7 @@ export default function ImportTab({
       setOverwriteKitchen(false);
       await fetchDatabaseData(activeClient);
       alert(
-        `✅ Амжилттай! Нийт ${logsToInsert.length} хаягдал [${startDate.substring(0, 7)}] сард хадгалагдлаа.`,
+        ` Амжилттай! Нийт ${logsToInsert.length} хаягдал [${startDate.substring(0, 7)}] сард хадгалагдлаа.`,
       );
       setTimeout(() => setKitchenImportSuccess(false), 4000);
     } catch (err: any) {
@@ -1607,7 +1605,7 @@ export default function ImportTab({
         // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
         if (cols.length < 2) {
           alert(
-            `⚠️ Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
+            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
           );
           setLoading(false);
           return;
@@ -1690,7 +1688,7 @@ export default function ImportTab({
       setOverwriteAudit(false);
       await fetchDatabaseData(activeClient);
       alert(
-        `✅ Амжилттай! Нийт ${countsToInsert.length} барааны тооллого (${cleanType}: ${auditDate}) хадгалагдлаа.`,
+        ` Амжилттай! Нийт ${countsToInsert.length} барааны тооллого (${cleanType}: ${auditDate}) хадгалагдлаа.`,
       );
       setTimeout(() => setInventoryImportSuccess(false), 4000);
     } catch (err: any) {
@@ -1714,9 +1712,9 @@ export default function ImportTab({
             <button
               type="button"
               onClick={() => setActiveSampleModal("sales")}
-              className="text-xs font-bold text-zinc-200 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg"
+              className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg cursor-pointer"
             >
-              👁️ Загвар харах
+              Загвар харах
             </button>
           </div>
 
@@ -1732,42 +1730,34 @@ export default function ImportTab({
             </div>
           )}
 
-          {/* 🟢 БОРЛУУЛАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
-          <div className="mb-4 p-3 rounded-xl border text-sm bg-zinc-950/80 border-zinc-800/80 flex items-center gap-2.5">
-            {existingSales.length > 0 ? (
-              <>
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className=" absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                </span>
-                <p className="text-zinc-300 leading-normal">
-                  <span className="font-bold text-zinc-200 font-mono">
-                    {startDate} ~ {endDate}
-                  </span>
-                  <span> хооронд нийт </span>
-                  <span className="font-black text-white">
-                    {existingSales.length.toLocaleString()} ширхэг
-                  </span>
-                  <span> борлуулалт </span>
-                  <span className="font-bold text-zinc-200 font-mono">
-                    ({Math.round(existingSalesRevenue).toLocaleString()}₮)
-                  </span>
-                  <span> бүртгэлтэй байна.</span>
-                </p>
-              </>
-            ) : (
-              <>
-                <span className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
-                <p className="text-zinc-400">
-                  <span className="font-mono">
-                    {startDate} ~ {endDate}
-                  </span>{" "}
-                  хооронд борлуулалт одоогоор бүртгэгдээгүй байна.
-                </p>
-              </>
-            )}
-          </div>
-
+          {/*  БОРЛУУЛАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
+  <div className="mb-4 p-3 rounded-xl border text-xs bg-zinc-950/60 border-zinc-800/80 flex flex-wrap items-center justify-between gap-2.5">
+  {existingSales.length > 0 ? (
+    <>
+      <div className="flex items-center gap-2.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 shrink-0" />
+        <p className="text-zinc-400 leading-relaxed">
+          <span className="font-mono text-zinc-300 font-medium">{startDate} ~ {endDate}</span>
+          <span> хооронд нийт </span>
+          <strong className="text-zinc-100 font-medium">{existingSales.length.toLocaleString()} ширхэг</strong>
+          <span> борлуулалт </span>
+          <span className="font-mono font-medium text-zinc-100">
+            ({Math.round(existingSalesRevenue).toLocaleString()} ₮)
+          </span>
+          <span> бүртгэлтэй байна.</span>
+        </p>
+      </div>
+      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 shrink-0">
+        Борлуулалт
+      </span>
+    </>
+  ) : (
+    <div className="flex items-center gap-2 text-zinc-500">
+      <span className="h-1.5 w-1.5 rounded-full bg-zinc-700 shrink-0" />
+      <span>{startDate} ~ {endDate} хооронд бүртгэгдсэн борлуулалт алга.</span>
+    </div>
+  )}
+</div>
           <form onSubmit={handleBulkSalesPaste} className="space-y-4">
             <textarea
               rows={8}
@@ -1824,9 +1814,9 @@ export default function ImportTab({
             <button
               type="button"
               onClick={() => setActiveSampleModal("purchases")}
-              className="text-xs font-bold text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg"
+              className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg cursor-pointer"
             >
-              👁️ Загвар харах
+              Загвар харах
             </button>
           </div>
           <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
@@ -1841,42 +1831,33 @@ export default function ImportTab({
               <p className="text-sm font-semibold">Амжилттай импортлогдлоо!</p>
             </div>
           )}
-          {/* 🔵 ТАТАН АВАЛТЫН ТӨЛӨВ ХАРУУЛАХ ЦЭВЭРХЭН BADGE */}
-          <div className="mb-4 p-3 rounded-xl border text-sm bg-zinc-950/80 border-zinc-800/80 flex items-center gap-2.5">
-            {existingPurchases.length > 0 ? (
-              <>
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className=" absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-200"></span>
-                </span>
-                <p className="text-zinc-300 leading-normal">
-                  <span className="font-bold text-zinc-300 font-mono">
-                    {startDate} ~ {endDate}
-                  </span>
-                  <span> хооронд нийт </span>
-                  <span className="font-black text-white">
-                    {existingPurchases.length.toLocaleString()} ширхэг
-                  </span>
-                  <span> татан авалт </span>
-                  <span className="font-bold text-zinc-300 font-mono">
-                    ({Math.round(existingPurchasesCost).toLocaleString()}₮)
-                  </span>
-                  <span> бүртгэлтэй байна.</span>
-                </p>
-              </>
-            ) : (
-              <>
-                <span className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
-                <p className="text-zinc-400">
-                  <span className="font-mono">
-                    {startDate} ~ {endDate}
-                  </span>{" "}
-                  хооронд татан авалт одоогоор бүртгэгдээгүй байна.
-                </p>
-              </>
-            )}
-          </div>
-
+<div className="mb-4 p-3 rounded-xl border text-xs bg-zinc-950/60 border-zinc-800/80 flex flex-wrap items-center justify-between gap-2.5">
+  {existingPurchases.length > 0 ? (
+    <>
+      <div className="flex items-center gap-2.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 shrink-0" />
+        <p className="text-zinc-400 leading-relaxed">
+          <span className="font-mono text-zinc-300 font-medium">{startDate} ~ {endDate}</span>
+          <span> хооронд нийт </span>
+          <strong className="text-zinc-100 font-medium">{existingPurchases.length.toLocaleString()} ширхэг</strong>
+          <span> татан авалт </span>
+          <span className="font-mono font-medium text-zinc-100">
+            ({Math.round(existingPurchasesCost).toLocaleString()} ₮)
+          </span>
+          <span> бүртгэлтэй байна.</span>
+        </p>
+      </div>
+      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 shrink-0">
+        Татан авалт
+      </span>
+    </>
+  ) : (
+    <div className="flex items-center gap-2 text-zinc-500">
+      <span className="h-1.5 w-1.5 rounded-full bg-zinc-700 shrink-0" />
+      <span>{startDate} ~ {endDate} хооронд бүртгэгдсэн татан авалт алга.</span>
+    </div>
+  )}
+</div>
           <form onSubmit={handleBulkPurchasePaste} className="space-y-4">
             <textarea
               rows={8}
@@ -1928,13 +1909,13 @@ export default function ImportTab({
                 Агуулахын Босоо Тооллого (Vertical Audit Paste)
               </h3>
             </div>
-            {/* 👁️ ЗАГВАР ХАРАХ ТОВЧ */}
+            {/*  ЗАГВАР ХАРАХ ТОВЧ */}
             <button
               type="button"
               onClick={() => setActiveSampleModal("audit")}
-              className="text-xs font-bold text-zinc-300 hover:text-teal-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-zinc-300 hover:bg-zinc-700 hover:text-white bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
             >
-              👁️ Загвар харах
+              Загвар харах
             </button>
           </div>
 
@@ -1955,33 +1936,46 @@ export default function ImportTab({
 
           {/* 📅 ОГНОО БА ТӨРӨЛ СОНГОХ (УХААЛАГ КОНТРОЛ) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            <div>
-              <label className="block text-xs font-bold text-zinc-400 mb-1">
-                Тооллогын Огноо:
-              </label>
-              <input
-                type="date"
-                value={auditDate}
-                onChange={(e) => setAuditDate(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white font-bold outline-none focus:border-teal-500 cursor-pointer"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-zinc-400 mb-1">
-                Тооллогын Төрөл:
-              </label>
-              <select
-                value={auditType}
-                onChange={(e) =>
-                  setAuditType(e.target.value as "start" | "end")
-                }
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 font-bold outline-none focus:border-teal-500 cursor-pointer"
-              >
-                <option value="start">🟢 Эхний үлдэгдэл (Start Balance)</option>
-                <option value="end">🔴 Эцсийн тооллого (Ending Count)</option>
-              </select>
-            </div>
+        <div>
+  <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">
+    Тооллогын Огноо:
+  </label>
+  <input
+    type="date"
+    value={auditDate}
+    onChange={(e) => setAuditDate(e.target.value)}
+    className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-500 rounded-xl px-3 py-2 text-sm text-zinc-100 font-semibold outline-none transition-colors cursor-pointer [color-scheme:dark]"
+  />
+</div>
+          <div>
+  <label className="block text-xs font-medium text-zinc-500 mb-1.5 uppercase tracking-wider">
+    Тооллогын Төрөл
+  </label>
+  <div className="grid grid-cols-2 gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800/80">
+    <button
+      type="button"
+      onClick={() => setAuditType("start")}
+      className={`py-2 px-3 rounded-lg text-xs font-medium transition cursor-pointer ${
+        auditType === "start"
+          ? "bg-zinc-800 text-zinc-100 border border-zinc-700/60 shadow-sm"
+          : "text-zinc-500 hover:text-zinc-300"
+      }`}
+    >
+      Эхний үлдэгдэл (Start)
+    </button>
+    <button
+      type="button"
+      onClick={() => setAuditType("end")}
+      className={`py-2 px-3 rounded-lg text-xs font-medium transition cursor-pointer ${
+        auditType === "end"
+          ? "bg-zinc-800 text-zinc-100 border border-zinc-700/60 shadow-sm"
+          : "text-zinc-500 hover:text-zinc-300"
+      }`}
+    >
+      Эцсийн тооллого (End)
+    </button>
+  </div>
+</div>
           </div>
 
           <form onSubmit={handleBulkInventoryPaste} className="space-y-4">
@@ -1990,7 +1984,7 @@ export default function ImportTab({
               value={inventoryPasteText}
               onChange={(e) => setInventoryPasteText(e.target.value)}
               placeholder="Жишээ:&#10;Matcha powder&#9;41.9&#10;Eggs&#9;5&#10;Hazelnut syrup&#9;833.9"
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-teal-500 leading-normal"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700 leading-normal"
             />
 
             {/* OVERWRITE CHECKBOX */}
@@ -2027,13 +2021,13 @@ export default function ImportTab({
               </h3>
             </div>
 
-            {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+            {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
             <button
               type="button"
               onClick={() => setActiveSampleModal("kitchen")}
-              className="text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+              className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
             >
-              👁️ Загвар харах
+              Загвар харах
             </button>
           </div>
           <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
@@ -2057,7 +2051,7 @@ export default function ImportTab({
             {existingKitchenCount > 0 ? (
               <span className="text-rose-400 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-rose-400 " />
-                🔴{" "}
+                {" "}
                 <strong>
                   {startDate} - {endDate}
                 </strong>{" "}
@@ -2119,13 +2113,13 @@ export default function ImportTab({
                     1. Түүхий эд, Үнэ бөөнөөр оруулах
                   </h3>
                 </div>
-                {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+                {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
                 <button
                   type="button"
                   onClick={() => setActiveSampleModal("ingredients")}
-                  className="text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                  className="text-xs hover:bg-zinc-700 hover:text-whitetext-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
-                  👁️ Загвар харах
+                  Загвар харах
                 </button>
               </div>
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
@@ -2138,7 +2132,7 @@ export default function ImportTab({
 
               {ingredientsImportSuccess && (
                 <div className="bg-zinc-800/60 border border-zinc-700/20 text-zinc-200 p-3 rounded-xl mb-4 text-sm font-bold">
-                  ✅ Түүхий эд, үнийн мэдээлэл амжилттай хадгалагдлаа!
+                  Түүхий эд, үнийн мэдээлэл амжилттай хадгалагдлаа!
                 </div>
               )}
 
@@ -2170,13 +2164,13 @@ export default function ImportTab({
                     2. Технологийн карт (Жор) бөөнөөр оруулах
                   </h3>
                 </div>
-                {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+                {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
                 <button
                   type="button"
                   onClick={() => setActiveSampleModal("recipes")}
-                  className="text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                  className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
-                  👁️ Загвар харах
+                  Загвар харах
                 </button>
               </div>
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
@@ -2187,7 +2181,7 @@ export default function ImportTab({
 
               {recipesImportSuccess && (
                 <div className="bg-zinc-800/60 border border-zinc-700/20 text-zinc-200 p-3 rounded-xl mb-4 text-sm font-bold">
-                  ✅ Бүх бүтээгдэхүүний жор амжилттай бүртгэгдлээ!
+                  Бүх бүтээгдэхүүний жор амжилттай бүртгэгдлээ!
                 </div>
               )}
 
@@ -2219,13 +2213,13 @@ export default function ImportTab({
                   </h3>
                 </div>
 
-                {/* 👁️ ЖИШЭЭ ХАРАХ ТОВЧ */}
+                {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
                 <button
                   type="button"
                   onClick={() => setActiveSampleModal("products")}
-                  className="text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                  className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
-                  👁️ Загвар харах
+                  Загвар харах
                 </button>
               </div>
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
@@ -2238,7 +2232,7 @@ export default function ImportTab({
 
               {productsImportSuccess && (
                 <div className="bg-zinc-800/60 border border-zinc-700/20 text-zinc-200 p-3 rounded-xl mb-4 text-sm font-bold">
-                  ✅ Бүх цэсний зарах үнэ амжилттай хадгалагдлаа!
+                  Бүх цэсний зарах үнэ амжилттай хадгалагдлаа!
                 </div>
               )}
 

@@ -404,9 +404,6 @@ export function fastLocalParse(text: string, ingredientsList: string[]) {
   };
 }
 
-
-
-
 export async function parseOperationalText(
   text: string,
   ingredientsList: string[],
@@ -449,7 +446,7 @@ export async function parseOperationalText(
     Example 2: "Сүүний хаягдал сүүлийн үед яагаад өндөр байна?" -> {"is_transaction": false, "success": true, "error_message": null, "item_name": null, "quantity": null, "type": null, "notes": null}
   `;
 
-const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
   let responseText = "";
   let lastError = "";
 
@@ -538,10 +535,14 @@ async function parseReceiptWithGroqVision(
 
   const data = await res.json();
   if (!res.ok || !data.choices?.[0]?.message?.content) {
-    throw new Error(data.error?.message || `Groq Vision error (HTTP ${res.status})`);
+    throw new Error(
+      data.error?.message || `Groq Vision error (HTTP ${res.status})`,
+    );
   }
 
-  const rawText = data.choices[0].message.content.replace(/```json|```/g, "").trim();
+  const rawText = data.choices[0].message.content
+    .replace(/```json|```/g, "")
+    .trim();
   return JSON.parse(rawText);
 }
 
@@ -551,8 +552,7 @@ export async function parseReceiptImage(
   base64Image: string,
   ingredientsList: string[],
 ) {
-
-const systemPrompt = `
+  const systemPrompt = `
   You are an expert receipt OCR assistant. Read the provided Mongolian receipt image carefully.
   Extract every purchased line item into the "purchases" JSON array with ONLY these 4 keys:
   - "item_name": (string, exact product name printed on receipt)
@@ -580,22 +580,24 @@ const systemPrompt = `
   }
 `;
   // Strip prefix if the base64 string contains "data:image/...;base64,"
-                const cleanBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
-                const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+  const cleanBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
+  const geminiKey = (process.env.GEMINI_API_KEY || "")
+    .replace(/["']/g, "")
+    .trim();
 
-                // ⚡ 1. Primary Attempt: Google Gemini 3.5 Flash-Lite
-                if (geminiKey) {
-                  try {
-                    const ai = new GoogleGenerativeAI(geminiKey);
-                  const model = ai.getGenerativeModel({
-                model: "gemini-3.5-flash-lite",
-                generationConfig: {
-                  temperature: 0.1, // Strict, deterministic factual reading
-                  responseMimeType: "application/json", // Enforces clean JSON
-                  maxOutputTokens: 2048, // 🛡️ Safe ceiling: never cuts off 10-20 item receipts
-                  thinkingConfig: { thinkingLevel: "LOW" }, // ⚡ Fast, but smart enough to read blurry text correctly
-                } as any,
-              });
+  // ⚡ 1. Primary Attempt: Google Gemini 3.5 Flash-Lite
+  if (geminiKey) {
+    try {
+      const ai = new GoogleGenerativeAI(geminiKey);
+      const model = ai.getGenerativeModel({
+        model: "gemini-3.5-flash-lite",
+        generationConfig: {
+          temperature: 0.1, // Strict, deterministic factual reading
+          responseMimeType: "application/json", // Enforces clean JSON
+          maxOutputTokens: 2048, // 🛡️ Safe ceiling: never cuts off 10-20 item receipts
+          thinkingConfig: { thinkingLevel: "LOW" }, // ⚡ Fast, but smart enough to read blurry text correctly
+        } as any,
+      });
 
       const response = await model.generateContent({
         contents: [
@@ -614,13 +616,19 @@ const systemPrompt = `
         return JSON.parse(responseText.replace(/```json|```/g, "").trim());
       }
     } catch (e: any) {
-      console.warn("⚠️ Gemini receipt OCR failed, falling back to Groq Qwen 3.8 Vision:", e.message);
+      console.warn(
+        "Gemini receipt OCR failed, falling back to Groq Qwen 3.8 Vision:",
+        e.message,
+      );
     }
   }
 
   // ⚡ 2. Fallback: Groq Qwen 3.8 27B Vision
   try {
-    const groqResult = await parseReceiptWithGroqVision(cleanBase64, systemPrompt);
+    const groqResult = await parseReceiptWithGroqVision(
+      cleanBase64,
+      systemPrompt,
+    );
     return groqResult;
   } catch (groqErr: any) {
     console.error("❌ Both Gemini and Groq Vision failed:", groqErr.message);

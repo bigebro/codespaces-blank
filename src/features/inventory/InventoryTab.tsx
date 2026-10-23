@@ -1,7 +1,7 @@
 // src/features/inventory/InventoryTab.tsx
 "use client";
 import React, { useState } from "react";
-import { Database, Save, AlertTriangle } from "lucide-react";
+import { Database, Save, AlertTriangle, Edit2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface InventoryTabProps {
@@ -71,7 +71,7 @@ export default function InventoryTab({
 
         if (originalIng && parseFloat(originalIng.current_stock) !== stockVal) {
           logsToInsert.push({
-            client_id: activeClient, // ✅
+            client_id: activeClient, //
             ingredient_id: id,
             quantity: stockVal,
             type: "count",
@@ -175,13 +175,13 @@ export default function InventoryTab({
               onClick={() => setInvFilter("low")}
               className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "low" ? "bg-rose-500/20 text-rose-400" : "text-zinc-400 hover:text-white"}`}
             >
-              ⚠️ Дуусаж буй
+              Дуусаж буй
             </button>
             <button
               onClick={() => setInvFilter("critical")}
               className={`px-3 py-1 rounded-lg font-bold transition ${invFilter === "critical" ? "bg-zinc-800 text-zinc-200" : "text-zinc-400 hover:text-white"}`}
             >
-              ⭐ A-Class
+              A-Class
             </button>
           </div>
         </div>
@@ -246,7 +246,7 @@ export default function InventoryTab({
                         {/* 1. БАРААНЫ НЭР + НЭГЖ + A-CLASS ЧЕКБОКС */}
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2">
-                            {/* ✅ ОЙЛГОМЖТОЙ, МЭРГЭЖЛИЙН ШИЙДЭЛ (Star Toggle) */}
+                            {/*  ОЙЛГОМЖТОЙ, МЭРГЭЖЛИЙН ШИЙДЭЛ (Star Toggle) */}
                             <button
                               type="button"
                               onClick={async () => {
@@ -394,7 +394,7 @@ export default function InventoryTab({
                                     className="text-zinc-500 hover:text-zinc-300 transition"
                                     title="Орчуулгыг засах"
                                   >
-                                    ✏️
+                                    <Edit2 className="h-4 w-4" />
                                   </button>
                                 </>
                               )}

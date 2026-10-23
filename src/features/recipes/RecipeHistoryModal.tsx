@@ -175,7 +175,7 @@ export default function RecipeHistoryModal({
     setLoading(false);
     onClose();
     onRestored();
-    alert(`✅ "${pName}" жор амжилттай сэргээгдлээ!`);
+    alert(` "${pName}" жор амжилттай сэргээгдлээ!`);
   };
   return (
     <div

@@ -29,7 +29,14 @@ export function OperlinkLogo({
         </linearGradient>
 
         {/* 2. Optical Fade for the Diagonal Line: Brightest in the center, tapering off perfectly to the tips like a laser beam */}
-        <linearGradient id="laserLine" x1="78" y1="434" x2="434" y2="78" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="laserLine"
+          x1="78"
+          y1="434"
+          x2="434"
+          y2="78"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.05" />
           <stop offset="30%" stopColor="#ffffff" stopOpacity="0.6" />
           <stop offset="50%" stopColor="#ffffff" stopOpacity="0.9" />
@@ -38,7 +45,14 @@ export function OperlinkLogo({
         </linearGradient>
 
         {/* 3. Optical Ring: Gives the outer circle a dynamic, glass-like reflection instead of a flat dull gray */}
-        <linearGradient id="glassRing" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="glassRing"
+          x1="0"
+          y1="0"
+          x2="512"
+          y2="512"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
           <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
@@ -208,7 +222,7 @@ export default function LoginPage() {
 
           if (existingShop) {
             setErrorMsg(
-              `⚠️ "${cleanBranch}" нэртэй бизнес аль хэдийнэ бүртгэлтэй байна. Та өөр нэр сонгоно уу.`,
+              `"${cleanBranch}" нэртэй бизнес аль хэдийнэ бүртгэлтэй байна. Та өөр нэр сонгоно уу.`,
             );
             setLoading(false);
             return;
@@ -265,7 +279,7 @@ export default function LoginPage() {
         rawMsg.includes("registered")
       ) {
         setErrorMsg(
-          "⚠️ Энэ бизнесийн нэр аль хэдийнэ бүртгэгдсэн байна! Та өөр нэр сонгоно уу.",
+          "Энэ бизнесийн нэр аль хэдийнэ бүртгэгдсэн байна! Та өөр нэр сонгоно уу.",
         );
       } else {
         setErrorMsg(err.message || "Үйлдэл амжилтгүй боллоо.");

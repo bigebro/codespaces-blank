@@ -63,8 +63,11 @@ export default function CheckoutModal({
         if (tenantData?.plan) setActivePlan(tenantData.plan);
         // ⚡ Үлдсэн хоногийг динамикаар бодох:
         if (tenantData?.subscription_end_date) {
-          const diffTime = new Date(tenantData.subscription_end_date).getTime() - Date.now();
-          setDaysRemaining(Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))));
+          const diffTime =
+            new Date(tenantData.subscription_end_date).getTime() - Date.now();
+          setDaysRemaining(
+            Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24))),
+          );
         }
         if (reqData) setHasPendingRequest(reqData);
         else setHasPendingRequest(null);
@@ -75,13 +78,15 @@ export default function CheckoutModal({
 
   if (!isOpen) return null;
 
-// ⚡ 2. ДИНАМИК ҮНЭ БА ЗӨРҮҮ БОДОХ (PRORATION ENGINE):
+  // ⚡ 2. ДИНАМИК ҮНЭ БА ЗӨРҮҮ БОДОХ (PRORATION ENGINE):
   const targetConfig = PLANS_CATALOG[plan] || PLANS_CATALOG.professional;
   // Сар эсвэл Жилийн (2 сар үнэгүй) үнийг авах
-  const baseTargetAmount = cycle === "yearly" ? targetConfig.yearly : targetConfig.monthly;
+  const baseTargetAmount =
+    cycle === "yearly" ? targetConfig.yearly : targetConfig.monthly;
 
   // Starter-аас Pro руу шилжих үед (хоног үлдсэн байвал):
-  const isUpgrading = activePlan === "starter" && plan === "professional" && daysRemaining > 0;
+  const isUpgrading =
+    activePlan === "starter" && plan === "professional" && daysRemaining > 0;
 
   let totalAmount = baseTargetAmount;
   let creditAmount = 0;
@@ -91,7 +96,10 @@ export default function CheckoutModal({
   } else if (isUpgrading) {
     // Starter-ийн 1 өдрийн үнэ: 149k / 30 хоног = ~4,966₮
     const starterDailyRate = 149000 / 30;
-    creditAmount = Math.min(Math.round(daysRemaining * starterDailyRate), 149000);
+    creditAmount = Math.min(
+      Math.round(daysRemaining * starterDailyRate),
+      149000,
+    );
 
     // Шинэ үнээс үлдсэн хоногийн мөнгийг хасаж, 1,000₮-өөр тэгшитгэх
     const diff = Math.max(0, baseTargetAmount - creditAmount);
@@ -124,8 +132,8 @@ export default function CheckoutModal({
           phone_number: userPhone || "Бүртгэлтэй утас",
           status: "pending",
           notes: isUpgrading
-          ? `Starter -> Pro ахиулалт (${daysRemaining} хоног тооцсон: -${creditAmount.toLocaleString()}₮)`
-          : `${plan} (${cycle})`,
+            ? `Starter -> Pro ахиулалт (${daysRemaining} хоног тооцсон: -${creditAmount.toLocaleString()}₮)`
+            : `${plan} (${cycle})`,
         },
       ]);
 
@@ -193,7 +201,7 @@ export default function CheckoutModal({
             <span>Төлөв шалгаж байна...</span>
           </div>
         ) : hasPendingRequest && !isSubmitted ? (
-          /* ⚠️ ТӨЛБӨР ХҮЛЭЭГДЭЖ БАЙГАА БОЛ F5 ХИЙСЭН Ч ЭНД ТҮГЖИНЭ */
+          /* ТӨЛБӨР ХҮЛЭЭГДЭЖ БАЙГАА БОЛ F5 ХИЙСЭН Ч ЭНД ТҮГЖИНЭ */
           <div className="py-8 text-center space-y-4 my-auto">
             <div className="h-14 w-14 bg-zinc-800/60 border border-zinc-700 rounded-full flex items-center justify-center mx-auto ">
               <Clock className="h-7 w-7 text-zinc-300" />
@@ -224,16 +232,17 @@ export default function CheckoutModal({
             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 my-2 overscroll-contain">
               {/* 💡 БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
               {isUpgrading ? (
-            <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
-              <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
-              <div>
-                <span className="font-bold block text-white">
-                  Starter ➔ Pro ахиулах ({daysRemaining} хоног үлдсэн):
-                </span>
-                Starter-аас ашиглаагүй үлдсэн {creditAmount.toLocaleString()}₮ хасагдаж, зөрүү{" "}
-                <strong>{totalAmount.toLocaleString()} ₮</strong> боллоо.
-              </div>
-            </div>
+                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
+                  <div>
+                    <span className="font-bold block text-white">
+                      Starter ➔ Pro ахиулах ({daysRemaining} хоног үлдсэн):
+                    </span>
+                    Starter-аас ашиглаагүй үлдсэн{" "}
+                    {creditAmount.toLocaleString()}₮ хасагдаж, зөрүү{" "}
+                    <strong>{totalAmount.toLocaleString()} ₮</strong> боллоо.
+                  </div>
+                </div>
               ) : (
                 plan !== "enterprise" && (
                   <div className="bg-zinc-950/80 border border-zinc-800 p-2.5 rounded-2xl text-xs text-zinc-300 space-y-0.5">
@@ -306,7 +315,7 @@ export default function CheckoutModal({
               {plan === "enterprise" ? (
                 <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-700/40 space-y-3 text-xs leading-relaxed">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">🏢</span>
+                    <span className="text-xl"></span>
                     <h4 className="font-black text-white text-sm">
                       Enterprise Түншлэл & Гэрээ
                     </h4>
@@ -341,29 +350,27 @@ export default function CheckoutModal({
                 /* Б. ХЭРЭВ STARTER ЭСВЭЛ PRO БОЛ: БАНКНЫ ДАНС БА NDA ГАРНА   */
                 /* ========================================================= */
                 <>
-                {/* ЗАССАН ХУВИЛБАР: Сар ба Жилийн сонголт үргэлж ил харагдана */}
-                
-                 
-                    <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800 text-xs font-bold shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setCycle("monthly")}
-                        className={`py-2 rounded-xl transition cursor-pointer ${cycle === "monthly" ? "bg-zinc-800 text-white font-black shadow" : "text-zinc-400"}`}
-                      >
-                        Сар бүр төлөх
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCycle("yearly")}
-                        className={`py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer ${cycle === "yearly" ? "bg-zinc-800 text-zinc-200 font-black shadow" : "text-zinc-400"}`}
-                      >
-                        <span>Жилээр</span>
-                        <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-zinc-700/30 font-black">
-                          🎁 2 сар үнэгүй
-                        </span>
-                      </button>
-                    </div>
-               
+                  {/* ЗАССАН ХУВИЛБАР: Сар ба Жилийн сонголт үргэлж ил харагдана */}
+
+                  <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800 text-xs font-bold shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setCycle("monthly")}
+                      className={`py-2 rounded-xl transition cursor-pointer ${cycle === "monthly" ? "bg-zinc-800 text-white font-black shadow" : "text-zinc-400"}`}
+                    >
+                      Сар бүр төлөх
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCycle("yearly")}
+                      className={`py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer ${cycle === "yearly" ? "bg-zinc-800 text-zinc-200 font-black shadow" : "text-zinc-400"}`}
+                    >
+                      <span>Жилээр</span>
+                      <span className="text-xs bg-zinc-200/20 text-zinc-300 px-1.5 py-0.5 rounded-full border border-zinc-700/30 font-black">
+                        2 сар үнэгүй
+                      </span>
+                    </button>
+                  </div>
 
                   {/* Дансны мэдээлэл */}
                   <div className="space-y-2.5 bg-zinc-950 p-3.5 rounded-2xl border border-zinc-800 text-xs">
@@ -401,7 +408,9 @@ export default function CheckoutModal({
 
                     <div className="flex justify-between items-center pt-2 border-t border-zinc-900">
                       <span className="text-zinc-400 font-bold">
-                        {isUpgrading ? "Шилжүүлэх зөрүү дүн:" : "Шилжүүлэх дүн:"}
+                        {isUpgrading
+                          ? "Шилжүүлэх зөрүү дүн:"
+                          : "Шилжүүлэх дүн:"}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-black text-zinc-200 text-base">
@@ -520,7 +529,7 @@ export default function CheckoutModal({
                   onClick={handleConfirmTransfer}
                   className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {loading ? "Илгээж байна..." : "✅ БИ ШИЛЖҮҮЛСЭН (Шалгуулах)"}
+                  {loading ? "Илгээж байна..." : " БИ ШИЛЖҮҮЛСЭН (Шалгуулах)"}
                 </button>
               )}
             </div>

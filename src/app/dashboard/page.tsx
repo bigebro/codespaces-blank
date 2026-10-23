@@ -80,7 +80,14 @@ export function OperlinkLogo({
         </linearGradient>
 
         {/* 2. Optical Fade for the Diagonal Line: Brightest in the center, tapering off perfectly to the tips like a laser beam */}
-        <linearGradient id="laserLine" x1="78" y1="434" x2="434" y2="78" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="laserLine"
+          x1="78"
+          y1="434"
+          x2="434"
+          y2="78"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.05" />
           <stop offset="30%" stopColor="#ffffff" stopOpacity="0.6" />
           <stop offset="50%" stopColor="#ffffff" stopOpacity="0.9" />
@@ -89,7 +96,14 @@ export function OperlinkLogo({
         </linearGradient>
 
         {/* 3. Optical Ring: Gives the outer circle a dynamic, glass-like reflection instead of a flat dull gray */}
-        <linearGradient id="glassRing" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="glassRing"
+          x1="0"
+          y1="0"
+          x2="512"
+          y2="512"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
           <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
@@ -984,7 +998,7 @@ function Home() {
 
       setJsonBackupModal(null);
       await fetchDatabaseData(activeClient);
-      alert("✅ Бүх жор амжилттай сэргээгдлээ!");
+      alert(" Бүх жор амжилттай сэргээгдлээ!");
     } catch (err: any) {
       alert(`Сэргээхэд алдаа гарлаа: ${err.message}`);
     } finally {
@@ -1030,7 +1044,7 @@ function Home() {
       });
 
       await fetchDatabaseData(activeClient);
-      alert(`✅ "${productName}" амжилттай сэргээгдлээ!`);
+      alert(` "${productName}" амжилттай сэргээгдлээ!`);
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
     } finally {
@@ -1752,22 +1766,24 @@ function Home() {
           isTrial,
           plan: tenantData.plan || "professional",
           daysLeft,
-          endDate: tenantData.subscription_end_date, 
+          endDate: tenantData.subscription_end_date,
           formattedEndDate,
         });
 
-             // ⚡ ШИНЭ ЛОГИК: Хэрэв админ шинээр огноо сунгасан бөгөөд хэрэглэгч хараахан "Хаах" дараагүй бол 1 удаа харуулна
-      const ackKey = `ack_sub_${targetClient.toLowerCase().trim()}`;
-      const lastAckDate = localStorage.getItem(ackKey);
+        // ⚡ ШИНЭ ЛОГИК: Хэрэв админ шинээр огноо сунгасан бөгөөд хэрэглэгч хараахан "Хаах" дараагүй бол 1 удаа харуулна
+        const ackKey = `ack_sub_${targetClient.toLowerCase().trim()}`;
+        const lastAckDate = localStorage.getItem(ackKey);
 
-      if (!lastAckDate) {
-        // Анх удаа орж ирж байгаа бол одоогийн огноог цээжилж, зүгээр өнгөрнө
-        localStorage.setItem(ackKey, tenantData.subscription_end_date);
-      } else if (lastAckDate !== tenantData.subscription_end_date && !isTrial) {
-        // Хэрэв админ огноог шинэчилсэн бол цонхыг 1 удаа нээнэ!
-        setShowUpgradeSuccess(true);
-      }
- 
+        if (!lastAckDate) {
+          // Анх удаа орж ирж байгаа бол одоогийн огноог цээжилж, зүгээр өнгөрнө
+          localStorage.setItem(ackKey, tenantData.subscription_end_date);
+        } else if (
+          lastAckDate !== tenantData.subscription_end_date &&
+          !isTrial
+        ) {
+          // Хэрэв админ огноог шинэчилсэн бол цонхыг 1 удаа нээнэ!
+          setShowUpgradeSuccess(true);
+        }
       }
 
       if (includeAnalytics || tabToLoad === "dashboard") {
@@ -1816,7 +1832,7 @@ function Home() {
 
       if (error) throw error;
       alert(
-        "✅ Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
+        " Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
       );
       // Аналитикийг шинэчлэн бодох
       await fetchDatabaseData(activeClient, startDate, endDate, true);
@@ -1903,14 +1919,14 @@ function Home() {
         .from("inventory_logs")
         .insert([
           {
-            client_id: activeClient, // ✅
+            client_id: activeClient, //
             ingredient_id: isNonFood ? null : selectedIngredientId,
             non_food_item: isNonFood ? nonFoodName : null,
             quantity: finalQty,
             type: finalType,
             total_cost: costValue,
             notes: logNote || `${finalType} logged manually`,
-            date: currentDate, // ✅ Бодит огноо
+            date: currentDate, //  Бодит огноо
             worker_name: "Менежер",
           },
         ])
@@ -2253,7 +2269,7 @@ function Home() {
             </button>
           </div>
 
-          {/* ✅ 📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧИЙГ Link БОЛГОХ: */}
+          {/*  📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧИЙГ Link БОЛГОХ: */}
           <div className="mt-4 pt-4 border-t border-zinc-800">
             <Link
               href="/kiosk"
@@ -2310,7 +2326,6 @@ function Home() {
             <div className="bg-black p-1.5 rounded-xl border border-zinc-700/20 flex items-center justify-center">
               <OperlinkLogo className="h-5 w-5" />
             </div>
-          
           </div>
 
           {/* 👈 ХУРААХ ТОВЧ */}
@@ -2735,7 +2750,7 @@ function Home() {
                                 if (error) alert(`Алдаа: ${error.message}`);
                                 else
                                   alert(
-                                    "Таны хувийн PIN код амжилттай солигдлоо! ✅",
+                                    "Таны хувийн PIN код амжилттай солигдлоо! ",
                                   );
                               }}
                               className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-sm transition"
@@ -3013,11 +3028,11 @@ function Home() {
                                             </button>
                                           ) : isPhotoVerified ? (
                                             <span className="bg-zinc-800/60 text-zinc-200 px-2 py-1 rounded-lg text-sm font-bold border border-zinc-700/20">
-                                              📸 Баримттай
+                                              Баримттай
                                             </span>
                                           ) : log.type === "purchase" ? (
                                             <span className="bg-rose-500/10 text-rose-400 px-2 py-1 rounded-lg text-sm font-bold border border-rose-500/20">
-                                              ⚠️ Зураггүй
+                                              Зураггүй
                                             </span>
                                           ) : (
                                             <span className="text-zinc-500 text-sm italic">
@@ -3073,7 +3088,7 @@ function Home() {
                             )}
                           </div>
                           <p className="text-xs text-zinc-400">
-                             Дараагийн сунгалт:{" "}
+                            Дараагийн сунгалт:{" "}
                             <strong className="text-zinc-200">
                               {tenantInfo?.formattedEndDate || "2026.11.20"}{" "}
                               хүртэл
@@ -3465,29 +3480,42 @@ function Home() {
                     <span className="text-zinc-200 block font-black text-lg mb-1">
                       {tenantInfo?.formattedEndDate}
                     </span>
-                      <span className="text-xs text-zinc-500 block uppercase font-bold">хүртэл нээлттэй</span>
+                    <span className="text-xs text-zinc-500 block uppercase font-bold">
+                      хүртэл нээлттэй
+                    </span>
                   </div>
 
                   <button
                     onClick={async () => {
-                  // 1. Дэлгэцээс хаах
-                  setShowUpgradeSuccess(false);
-                  
-                  // 2. Баазаас "модал харуулах" дохиог устгаж цэвэрлэх
-                  const { data: tData } = await supabase.from('tenants').select('feature_flags').eq('client_id', activeClient).single();
-                  const currentFlags = tData?.feature_flags || {};
-                  
-                  // show_success_modal-ийг false болгоно
-                  const newFlags = { ...currentFlags, show_success_modal: false };
-                  
-                  await supabase.from('tenants').update({ feature_flags: newFlags }).eq('client_id', activeClient);
+                      // 1. Дэлгэцээс хаах
+                      setShowUpgradeSuccess(false);
 
+                      // 2. Баазаас "модал харуулах" дохиог устгаж цэвэрлэх
+                      const { data: tData } = await supabase
+                        .from("tenants")
+                        .select("feature_flags")
+                        .eq("client_id", activeClient)
+                        .single();
+                      const currentFlags = tData?.feature_flags || {};
 
-                            if (tenantInfo?.endDate) {
-            localStorage.setItem(`ack_sub_${activeClient.toLowerCase().trim()}`, tenantInfo.endDate);
-          }
-          
-                }}
+                      // show_success_modal-ийг false болгоно
+                      const newFlags = {
+                        ...currentFlags,
+                        show_success_modal: false,
+                      };
+
+                      await supabase
+                        .from("tenants")
+                        .update({ feature_flags: newFlags })
+                        .eq("client_id", activeClient);
+
+                      if (tenantInfo?.endDate) {
+                        localStorage.setItem(
+                          `ack_sub_${activeClient.toLowerCase().trim()}`,
+                          tenantInfo.endDate,
+                        );
+                      }
+                    }}
                     className="w-full mt-6 bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3.5 rounded-xl transition shadow-lg active:scale-95 cursor-pointer"
                   >
                     Хаах

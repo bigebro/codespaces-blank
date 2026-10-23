@@ -202,7 +202,7 @@ export default function SettingsTab({
 
       if (error) throw error;
       alert(
-        "✅ Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
+        " Ангилал тус бүрийн ашгийн маржингийн бодлого амжилттай хадгалагдлаа!",
       );
       // Аналитикийг шинэчлэн бодох
       await fetchDatabaseData(activeClient, startDate, endDate, true);
@@ -239,7 +239,7 @@ export default function SettingsTab({
                     setCatalogTab("ingredients");
                   });
                 }}
-                className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
+                className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition cursor-pointer ${
                   catalogTab === "ingredients"
                     ? "bg-white text-zinc-950 shadow-md"
                     : "text-zinc-400 hover:text-white"
@@ -257,7 +257,7 @@ export default function SettingsTab({
                     setCatalogTab("products");
                   });
                 }}
-                className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
+                className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition cursor-pointer ${
                   catalogTab === "products"
                     ? "bg-white text-zinc-950 shadow-md"
                     : "text-zinc-400 hover:text-white"
@@ -275,9 +275,9 @@ export default function SettingsTab({
                     setCatalogTab("recipes");
                   });
                 }}
-                className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition ${
+                className={`flex-1 sm:flex-none px-3.5 py-2 rounded-xl text-sm font-black transition cursor-pointer ${
                   catalogTab === "recipes"
-                    ? "bg-zinc-200 text-white shadow-md"
+                    ? "bg-white text-zinc-950 shadow-md" 
                     : "text-zinc-400 hover:text-white"
                 }`}
               >

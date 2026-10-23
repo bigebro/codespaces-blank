@@ -488,8 +488,8 @@ function KioskAiChatSection({
                 {
                   sender: "ai",
                   text: data.error
-                    ? `⚠️ ${data.error}`
-                    : "🎙️ Дуу сонсогдсонгүй. Дахин тод ярина уу.",
+                    ? `${data.error}`
+                    : "Дуу сонсогдсонгүй. Дахин тод ярина уу.",
                 },
               ]);
             }
@@ -1645,7 +1645,7 @@ function KioskPage() {
     ]);
 
     setIsAiLoading(false);
-    alert("⚠️ Өмнөх ээлжийн алдагдал менежерийн хяналтад бүртгэгдлээ!");
+    alert("Өмнөх ээлжийн алдагдал менежерийн хяналтад бүртгэгдлээ!");
     setIncidentItem("");
     setIncidentQty("");
     setIncidentNote("");
@@ -1712,13 +1712,13 @@ function KioskPage() {
     );
     if (uncountedItems.length > 0) {
       setMsg(
-        `⚠️ Тооллого дутуу байна: ${uncountedItems.map((i) => i.name).join(", ")}`,
+        `Тооллого дутуу байна: ${uncountedItems.map((i) => i.name).join(", ")}`,
       );
       return;
     }
 
     if (!posZFile) {
-      setMsg("⚠️ ПОС-ын Z-Тайлангийн зургийг заавал дарж оруулна уу!");
+      setMsg("ПОС-ын Z-Тайлангийн зургийг заавал дарж оруулна уу!");
       return;
     }
 
@@ -1727,7 +1727,7 @@ function KioskPage() {
       isNaN(Number(actualCashDrawer)) ||
       Number(actualCashDrawer) < 0
     ) {
-      setMsg("⚠️ Кассын бэлэн мөнгийг бичнэ үү (Байхгүй бол 0)!");
+      setMsg("Кассын бэлэн мөнгийг бичнэ үү (Байхгүй бол 0)!");
       return;
     }
 
@@ -2064,7 +2064,7 @@ function KioskPage() {
                     .eq("id", selectedWorker.id);
                   if (error) alert(error.message);
                   else {
-                    alert("✅ Таны PIN код амжилттай солигдлоо!");
+                    alert(" Таны PIN код амжилттай солигдлоо!");
                     fetchKioskData(tenantClientId);
                   }
                 }}
@@ -2100,7 +2100,7 @@ function KioskPage() {
                   if (error) alert(error.message);
                   else {
                     alert(
-                      `✅ ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`,
+                      ` ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`,
                     );
                     fetchKioskData(tenantClientId);
                   }
@@ -2172,7 +2172,7 @@ function KioskPage() {
                     <Camera className="h-4 w-4 text-zinc-300" />
                     <span>
                       {handoverFile
-                        ? `✅ ${handoverFile.name.substring(0, 20)}...`
+                        ? ` ${handoverFile.name.substring(0, 20)}...`
                         : "Гал тогооны зураг дарах"}
                     </span>
                   </label>
@@ -2866,7 +2866,7 @@ function KioskPage() {
                         <Camera className="h-4 w-4 text-zinc-300" />
                         <span>
                           {cashOutFile
-                            ? `✅ ${cashOutFile.name.substring(0, 18)}...`
+                            ? ` ${cashOutFile.name.substring(0, 18)}...`
                             : "Баримт/Барааны зураг заавал дарах"}
                         </span>
                       </label>
@@ -3095,7 +3095,7 @@ function KioskPage() {
                             return (
                               <div className="bg-zinc-800/60 border border-zinc-800 p-2 rounded-xl text-center">
                                 <span className="text-xs font-black text-zinc-200">
-                                  🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮
+                                  ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮
                                   ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}
                                   %)
                                 </span>
@@ -3152,8 +3152,8 @@ function KioskPage() {
                           className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-rose-400 "}`}
                         >
                           {noEbarimtFile
-                            ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
-                            : "⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
+                            ? ` Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
+                            : "Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
                         </p>
                       </div>
                     </div>
@@ -3189,7 +3189,7 @@ function KioskPage() {
                       ← Засах
                     </button>
                   </div>
-                  {/* ✅ УХААЛАГ БАТЛАХ ТОВЧ (Дарахад автоматаар камер нээгдэнэ) */}
+                  {/*  УХААЛАГ БАТЛАХ ТОВЧ (Дарахад автоматаар камер нээгдэнэ) */}
                   <button
                     type="button"
                     disabled={
@@ -3516,7 +3516,7 @@ function KioskPage() {
                     </span>
                   </div>
 
-                  {/* ✅ БАТЛАХ ТОВЧ (ДАРСНЫ ДАРАА САЯ БААЗАД ОРЖ, UNDO БОЛОМЖТОЙ БОЛНО) */}
+                  {/*  БАТЛАХ ТОВЧ (ДАРСНЫ ДАРАА САЯ БААЗАД ОРЖ, UNDO БОЛОМЖТОЙ БОЛНО) */}
                   <button
                     type="button"
                     disabled={isAiLoading || ebarimtReview.items.length === 0}
@@ -3605,7 +3605,7 @@ function KioskPage() {
                           );
                           setRecentToast({
                             id: insertedIds[0] || "bulk",
-                            text: `✅ ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
+                            text: ` ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
                           });
 
                           fetchKioskData(tenantClientId);
@@ -3618,7 +3618,7 @@ function KioskPage() {
                   >
                     {isAiLoading
                       ? "Баазад хадгалж байна..."
-                      : "✅ ШАЛГААД БҮГДИЙГ БАТЛАХ"}
+                      : " ШАЛГААД БҮГДИЙГ БАТЛАХ"}
                   </button>
                 </div>
               </div>
@@ -3751,12 +3751,12 @@ function KioskPage() {
                       className={`text-xs font-bold text-center ${newItemFile ? "text-zinc-200" : "text-rose-400 "}`}
                     >
                       {newItemFile
-                        ? `✅ Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
-                        : "⚠️ Зургийг заавал дарна уу!"}
+                        ? ` Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
+                        : "Зургийг заавал дарна уу!"}
                     </p>
                   </div>
 
-                  {/* ✅ ШИНЭ БАРААНЫ УХААЛАГ БАТЛАХ ТОВЧ (Камер автоматаар нээгдэнэ) */}
+                  {/*  ШИНЭ БАРААНЫ УХААЛАГ БАТЛАХ ТОВЧ (Камер автоматаар нээгдэнэ) */}
                   <button
                     type="button"
                     disabled={
@@ -4134,7 +4134,7 @@ function KioskPage() {
                     </div>
                     {t.done && (
                       <span className="text-xs font-black text-zinc-200 shrink-0">
-                        Хийсэн ✅
+                        Хийсэн
                       </span>
                     )}
                   </button>
@@ -4247,7 +4247,7 @@ function KioskPage() {
                   <Camera className="h-4 w-4 text-zinc-300" />
                   <span>
                     {incidentFile
-                      ? `✅ ${incidentFile.name.substring(0, 18)}...`
+                      ? ` ${incidentFile.name.substring(0, 18)}...`
                       : "Зураг дарах"}
                   </span>
                 </label>
@@ -4339,7 +4339,7 @@ function KioskPage() {
                   <Camera className="h-4 w-4" />
                   <span>
                     {posZFile
-                      ? `✅ ${posZFile.name.substring(0, 20)}...`
+                      ? ` ${posZFile.name.substring(0, 20)}...`
                       : "Z-Тайлангийн зураг дарах"}
                   </span>
                 </label>
@@ -4609,15 +4609,15 @@ function KioskPage() {
                       className={`text-xs font-bold text-center ${cartFile ? "text-zinc-200" : totalCartCost >= 10000 ? "text-rose-400 " : "text-zinc-500"}`}
                     >
                       {cartFile
-                        ? `✅ Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
+                        ? ` Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
                         : totalCartCost >= 10000
-                          ? "⚠️ баримт/барааны зураг заавал дарна уу!"
+                          ? "баримт/барааны зураг заавал дарна уу!"
                           : "Зураг хавсаргах нь сайн дурынх"}
                     </p>
 
                     <button
                       type="button"
-                      // ✅ 1. ЗӨВХӨН УНШИЖ БАЙХАД Л ТҮГЖИНЭ (Камер нээгдэхэд саад болохгүй)
+                      //  1. ЗӨВХӨН УНШИЖ БАЙХАД Л ТҮГЖИНЭ (Камер нээгдэхэд саад болохгүй)
                       disabled={purchaseCart.length === 0 || isAiLoading}
                       onClick={() => {
                         // 💡 2. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
@@ -4685,7 +4685,7 @@ function KioskPage() {
                             if (insertedData && insertedData.length > 0) {
                               setRecentToast({
                                 id: insertedData[0].id,
-                                text: `✅ Сагсан дахь ${itemsToProcess.length} бараа амжилттай бүртгэгдлээ!`,
+                                text: ` Сагсан дахь ${itemsToProcess.length} бараа амжилттай бүртгэгдлээ!`,
                               });
                               fetchKioskData(tenantClientId);
                             }

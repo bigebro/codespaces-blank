@@ -39,7 +39,7 @@ function getFriendlyErrorMessage(errorMsg: string): string {
     errStr.includes("unavailable") ||
     errStr.includes("overloaded")
   ) {
-    return "⚠️ AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
+    return "AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
   }
   if (
     errStr.includes("429") ||
@@ -47,9 +47,9 @@ function getFriendlyErrorMessage(errorMsg: string): string {
     errStr.includes("rate limit") ||
     errStr.includes("too many requests")
   ) {
-    return "⚠️ Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
+    return "Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
   }
-  return "⚠️ Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
+  return "Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
 }
 
 // 🕵️‍♂️ ТЕЛЕГРАМ ДЭЭРХ ЭЗЭНД ЗОРИУЛСАН АУДИТОРЫН ПРОМПТ
@@ -241,7 +241,7 @@ export async function POST(request: Request) {
 
         let buttons = tasks.map((t: any, i: number) => [
           {
-            text: `${t.done ? "✅" : "◻️"} ${t.name}`,
+            text: `${t.done ? "" : "◻️"} ${t.name}`,
             callback_data: `tsk_${i}`,
           },
         ]);
@@ -281,7 +281,7 @@ export async function POST(request: Request) {
       if (callbackData === "close_shift_locked") {
         await answerTelegramCallback(
           callbackQueryId,
-          "⚠️ Үлдсэн бараануудыг тоолж дуусгана уу!",
+          "Үлдсэн бараануудыг тоолж дуусгана уу!",
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -809,15 +809,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: "ok" });
       }
 
-      await supabaseAdmin
-        .from("shifts")
-        .insert([
-          {
-            client_id: tenantClientId,
-            telegram_chat_id: currentChatId,
-            is_active: true,
-          },
-        ]);
+      await supabaseAdmin.from("shifts").insert([
+        {
+          client_id: tenantClientId,
+          telegram_chat_id: currentChatId,
+          is_active: true,
+        },
+      ]);
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -866,7 +864,7 @@ export async function POST(request: Request) {
       if (tasks.length > 0) {
         let buttons = tasks.map((t: any, i: number) => [
           {
-            text: `${t.done ? "✅" : "◻️"} ${t.name}`,
+            text: `${t.done ? "" : "◻️"} ${t.name}`,
             callback_data: `tsk_${i}`,
           },
         ]);
@@ -1259,7 +1257,7 @@ User Question: ${incomingText}`;
     if (currentChatId) {
       await sendTelegramMessage(
         currentChatId,
-        `⚠️ Системд алдаа гарлаа: ${error.message}`,
+        `Системд алдаа гарлаа: ${error.message}`,
       );
     }
     return NextResponse.json({ status: "ok" });
@@ -1513,7 +1511,7 @@ async function generateInventoryChecklist(
         await editTelegramMessage(
           chatId,
           messageIdToEdit,
-          "✅ Бүх тооллого дууссан байна. Ээлжийг хаалаа.",
+          " Бүх тооллого дууссан байна. Ээлжийг хаалаа.",
         );
       await generateShiftScorecard(activeShift, chatId);
       return;
@@ -1521,7 +1519,7 @@ async function generateInventoryChecklist(
 
     let buttons = checklist.map((item: any) => {
       if (item.done)
-        return [{ text: `✅ ${item.name} (Тоолов)`, callback_data: `ignore` }];
+        return [{ text: ` ${item.name} (Тоолов)`, callback_data: `ignore` }];
       return [
         {
           text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,

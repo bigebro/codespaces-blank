@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useRecipes } from "./useRecipes";
 import RecipeHistoryModal from "./RecipeHistoryModal";
 import * as XLSX from "xlsx";
+import { Trash2 } from "lucide-react";
 interface RecipeEditorProps {
   recipes: any[];
   setRecipes: React.Dispatch<React.SetStateAction<any[]>>;
@@ -257,7 +258,7 @@ export default function RecipeEditor({
 
       setJsonBackupModal(null);
       await fetchRecipes();
-      alert("✅ Бүх жор амжилттай сэргээгдлээ!");
+      alert(" Бүх жор амжилттай сэргээгдлээ!");
     } catch (err: any) {
       alert(`Сэргээхэд алдаа гарлаа: ${err.message}`);
     } finally {
@@ -302,7 +303,7 @@ export default function RecipeEditor({
       });
 
       await fetchRecipes();
-      alert(`✅ "${productName}" амжилттай сэргээгдлээ!`);
+      alert(` "${productName}" амжилттай сэргээгдлээ!`);
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
     } finally {
@@ -345,7 +346,7 @@ export default function RecipeEditor({
                   setSelectedRecipeProducts([]);
                 }
               }}
-              className="w-4 h-4 accent-purple-500 cursor-pointer rounded"
+              className="w-4 h-4 accent-white 0 cursor-pointer rounded"
             />
             <span>Бүгдийг сонгох ({allRecipeProductNames.length})</span>
           </label>
@@ -382,7 +383,7 @@ export default function RecipeEditor({
                   alert(`Устгахад алдаа гарлаа: ${error.message}`);
                 } else {
                   alert(
-                    `✅ Сонгосон ${namesToDelete.length} бүтээгдэхүүний жор бүрэн устгагдлаа.`,
+                    ` Сонгосон ${namesToDelete.length} бүтээгдэхүүний жор бүрэн устгагдлаа.`,
                   );
                 }
 
@@ -391,7 +392,7 @@ export default function RecipeEditor({
               }}
               className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-sm font-black transition active:scale-95 flex items-center gap-1.5 shadow"
             >
-              <span>🗑️ Сонгосон ({selectedRecipeProducts.length}) устгах</span>
+              <span> Сонгосон ({selectedRecipeProducts.length}) устгах</span>
             </button>
           )}
           <button
@@ -400,16 +401,16 @@ export default function RecipeEditor({
             className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title={`${activeClient}-ийн бүх жорыг файлд хадгалж авах`}
           >
-            <span>💾 Жор татах</span>
+            <span>Жор татах</span>
           </button>
-          {/* 📊 EXCEL (Google Sheets) РҮҮ ТАТАХ ТОВЧ */}
+          {/*  EXCEL (Google Sheets) РҮҮ ТАТАХ ТОВЧ */}
           <button
             type="button"
             onClick={handleExportToExcel}
-            className="bg-emerald-900/40 hover:bg-emerald-800/60 text-zinc-200 border border-zinc-700/40 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Меню болон Жороо хүн унших боломжтой Excel файлаар татаж авах"
           >
-            <span>📊 Меню & Жор (Excel)</span>
+            <span>Меню & Жор (Excel)</span>
           </button>
 
           {/* 📥 1-CLICK НӨӨЦ СЭРГЭЭХ (ШИНЭ) */}
@@ -425,7 +426,7 @@ export default function RecipeEditor({
             className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Компьютер дээрх .json файлаас жор сэргээх"
           >
-            <span>📥 Нөөцөөс сэргээх</span>
+            <span>Нөөцөөс сэргээх</span>
           </label>
 
           {/* ⚡ ШИНЭ ЖОР ҮҮСГЭХ ТОВЧ */}
@@ -507,7 +508,7 @@ export default function RecipeEditor({
                   return {
                     value: p.name,
                     label: p.name,
-                    sublabel: alreadyHas ? "✓ Жортой" : "⚠️ Жоргүй",
+                    sublabel: alreadyHas ? "✓ Жортой" : "Жоргүй",
                   };
                 })}
                 onChange={(chosen) => {
@@ -771,7 +772,7 @@ export default function RecipeEditor({
                             ),
                           );
                       }}
-                      className="w-4 h-4 accent-purple-500 cursor-pointer rounded"
+                      className="w-4 h-4 accent-white cursor-pointer rounded"
                     />
                     <h4 className="text-sm font-black text-white">{pName}</h4>
 
@@ -986,7 +987,7 @@ export default function RecipeEditor({
                           className="text-zinc-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer ml-1"
                           title="Орц хасах"
                         >
-                          🗑️
+                      <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     );
@@ -1427,7 +1428,7 @@ export default function RecipeEditor({
                 });
                 fetchRecipes();
                 alert(
-                  `✅ "${pName}" бүтээгдэхүүний жор болон зарах үнэ амжилттай хадгалагдлаа!`,
+                  ` "${pName}" бүтээгдэхүүний жор болон зарах үнэ амжилттай хадгалагдлаа!`,
                 );
               }}
               className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3 rounded-xl text-sm transition"

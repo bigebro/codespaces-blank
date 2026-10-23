@@ -299,10 +299,10 @@ export default function GeneralSettings({
                   Автомат (300 сая хүртэл 1%, давбал 10%)
                 </option>
                 <option value="simplified_1pct">
-                  🟢 Зөвхөн Хялбаршуулсан 1% (Орлогоос)
+                  Зөвхөн Хялбаршуулсан 1% (Орлогоос)
                 </option>
                 <option value="standard_10pct">
-                  🔴 Энгийн 10% (Цэвэр ашгаас + НӨАТ)
+                  Энгийн 10% (Цэвэр ашгаас + НӨАТ)
                 </option>
               </select>
             </div>
@@ -320,7 +320,7 @@ export default function GeneralSettings({
         {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 lg:col-span-2">
           <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
-            🏢 2. Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
+             Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
           </h3>
 
           <form

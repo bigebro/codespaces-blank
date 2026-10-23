@@ -11,6 +11,7 @@ import {
   Croissant,
   Package,
   Archive,
+  Plus,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -412,7 +413,7 @@ export default function ProductsPanel({
                 className="bg-white hover:bg-zinc-200 text-zinc-950 px-3.5 py-1.5 rounded-xl text-sm font-black transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow"
               >
                 <span>
-                  👁️ Өөрчлөлтүүдийг харах (
+                  Өөрчлөлтүүдийг харах (
                   {autoPilotActivity.changes.filter((c) => !c.reverted).length})
                 </span>
               </button>
@@ -430,7 +431,7 @@ export default function ProductsPanel({
         </div>
       )}
 
-      {/* 📋 [ 👁️ ӨӨРЧЛӨЛТҮҮДИЙГ ХАРАХ ] ПОПАП ЦОНХ */}
+      {/* 📋 [  ӨӨРЧЛӨЛТҮҮДИЙГ ХАРАХ ] ПОПАП ЦОНХ */}
       {showChangesModal && autoPilotActivity && (
         <div
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 animate-in fade-in duration-150"
@@ -541,7 +542,7 @@ export default function ProductsPanel({
           </div>
         </div>
       )}
-      {/* ⚠️ ПОС-ООС ИРСЭН БҮТЭЭГДЭХҮҮНИЙГ СОЛЬЖ НЭГТГЭХ ЭСВЭЛ ШИНЭЭР НЭМЭХ ШАР БАННЕР */}
+      {/* ПОС-ООС ИРСЭН БҮТЭЭГДЭХҮҮНИЙГ СОЛЬЖ НЭГТГЭХ ЭСВЭЛ ШИНЭЭР НЭМЭХ ШАР БАННЕР */}
       {unmappedSales.length > 0 && (
         <div className="bg-zinc-800/60 border-2 border-amber-500/40 p-4 rounded-2xl space-y-3 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
@@ -709,7 +710,7 @@ export default function ProductsPanel({
                         // 6. Дэлгэц дээрх Менюг шинэчлэх
                         await fetchProducts();
                         alert(
-                          `✅ "${selectedOldName}"-ийн жорыг "${posName}"-тай амжилттай холболоо!`,
+                          ` "${selectedOldName}"-ийн жорыг "${posName}"-тай амжилттай холболоо!`,
                         );
                       }}
                       className="bg-white hover:bg-zinc-200 text-zinc-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
@@ -1131,8 +1132,9 @@ export default function ProductsPanel({
 
                         if (hasRecipe) {
                           return (
-                            <span className="bg-zinc-800/60 text-zinc-200 border border-zinc-700/20 px-2.5 py-1 rounded-xl text-xs font-bold inline-flex items-center gap-1 shadow-sm">
-                              <span>🟢 Жортой</span>
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300">
+      <span className="h-1.5 w-1.5 rounded-full bg-zinc-950 shadow-[0_0_15px_rgba(52,211,153,0.25)] shrink-0" />
+                              <span> Жортой</span>
                               <span className="text-xs text-zinc-200/80">
                                 ({status.count} орц)
                               </span>
@@ -1153,7 +1155,8 @@ export default function ProductsPanel({
                             }}
                             className="bg-zinc-200/20 hover:bg-zinc-200/30 text-zinc-300 border border-zinc-800/30 px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto active:scale-95 shadow-sm cursor-pointer"
                           >
-                            <span>📖 + Орц угсрах</span>
+                            <Plus className="h-3 w-3 text-zinc-500" />
+                            <span>Орц угсрах</span>
                           </button>
                         );
                       })()}
@@ -1298,7 +1301,10 @@ export default function ProductsPanel({
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-              <h3 className="text-sm font-black text-white">✏️ Цэс засах</h3>
+              <h3 className="text-sm font-black text-white">
+                <Edit2 className="h-4 w-4" />
+                Цэс засах
+              </h3>
               <button
                 onClick={() => setEditingProduct(null)}
                 className="text-zinc-400 hover:text-white text-sm"

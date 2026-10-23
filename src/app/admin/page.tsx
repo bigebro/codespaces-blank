@@ -79,7 +79,7 @@ export default function MasterAdminPage() {
     };
   }, [checkAdmin, fetchRequests]);
 
-  // ✅ БАТЛАХ ҮЙЛДЭЛ (Approve - БҮРЭН ШАЛГАЛТТАЙ)
+  //  БАТЛАХ ҮЙЛДЭЛ (Approve - БҮРЭН ШАЛГАЛТТАЙ)
   const handleApprove = async (req: any) => {
     if (
       !confirm(
@@ -98,13 +98,16 @@ export default function MasterAdminPage() {
       .maybeSingle();
 
     const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
-  let baseDate = new Date();
-    if (tenant?.subscription_end_date && new Date(tenant.subscription_end_date) > new Date()) {
+    let baseDate = new Date();
+    if (
+      tenant?.subscription_end_date &&
+      new Date(tenant.subscription_end_date) > new Date()
+    ) {
       baseDate = new Date(tenant.subscription_end_date);
     }
     baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
 
-        // ⚡ ШИНЭ: Одоо байгаа тохиргоонуудыг устгалгүйгээр модал харуулах тушаалыг нэмэх
+    // ⚡ ШИНЭ: Одоо байгаа тохиргоонуудыг устгалгүйгээр модал харуулах тушаалыг нэмэх
     const currentFlags = tenant?.feature_flags || {};
     const newFlags = { ...currentFlags, show_success_modal: true };
 
@@ -115,7 +118,7 @@ export default function MasterAdminPage() {
         plan: req.plan,
         status: "active",
         subscription_end_date: baseDate.toISOString(),
-        feature_flags: newFlags
+        feature_flags: newFlags,
       })
       .ilike("client_id", req.client_id.trim());
 
@@ -311,7 +314,7 @@ export default function MasterAdminPage() {
                         )}
                         {req.status === "approved" && (
                           <span className="text-zinc-200 bg-zinc-800/60 border border-zinc-700/20 px-2 py-1 rounded text-xs font-bold">
-                            Батлагдсан ✅
+                            Батлагдсан
                           </span>
                         )}
                         {req.status === "rejected" && (

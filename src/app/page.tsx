@@ -39,7 +39,14 @@ export function OperlinkLogo({
         </linearGradient>
 
         {/* 2. Optical Fade for the Diagonal Line: Brightest in the center, tapering off perfectly to the tips like a laser beam */}
-        <linearGradient id="laserLine" x1="78" y1="434" x2="434" y2="78" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="laserLine"
+          x1="78"
+          y1="434"
+          x2="434"
+          y2="78"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.05" />
           <stop offset="30%" stopColor="#ffffff" stopOpacity="0.6" />
           <stop offset="50%" stopColor="#ffffff" stopOpacity="0.9" />
@@ -48,7 +55,14 @@ export function OperlinkLogo({
         </linearGradient>
 
         {/* 3. Optical Ring: Gives the outer circle a dynamic, glass-like reflection instead of a flat dull gray */}
-        <linearGradient id="glassRing" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="glassRing"
+          x1="0"
+          y1="0"
+          x2="512"
+          y2="512"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
           <stop offset="50%" stopColor="#ffffff" stopOpacity="0.05" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
@@ -149,7 +163,6 @@ export default function PremiumLandingPage() {
           <div className="bg-black p-1.5 rounded-2xl border border-zinc-700/20 ">
             <OperlinkLogo className="h-7 w-7" />
           </div>
-        
         </div>
         <div className="flex items-center gap-6 z-50">
           <Link
@@ -177,8 +190,8 @@ export default function PremiumLandingPage() {
         </div>
 
         <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
-          Operlink танай бизнесийг авч явна. <br className="hidden sm:block" />
-          <span className="text-white">Таны бизнесийн ашгийн хөшүүрэг.</span>
+
+          <span className="text-white">Танай бизнесийг авч явах ашгийн хөшүүрэг.</span>
         </h1>
 
         <p className="text-zinc-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
@@ -205,17 +218,16 @@ export default function PremiumLandingPage() {
           href="/login"
           className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-zinc-950 font-black text-base px-10 py-5 rounded-2xl  hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto cursor-pointer max-w-sm"
         >
-          Үнэгүй Турших 
+          Үнэгүй Турших
         </Link>
-  
       </section>
 
       {/* 3. HORMOZI GRAND SLAM OFFER */}
       <section className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-gradient-to-r from-blue-900/40 via-emerald-900/40 to-cyan-900/40 p-1 rounded-3xl">
+        <div className="border-zinc-700/20 p-1 rounded-3xl">
           <div className="bg-zinc-900 rounded-[22px] p-8 sm:p-10 text-center border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
-          
+          <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
               Та юу ч хийх шаардлагагүй. Бид танай бизнесийг ашигтай болгоно.
             </h2>
@@ -336,7 +348,7 @@ export default function PremiumLandingPage() {
               step={100000}
               value={dailyRevenue}
               onChange={(e) => setDailyRevenue(Number(e.target.value))}
-              className="w-full h-3 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-emerald-500 outline-none"
+              className="w-full h-3 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-zinc-950/50 outline-none"
             />
           </div>
 
@@ -409,7 +421,11 @@ export default function PremiumLandingPage() {
               }`}
             >
               <span>Жилээр төлөх</span>
-              <span className="text-xs bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-zinc-700/30 font-black">
+              <span className={`text-xs bg-zinc-200/20 text-zinc-300 px-2 py-0.5 rounded-full border border-zinc-700/30 font-black ${
+                isYearly
+                  ? "bg-white text-zinc-950 font-black shadow border-zinc-950 "
+                  : "text-zinc-400 hover:text-white"
+              }`}>
                 2 САР ҮНЭГҮЙ
               </span>
             </button>
@@ -435,18 +451,9 @@ export default function PremiumLandingPage() {
                 </span>
               </div>
               <ul className="space-y-4 mb-8 text-sm text-zinc-300">
-                <li className="flex gap-3">
-             
-                  Бүх төхөөрөмж дээр ажиллана
-                </li>
-                <li className="flex gap-3">
-               
-                  Агуулахын тооллого & Хаягдал
-                </li>
-                <li className="flex gap-3">
-            
-                  Бодит ашгийн өдөр тутмын хяналт
-                </li>
+                <li className="flex gap-3">Бүх төхөөрөмж дээр ажиллана</li>
+                <li className="flex gap-3">Агуулахын тооллого & Хаягдал</li>
+                <li className="flex gap-3">Бодит ашгийн өдөр тутмын хяналт</li>
               </ul>
             </div>
 
@@ -457,7 +464,6 @@ export default function PremiumLandingPage() {
               >
                 Сонгож Төлөх <ArrowRight className="h-3.5 w-3.5" />
               </Link>
-          
             </div>
           </div>
 
@@ -472,7 +478,7 @@ export default function PremiumLandingPage() {
               </p>
               <div className="mb-6">
                 <span className="text-xs text-zinc-200 font-bold block mb-1">
-                   Нэвтрүүлэлт: Бэлэн жортой бол 0₮ / Жор гаргах: Тохиролцоно
+                  Нэвтрүүлэлт: Бэлэн жортой бол 0₮ / Жор гаргах: Тохиролцоно
                 </span>
                 <span className="text-5xl font-black text-white font-mono">
                   {isYearly ? "249,000₮" : "299,000₮"}
@@ -482,22 +488,12 @@ export default function PremiumLandingPage() {
                 </span>
               </div>
               <ul className="space-y-4 mb-8 text-sm text-zinc-200 font-medium">
+                <li className="flex gap-3">3 хүртэлх төхөөрөмж холболт</li>
                 <li className="flex gap-3">
-                  3
-                  хүртэлх төхөөрөмж холболт
-                </li>
-                <li className="flex gap-3">
-              
                   Санхүүгийн гүнзгийрүүлсэн шинжилгээ
                 </li>
-                <li className="flex gap-3">
-                
-                  E-Tax СТ-2 тайлан экспорт
-                </li>
-                <li className="flex gap-3">
-                
-                  Өртөг, ашгийн автомат хяналт
-                </li>
+                <li className="flex gap-3">E-Tax СТ-2 тайлан экспорт</li>
+                <li className="flex gap-3">Өртөг, ашгийн автомат хяналт</li>
               </ul>
             </div>
 
@@ -537,18 +533,9 @@ export default function PremiumLandingPage() {
               </div>
 
               <ul className="space-y-4 mb-8 text-sm text-zinc-300">
-                <li className="flex gap-3">
-                
-                  Бүх Pro боломжууд
-                </li>
-                <li className="flex gap-3">
-              
-                  Олон салбарын нэгдсэн удирдлага
-                </li>
-                <li className="flex gap-3">
-                  
-                  Захиалгалт хөгжүүлэлт
-                </li>
+                <li className="flex gap-3">Бүх Pro боломжууд</li>
+                <li className="flex gap-3">Олон салбарын нэгдсэн удирдлага</li>
+                <li className="flex gap-3">Захиалгалт хөгжүүлэлт</li>
               </ul>
             </div>
 
@@ -559,7 +546,6 @@ export default function PremiumLandingPage() {
               >
                 Уулзалт товлох (Холбогдох) ➔
               </Link>
-
             </div>
           </div>
         </div>
@@ -600,7 +586,6 @@ export default function PremiumLandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <OperlinkLogo className="h-5 w-5" />
-         
           </div>
           <p className="text-xs text-zinc-600 font-medium">
             © 2026 Operlink Technologies. Улаанбаатар хот, Монгол Улс.
