@@ -1857,6 +1857,15 @@ function Home() {
         // 1. ТӨЛБӨРИЙН ЦОНХЫГ АВТОМАТААР ХААХ:
         setShowCheckoutModal(false);
         setShowUpgradeSuccess(true);
+          // ⚡ 2. URL ЦЭВЭРЛЭХ (Refresh хийхэд дахиж гарч ирэхээс сэргийлнэ)
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("checkout");
+          url.searchParams.delete("plan");
+          url.searchParams.delete("cycle");
+          url.searchParams.delete("phone");
+          window.history.replaceState({}, "", url.pathname + url.search);
+        }
       })
       // Бусад жирийн хүснэгтүүдийн шинэчлэлт (Хуучнаараа байна)
       .on(
@@ -2503,11 +2512,10 @@ function Home() {
               className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-between shadow-lg transition active:scale-95 cursor-pointer"
             >
               <span className="flex items-center gap-1.5">
-                <span>⚡</span>
-                <span>Бүрэн эрх нээх</span>
+                  <span>Эрх идэвхжүүлэх</span>
               </span>
               <span className="text-xs bg-zinc-950/20 px-1.5 py-0.5 rounded">
-                Pro ➔
+                 Авах 
               </span>
             </button>
           </div>
@@ -2606,7 +2614,7 @@ function Home() {
                   onClick={() => setShowCheckoutModal(true)}
                   className="bg-white hover:bg-zinc-200 text-zinc-950 px-8 py-3.5 rounded-2xl font-black transition shadow-lg active:scale-95 cursor-pointer"
                 >
-                  💳 ЭРХ СУНГАХ (БАТАЛГААЖУУЛАХ)
+                   ЭРХ СЭРГЭЭХ
                 </button>
               </div>
             )}
@@ -3101,7 +3109,7 @@ function Home() {
                           onClick={() => setShowCheckoutModal(true)}
                           className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition border border-zinc-700 active:scale-95 cursor-pointer"
                         >
-                          Багц солих / Сунгах
+                          {tenantInfo?.isTrial ? "Эрх идэвхжүүлэх" : "Хугацаа сунгах"}
                         </button>
                       </div>
 

@@ -462,7 +462,7 @@ export default function PremiumLandingPage() {
                 href={`/login?plan=starter&cycle=${isYearly ? "yearly" : "monthly"}&action=pay`}
                 className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs transition flex justify-center items-center gap-1.5 shadow"
               >
-                Сонгож Төлөх <ArrowRight className="h-3.5 w-3.5" />
+                Багц авах
               </Link>
             </div>
           </div>
@@ -502,14 +502,9 @@ export default function PremiumLandingPage() {
                 href={`/login?plan=professional&cycle=${isYearly ? "yearly" : "monthly"}&action=pay`}
                 className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2"
               >
-                Сонгож Төлөх <ArrowRight className="h-4 w-4" />
+                Багц авах
               </Link>
-              <Link
-                href={`/login?plan=professional&cycle=${isYearly ? "yearly" : "monthly"}&action=trial`}
-                className="w-full text-zinc-400 hover:text-white text-xs font-bold py-2 rounded-xl text-center block"
-              >
-                14 хоног үнэгүй эхлэх
-              </Link>
+ 
             </div>
           </div>
 
@@ -544,7 +539,7 @@ export default function PremiumLandingPage() {
                 href="tel:99112233" // 👈 Өөрийн утасны дугаараа бичээрэй
                 className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs flex justify-center items-center gap-1.5 shadow"
               >
-                Уулзалт товлох (Холбогдох) ➔
+                 Холбогдох 
               </Link>
             </div>
           </div>

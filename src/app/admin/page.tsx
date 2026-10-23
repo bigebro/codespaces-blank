@@ -93,19 +93,24 @@ export default function MasterAdminPage() {
     // 1. Тухайн дэлгүүрийн одоогийн эрхийг татах
     const { data: tenant } = await supabaseMaster
       .from("tenants")
-      .select("subscription_end_date,  plan, feature_flags")
+      .select("subscription_end_date, plan, status, feature_flags")
       .ilike("client_id", req.client_id.trim())
       .maybeSingle();
 
-    const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
-    let baseDate = new Date();
-    if (
-      tenant?.subscription_end_date &&
-      new Date(tenant.subscription_end_date) > new Date()
-    ) {
-      baseDate = new Date(tenant.subscription_end_date);
-    }
-    baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
+  const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
+let baseDate = new Date(); // 👈 Defaults to TODAY
+
+// ⚡ Only stack time if they are ALREADY a paid active customer extending their subscription.
+// If they were on a trial, the trial is replaced immediately and paid time starts TODAY.
+if (
+  tenant?.status === "active" && 
+  tenant?.subscription_end_date && 
+  new Date(tenant.subscription_end_date) > new Date()
+) {
+  baseDate = new Date(tenant.subscription_end_date);
+}
+
+baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
 
     // ⚡ ШИНЭ: Одоо байгаа тохиргоонуудыг устгалгүйгээр модал харуулах тушаалыг нэмэх
     const currentFlags = tenant?.feature_flags || {};

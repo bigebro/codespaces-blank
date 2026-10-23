@@ -562,7 +562,7 @@ export default function GeneralSettings({
             onClick={handleSaveCategoryMargins}
             className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
           >
-            💾 Маржингийн Бодлого Хадгалах
+            Маржингийн Бодлого Хадгалах
           </button>
         </div>
 

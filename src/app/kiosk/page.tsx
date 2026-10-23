@@ -1903,7 +1903,7 @@ function KioskPage() {
                 <Users className="text-zinc-200 h-7 w-7" />
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white">
-                Ажилтнаа сонгоно уу
+                Ээлж эхлүүлэх
               </h2>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Өөрийн нэр дээр дарж ээлжиндээ нэвтэрнэ үү

@@ -202,7 +202,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
@@ -212,7 +212,7 @@ export default function LoginPage() {
       if (isSignUp) {
         const cleanBranch = companyName.trim();
 
-        // ⚡ 1. БИЗНЕСИЙН НЭР ДАВХАРДСАН ЭСЭХИЙГ ШУУД ШАЛГАХ:
+        // 1. Шинэ бизнес давхардсан эсэхийг шалгах
         if (signupRole === "owner") {
           const { data: existingShop } = await supabase
             .from("tenants")
@@ -222,14 +222,15 @@ export default function LoginPage() {
 
           if (existingShop) {
             setErrorMsg(
-              `"${cleanBranch}" нэртэй бизнес аль хэдийнэ бүртгэлтэй байна. Та өөр нэр сонгоно уу.`,
+              `"${cleanBranch}" нэртэй бизнес аль хэдийнэ бүртгэгдсэн байна. Та өөр нэр сонгоно уу.`,
             );
             setLoading(false);
             return;
           }
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        // 2. Хэрэглэгчийг бүртгэх
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -242,7 +243,30 @@ export default function LoginPage() {
           },
         });
 
-        // 2. signInWithPassword эсвэл нэвтрэх хэсэгт redirect хийх:
+        if (signUpError) throw signUpError;
+
+        if (data.user && data.user.identities?.length === 0) {
+          setErrorMsg("Бүртгэлтэй имэйл хаяг байна. Нэвтэрч орно уу.");
+          setLoading(false);
+          return;
+        }
+
+        // ⚡ 3. УХААЛАГ AUTO-LOGIN (Хэрэв Supabase автоматаар сесси өгөөгүй бол л нэвтэрнэ)
+        if (!data.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+          
+          if (signInError) {
+             if (signInError.message.includes("Email not confirmed")) {
+                 throw new Error(" Supabase 'Confirm email' тохиргоо асаалттай байна! Унтраана уу.");
+             }
+             throw signInError;
+          }
+        }
+
+        // ⚡ 4. DASHBOARD РУУ ШУУД ҮСЭРГЭХ (Modal өөрөө нээгдэнэ):
         if (actionIntent === "pay") {
           router.push(
             `/dashboard?checkout=open&plan=${chosenPlan}&cycle=${chosenCycle}&phone=${phoneNumber}`,
@@ -250,16 +274,8 @@ export default function LoginPage() {
         } else {
           router.push("/dashboard");
         }
-        if (error) throw error;
-
-        if (data.user && data.user.identities?.length === 0) {
-          setErrorMsg("Бүртгэлтэй имэйл хаяг байна. Нэвтэрч орно уу.");
-        } else {
-          setSuccessMsg("Амжилттай бүртгэгдлээ! Та нэвтэрч орно уу.");
-          setIsSignUp(false);
-          setPassword("");
-        }
       } else {
+        // Энгийн нэвтрэх үйлдэл
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
@@ -271,7 +287,6 @@ export default function LoginPage() {
     } catch (err: any) {
       const rawMsg = String(err?.message || "").trim();
 
-      // 🚨 Хэрэв Supabase-ээс "{}" эсвэл Database error ирвэл нэр давхардсаныг шууд танина:
       if (
         rawMsg === "{}" ||
         rawMsg.includes("Database error") ||

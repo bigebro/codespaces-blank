@@ -43,6 +43,8 @@ export default function CheckoutModal({
   // 1. Одоогийн идэвхтэй багц болон Pending хүсэлт байгаа эсэхийг баталгаажуулах
   useEffect(() => {
     if (isOpen && clientId) {
+        if (initialPlan) setPlan(initialPlan);    
+      if (initialCycle) setCycle(initialCycle); 
       setIsSubmitted(false);
       setCheckingPending(true);
       Promise.all([
@@ -74,7 +76,7 @@ export default function CheckoutModal({
         setCheckingPending(false);
       });
     }
-  }, [isOpen, clientId]);
+  }, [isOpen, clientId, initialPlan, initialCycle]);
 
   if (!isOpen) return null;
 
