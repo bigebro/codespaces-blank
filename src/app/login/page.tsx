@@ -333,7 +333,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="name@example.com"
+              placeholder=""
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
             />
           </div>
@@ -350,14 +350,14 @@ export default function LoginPage() {
                     onClick={() => setSignupRole("owner")}
                     className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "owner" ? "bg-white text-zinc-950 shadow-md" : "bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:text-white"}`}
                   >
-                    👑 Бизнес эрхлэгч
+                    Бизнес эрхлэгч
                   </button>
                   <button
                     type="button"
                     onClick={() => setSignupRole("staff")}
                     className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "staff" ? "bg-white text-zinc-950 shadow-md" : "bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:text-white"}`}
                   >
-                    👷 Ажилтан
+                    Ажилтан
                   </button>
                 </div>
               </div>
@@ -372,7 +372,7 @@ export default function LoginPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required={isSignUp && signupRole === "staff"}
-                    placeholder="Жишээ: Бат, Нараа, Билгүүн"
+                    placeholder=""
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                   />
                 </div>
@@ -390,7 +390,7 @@ export default function LoginPage() {
                     }
                     required
                     maxLength={8}
-                    placeholder="Жишээ: 99112233"
+                    placeholder=""
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                   />
                 </div>
@@ -410,8 +410,8 @@ export default function LoginPage() {
                   readOnly={Boolean(companyName && signupRole === "staff")}
                   placeholder={
                     signupRole === "owner"
-                      ? "Жишээ: SF Coffee"
-                      : "Эзнийхээ бүртгүүлсэн нэрийг бичнэ үү"
+                      ? ""
+                      : "Байгуллагын нэрийг бичнэ үү"
                   }
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                 />
