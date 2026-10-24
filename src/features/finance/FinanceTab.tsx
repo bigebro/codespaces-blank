@@ -52,10 +52,12 @@ interface FinanceTabProps {
     includeAnalytics?: boolean,
     targetTab?: string,
   ) => Promise<void>;
-  tenantInfo: { isExpired: boolean; endDate: string | null } | null;
+  tenantInfo: { isExpired: boolean; endDate: string | null;  plan: string; } | null;
   setShowWasteGuideModal: (v: boolean) => void;
+   setShowCheckoutModal?: (v: boolean) => void;
   setActiveTab: (tab: any) => void;
   setCatalogTab: (tab: any) => void;
+  setUpsellFeature?: (v: string | null) => void;
 }
 
 export default function FinanceTab({
@@ -75,8 +77,10 @@ export default function FinanceTab({
   fetchDatabaseData,
   tenantInfo,
   setShowWasteGuideModal,
+  setShowCheckoutModal,
   setActiveTab,
   setCatalogTab,
+  setUpsellFeature,
 }: FinanceTabProps) {
   // 5. ДОТООД ХАЙЛТ БА ҮНИЙН ТӨЛӨВҮҮД (Эндээсээ ажиллана):
   const [spikeSearch, setSpikeSearch] = useState("");
@@ -356,14 +360,14 @@ export default function FinanceTab({
             </select>
 
             <button
-              onClick={() =>
-                exportAuditExcel(
-                  liveAnalytics,
-                  activeClient,
-                  startDate,
-                  endDate,
-                )
-              }
+                      onClick={() => {
+            if (tenantInfo?.plan === "starter") {
+               setUpsellFeature?.("E-Tax СТ-2 татварын тайлан экспортлох");
+              setShowCheckoutModal?.(true); 
+              return;
+            }
+              exportAuditExcel(liveAnalytics, activeClient, startDate, endDate);
+            }}
               className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
             >
               <Download className="h-3.5 w-3.5" /> E-Tax Экспорт
@@ -909,9 +913,14 @@ export default function FinanceTab({
                                 <button
                                   type="button"
                                   disabled={
-                                    currentEditingPrice <= marginItem.cost_price
+                                    currentEditingPrice <= marginItem.cost_price || loading
                                   }
                                   onClick={async () => {
+                                      if (tenantInfo?.plan === "starter") {
+                                         setUpsellFeature?.("Маржин хамгаалагч (Үнэ автоматаар тохируулах)");
+                                        setShowCheckoutModal?.(true);
+                                        return;
+                                }
                                     const targetProd = productsList.find(
                                       (p) =>
                                         cleanString(p.name).toLowerCase() ===

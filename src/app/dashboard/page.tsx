@@ -334,16 +334,7 @@ function Home() {
     title: string;
     subtitle?: string;
   } | null>(null);
-  // Bulk Edit State (The "Google Sheets" Feel)
-  const [bulkStock, setBulkStock] = useState<Record<string, string>>({});
-  const [isSavingBulk, setIsSavingBulk] = useState(false);
-
-  // Bulk Paste / Clipboard Parser States
-  const [salesPasteText, setSalesPasteText] = useState("");
-  const [purchasePasteText, setPurchasePasteText] = useState("");
-
-  const [salesImportSuccess, setSalesImportSuccess] = useState(false);
-  const [purchaseImportSuccess, setPurchaseImportSuccess] = useState(false);
+ const [upsellFeature, setUpsellFeature] = useState<string | null>(null);
 
   const [kioskLogoUrl, setKioskLogoUrl] = useState<string | null>(null);
   // Form States
@@ -2699,20 +2690,42 @@ function Home() {
                       setShowWasteGuideModal={setShowWasteGuideModal}
                       setActiveTab={setActiveTab}
                       setCatalogTab={setCatalogTab}
+                       setShowCheckoutModal={setShowCheckoutModal}
+                       setUpsellFeature = {setUpsellFeature}
                     />
                   )}
-                  {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
-                  {userRole === "owner" && (
-                    <div
-                      className={activeTab === "ai_cfo" ? "block" : "hidden"}
-                    >
-                      <AiCfoChat
-                        activeClient={activeClient}
-                        startDate={startDate}
-                        endDate={endDate}
-                      />
+              
+         {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
+
+              {userRole === "owner" && (
+                <div className={activeTab === "ai_cfo" ? "block" : "hidden"}>
+                  {tenantInfo?.plan === "starter" ? (
+                    <div className="flex flex-col items-center justify-center h-[75vh] bg-zinc-900/40 rounded-3xl border border-zinc-800 p-6 text-center">
+                      <div className="bg-zinc-800/60 p-4 rounded-full mb-4"><Bot className="h-10 w-10 text-zinc-500" /></div>
+                      <h3 className="text-xl font-black text-white mb-2">AI CFO Зөвлөх (Pro Боломж)</h3>
+                      <p className="text-sm text-zinc-400 max-w-md mb-6">
+                        Энэхүү ухаалаг зөвлөх нь зөвхөн Professional багцад нээлттэй. Та багцаа ахиулан санхүүгээ AI-аар шинжлүүлээрэй.
+                      </p>
+                     <button 
+                  onClick={() => {
+                    setUpsellFeature("AI CFO Санхүүгийн зөвлөх"); // 👈 Шалтгаан
+                    setCheckoutInitialPlan("professional");
+                    setShowCheckoutModal(true);
+                  }} 
+                  className="bg-white hover:bg-zinc-200 text-zinc-950 px-5 py-2.5 rounded-xl font-bold text-xs transition active:scale-95 cursor-pointer shadow-sm"
+                >
+                  Багц ахиулах
+                </button>
                     </div>
+                  ) : (
+                    <AiCfoChat
+                      activeClient={activeClient}
+                      startDate={startDate}
+                      endDate={endDate}
+                    />
                   )}
+                </div>
+              )}
                   {/* 3.  STAFF PORTAL (INPUTS) */}
                   {activeTab === "operations" && (
                     <div>
@@ -2721,7 +2734,7 @@ function Home() {
                         <div className="bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                           <div>
                             <p className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-                              🔐 Миний Kiosk PIN код
+                             Миний Kiosk PIN код
                             </p>
                             <p className="text-sm text-zinc-400 mt-0.5">
                               Гал тогооны дундын таблет дээр нэвтрэх нууц код:
@@ -3462,15 +3475,19 @@ function Home() {
                 </>
               )}
             </div>
-            {/* 💳 ТӨЛБӨРИЙН БЭЛЭН ЦОНХ (CHECKOUT MODAL) */}
+            {/* ТӨЛБӨРИЙН БЭЛЭН ЦОНХ (CHECKOUT MODAL) */}
             <CheckoutModal
               isOpen={showCheckoutModal}
-              onClose={() => setShowCheckoutModal(false)}
+               onClose={() => {
+                setShowCheckoutModal(false);
+                setUpsellFeature(null); 
+              }}
               clientId={activeClient}
               userPhone={userPhone}
               initialPlan={checkoutInitialPlan}
               initialCycle={checkoutInitialCycle}
               currentPlan={tenantInfo?.plan || "trial"}
+              upsellFeature={upsellFeature}
             />
             {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
             {showUpgradeSuccess && (

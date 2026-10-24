@@ -12,6 +12,7 @@ interface CheckoutModalProps {
   initialPlan?: string;
   initialCycle?: string;
   currentPlan?: string; // Dashboard-аас одоогийн багцыг шууд авна
+  upsellFeature?: string | null;
 }
 
 // 🏛️ Үнийн нэгдсэн толь (Жилээр төлбөл 2 сар үнэгүй буюу 10 сараар бодогдоно)
@@ -29,6 +30,7 @@ export default function CheckoutModal({
   initialPlan = "professional",
   initialCycle = "yearly",
   currentPlan = "trial",
+  upsellFeature = null, 
 }: CheckoutModalProps) {
   const [activePlan, setActivePlan] = useState<string>(currentPlan);
   const [plan, setPlan] = useState(initialPlan);
@@ -233,15 +235,20 @@ export default function CheckoutModal({
             {/* 📜 ДУНД ТАЛЫН ГҮЙДЭГ ХЭСЭГ */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 my-2 overscroll-contain">
               {/* 💡 БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
-              {isUpgrading ? (
-                <div className="bg-zinc-800/60 border border-zinc-800 p-3 rounded-2xl text-xs text-zinc-300 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-zinc-300 shrink-0" />
+             {isUpgrading ? (
+                <div className="bg-zinc-800/60 border border-zinc-700/80 p-3 rounded-2xl text-xs text-zinc-300 flex items-start gap-2.5">
+                  <span className="text-zinc-200 mt-0.5"></span>
                   <div>
+                    {/* Хэрэв ямар нэг товч дарж орж ирсэн бол ТАЙЛБАР харуулна */}
+                    {upsellFeature && (
+                      <span className="block mb-1.5 leading-relaxed">
+                        <strong className="text-white">{upsellFeature}</strong> нь зөвхөн Professional багцад нээлттэй.
+                      </span>
+                    )}
                     <span className="font-bold block text-white">
                       Starter ➔ Pro ахиулах ({daysRemaining} хоног үлдсэн):
                     </span>
-                    Starter-аас ашиглаагүй үлдсэн{" "}
-                    {creditAmount.toLocaleString()}₮ хасагдаж, зөрүү{" "}
+                    Starter-аас ашиглаагүй үлдсэн {creditAmount.toLocaleString()}₮ хасагдаж, зөрүү{" "}
                     <strong>{totalAmount.toLocaleString()} ₮</strong> боллоо.
                   </div>
                 </div>
@@ -518,11 +525,11 @@ export default function CheckoutModal({
                   type="button"
                   disabled={loading}
                   onClick={handleEnterpriseRequest}
-                  className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-white font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                 >
                   {loading
                     ? "Илгээж байна..."
-                    : "📞 УУЛЗАЛТ ТОВЛОХ ХҮСЭЛТ ИЛГЭЭХ"}
+                    : " УУЛЗАЛТ ТОВЛОХ ХҮСЭЛТ ИЛГЭЭХ"}
                 </button>
               ) : (
                 <button
