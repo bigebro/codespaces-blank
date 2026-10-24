@@ -1848,7 +1848,7 @@ function KioskPage() {
             ) : (
               <div className="h-4 w-28 bg-zinc-800  rounded" />
             )}
-            <p className="text-[10px] sm:text-xs text-zinc-200 font-bold uppercase mt-1">
+            <p className="text-xs sm:text-xs text-zinc-200 font-bold uppercase mt-1">
               Smart Operations
             </p>
           </div>
@@ -1859,7 +1859,7 @@ function KioskPage() {
           <button
             type="button"
             onClick={() => setLang(lang === "mn" ? "en" : "mn")}
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-1.5 rounded-xl text-xs font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
           >
             {lang === "mn" ? "🇲🇳 MN" : "🇺🇸 EN"}
           </button>
@@ -2228,10 +2228,10 @@ function KioskPage() {
               <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-zinc-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
                 {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
                 <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
-                  <span className="bg-zinc-950 text-zinc-200 px-2 py-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                  <span className="bg-zinc-950 text-zinc-200 px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">
                     Бүртгэгдсэн:
                   </span>
-                  <span className="font-black text-[11px] sm:text-xs leading-snug whitespace-normal break-words">
+                  <span className="font-black text-xs sm:text-xs leading-snug whitespace-normal break-words">
                     {recentToast.text}
                   </span>
                 </div>
@@ -2250,7 +2250,7 @@ function KioskPage() {
                       setMsg("↩️ Бүртгэл цуцлагдлаа.");
                       setTimeout(() => setMsg(""), 3000);
                     }}
-                    className="bg-zinc-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
+                    className="bg-zinc-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-xs sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
                   >
                     ↩️ Буцаах
                   </button>
@@ -2321,61 +2321,61 @@ function KioskPage() {
               </div>
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
-              <div className="grid grid-cols-4 gap-2 bg-zinc-950 p-2 rounded-2xl border border-zinc-800">
+                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">
                 {/* ХАЯГДАЛ */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("spoilage")}
-                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                  className={`py-2 sm:py-2.5 px-1 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                     kioskMode === "spoilage"
-                      ? "bg-white text-zinc-950 shadow-sm"
-                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
+                      ? "bg-white text-zinc-950 font-black shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  <Trash2 className="h-4 w-4" />
-                  <span>{UI_TEXT[lang].spoilage}</span>
+                  <Trash2 className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].spoilage}</span>
                 </button>
 
                 {/* ХООЛ */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("staff_meal")}
-                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                  className={`py-2 sm:py-2.5 px-1 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                     kioskMode === "staff_meal"
-                      ? "bg-white text-zinc-950 shadow-sm"
-                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
+                      ? "bg-white text-zinc-950 font-black shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  <Utensils className="h-4 w-4" />
-                  <span>{UI_TEXT[lang].meal}</span>
+                  <Utensils className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].meal}</span>
                 </button>
 
                 {/* ТУРШИЛТ */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("testing")}
-                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                  className={`py-2 sm:py-2.5 px-1 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                     kioskMode === "testing"
-                      ? "bg-white text-zinc-950 shadow-sm"
-                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
+                      ? "bg-white text-zinc-950 font-black shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  <Beaker className="h-4 w-4" />
-                  <span>{UI_TEXT[lang].test}</span>
+                  <Beaker className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].test}</span>
                 </button>
 
                 {/* ОРЛОГО */}
                 <button
                   type="button"
                   onClick={() => setKioskMode("purchase")}
-                  className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                  className={`py-2 sm:py-2.5 px-1 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
                     kioskMode === "purchase"
-                      ? "bg-white text-zinc-950 shadow-sm"
-                      : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white"
+                      ? "bg-white text-zinc-950 font-black shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
-                  <Package className="h-4 w-4" />
-                  <span>{UI_TEXT[lang].purchase}</span>
+                  <Package className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].purchase}</span>
                 </button>
               </div>
             </div>
@@ -2581,7 +2581,7 @@ function KioskPage() {
                           {tName(ing.name)}
                         </span>
                         {ing.is_critical && (
-                          <span className="text-[8px] font-black bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded shrink-0">
+                          <span className="text-[11px] font-black bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded shrink-0">
                             ★ A
                           </span>
                         )}
@@ -2592,7 +2592,7 @@ function KioskPage() {
                           {tUnit(ing.unit)}
                         </span>
                         <span
-                          className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                          className={`text-[11px] font-black uppercase px-1.5 py-0.5 rounded ${
                             kioskMode === "spoilage"
                               ? "bg-rose-500/10 text-rose-400"
                               : kioskMode === "staff_meal"
@@ -3991,7 +3991,7 @@ function KioskPage() {
                                     {itemName}
                                   </span>
                                   <span
-                                    className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase ${
+                                    className={`text-[11px] font-black px-1.5 py-0.2 rounded uppercase ${
                                       isPurchase
                                         ? "bg-zinc-800/60 text-zinc-200 border border-zinc-700/20"
                                         : isSpoilage

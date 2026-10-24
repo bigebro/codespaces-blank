@@ -385,11 +385,11 @@ export default function CheckoutModal({
                       <span className="text-zinc-400">Дансны дугаар:</span>
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-black text-white text-sm">
-                          5000 123 456
+                        MN470005005431673628
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleCopy("5000123456", "acc")}
+                          onClick={() => handleCopy("MN470005005431673628", "acc")}
                           className="p-1 bg-zinc-900 border border-zinc-700 rounded text-zinc-300 hover:text-white cursor-pointer"
                         >
                           {copied === "acc" ? (
@@ -405,7 +405,7 @@ export default function CheckoutModal({
                       <span className="text-zinc-400">
                         Хүлээн авагчийн нэр:
                       </span>
-                      <span className="font-bold text-white">Оперлинк ХХК</span>
+                      <span className="font-bold text-white">Энхээ Билгүүн</span>
                     </div>
 
                     <div className="flex justify-between items-center pt-2 border-t border-zinc-900">
