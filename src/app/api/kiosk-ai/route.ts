@@ -619,8 +619,8 @@ ${JSON.stringify(unmatched)}`;
           item.is_ebarimt !== false && item.image_type !== "Product Photo";
         const payMethod = item.payment_method || "bank";
         const notePrefix = isEBarimt
-          ? "🧾 E-Barimt"
-          : "📸 Барааны зураг (Баримтгүй)";
+          ? "E-Barimt"
+          : "Барааны зураг (Баримтгүй)";
 
         if (isFood) {
           let targetIngredient = ingredients?.find(

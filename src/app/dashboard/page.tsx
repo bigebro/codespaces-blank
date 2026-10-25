@@ -2215,16 +2215,12 @@ function Home() {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-zinc-900/60 p-8 rounded-3xl border border-zinc-800 shadow-2xl backdrop-blur-md text-center">
-          <div className="bg-zinc-800/60 p-4 rounded-2xl border border-zinc-700/20 w-fit mx-auto mb-4">
-            <ShieldAlert className="h-8 w-8 text-zinc-200" />
-          </div>
+      
 
-          <h2 className="text-xl font-black text-white">
-            Санхүүгийн Самбар Түгжигдсэн
-          </h2>
+        
           <p className="text-sm text-zinc-400 mt-1 mb-6">
-            Энэ төхөөрөмж Kiosk горимд байна. Санхүүгийн мэдээлэл харахын тулд
-            Эзний нууц үгээ оруулна уу.
+             Мэдээлэл харахын тулд
+            нууц үгээ оруулна уу.
           </p>
 
           {unlockError && (
@@ -2239,7 +2235,7 @@ function Home() {
               required
               value={unlockPassword}
               onChange={(e) => setUnlockPassword(e.target.value)}
-              placeholder="Эзний нууц үг оруулах..."
+              placeholder="Нууц үг оруулах..."
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm font-semibold focus:border-zinc-700 outline-none text-center tracking-widest"
             />
 
@@ -2250,7 +2246,7 @@ function Home() {
             >
               {isUnlocking
                 ? "Шалгаж байна..."
-                : "🔓 Эзний эрхээр түгжээ тайлах"}
+                : "Түгжээ тайлах"}
             </button>
           </form>
 
@@ -2265,7 +2261,7 @@ function Home() {
               }}
               className="text-sm text-zinc-400 hover:text-zinc-200 transition underline underline-offset-4 font-bold"
             >
-              🔄 Өөр хаягаар нэвтрэх (Ажилтан нэвтрэх)
+              Өөр хаягаар нэвтрэх 
             </button>
           </div>
 
@@ -2387,7 +2383,7 @@ function Home() {
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
-                    <Bot className="h-4 w-4" /> AI CFO Зөвлөх
+                    <Bot className="h-4 w-4" /> OP Ai
                   </button>
                 </>
               )}
@@ -2702,9 +2698,9 @@ function Home() {
                   {tenantInfo?.plan === "starter" ? (
                     <div className="flex flex-col items-center justify-center h-[75vh] bg-zinc-900/40 rounded-3xl border border-zinc-800 p-6 text-center">
                       <div className="bg-zinc-800/60 p-4 rounded-full mb-4"><Bot className="h-10 w-10 text-zinc-500" /></div>
-                      <h3 className="text-xl font-black text-white mb-2">AI CFO Зөвлөх (Pro Боломж)</h3>
+                    
                       <p className="text-sm text-zinc-400 max-w-md mb-6">
-                        Энэхүү ухаалаг зөвлөх нь зөвхөн Professional багцад нээлттэй. Та багцаа ахиулан санхүүгээ AI-аар шинжлүүлээрэй.
+                     Танай бизнесийн бүх датанд суурилсан AI шинжээч. Борлуулалт, орцын өртөг, цэвэр ашгаа гүнзгийрүүлэн шинжлүүлж, шууд асуулт асуух боломжтой
                       </p>
                      <button 
                   onClick={() => {
@@ -3038,7 +3034,7 @@ function Home() {
                                               onClick={() =>
                                                 setSelectedImageModal({
                                                   url: log.image_url,
-                                                  title: `📸 Нотлох баримт: ${name}`,
+                                                  title: `Нотлох баримт: ${name}`,
                                                   subtitle: `${log.worker_name} • ${new Date(log.date).toLocaleString("mn-MN")}`,
                                                 })
                                               }

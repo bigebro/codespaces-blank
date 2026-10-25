@@ -35,6 +35,7 @@ import {
   Banknote,
   Crown,
   Receipt,
+  ShoppingCart,
   ChefHat,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -1211,6 +1212,107 @@ function KioskPage() {
     "spoilage" | "staff_meal" | "testing" | "purchase"
   >("spoilage");
   const [quickItemModal, setQuickItemModal] = useState<any | null>(null);
+  const [numpadTarget, setNumpadTarget] = useState<"qty" | "cost">("qty");
+
+   // ⚡ 1. Заагч (Cursor)-ийг удирдах рефүүд:
+  const qtyInputRef = useRef<HTMLInputElement>(null);
+  const costInputRef = useRef<HTMLInputElement>(null);
+
+// ⚡ 0ms Чичиргээ үүсгэгч (Тооны машин шиг хурдан мэдрэмж)
+  const triggerHaptic = (ms = 8) => {
+    if (typeof window !== "undefined" && window.navigator?.vibrate) {
+      window.navigator.vibrate(ms);
+    }
+  };
+
+  // ⚡ Хуруу хүрэх тэр агшинд 0ms-д тоо оруулах
+  const handleFastInsert = (digit: string) => {
+    triggerHaptic(8);
+    const isQty = numpadTarget === "qty";
+    const input = isQty ? qtyInputRef.current : costInputRef.current;
+    const setVal = isQty ? setQuickQty : setPurchaseCost;
+
+    if (input) {
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? input.value.length;
+      const prev = input.value;
+      if (digit === "." && prev.includes(".")) return;
+
+      const next = prev.substring(0, start) + digit + prev.substring(end);
+      setVal(next);
+
+      requestAnimationFrame(() => {
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(start + digit.length, start + digit.length);
+      });
+    } else {
+      setVal((prev) => prev + digit);
+    }
+  };
+
+  // ⚡ 1 тоо устгах суурь функц
+  const executeSingleDelete = () => {
+    triggerHaptic(6);
+    const isQty = numpadTarget === "qty";
+    const input = isQty ? qtyInputRef.current : costInputRef.current;
+    const setVal = isQty ? setQuickQty : setPurchaseCost;
+
+    if (input) {
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? input.value.length;
+      const prev = input.value;
+
+      if (start === end) {
+        if (start === 0) return;
+        const next = prev.substring(0, start - 1) + prev.substring(end);
+        setVal(next);
+        requestAnimationFrame(() => {
+          input.focus({ preventScroll: true });
+          input.setSelectionRange(start - 1, start - 1);
+        });
+      } else {
+        const next = prev.substring(0, start) + prev.substring(end);
+        setVal(next);
+        requestAnimationFrame(() => {
+          input.focus({ preventScroll: true });
+          input.setSelectionRange(start, start);
+        });
+      }
+    } else {
+      setVal((prev) => prev.slice(0, -1));
+    }
+  };
+
+  // ⚡ ДАРААД БАЙВАЛ ТОНЫ МАШИН ШИГ ХУРДАН ТАСРАЛТГҮЙ УСТГАХ
+  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const deleteIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startContinuousDelete = () => {
+    executeSingleDelete();
+    // 250ms дарсны дараа 50ms тутамд зогсолтгүй устгана:
+    deleteTimerRef.current = setTimeout(() => {
+      deleteIntervalRef.current = setInterval(() => {
+        executeSingleDelete();
+      }, 50);
+    }, 250);
+  };
+
+  const stopContinuousDelete = () => {
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current);
+  };
+
+  // ⚡ "C" (Бүгдийг арилгах) товч
+  const handleClearAll = () => {
+    triggerHaptic(15);
+    if (numpadTarget === "qty") {
+      setQuickQty("");
+      qtyInputRef.current?.focus({ preventScroll: true });
+    } else {
+      setPurchaseCost("");
+      costInputRef.current?.focus({ preventScroll: true });
+    }
+  };
   const [quickQty, setQuickQty] = useState<string>("");
   const [purchaseCost, setPurchaseCost] = useState<string>("");
   const [kioskSearch, setKioskSearch] = useState<string>("");
@@ -1867,7 +1969,7 @@ function KioskPage() {
             href="/login?from=kiosk"
             className="text-zinc-300 hover:text-white text-xs font-bold bg-zinc-900 px-2 py-1.5 rounded-xl border border-zinc-800 active:scale-95 transition"
           >
-            Dashboard
+            Самбар
           </Link>
           {/* 🟢 ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
           {selectedWorker && (
@@ -2321,7 +2423,7 @@ function KioskPage() {
               </div>
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
-                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">
                 {/* ХАЯГДАЛ */}
                 <button
                   type="button"
@@ -2333,7 +2435,9 @@ function KioskPage() {
                   }`}
                 >
                   <Trash2 className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].spoilage}</span>
+                  <span className="text-xs sm:text-xs font-bold leading-none">
+                    {UI_TEXT[lang].spoilage}
+                  </span>
                 </button>
 
                 {/* ХООЛ */}
@@ -2347,7 +2451,9 @@ function KioskPage() {
                   }`}
                 >
                   <Utensils className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].meal}</span>
+                  <span className="text-xs sm:text-xs font-bold leading-none">
+                    {UI_TEXT[lang].meal}
+                  </span>
                 </button>
 
                 {/* ТУРШИЛТ */}
@@ -2361,7 +2467,9 @@ function KioskPage() {
                   }`}
                 >
                   <Beaker className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].test}</span>
+                  <span className="text-xs sm:text-xs font-bold leading-none">
+                    {UI_TEXT[lang].test}
+                  </span>
                 </button>
 
                 {/* ОРЛОГО */}
@@ -2375,17 +2483,20 @@ function KioskPage() {
                   }`}
                 >
                   <Package className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-xs font-bold leading-none">{UI_TEXT[lang].purchase}</span>
+                  <span className="text-xs sm:text-xs font-bold leading-none">
+                    {UI_TEXT[lang].purchase}
+                  </span>
                 </button>
               </div>
             </div>
 
             {/* 📦 1. ОЛОН БАРААТАЙ E-BARIMT УНШУУЛАХ КАРТ */}
-            {kioskMode === "purchase" && (
-              <div className="bg-gradient-to-r from-emerald-950/60 to-zinc-900 border-2 border-zinc-700/40 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-lg">
+    {kioskMode === "purchase" && (
+  <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-sm">
                 <div>
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
-                    <span>🧾 Олон бараатай E-Barimt уншуулах</span>
+                    <Receipt className="h-4 w-4 text-zinc-400 shrink-0" />
+                    <span>Олон бараатай E-Barimt уншуулах</span>
                   </h4>
                 </div>
 
@@ -2506,7 +2617,8 @@ function KioskPage() {
                     htmlFor="kiosk-receipt-gallery"
                     className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-2.5 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1 active:scale-95 border border-zinc-700"
                   >
-                    <span>🖼️ Цомог</span>
+                    <ImageIcon className="h-3.5 w-3.5 text-zinc-400" />
+                    <span>Цомог</span>
                   </label>
                 </div>
               </div>
@@ -2992,7 +3104,7 @@ function KioskPage() {
                     {isAiLoading
                       ? "Хадгалж байна..."
                       : cashOutType === "petty_cash" && !cashOutFile
-                        ? "📸 ЗУРАГ ДАРНА УУ"
+                        ? "ЗУРАГ ДАРНА УУ"
                         : "МӨНГӨ ГАРГАХЫГ БАТЛАХ"}
                   </button>
                 </div>
@@ -3045,37 +3157,77 @@ function KioskPage() {
                     </button>
                   </div>
 
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 text-center">
-                    <span className="text-3xl font-black text-white font-mono">
-                      {quickQty || "0"}
+         {/* 1. ТОO ХЭМЖЭЭ (Хуруугаараа хүссэн тоон дээрээ дарж Cursor аваачна) */}
+                  <div 
+                    onClick={() => {
+                      setNumpadTarget("qty");
+                      qtyInputRef.current?.focus({ preventScroll: true });
+                    }}
+                    className={`p-3 rounded-2xl border text-center cursor-pointer transition select-none ${
+                      numpadTarget === "qty" 
+                        ? "bg-zinc-900 border-white shadow-sm ring-1 ring-white/20" 
+                        : "bg-zinc-950 border-zinc-800 opacity-60"
+                    }`}
+                  >
+                    <span className="text-xs text-zinc-400 font-bold uppercase block mb-0.5">
+                      Тоо хэмжээ ({quickItemModal.unit}):
                     </span>
-                    <span className="ml-2 text-xs font-bold text-zinc-400">
-                      {quickItemModal.unit}
-                    </span>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <input
+                        ref={qtyInputRef}
+                        type="text"
+                        inputMode="none"
+                        autoComplete="off"
+                        value={quickQty}
+                        onFocus={() => setNumpadTarget("qty")}
+                        onChange={(e) => setQuickQty(e.target.value)}
+                        placeholder="0"
+                        className="w-full bg-transparent text-2xl sm:text-3xl font-black text-white font-mono text-center outline-none cursor-text tracking-wider caret-emerald-400 selection:bg-zinc-700"
+                      />
+                      <span className="text-xs font-bold text-zinc-400 shrink-0">
+                        {quickItemModal.unit}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Хэрэв ОРЛОГО бол: Үнэ бичих ба Үнийн өсөлтийг бодитоор харуулах */}
+                  {/* 2. НИЙТ ҮНЭ (Хуруугаараа хүссэн тоон дээрээ дарж Cursor аваачна) */}
                   {kioskMode === "purchase" && (
-                    <div className="space-y-2 pt-1 border-t border-zinc-800">
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1">
+                    <div className="space-y-2 pt-1 border-t border-zinc-800/80">
+                      <div 
+                        onClick={() => {
+                          setNumpadTarget("cost");
+                          costInputRef.current?.focus({ preventScroll: true });
+                        }}
+                        className={`p-3 rounded-2xl border text-center cursor-pointer transition select-none ${
+                          numpadTarget === "cost" 
+                            ? "bg-zinc-900 border-white shadow-sm ring-1 ring-white/20" 
+                            : "bg-zinc-950 border-zinc-800 opacity-60"
+                        }`}
+                      >
+                        <span className="text-xs text-zinc-400 font-bold uppercase block mb-0.5">
                           Нийт төлсөн үнэ (₮):
-                        </label>
-                        <input
-                          type="number"
-                          value={purchaseCost}
-                          onChange={(e) => setPurchaseCost(e.target.value)}
-                          placeholder="Төлсөн нийт үнийг бичнэ үү..."
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-center text-xs text-zinc-200 font-mono font-bold outline-none focus:border-zinc-700"
-                        />
+                        </span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            ref={costInputRef}
+                            type="text"
+                            inputMode="none"
+                            autoComplete="off"
+                            value={purchaseCost}
+                            onFocus={() => setNumpadTarget("cost")}
+                            onChange={(e) => setPurchaseCost(e.target.value)}
+                            placeholder="0"
+                            className="w-full bg-transparent text-2xl sm:text-3xl font-black text-white font-mono text-center outline-none cursor-text tracking-wider caret-emerald-400 selection:bg-zinc-700"
+                          />
+                          <span className="text-sm font-bold text-zinc-400 shrink-0">₮</span>
+                        </div>
                       </div>
 
-                      {/* 🚨 ШУУД ҮНИЙН ӨСӨЛТ/БУУРАЛТЫГ ТООЦОЖ ХАРУУЛАХ БАДЖ */}
+                      {/* Үнийн өсөлт / бууралтын дохио */}
                       {(() => {
                         const qtyNum = parseFloat(quickQty) || 0;
                         const costNum = parseFloat(purchaseCost) || 0;
-                        const oldPrice =
-                          parseFloat(quickItemModal.unit_price) || 0;
+                        const oldPrice = parseFloat(quickItemModal.unit_price) || 0;
                         if (qtyNum > 0 && costNum > 0 && oldPrice > 0) {
                           const currentUnitPrice = Math.round(costNum / qtyNum);
                           const diff = currentUnitPrice - oldPrice;
@@ -3083,11 +3235,9 @@ function KioskPage() {
 
                           if (diff > 0) {
                             return (
-                              <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center ">
+                              <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center">
                                 <span className="text-xs font-black text-rose-400">
-                                  🔺 ҮНЭ ӨССӨН БАЙНА:{" "}
-                                  {oldPrice.toLocaleString()}₮ ➔{" "}
-                                  {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
+                                  🔺 ҮНЭ ӨССӨН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
                                 </span>
                               </div>
                             );
@@ -3095,9 +3245,7 @@ function KioskPage() {
                             return (
                               <div className="bg-zinc-800/60 border border-zinc-800 p-2 rounded-xl text-center">
                                 <span className="text-xs font-black text-zinc-200">
-                                  ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮
-                                  ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}
-                                  %)
+                                  🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}%)
                                 </span>
                               </div>
                             );
@@ -3106,7 +3254,7 @@ function KioskPage() {
                         return null;
                       })()}
 
-                      {/* 📸 ЭНД ЗУРГИЙГ ЗААВАЛ ДАРУУЛНА */}
+                      {/* Камер ба Зураг авах хэсэг */}
                       <div className="space-y-1">
                         <div className="flex gap-2">
                           <input
@@ -3116,13 +3264,12 @@ function KioskPage() {
                             id="single-pur-cam"
                             className="hidden"
                             onChange={(e) => {
-                              if (e.target.files?.[0])
-                                setNoEbarimtFile(e.target.files[0]);
+                              if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]);
                             }}
                           />
                           <label
                             htmlFor="single-pur-cam"
-                            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
+                            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                           >
                             <Camera className="h-4 w-4 text-zinc-200" />
                             <span>Камер</span>
@@ -3134,57 +3281,90 @@ function KioskPage() {
                             id="single-pur-gallery"
                             className="hidden"
                             onChange={(e) => {
-                              if (e.target.files?.[0])
-                                setNoEbarimtFile(e.target.files[0]);
+                              if (e.target.files?.[0]) setNoEbarimtFile(e.target.files[0]);
                             }}
                           />
                           <label
                             htmlFor="single-pur-gallery"
-                            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
+                            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                           >
-                            <span className="flex items-center gap-1.5">
-                              <ImageIcon className="h-3.5 w-3.5" /> Цомог
-                            </span>
+                            <ImageIcon className="h-4 w-4 text-zinc-200" />
+                            <span>Цомог</span>
                           </label>
                         </div>
 
-                        <p
-                          className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-rose-400 "}`}
-                        >
+                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-rose-400"}`}>
                           {noEbarimtFile
-                            ? ` Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
-                            : "Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
+                            ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
+                            : "⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
                         </p>
                       </div>
                     </div>
                   )}
+
+              {/* ⚡ ХУРДАН ХЭРЭГСЛҮҮД: [ C Арилгах ] болон [ Дараах: Үнэ ➔ ] */}
+                  <div className="flex items-center justify-between gap-2 pt-1 pb-1">
+                    <button
+                      type="button"
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        handleClearAll();
+                      }}
+                      className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-700 active:scale-95 text-zinc-300 font-bold text-xs rounded-xl border border-zinc-700/60 transition cursor-pointer flex items-center gap-1.5 touch-manipulation select-none"
+                    >
+                      <span className="font-mono font-black text-rose-400">C</span>
+                      <span className="text-[11px] text-zinc-400">Бүгдийг арилгах</span>
+                    </button>
+
+                    {/* Хэрэв Орлого горимд байвал автоматаар ҮНЭ рүү шилжих товч */}
+                    {kioskMode === "purchase" && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          triggerHaptic(10);
+                          if (numpadTarget === "qty") {
+                            setNumpadTarget("cost");
+                            costInputRef.current?.focus({ preventScroll: true });
+                          } else {
+                            setNumpadTarget("qty");
+                            qtyInputRef.current?.focus({ preventScroll: true });
+                          }
+                        }}
+                        className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-700 active:scale-95 text-zinc-200 font-bold text-xs rounded-xl border border-zinc-700 transition cursor-pointer flex items-center gap-1.5 touch-manipulation select-none"
+                      >
+                        <span>{numpadTarget === "qty" ? "Дараах: Үнэ ➔" : "Буцах: Хэмжээ ➔"}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 🔢 ДЭЛГЭЦИЙН ТОМ ТООВЧЛУУР (Хуруу хүрэхэд шууд 0ms-д бичнэ + Чичирнэ) */}
                   <div className="grid grid-cols-3 gap-2">
-                    {[
-                      "1",
-                      "2",
-                      "3",
-                      "4",
-                      "5",
-                      "6",
-                      "7",
-                      "8",
-                      "9",
-                      ".",
-                      "0",
-                    ].map((digit) => (
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map((digit) => (
                       <button
                         key={digit}
                         type="button"
-                        onClick={() => setQuickQty((prev) => prev + digit)}
-                        className="bg-zinc-950 hover:bg-zinc-800 active:scale-95 text-white font-black text-xl py-3 rounded-2xl border border-zinc-800 transition"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          handleFastInsert(digit);
+                        }}
+                        className="bg-zinc-950 hover:bg-zinc-800 active:bg-zinc-800 active:scale-95 text-white font-black text-xl py-2.5 rounded-2xl border border-zinc-800 transition-transform cursor-pointer select-none touch-manipulation"
                       >
                         {digit}
                       </button>
                     ))}
+
+                    {/* ← Засах товч (ДАРЖ БАЙВАЛ ЗОГСОЛТГҮЙ ХУРДАН АРИЛГАНА) */}
                     <button
                       type="button"
-                      onClick={() => setQuickQty((prev) => prev.slice(0, -1))}
-                      className="bg-rose-500/10 text-rose-400 font-bold text-sm py-3 rounded-2xl border border-rose-500/20 transition active:scale-95 flex items-center justify-center"
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        startContinuousDelete();
+                      }}
+                      onPointerUp={stopContinuousDelete}
+                      onPointerLeave={stopContinuousDelete}
+                      onPointerCancel={stopContinuousDelete}
+                      className="bg-rose-500/10 active:bg-rose-500/25 text-rose-400 font-bold text-sm py-2.5 rounded-2xl border border-rose-500/20 active:scale-95 flex items-center justify-center cursor-pointer select-none touch-manipulation"
                     >
                       ← Засах
                     </button>
@@ -3303,7 +3483,7 @@ function KioskPage() {
                       : kioskMode === "purchase" &&
                           (parseFloat(purchaseCost) || 0) >= 10000 &&
                           !noEbarimtFile
-                        ? "📸 ЗУРАГ ДАРЖ БАТЛАХ"
+                        ? "ЗУРАГ ДАРЖ БАТЛАХ"
                         : kioskMode === "purchase" && !noEbarimtFile
                           ? "БАТЛАХ (Зураггүй оруулах)"
                           : "БАТЛАХ (OK)"}
@@ -3336,7 +3516,10 @@ function KioskPage() {
                       }}
                       className="w-full bg-zinc-800/60 hover:bg-zinc-200/20 disabled:opacity-40 text-zinc-300 border border-zinc-800 font-black py-3 rounded-2xl text-[13px] sm:text-sm transition active:scale-95 mt-2"
                     >
-                      🛒 САГСАНД ХАДГАЛАХ (Бөөнд нь зураг дарах)
+                      <span className="flex items-center justify-center gap-2">
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        <span> САГСАНД ХАДГАЛАХ (Бөөнд нь зураг дарах)</span>
+                      </span>
                     </button>
                   )}
                 </div>
@@ -3387,7 +3570,7 @@ function KioskPage() {
                     />
                     <div className="text-xs">
                       <span className="text-zinc-200 font-bold block">
-                        📸 Баримтын эх зураг бэлэн
+                        Баримтын эх зураг бэлэн
                       </span>
                       <span className="text-zinc-400">
                         Нийт {ebarimtReview.items.length} бараа илэрсэн
@@ -3743,7 +3926,8 @@ function KioskPage() {
                         htmlFor="new-item-gallery"
                         className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-xs font-bold text-zinc-300 transition"
                       >
-                        <span>🖼️ Цомог</span>
+                        <ImageIcon className="h-3.5 w-3.5 text-zinc-400" />
+                        <span>Цомог</span>
                       </label>
                     </div>
 
@@ -3855,7 +4039,7 @@ function KioskPage() {
                     {isAiLoading
                       ? "Үүсгэж байна..."
                       : (parseFloat(newItemCost) || 0) >= 10000 && !newItemFile
-                        ? "📸 ЗУРАГ ДАРЖ ҮҮСГЭХ"
+                        ? "ЗУРАГ ДАРЖ ҮҮСГЭХ"
                         : !newItemFile
                           ? "БАТЛАХ (Зураггүй үүсгэх)"
                           : "ШИНЭ БАРААГ БАТЛАХ"}
@@ -4300,27 +4484,30 @@ function KioskPage() {
 
             <div className="space-y-2 py-1 flex-1 overflow-y-auto overscroll-contain pr-1">
               {/* 🔄 САРЫН ЦИКЛИЙН ЯВЦ (KIOSK ДЭЭР АЖИЛТАНД ХАРАГДАХ) */}
-              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 mb-2 flex items-center justify-between text-sm font-mono">
+              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 mb-2 flex items-center justify-between text-xs font-mono">
                 <span className="text-zinc-400 font-sans">
                   Энэ сарын циклийн гүйцэтгэл:
                 </span>
-                <span className="text-zinc-200 font-black">
-                  🔄{" "}
-                  {
-                    ingredients.filter(
-                      (i) =>
-                        i.last_counted_at &&
-                        new Date(i.last_counted_at) >=
-                          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-                    ).length
-                  }{" "}
-                  / {ingredients.length} бараа
+                <span className="text-zinc-200 font-bold flex items-center gap-1.5">
+                  <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
+                  <span>
+                    {
+                      ingredients.filter(
+                        (i) =>
+                          i.last_counted_at &&
+                          new Date(i.last_counted_at) >=
+                            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                      ).length
+                    }{" "}
+                    / {ingredients.length} бараа
+                  </span>
                 </span>
               </div>
               {/* POS Z-REPORT UPLOAD */}
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
-                  🧾 ПОС-ын Z-Тайлангийн зураг (End-of-day Z-Report)
+                  <Receipt className="h-3.5 w-3.5 text-zinc-400" />
+                  ПОС-ын Z-Тайлангийн зураг (End-of-day Z-Report)
                 </p>
                 <input
                   type="file"
@@ -4348,7 +4535,8 @@ function KioskPage() {
               {/* 💵 ШИНЭ: КАССЫН БЭЛЭН МӨНГӨНИЙ БОДИТ ТООЛЛОГО */}
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mb-2">
                 <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
-                  💵 Кассанд байгаа бэлэн мөнгө (Тоолсон дүн)
+                  <Banknote className="h-3.5 w-3.5 text-zinc-400" />
+                  Кассанд байгаа бэлэн мөнгө (Тоолсон дүн)
                 </p>
                 <div className="relative">
                   <input
@@ -4395,8 +4583,9 @@ function KioskPage() {
                             ₮)
                           </span>
                         ) : (
-                          <span className="text-xs bg-zinc-200/20 text-zinc-300 border border-zinc-800 px-1.5 py-0.5 rounded font-bold">
-                            🔄 Сар бүрийн цикл
+                          <span className="text-xs bg-zinc-900 text-zinc-300 border border-zinc-800 px-2 py-0.5 rounded-md font-medium inline-flex items-center gap-1">
+                            <RotateCcw className="h-2.5 w-2.5 text-zinc-400" />
+                            <span>Сар бүрийн цикл</span>
                           </span>
                         )}
                       </div>
@@ -4455,7 +4644,7 @@ function KioskPage() {
                 {isAiLoading
                   ? "Хааж байна..."
                   : !posZFile
-                    ? "📸 Z-ТАЙЛАНГИЙН ЗУРАГ ДАРНА УУ"
+                    ? "Z-ТАЙЛАНГИЙН ЗУРАГ ДАРНА УУ"
                     : actualCashDrawer.trim() === ""
                       ? "💵 КАССЫН МӨНГӨӨ БИЧНЭ ҮҮ"
                       : "Хаах & Илгээх"}
@@ -4472,9 +4661,11 @@ function KioskPage() {
             className="absolute bottom-20 left-4 right-4 z-40 bg-white hover:bg-zinc-200 text-zinc-950 p-3.5 rounded-2xl  flex justify-between items-center border border-zinc-700 cursor-pointer  transition-all active:scale-95"
           >
             <div className="flex items-center gap-3">
-              <span className="text-2xl drop-shadow-md">🛒</span>
+              <div className="p-2 bg-zinc-900 rounded-xl">
+                <ShoppingCart className="h-5 w-5 text-zinc-200" />
+              </div>
               <div>
-                <p className="text-sm font-black">
+                <p className="text-sm font-bold text-zinc-900">
                   {purchaseCart.length} бараа сагсанд байна
                 </p>
                 <p className="text-xs text-blue-200 font-mono font-bold">
@@ -4501,7 +4692,8 @@ function KioskPage() {
               <div className="flex justify-between items-center border-b border-zinc-800 pb-3 shrink-0">
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>🛒 Олон барааны сагс</span>
+                    <ShoppingCart className="h-4 w-4 text-zinc-400" />
+                    <span>Олон барааны сагс</span>
                   </h3>
                   <p className="text-xs text-zinc-400">
                     Гаднаас бөөндөж авсан барааг 1 зургаар батлах
@@ -4601,7 +4793,8 @@ function KioskPage() {
                         htmlFor="cart-gallery"
                         className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-300 transition"
                       >
-                        <span>🖼️ Цомог</span>
+                        <ImageIcon className="h-3.5 w-3.5 text-zinc-400" />
+                        <span>Цомог</span>
                       </label>
                     </div>
 
@@ -4694,12 +4887,12 @@ function KioskPage() {
                           }
                         })();
                       }}
-                      className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-white font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
+                      className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
                     >
                       {isAiLoading
                         ? "Хадгалж байна..."
                         : totalCartCost >= 10000 && !cartFile
-                          ? "📸 ЗУРАГ ДАРЖ БАТЛАХ"
+                          ? "ЗУРАГ ДАРЖ БАТЛАХ"
                           : `САГСЫГ БАТЛАХ (${totalCartCost.toLocaleString()}₮)`}
                     </button>
                   </div>

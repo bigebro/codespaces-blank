@@ -567,7 +567,7 @@ export default function PremiumLandingPage() {
                 />
               </button>
               <div
-                className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === idx ? "max-h-40 pb-6 opacity-100" : "max-h-0 opacity-0"}`}
+                className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === idx ? "max-h-96 pb-6 opacity-100" : "max-h-0 opacity-0"}`}
               >
                 <p className="text-sm text-zinc-400 leading-relaxed">{faq.a}</p>
               </div>

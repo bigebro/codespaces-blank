@@ -342,7 +342,7 @@ export async function POST(request: Request) {
     if (message.photo && message.photo.length > 0) {
       await sendTelegramMessage(
         currentChatId,
-        "📸 Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...",
+        "Баримтын зургийг хүлээн авлаа. AI уншиж байна, түр хүлээнэ үү...",
       );
 
       try {
@@ -393,8 +393,8 @@ export async function POST(request: Request) {
           const ing = ingredients?.find((i: any) => i.name === item.item_name);
           const isProductPhoto = item.image_type === "Product Photo";
           const noteText = isProductPhoto
-            ? "📸 Барааны зураг (Баримтгүй)"
-            : "🧾 E-Barimt Scan";
+            ? "Барааны зураг (Баримтгүй)"
+            : "E-Barimt Scan";
 
           if (ing) {
             logsToInsert.push({
