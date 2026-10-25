@@ -23,10 +23,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Operlink",
   description: "Operlink — The Universal AI Operating System",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=2",
   icons: {
-    icon: "/operlink.png",
-    apple: "/operlink.png",
+    icon: "/operlink.png?v=2",
+    apple: "/apple-touch-icon.png?v=2",
   },
   appleWebApp: {
     capable: true,
@@ -59,10 +59,9 @@ export default function RootLayout({
           content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="Smart BoH" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 
         {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
-        <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#070b14" />
         <Script
           id="sw-register"
