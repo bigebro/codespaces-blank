@@ -208,8 +208,7 @@ export default function PremiumLandingPage() {
               <Play className="h-8 w-8 text-zinc-950 fill-current ml-1" />
             </div>
             <p className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-zinc-200" /> Систем хэрхэн
-              ажилладгийг 3 минутад үзэх
+            Систем хэрхэн ажилладгийг 3 минутад үзэх
             </p>
           </div>
         </div>
