@@ -125,9 +125,10 @@ export default function AiCfoChat({
           <Bot className="h-6 w-6 text-zinc-300" />
         </div>
         <div>
-          <h2 className="font-bold text-white">Operlink - Санхүүгийн Зөвлөх</h2>
-          <p className="text-sm text-zinc-400">
-            Орлого, хаягдал, үнийн бодлогын талаар юу ч асууж болно.
+          
+          <p className="text-sm text-zinc-200">
+         Танай бизнесийн бүх датанд суурилсан AI шинжээч. Борлуулалт, орцын өртөг, цэвэр ашгаа гүнзгийрүүлэн шинжлүүлж, шууд асуулт асуух боломжтой
+
           </p>
         </div>
       </div>
