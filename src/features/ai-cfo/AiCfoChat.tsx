@@ -232,7 +232,7 @@ export default function AiCfoChat({
           <button
             type="submit"
             disabled={isCfoLoading || !cfoChatInput.trim()}
-            className="bg-zinc-200 text-white px-5 py-3 rounded-xl disabled:opacity-50 transition shadow-lg hover:bg-blue-400 font-bold text-sm"
+            className="bg-white text-zinc-950 px-5 py-3 rounded-xl transition shadow-lg hover:bg-zinc-200 font-bold text-sm cursor-pointer"
           >
             Илгээх
           </button>

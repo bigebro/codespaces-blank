@@ -1072,8 +1072,8 @@ function KioskPage() {
     | "incident_report"
     | "close_shift"
   >("select_worker");
-  // 🌐 ХОС ХЭЛ БА БААЗААС СУРСАН ОРЧУУЛГУУД
 
+  const [recipeSearch, setRecipeSearch] = useState(""); 
   const [tenantClientId, setTenantClientId] = useState<string>("");
   const [clientLogo, setClientLogo] = useState<string | null>(null);
   const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
@@ -2114,7 +2114,7 @@ function KioskPage() {
                   e.preventDefault();
                   setPin("");
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-700 text-zinc-300 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-700 text-zinc-300 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform cursor-pointer"
               >
                 Clear
               </button>
@@ -2136,7 +2136,7 @@ function KioskPage() {
                   e.preventDefault();
                   handleVerifyPin();
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-[#059669] hover:bg-white active:scale-95 text-zinc-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform"
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform cursor-pointer"
               >
                 OK
               </button>
@@ -2733,7 +2733,7 @@ function KioskPage() {
               <button
                 type="button"
                 onClick={openTasksScreen}
-                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800/60 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-800/30 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition cursor"
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>Даалгавар</span>
@@ -2747,7 +2747,7 @@ function KioskPage() {
                   setCashOutNote("");
                   setCashOutFile(null);
                 }}
-                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-700 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
+                className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-800 text-zinc-300 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <Banknote className="h-4 w-4" />
                 <span>Мөнгө гаргах</span>
@@ -2792,35 +2792,61 @@ function KioskPage() {
                     <button
                       type="button"
                       onClick={() => setShowRecipeModal(false)}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-xs font-bold"
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-xs font-bold cursor-pointer"
                     >
                       ✕ Хаах
                     </button>
                   </div>
 
                   {/* Бүтээгдэхүүн сонгох хэсэг */}
+                 {/* Бүтээгдэхүүн сонгох хэсэг */}
                   {!selectedProductRecipe ? (
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                      <p className="text-xs font-bold text-zinc-400 mb-2">
-                        Цэс сонгоно уу:
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
+                      {/* 🔍 ХАЙЛТЫН ТАЛБАР */}
+                      <input
+                        type="text"
+                        value={recipeSearch}
+                        onChange={(e) => setRecipeSearch(e.target.value)}
+                        placeholder="Цэс, жорын нэрээр хайх..."
+                        className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 outline-none transition"
+                      />
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
                         {Array.from(
                           new Set(recipesList.map((r: any) => r.product_name)),
-                        ).map((pName: any) => (
-                          <button
-                            key={pName}
-                            type="button"
-                            onClick={() => setSelectedProductRecipe(pName)}
-                            className="bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 p-3 rounded-2xl text-left font-bold text-xs text-white flex justify-between items-center active:scale-95 transition"
-                          >
-                            <span>{pName}</span>
-                            <span className="text-zinc-200 text-sm">➔</span>
-                          </button>
-                        ))}
+                        )
+                          .filter((pName: any) =>
+                            !recipeSearch.trim() ||
+                            pName.toLowerCase().includes(recipeSearch.toLowerCase().trim())
+                          )
+                          .map((pName: any) => (
+                            <button
+                              key={pName}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProductRecipe(pName);
+                                setRecipeSearch("");
+                              }}
+                              className="bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 p-3 rounded-2xl text-left font-bold text-xs text-white flex justify-between items-center active:scale-95 transition cursor-pointer"
+                            >
+                              <span className="truncate pr-1">{pName}</span>
+                              <span className="text-zinc-400 text-xs shrink-0">➔</span>
+                            </button>
+                          ))}
                       </div>
+
+                      {/* Илэрц олдоогүй үед */}
+                      {recipeSearch.trim() &&
+                        Array.from(new Set(recipesList.map((r: any) => r.product_name)))
+                          .filter((pName: any) =>
+                            pName.toLowerCase().includes(recipeSearch.toLowerCase().trim())
+                          ).length === 0 && (
+                          <p className="text-xs text-zinc-500 italic text-center py-8">
+                            "{recipeSearch}" нэртэй жор олдсонгүй.
+                          </p>
+                        )}
                     </div>
-                  ) : (
+                  )  : (
                     /* Сонгосон жорын орцын задаргаа */
                     <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                       <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-2xl border border-zinc-800">
@@ -2835,7 +2861,7 @@ function KioskPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedProductRecipe(null)}
-                          className="text-xs text-zinc-400 hover:text-white underline font-bold"
+                          className="text-xs text-zinc-400 hover:text-white underline font-bold cursor-pointer"
                         >
                           ← Бусад цэс
                         </button>
