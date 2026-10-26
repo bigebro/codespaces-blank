@@ -1,7 +1,7 @@
 // src/features/ai-cfo/AiCfoChat.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -23,6 +23,59 @@ export default function AiCfoChat({
     { sender: "owner" | "ai"; text: string }[]
   >([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
+
+    // Load saved owner CFO chat history when the component opens.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadChatHistory() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+
+        if (!token) return;
+
+        const res = await fetch("/api/kiosk-ai", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "owner_chat_history",
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "Could not load chat history.");
+        }
+
+        if (!cancelled && Array.isArray(data.messages)) {
+          setCfoChatHistory(
+            data.messages.map(
+              (msg: { role: string; content: string }) => ({
+                sender: msg.role === "owner" ? "owner" : "ai",
+                text: msg.content,
+              })
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Load CFO history error:", error);
+      }
+    }
+
+    void loadChatHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
