@@ -2697,9 +2697,9 @@ function Home() {
                 <div className={activeTab === "ai_cfo" ? "block" : "hidden"}>
                   {tenantInfo?.plan === "starter" ? (
                     <div className="flex flex-col items-center justify-center h-[75vh] bg-zinc-900/40 rounded-3xl border border-zinc-800 p-6 text-center">
-                      <div className="bg-zinc-800/60 p-4 rounded-full mb-4"><Bot className="h-10 w-10 text-zinc-500" /></div>
+                      <div className="bg-zinc-800/60 p-4 rounded-full mb-4"><Bot className="h-10 w-10 text-zinc-300" /></div>
                     
-                      <p className="text-sm text-zinc-400 max-w-md mb-6">
+                      <p className="text-sm text-zinc-200 max-w-md mb-6">
                      Танай бизнесийн бүх датанд суурилсан AI шинжээч. Борлуулалт, орцын өртөг, цэвэр ашгаа гүнзгийрүүлэн шинжлүүлж, шууд асуулт асуух боломжтой
                       </p>
                      <button 
