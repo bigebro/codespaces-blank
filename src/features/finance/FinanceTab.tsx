@@ -382,7 +382,7 @@ export default function FinanceTab({
               <div className="flex items-center gap-2">
                 <span className="text-xl">🔒</span>
                 <h4 className="text-base font-black text-zinc-300">
-                  Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн
+                  Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн]
                 </h4>
               </div>
               <p className="text-xs text-zinc-300">
