@@ -380,9 +380,9 @@ export default function FinanceTab({
           <div className="bg-zinc-800/60 border-2 border-zinc-700 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🔒</span>
+             
                 <h4 className="text-base font-black text-zinc-300">
-                  Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн]
+                  Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн
                 </h4>
               </div>
               <p className="text-xs text-zinc-300">
