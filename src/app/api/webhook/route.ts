@@ -39,7 +39,7 @@ function getFriendlyErrorMessage(errorMsg: string): string {
     errStr.includes("unavailable") ||
     errStr.includes("overloaded")
   ) {
-    return "AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
+    return "AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү.";
   }
   if (
     errStr.includes("429") ||
@@ -319,7 +319,7 @@ export async function POST(request: Request) {
           await editTelegramMessage(
             currentChatId!,
             messageId,
-            "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
+            "Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
           );
           await sendTelegramMessageWithForceReply(
             currentChatId!,
@@ -379,7 +379,7 @@ export async function POST(request: Request) {
         if (!aiAnalysis || aiAnalysis.success === false) {
           await sendTelegramMessage(
             currentChatId,
-            aiAnalysis?.error_message || "❌ Зургийг таньж чадсангүй.",
+            aiAnalysis?.error_message || "Зургийг таньж чадсангүй.",
           );
           return NextResponse.json({ status: "ok" });
         }
@@ -434,7 +434,7 @@ export async function POST(request: Request) {
         console.error("Photo Error:", err);
         await sendTelegramMessage(
           currentChatId,
-          "❌ Зураг унших үед системийн алдаа гарлаа.",
+          "Зураг унших үед системийн алдаа гарлаа.",
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -462,7 +462,7 @@ export async function POST(request: Request) {
         if (isNaN(qty)) {
           await sendTelegramMessage(
             currentChatId,
-            "❌ Алдаа: Зөвхөн тоо бичнэ үү!",
+            "Алдаа: Зөвхөн тоо бичнэ үү!",
           );
           return NextResponse.json({ status: "ok" });
         }
@@ -485,7 +485,7 @@ export async function POST(request: Request) {
         if (!ingredient) {
           await sendTelegramMessage(
             currentChatId,
-            `❌ Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй.`,
+            `Системийн алдаа: [${itemName}] нэртэй бараа олдсонгүй.`,
           );
           return NextResponse.json({ status: "ok" });
         }
@@ -581,7 +581,7 @@ export async function POST(request: Request) {
       incomingText !== "/start" &&
       !incomingText.startsWith("/link")
     ) {
-      const linkPrompt = `❌ Төхөөрөмж холбогдоогүй байна.\n\nТа системд холбогдохын тулд дараах тушаалаар бүртгүүлнэ үү:\n\n/link [Таны бүртгэлтэй имэйл] [нууц үг]\n\nЖишээ: /link name@example.com 123456`;
+      const linkPrompt = `Төхөөрөмж холбогдоогүй байна.\n\nТа системд холбогдохын тулд дараах тушаалаар бүртгүүлнэ үү:\n\n/link [Таны бүртгэлтэй имэйл] [нууц үг]\n\nЖишээ: /link name@example.com 123456`;
       await sendTelegramMessage(currentChatId, linkPrompt);
       return NextResponse.json({ status: "ok" });
     }
@@ -593,7 +593,7 @@ export async function POST(request: Request) {
       if (parts.length < 3) {
         await sendTelegramMessage(
           currentChatId,
-          "❌ Формат буруу байна. Жишээ: /link email@example.com password123",
+          "Формат буруу байна. Жишээ: /link email@example.com password123",
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -614,7 +614,7 @@ export async function POST(request: Request) {
       if (authError || !authData.user) {
         await sendTelegramMessage(
           currentChatId,
-          "❌ Алдаа: Имэйл эсвэл нууц үг буруу байна.",
+          "Алдаа: Имэйл эсвэл нууц үг буруу байна.",
         );
         return NextResponse.json({ status: "ok" });
       }
@@ -942,7 +942,7 @@ export async function POST(request: Request) {
           if (logError) {
             await sendTelegramMessage(
               currentChatId,
-              `❌ Хадгалах алдаа: ${logError.message}`,
+              `Хадгалах алдаа: ${logError.message}`,
             );
             return NextResponse.json({ status: "ok" });
           }

@@ -631,7 +631,7 @@ export async function parseReceiptImage(
     );
     return groqResult;
   } catch (groqErr: any) {
-    console.error("❌ Both Gemini and Groq Vision failed:", groqErr.message);
+    console.error("Both Gemini and Groq Vision failed:", groqErr.message);
     return {
       success: false,
       error_message: "Зургийг уншиж чадсангүй. Арай тод дарж дахин илгээнэ үү.",

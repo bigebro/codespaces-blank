@@ -128,7 +128,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
       .ilike("client_id", req.client_id.trim());
 
     if (tenantErr) {
-      alert("❌ Байгууллагын эрх сунгахад алдаа гарлаа: " + tenantErr.message);
+      alert("Байгууллагын эрх сунгахад алдаа гарлаа: " + tenantErr.message);
       setLoading(false);
       return;
     }
@@ -143,7 +143,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
       .eq("id", req.id);
 
     if (reqErr) {
-      alert("❌ Төлбөрийн хүсэлтийн төлөв өөрчлөхөд алдаа: " + reqErr.message);
+      alert("Төлбөрийн хүсэлтийн төлөв өөрчлөхөд алдаа: " + reqErr.message);
       setLoading(false);
       return;
     }
@@ -169,7 +169,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
     });
   };
 
-  // ❌ ЦУЦЛАХ ҮЙЛДЭЛ (Reject)
+  // ЦУЦЛАХ ҮЙЛДЭЛ (Reject)
   const handleReject = async (req: any) => {
     const reason = prompt(
       "Цуцлах шалтгаанаа бичнэ үү (Жишээ нь: Дансанд мөнгө ороогүй):",
@@ -188,7 +188,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
     if (reqErr) {
       alert("Цуцлахад алдаа гарлаа: " + reqErr.message);
     } else {
-      alert("❌ Хүсэлтийг цуцаллаа.");
+      alert("Хүсэлтийг цуцаллаа.");
     }
     await fetchRequests();
   };

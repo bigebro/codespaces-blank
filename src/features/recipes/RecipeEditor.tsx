@@ -751,7 +751,7 @@ export default function RecipeEditor({
             return (
               <div
                 key={pName}
-                // ❌ Бүхэл картыг чирэхийг болиулсан (draggable={false})
+                // Бүхэл картыг чирэхийг болиулсан (draggable={false})
                 className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2.5 hover:border-zinc-700 transition"
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">

@@ -264,10 +264,12 @@ Rules:
 - Do not extract ordinary questions, requests, greetings, or temporary details.
 - Do not treat your own assumptions as business facts.
 - Do not repeat facts that already exist in the existing memories.
-- If a message contradicts an existing memory, do not save a new fact yet.
+- When the owner explicitly states a change or correction, save a
+  new memory describing the latest stated information.
+- Never delete or overwrite the older memory just because a newer fact contradicts it. Preserve older memories as historical context.
+- If a contradiction is ambiguous and the owner has not clearly stated a change or correction, do not guess; return no new memory.
 - Return at most 3 memories.
-- Allowed topics: supplier, inventory, sales, customer, staff,
-  finance, recipe, policy, preference, lesson, operations, general.
+- Allowed topics: supplier, inventory, sales, customer, staff, finance, recipe, policy, preference, lesson, operations, general.
 - If nothing qualifies, return {"memories": []}.
 
 Existing memories:
@@ -290,6 +292,7 @@ ${JSON.stringify(ownerText)}
     const raw = response.response.text()
       .replace(/```json|```/g, "")
       .trim();
+ 
 
     const parsed = JSON.parse(raw) as {
       memories?: { topic?: string; fact?: string }[];
@@ -354,7 +357,7 @@ ${JSON.stringify(ownerText)}
       });
     }
 
-    if (newMemories.length === 0) return;
+if (newMemories.length === 0) return;
 
     const { error: insertError } = await supabaseAdmin
       .from("business_memory")
@@ -368,6 +371,83 @@ ${JSON.stringify(ownerText)}
     console.error("Automatic memory extraction failed:", error);
   }
 }
+
+async function assessPredictionAgainstOutcome(
+  prediction: string | null,
+  outcome: string
+): Promise<string> {
+  const allowedAssessments = new Set([
+    "prediction_matched",
+    "partially_matched",
+    "prediction_not_matched",
+    "inconclusive",
+  ]);
+
+  if (!prediction?.trim() || !outcome.trim()) {
+    return "unassessed";
+  }
+
+  const key = (process.env.GEMINI_API_KEY || "")
+    .replace(/["']/g, "")
+    .trim();
+
+  if (!key) return "unassessed";
+
+  try {
+    const ai = new GoogleGenerativeAI(key);
+
+    const model = ai.getGenerativeModel({
+      model: "gemini-3.5-flash-lite",
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      } as any,
+    });
+
+    const prompt = `
+Compare a business prediction with an owner-reported outcome.
+
+Return only JSON:
+{"assessment":"prediction_matched"}
+
+Allowed assessment values:
+- prediction_matched
+- partially_matched
+- prediction_not_matched
+- inconclusive
+
+Rules:
+- Compare only the prediction and the reported outcome.
+- Do not invent missing facts.
+- Do not treat an owner-reported outcome as independently verified.
+- Use inconclusive when the outcome does not clearly establish
+  whether the prediction matched.
+- Do not evaluate whether the prediction was a good business decision.
+
+Prediction:
+${JSON.stringify(prediction)}
+
+Owner-reported outcome:
+${JSON.stringify(outcome)}
+`;
+
+    const response = await model.generateContent(prompt);
+
+    const raw = response.response.text()
+      .replace(/```json|```/g, "")
+      .trim();
+
+    const parsed = JSON.parse(raw);
+
+    return allowedAssessments.has(parsed.assessment)
+      ? parsed.assessment
+      : "unassessed";
+  } catch (error) {
+    console.error("Prediction assessment failed:", error);
+    return "unassessed";
+  }
+}
+
 
 export async function POST(request: Request) {
   try {
@@ -451,43 +531,6 @@ if (action === "owner_chat_history") {
   });
 }
 
-// DEV TEST: Preview the memories extracted from an owner's message.
-if (action === "owner_memory_extraction_test") {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { success: false, message: "Not available in production." },
-      { status: 404 }
-    );
-  }
-
-  if (!isOwner || imageBase64 || !text) {
-    return NextResponse.json(
-      { success: false, message: "Owner text required." },
-      { status: 403 }
-    );
-  }
-
-  await extractAndSaveOwnerMemories(clientId, text);
-
-  const { data: memories, error } = await supabaseAdmin
-    .from("business_memory")
-    .select("topic, fact, updated_at")
-    .eq("client_id", clientId)
-    .order("updated_at", { ascending: false })
-    .limit(10);
-
-  if (error) {
-    return NextResponse.json(
-      { success: false, message: "Could not inspect saved memories." },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    memories: memories ?? [],
-  });
-}
 
 // OWNER-ONLY: Explicitly save a business memory.
 const memoryCommand = text.match(
@@ -550,6 +593,500 @@ if (isOwner && !action && !imageBase64 && memoryCommand) {
   return NextResponse.json({
     success: true,
     message,
+  });
+}
+
+// Owner command: record a new business experience.
+const experienceStartMatch = text.match(
+  /^\s*(?:Тест туршлага эхлүүлэх|Test experience start|Туршлага эхлүүлэх|Experience start)\s*:\s*([^|]{5,1000})\s*\|\s*([^|]{5,1000})\s*\|\s*([^|]{5,1000})\s*$/i
+);
+
+const isTestExperience =
+  /^\s*(?:Тест туршлага эхлүүлэх|Test experience start)\s*:/i.test(text);
+
+if (
+  isOwner &&
+  !action &&
+  !imageBase64 &&
+  experienceStartMatch
+) {
+  const situation = experienceStartMatch[1].trim();
+  const prediction = experienceStartMatch[2].trim();
+  const actionTaken = experienceStartMatch[3].trim();
+
+  const { data: experience, error: experienceError } =
+    await supabaseAdmin
+      .from("business_experiences")
+      .insert({
+        client_id: clientId,
+        is_test: isTestExperience,
+        situation,
+        prediction,
+        action_taken: actionTaken,
+        status: "open",
+      })
+      .select("id")
+      .single();
+
+  if (experienceError) {
+    console.error(
+      "Experience insert error:",
+      experienceError.message
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Туршлагыг хадгалахад алдаа гарлаа.",
+      },
+      { status: 500 }
+    );
+  }
+
+  const message =
+    `Туршлагыг хадгаллаа. ID: ${experience.id}. ` +
+    "Бодит үр дүн тодорхой болмогц энэ ID-г ашиглан үр дүнг бүртгэнэ.";
+
+  await saveOwnerChatTurn(clientId, text, message);
+
+  return NextResponse.json({
+    success: true,
+    message,
+    experienceId: experience.id,
+  });
+}
+
+// Owner command: record the actual outcome of an experience.
+const experienceResultMatch = text.match(
+  /^\s*(?:Туршлага үр дүн|Experience result)\s*:\s*([0-9a-f-]{36})\s*\|\s*([^|]{3,1000})\s*\|\s*(.{5,1000})\s*$/i
+);
+
+if (
+  isOwner &&
+  !action &&
+  !imageBase64 &&
+  experienceResultMatch
+) {
+  const experienceId = experienceResultMatch[1].trim();
+  const outcome = experienceResultMatch[2].trim();
+  const lesson = experienceResultMatch[3].trim();
+
+  const { data: priorExperience, error: priorExperienceError } =
+  await supabaseAdmin
+    .from("business_experiences")
+    .select("prediction")
+    .eq("client_id", clientId)
+    .eq("id", experienceId)
+    .eq("status", "open")
+    .maybeSingle();
+
+if (priorExperienceError) {
+  console.error(
+    "Prediction lookup error:",
+    priorExperienceError.message
+  );
+
+  return NextResponse.json(
+    { success: false, message: "Туршлагыг шалгахад алдаа гарлаа." },
+    { status: 500 }
+  );
+}
+
+if (!priorExperience) {
+  return NextResponse.json(
+    {
+      success: false,
+      message: "Нээлттэй туршлага олдсонгүй. ID-г шалгана уу.",
+    },
+    { status: 404 }
+  );
+}
+
+const predictionAssessment = await assessPredictionAgainstOutcome(
+  priorExperience.prediction,
+  outcome
+);
+
+
+
+  const { data: experience, error: experienceError } =
+    await supabaseAdmin
+      .from("business_experiences")
+      .update({
+        outcome,
+        lesson,
+        prediction_assessment: predictionAssessment,
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+      })
+      .eq("id", experienceId)
+      .eq("client_id", clientId)
+      .eq("status", "open")
+      .select("id")
+      .maybeSingle();
+
+  if (experienceError) {
+    console.error(
+      "Experience outcome update error:",
+      experienceError.message
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Туршлагын үр дүнг хадгалахад алдаа гарлаа.",
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!experience) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Нээлттэй туршлага олдсонгүй. ID болон төлөвийг шалгана уу.",
+      },
+      { status: 404 }
+    );
+  }
+
+  const message =
+    "Туршлагын бодит үр дүн болон сургамжийг хадгаллаа.";
+
+  await saveOwnerChatTurn(clientId, text, message);
+
+  return NextResponse.json({
+    success: true,
+    message,
+    experienceId: experience.id,
+    status: "resolved",
+  });
+}
+
+// Owner command: link an inventory record to an experience.
+const experienceEvidenceMatch = text.match(
+  /^\s*(?:Туршлагын нотлох баримт|Experience evidence)\s*:\s*([0-9a-f-]{36})\s*\|\s*([0-9a-f-]{36})\s*\|\s*(inventory_count|purchase|spoilage|other)(?:\s*\|\s*(.{1,500}))?\s*$/i
+);
+
+if (
+  isOwner &&
+  !action &&
+  !imageBase64 &&
+  experienceEvidenceMatch
+) {
+  const experienceId = experienceEvidenceMatch[1].trim();
+  const inventoryLogId = experienceEvidenceMatch[2].trim();
+  const evidenceType = experienceEvidenceMatch[3].toLowerCase();
+  const note = experienceEvidenceMatch[4]?.trim() || null;
+
+  // Confirm the experience belongs to this business.
+  const { data: experience, error: experienceError } =
+    await supabaseAdmin
+      .from("business_experiences")
+      .select("id, is_test")
+      .eq("id", experienceId)
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+  if (experienceError) {
+    console.error("Experience lookup error:", experienceError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Туршлагыг шалгахад алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  if (!experience) {
+    return NextResponse.json(
+      { success: false, message: "Тухайн бизнесийн туршлага олдсонгүй." },
+      { status: 404 }
+    );
+  }
+
+  // Confirm the inventory record belongs to the same business.
+  const { data: inventoryLog, error: logError } =
+    await supabaseAdmin
+      .from("inventory_logs")
+      .select("id, type, ingredient_id, date, quantity, notes, is_test")
+      .eq("id", inventoryLogId)
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+  if (logError) {
+    console.error("Inventory evidence lookup error:", logError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Бараа материалын бүртгэлийг шалгахад алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  if (!inventoryLog) {
+    return NextResponse.json(
+      { success: false, message: "Тухайн бизнесийн бараа материалын бүртгэл олдсонгүй." },
+      { status: 404 }
+    );
+  }
+
+  if (inventoryLog.is_test && !experience.is_test) {
+  return NextResponse.json(
+    {
+      success: false,
+      message:
+        "Тест өгөгдлийг бодит туршлагын нотлох баримт болгон холбох боломжгүй.",
+    },
+    { status: 400 }
+  );
+}
+
+  // Make sure the declared evidence type matches the actual log.
+  const expectedLogTypes: Record<string, string> = {
+    inventory_count: "count",
+    purchase: "purchase",
+    spoilage: "spoilage",
+  };
+
+  if (
+    expectedLogTypes[evidenceType] &&
+    (
+      inventoryLog.type !== expectedLogTypes[evidenceType] ||
+      (evidenceType === "inventory_count" && !inventoryLog.ingredient_id)
+    )
+  ) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Нотлох баримтын төрөл тухайн бүртгэлтэй тохирохгүй байна.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const { data: evidence, error: evidenceError } =
+    await supabaseAdmin
+      .from("business_experience_evidence")
+      .insert({
+        client_id: clientId,
+        experience_id: experienceId,
+        inventory_log_id: inventoryLogId,
+        evidence_type: evidenceType,
+        note,
+        linked_by: user.id,
+      })
+      .select("id")
+      .single();
+
+  if (evidenceError) {
+    if (evidenceError.code === "23505") {
+      return NextResponse.json({
+        success: true,
+        message: "Энэ бүртгэлийг өмнө нь нотлох баримтаар холбосон байна.",
+      });
+    }
+
+    console.error("Evidence link insert error:", evidenceError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Нотлох баримт холбох үед алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  const message =
+    "Бараа материалын бүртгэлийг туршлагатай холболоо. " +
+    "Энэ холбоос дангаараа туршлагыг баталгаажуулахгүй.";
+
+  await saveOwnerChatTurn(clientId, text, message);
+
+  return NextResponse.json({
+    success: true,
+    message,
+    evidenceId: evidence.id,
+    experienceId,
+    inventoryLogId,
+    evidenceStatusUnchanged: true,
+  });
+}
+
+
+
+
+// Owner command: record a review of linked experience evidence.
+const experienceVerifyMatch = text.match(
+  /^\s*(?:Туршлагын нотлох баримтыг хянаж бүртгэх|Review experience evidence)\s*:\s*([0-9a-f-]{36})\s*\|\s*(.{15,1000})\s*$/i
+);
+
+if (
+  isOwner &&
+  !action &&
+  !imageBase64 &&
+  experienceVerifyMatch
+) {
+  const experienceId = experienceVerifyMatch[1].trim();
+  const verificationNote = experienceVerifyMatch[2].trim();
+
+  const { data: experience, error: experienceError } =
+    await supabaseAdmin
+      .from("business_experiences")
+      .select("id, status, evidence_status, is_test")
+      .eq("client_id", clientId)
+      .eq("id", experienceId)
+      .maybeSingle();
+
+  if (experienceError) {
+    console.error("Experience verification lookup error:", experienceError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Туршлагыг шалгахад алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  if (!experience) {
+    return NextResponse.json(
+      { success: false, message: "Тухайн бизнесийн туршлага олдсонгүй." },
+      { status: 404 }
+    );
+  }
+
+  if (experience.is_test) {
+  return NextResponse.json(
+    {
+      success: false,
+      message:
+        "Тест туршлагыг бодит нотлох баримт гэж баталгаажуулах боломжгүй.",
+    },
+    { status: 400 }
+  );
+}
+
+  if (experience.status !== "resolved") {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Эхлээд туршлагын бодит үр дүнг бүртгэж, resolved төлөвт оруулна уу.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const { data: evidenceLinks, error: evidenceError } =
+    await supabaseAdmin
+      .from("business_experience_evidence")
+      .select("id, inventory_log_id")
+      .eq("client_id", clientId)
+      .eq("experience_id", experienceId);
+
+  if (evidenceError) {
+    console.error("Evidence verification lookup error:", evidenceError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Нотлох баримтыг шалгахад алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  if (!evidenceLinks || evidenceLinks.length === 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Баталгаажуулахаас өмнө нотлох баримт холбоно уу.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // Confirm the linked inventory records still exist for this business.
+  const logIds = [
+    ...new Set(evidenceLinks.map((link) => link.inventory_log_id)),
+  ];
+
+  const { data: inventoryLogs, error: logsError } =
+    await supabaseAdmin
+      .from("inventory_logs")
+      .select("id, is_test")
+      .eq("client_id", clientId)
+      .in("id", logIds);
+
+  if (logsError) {
+    console.error("Inventory evidence verification error:", logsError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Бараа материалын нотлох баримтыг шалгахад алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  if (inventoryLogs.some((log) => log.is_test)) {
+  return NextResponse.json(
+    {
+      success: false,
+      message:
+        "Тест өгөгдөл агуулсан туршлагыг бодит нотлох баримтаар баталгаажуулах боломжгүй.",
+    },
+    { status: 400 }
+  );
+}
+
+  if (!inventoryLogs || inventoryLogs.length !== logIds.length) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Холбогдсон зарим бүртгэл олдсонгүй.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const { data: updatedExperience, error: updateError } =
+    await supabaseAdmin
+      .from("business_experiences")
+     .update({
+        evidence_status: "owner_reviewed",
+        evidence_reviewed_at: new Date().toISOString(),
+        evidence_reviewed_by: user.id,
+        evidence_review_note: verificationNote,
+      })
+      .eq("client_id", clientId)
+      .eq("id", experienceId)
+      .eq("status", "resolved")
+      .select(
+        "id, evidence_status, evidence_reviewed_at, evidence_reviewed_by, evidence_review_note"
+      )
+      .maybeSingle();
+
+  if (updateError) {
+    console.error("Experience verification update error:", updateError.message);
+
+    return NextResponse.json(
+      { success: false, message: "Баталгаажуулалтын бүртгэл хадгалахад алдаа гарлаа." },
+      { status: 500 }
+    );
+  }
+
+  if (!updatedExperience) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Туршлагын төлөв өөрчлөгдсөн байна. Дахин шалгана уу.",
+      },
+      { status: 409 }
+    );
+  }
+
+  const message =
+    "Нотлох баримтын хяналтыг бүртгэлээ. " +
+    "Энэ нь хянагчийн үнэлгээ бөгөөд бодит үйл явдал бие даан баталгаажсаныг дангаараа нотлохгүй.";
+
+  await saveOwnerChatTurn(clientId, text, message);
+
+  return NextResponse.json({
+    success: true,
+    message,
+    experience: updatedExperience,
   });
 }
 
@@ -813,11 +1350,11 @@ ${JSON.stringify(unmatched)}`;
       if (error)
         return NextResponse.json({
           success: false,
-          message: `❌ Алдаа: ${error.message}`,
+          message: `Алдаа: ${error.message}`,
         });
       return NextResponse.json({
         success: true,
-        message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
+        message: "Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
       });
     }
 
@@ -930,7 +1467,7 @@ ${JSON.stringify(unmatched)}`;
       if (!aiAnalysis || !aiAnalysis.success || !aiAnalysis.purchases) {
         return NextResponse.json({
           success: false,
-          message: aiAnalysis?.error_message || "❌ Зургийг уншиж чадсангүй.",
+          message: aiAnalysis?.error_message || "Зургийг уншиж чадсангүй.",
         });
       }
 
@@ -1328,11 +1865,288 @@ Final Balances: CashInHand:${cf.end_cash_balance || 0}₮, BankAccount:${cf.end_
           console.error("Could not load business memories:", memoryError.message);
         }
 
-        const businessMemoryContext = (savedMemories ?? [])
-          .map((memory) => `[${memory.topic}] ${memory.fact}`)
-          .join("\n");
+        const businessMemoryContext = (savedMemories ?? []).map((m) =>`[topic=${m.topic}; recorded_at_utc=${m.updated_at ?? "unknown"}] ${m.fact}`
+).join("\n");
 
 
+// Load recent business experiences for the owner AI.
+let businessExperienceContext =
+  "No recorded business experiences yet.";
+
+let businessExperienceSummary =
+  "No resolved non-test business experiences are available yet.";  
+
+if (isOwner) {
+  const { data: savedExperiences, error: experienceError } =
+    await supabaseAdmin
+      .from("business_experiences")
+  .select(
+  "id, situation, prediction, prediction_assessment, action_taken, outcome, lesson, confidence, status, evidence_status, evidence_reviewed_at, evidence_review_note, created_at"
+)
+      .eq("client_id", clientId)
+      .eq("is_test", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+  if (experienceError) {
+    console.error(
+      "Business experience read error:",
+      experienceError.message
+    );
+  } else {
+const tokenizeExperienceText = (value: string): string[] =>
+  value.toLocaleLowerCase()
+    .normalize("NFKC")
+    .match(/[\p{L}\p{N}]{3,}/gu) ?? [];
+
+const queryTokens = new Set(tokenizeExperienceText(text));
+
+const relevantExperiences = [...(savedExperiences ?? [])]
+  .map((experience) => {
+    const searchableText = [
+      experience.situation,
+      experience.prediction,
+      experience.action_taken,
+      experience.outcome,
+      experience.lesson,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const experienceTokens = tokenizeExperienceText(searchableText);
+
+    const score = experienceTokens.reduce(
+      (total, token) => total + (queryTokens.has(token) ? 1 : 0),
+      0
+    );
+
+   return { experience, score };
+  })
+  .filter((entry) => entry.score > 0)
+  .sort(
+    (a, b) =>
+      b.score - a.score ||
+      new Date(b.experience.created_at).getTime() -
+        new Date(a.experience.created_at).getTime()
+  )
+  .slice(0, 10)
+  .map((entry) => entry.experience);
+
+
+  const experienceIds = relevantExperiences.map((experience) => experience.id)
+
+  const evidenceByExperience: Record<string, string[]> = {};
+
+  if (experienceIds.length > 0) {
+    const {
+      data: evidenceLinks,
+      error: evidenceLinkError,
+    } = await supabaseAdmin
+      .from("business_experience_evidence")
+      .select("experience_id, evidence_type, note, inventory_log_id")
+      .eq("client_id", clientId)
+      .in("experience_id", experienceIds)
+      .limit(50);
+
+    if (evidenceLinkError) {
+      console.error(
+        "Experience evidence link read error:",
+        evidenceLinkError.message
+      );
+    } else {
+      const logIds = [
+        ...new Set(
+          (evidenceLinks ?? []).map((link) => link.inventory_log_id)
+        ),
+      ];
+
+      if (logIds.length > 0) {
+        const {
+          data: inventoryEvidence,
+          error: inventoryEvidenceError,
+        } = await supabaseAdmin
+          .from("inventory_logs")
+          .select(
+            "id, type, ingredient_id, date, quantity, notes, worker_name, is_test"
+          )
+          .eq("client_id", clientId)
+          .eq("is_test", false)
+          .in("id", logIds)
+          .limit(50);
+
+        if (inventoryEvidenceError) {
+          console.error(
+            "Inventory evidence read error:",
+            inventoryEvidenceError.message
+          );
+        } else {
+          const ingredientIds = [
+            ...new Set(
+              (inventoryEvidence ?? [])
+                .map((log) => log.ingredient_id)
+                .filter((id): id is string => Boolean(id))
+            ),
+          ];
+
+          const ingredientNames: Record<string, string> = {};
+
+          if (ingredientIds.length > 0) {
+            const {
+              data: ingredientRows,
+              error: ingredientError,
+            } = await supabaseAdmin
+              .from("ingredients")
+              .select("id, name, unit")
+              .eq("client_id", clientId)
+              .in("id", ingredientIds);
+
+            if (ingredientError) {
+              console.error(
+                "Evidence ingredient lookup error:",
+                ingredientError.message
+              );
+            } else {
+              for (const ingredient of ingredientRows ?? []) {
+                ingredientNames[ingredient.id] =
+                  `${ingredient.name} (${ingredient.unit})`;
+              }
+            }
+          }
+
+          const logsById = new Map<string, any>();
+
+          for (const log of inventoryEvidence ?? []) {
+            logsById.set(log.id, log);
+          }
+
+          for (const link of evidenceLinks ?? []) {
+            const log = logsById.get(link.inventory_log_id);
+            if (!log) continue;
+
+            const ingredient = log.ingredient_id
+              ? ingredientNames[log.ingredient_id] ??
+                log.ingredient_id
+              : "Non-ingredient record";
+
+            const detail =
+              `Evidence type: ${link.evidence_type}\n` +
+              `Ingredient: ${ingredient}\n` +
+              `Inventory log type: ${log.type}\n` +
+              `Recorded quantity: ${log.quantity}\n` +
+              `Record date UTC: ${log.date}\n` +
+              `Worker: ${log.worker_name ?? "unknown"}\n` +
+              `Log notes: ${log.notes ?? "none"}\n` +
+              `Link note: ${link.note ?? "none"}`;
+
+            if (!evidenceByExperience[link.experience_id]) {
+              evidenceByExperience[link.experience_id] = [];
+            }
+
+            evidenceByExperience[link.experience_id].push(detail);
+          }
+        }
+      }
+    }
+  }
+
+  businessExperienceContext = relevantExperiences
+    .map((experience) => {
+      const linkedEvidence =
+        evidenceByExperience[experience.id]?.join("\n\n") ??
+        "No linked inventory evidence records.";
+
+      return `
+[status=${experience.status}; evidence_status=${experience.evidence_status}; recorded_at_utc=${experience.created_at}; confidence=${experience.confidence ?? "unknown"}]
+
+Situation: ${experience.situation}
+Prediction: ${experience.prediction ?? "Not recorded"}
+Prediction assessment: ${experience.prediction_assessment ?? "unassessed"}
+Action taken: ${experience.action_taken ?? "Not recorded"}
+Outcome: ${experience.outcome ?? "Not recorded"}
+Lesson: ${experience.lesson ?? "Not recorded"}
+Evidence status: ${experience.evidence_status}
+Owner review recorded at UTC: ${experience.evidence_reviewed_at ?? "No review recorded"}
+Owner review note: ${experience.evidence_review_note ?? "No review note"}
+
+Linked evidence records:
+${linkedEvidence}
+`;
+    })
+    .join("\n\n") || "No relevant recorded business experiences matched this question.";
+    // Summarize only resolved, non-test business experiences.
+const {
+  data: resolvedExperienceRows,
+  error: resolvedSummaryError,
+} = await supabaseAdmin
+  .from("business_experiences")
+  .select(
+    "situation, prediction, prediction_assessment, outcome, lesson, evidence_status, created_at"
+  )
+  .eq("client_id", clientId)
+  .eq("is_test", false)
+  .eq("status", "resolved")
+  .order("created_at", { ascending: false })
+  .limit(50);
+
+if (resolvedSummaryError) {
+  console.error(
+    "Resolved experience summary read error:",
+    resolvedSummaryError.message
+  );
+} else {
+  const experiences = resolvedExperienceRows ?? [];
+
+  const countAssessment = (assessment: string) =>
+    experiences.filter(
+      (experience) =>
+        (experience.prediction_assessment ?? "unassessed") === assessment
+    ).length;
+
+  const assessmentCounts = [
+    `prediction_matched=${countAssessment("prediction_matched")}`,
+    `partially_matched=${countAssessment("partially_matched")}`,
+    `prediction_not_matched=${countAssessment("prediction_not_matched")}`,
+    `inconclusive=${countAssessment("inconclusive")}`,
+    `unassessed=${countAssessment("unassessed")}`,
+  ].join(", ");
+
+  const countEvidenceStatus = (status: string) =>
+  experiences.filter(
+    (experience) => experience.evidence_status === status
+  ).length;
+
+const evidenceStatusCounts = [
+  `reported=${countEvidenceStatus("reported")}`,
+  `owner_reviewed=${countEvidenceStatus("owner_reviewed")}`,
+  `verified=${countEvidenceStatus("verified")}`,
+].join(", ");
+
+  const recentExamples = experiences
+    .slice(0, 5)
+    .map(
+      (experience, index) =>
+        `${index + 1}. Situation: ${experience.situation}\n` +
+        `Prediction: ${experience.prediction ?? "Not recorded"}\n` +
+        `Assessment: ${experience.prediction_assessment ?? "unassessed"}\n` +
+        `Reported outcome: ${experience.outcome ?? "Not recorded"}\n` +
+        `Recorded lesson: ${experience.lesson ?? "Not recorded"}\n` +
+        `Evidence status: ${experience.evidence_status}\n` +
+        `Created at UTC: ${experience.created_at}`
+    )
+    .join("\n\n");
+
+  businessExperienceSummary = [
+    `Resolved non-test experiences found: ${experiences.length} (maximum 50 most recent).`,
+    `Prediction assessment counts: ${assessmentCounts}.`,
+    `Evidence status counts: ${evidenceStatusCounts}.`,
+    recentExamples
+      ? `Recent examples, newest first:\n${recentExamples}`
+      : "No resolved non-test experiences are available yet.",
+  ].join("\n\n");
+}
+
+}
+}
       // =========================================================================
       // 🚀 100% ASSEMBLED PROMPT PAYLOAD (ALL ANALYTICS COVERED)
       // =========================================================================
@@ -1347,6 +2161,53 @@ MEMORY RULES:
 - Treat memories as historical information, not guaranteed current facts.
 - Prefer verified current database data when it conflicts with an old memory.
 - Do not invent memories or assume unrelated memories apply.
+- When two memories conflict about the same fact, compare their recorded_at_utc timestamps. Treat the newer entry as the latest reported information, not automatically as verified truth.
+- Preserve older memories as historical context. Do not claim an older fact is still current when newer information contradicts it.
+- If conflicting memories cannot be resolved using reliable current business data, explain the conflict and ask the owner to confirm when necessary.
+
+${isOwner ? `
+PERSISTENT BUSINESS EXPERIENCES:
+${businessExperienceContext}
+
+PERSISTENT BUSINESS EXPERIENCE SUMMARY:
+${businessExperienceSummary}
+
+EXPERIENCE RULES:
+- Use relevant recorded experiences when evaluating similar situations.
+- Distinguish predictions from actual outcomes.
+- Treat unresolved experiences as unconfirmed, not proven lessons.
+- Never invent missing outcomes or claim a prediction succeeded without evidence.
+- Treat lessons as evidence from past situations, not universal guarantees.
+` : ""}
+- One resolved experience proves only what was recorded in that specific instance, not that a strategy always works.
+- Treat lessons from a single experience as tentative; increase confidence only when supported by repeated, comparable outcomes.
+- Do not call a strategy proven or reliable based on one experience alone.
+- When a predicted risk does not occur in one recorded instance, say it did not occur in that instance; do not claim the risk has been disproven generally.
+- A resolved experience means an outcome was recorded, not necessarily independently verified. Describe it as a recorded outcome unless supporting business data or explicit owner confirmation verifies it.
+- If evidence_status is "reported", describe the outcome as recorded or reported, not independently verified.
+- Never treat status="resolved" alone as proof that an outcome was verified.
+- Even if evidence_status is "verified", do not claim independent verification unless the relevant supporting business evidence is available in the current context. If it is unavailable, state that the evidence cannot be checked from the information provided.
+- status="resolved" means an outcome was entered and the experience record was closed; it does not by itself prove the action was performed or independently verified.
+- Use action_taken to describe the recorded action, but do not claim it was actually performed unless the recorded outcome or supporting evidence explicitly establishes that.
+- A linked inventory log proves that a record exists in OperLink; it does not independently prove that the physical count was accurate or that the recorded action actually occurred.
+- An inventory count supports a claim only when the ingredient and recorded date are relevant to the specific experience being evaluated.
+- A purchase log supports the fact that a purchase was recorded; a spoilage log supports a recorded spoilage event. Neither alone proves the physical stock balance at another time.
+- Never mark an experience as verified or describe it as independently verified merely because an inventory log is linked. Explain what the record supports and what remains unverified.
+- evidence_status="owner_reviewed" means an owner reviewed and documented the evidence; it does not mean independent verification has occurred.
+- Never interpret owner_reviewed as verified.
+- Only describe an experience as independently verified when a reliable verification process has checked that the supporting evidence actually establishes the specific claim.
+- prediction_assessment compares a prediction with an owner-reported outcome; it does not independently verify that outcome.
+- Use repeated, relevant experiences to inform future recommendations, but do not count test experiences as real evidence.
+- Do not generalize from one outcome or treat repeated reports as independently verified facts.
+- prediction_assessment is an AI-generated comparison of a prediction with a reported outcome, not independently verified truth.
+- When describing a prediction assessment, distinguish the AI's comparison from the actual business outcome.
+- Never use test experiences or test inventory records as evidence for real business recommendations.
+- The experience summary includes only resolved records where is_test=false, up to the 50 most recent.
+- Prediction assessments compare predictions with reported outcomes; they do not independently verify the outcomes.
+- Do not infer that a strategy caused an outcome merely because they appear together in an experience.
+- Only describe a recurring pattern when at least two genuinely comparable experiences support it. Otherwise, describe the individual case.
+- Never use test experiences or test inventory records as evidence for real business recommendations.
+
 
 FINANCIALS (P&L & TAX):
 Revenue: ${fin.revenue}₮ | NetRevenue(No VAT): ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
@@ -1427,7 +2288,7 @@ User Question: ${text}`;
           // 2. Groq руу шилжих (Маш хурдан 0.3 секунд)
           fallbackText = await callGroqFallback(ACTIVE_PROMPT, promptPayload);
         } catch (groqErr: any) {
-          console.error("❌ Groq бас ажилласангүй:", groqErr.message);
+          console.error("Groq бас ажилласангүй:", groqErr.message);
           return NextResponse.json({
             success: false,
             message: `Серверийн саатал: ${groqErr.message}`,

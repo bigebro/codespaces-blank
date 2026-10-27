@@ -46,6 +46,7 @@ export default function AiCfoChat({
           },
           body: JSON.stringify({
             action: "owner_chat_history",
+           
           }),
         });
 
@@ -118,7 +119,7 @@ export default function AiCfoChat({
           ...prev,
           {
             sender: "ai",
-            text: `❌ Алдаа: ${errorData.message || res.statusText}`,
+            text: `Алдаа: ${errorData.message || res.statusText}`,
           },
         ]);
         return;
@@ -134,6 +135,8 @@ export default function AiCfoChat({
           { sender: "ai", text: data.message },
         ]);
       }
+
+
       // 3. Хэрэв Stream (Урсгал) ирвэл:
       else if (res.body) {
         setCfoChatHistory((prev) => [...prev, { sender: "ai", text: "" }]);
@@ -164,7 +167,7 @@ export default function AiCfoChat({
       // 💡 Бодит алдааны тайлбарыг дэлгэцэнд харуулна
       setCfoChatHistory((prev) => [
         ...prev,
-        { sender: "ai", text: `❌ Сүлжээний алдаа: ${err.message}` },
+        { sender: "ai", text: `Сүлжээний алдаа: ${err.message}` },
       ]);
     } finally {
       setIsCfoLoading(false);

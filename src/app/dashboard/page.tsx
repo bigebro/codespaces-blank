@@ -1328,7 +1328,7 @@ function Home() {
       });
 
       if (error) {
-        setUnlockError("❌ Эзний нууц үг буруу байна!");
+        setUnlockError("Эзний нууц үг буруу байна!");
       } else {
         sessionStorage.removeItem("kiosk_device_locked");
         setIsKioskLocked(false);

@@ -370,7 +370,7 @@ export default function SettingsTab({
                     ангиллыг шалгаад баталгаажуулна уу.
                   </p>
                 </div>
-                {/* ❌ 1. ЦУЦЛАХ ТОВЧ (SessionStorage-оос устгаж цонхыг хаана): */}
+                {/* 1. ЦУЦЛАХ ТОВЧ (SessionStorage-оос устгаж цонхыг хаана): */}
                 <button
                   type="button"
                   onClick={() => updatePendingReview(null)}

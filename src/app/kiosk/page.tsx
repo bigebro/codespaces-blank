@@ -359,7 +359,7 @@ function KioskAiChatSection({
     );
   };
 
-  // ❌ INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
+  // INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
   const cancelVoiceRecording = () => {
     isCancelledRef.current = true;
     abortControllerRef.current?.abort(); // ⚡ Kills any in-flight request!
@@ -501,7 +501,7 @@ function KioskAiChatSection({
               ...prev,
               {
                 sender: "ai",
-                text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+                text: `Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
               },
             ]);
           }
@@ -782,7 +782,7 @@ function KioskAiChatSection({
         ...prev,
         {
           sender: "ai",
-          text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+          text: `Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
         },
       ]);
     } finally {
@@ -1023,7 +1023,7 @@ function KioskAiChatSection({
                 <span>{isListening ? "Сонсож байна..." : "Ярих"}</span>
               </button>
 
-              {/* ❌ 4. Цуцлах товч (Зөвхөн ярьж эсвэл AI ажиллаж байх үед гарна) */}
+              {/* 4. Цуцлах товч (Зөвхөн ярьж эсвэл AI ажиллаж байх үед гарна) */}
               {(isListening || isAiLoading) && (
                 <button
                   type="button"
@@ -1646,7 +1646,7 @@ function KioskPage() {
     );
 
     if (pinError || !isValid) {
-      setMsg("❌ Буруу PIN код!");
+      setMsg("Буруу PIN код!");
       setPin("");
       return;
     }
@@ -1706,7 +1706,7 @@ function KioskPage() {
       .single();
 
     if (error || !newShift) {
-      setMsg(`❌ Алдаа: ${error?.message || "Ээлж үүсгэж чадсангүй."}`);
+      setMsg(`Алдаа: ${error?.message || "Ээлж үүсгэж чадсангүй."}`);
       setIsAiLoading(false);
       return;
     }
@@ -1863,7 +1863,7 @@ function KioskPage() {
         }
 
         const countLogsToInsert: any[] = itemsCounted.map((item) => ({
-          client_id: tenantClientId,
+          client_id: tenantClientId,  
           ingredient_id: item.id,
           quantity: parseFloat(itemCounts[item.id]) || 0,
           type: "count",
@@ -2152,12 +2152,12 @@ function KioskPage() {
                   );
                   if (!oldPin) return;
                   if (oldPin !== (selectedWorker.pin_code || "1234")) {
-                    alert("❌ Одоогийн PIN буруу байна!");
+                    alert("Одоогийн PIN буруу байна!");
                     return;
                   }
                   const newPin = prompt("Шинэ 4 оронтой PIN оруулна уу:");
                   if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
-                    alert("❌ Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
+                    alert("Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
                     return;
                   }
                   const { error } = await supabase
@@ -2185,14 +2185,14 @@ function KioskPage() {
                     "Менежер эсвэл Эзний зөвшөөрлийн Master код (9999) оруулна уу:",
                   );
                   if (masterCode !== "9999" && masterCode !== "0000") {
-                    alert("❌ Менежерийн код буруу байна!");
+                    alert("Менежерийн код буруу байна!");
                     return;
                   }
                   const newPin = prompt(
                     `${selectedWorker.full_name}-д зориулсан шинэ 4 оронтой PIN оруулна уу:`,
                   );
                   if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
-                    alert("❌ PIN заавал 4 оронтой тоо байх ёстой!");
+                    alert("PIN заавал 4 оронтой тоо байх ёстой!");
                     return;
                   }
                   const { error } = await supabase

@@ -58,45 +58,62 @@ export default function InventoryTab({
       .eq("id", id);
   };
 
-  //GRID ТООЛЛОГО БӨӨНӨӨР ХАДГАЛАХ
-  const handleBulkSave = async () => {
-    setIsSavingBulk(true);
-    try {
-      const logsToInsert: any[] = [];
-      const currentDate = new Date().toISOString();
+const handleBulkSave = async () => {
+  setIsSavingBulk(true);
 
-      Object.keys(bulkStock).forEach((id) => {
-        const stockVal = parseFloat(bulkStock[id]) || 0;
-        const originalIng = ingredients.find((i) => i.id === id);
+  try {
+    const logsToInsert: any[] = [];
+    const currentDate = new Date().toISOString();
 
-        if (originalIng && parseFloat(originalIng.current_stock) !== stockVal) {
-          logsToInsert.push({
-            client_id: activeClient, //
-            ingredient_id: id,
-            quantity: stockVal,
-            type: "count",
-            notes: `Гараар Тоолсон Үлдэгдэл (Менежер Grid)`,
-            date: currentDate,
-            worker_name: "Менежер",
-          });
-        }
-      });
+    for (const [id, rawValue] of Object.entries(bulkStock)) {
+      // Skip blank fields. A blank value is not a count of zero.
+      if (rawValue.trim() === "") continue;
 
-      if (logsToInsert.length > 0) {
-        const { error: logError } = await supabase
-          .from("inventory_logs")
-          .insert(logsToInsert);
-        if (logError) throw logError;
+      const stockVal = Number(rawValue);
+
+      // A physical stock count cannot be negative or non-numeric.
+      if (!Number.isFinite(stockVal) || stockVal < 0) {
+        alert("Алдаа: Тооллогын утга 0 эсвэл түүнээс их тоо байх ёстой.");
+        return;
       }
 
-      alert("Бүх үлдэгдлүүд амжилттай хадгалагдлаа!");
-      await fetchDatabaseData(activeClient);
-    } catch (e: any) {
-      alert(`Алдаа гарлаа: ${e.message}`);
-    } finally {
-      setIsSavingBulk(false);
+      const originalIng = ingredients.find((i) => i.id === id);
+
+      if (!originalIng) continue;
+
+      // Save the count even when it matches the existing stock.
+      logsToInsert.push({
+        client_id: activeClient,
+        ingredient_id: id,
+        quantity: stockVal,
+        type: "count",
+        notes: "Гараар Тоолсон Үлдэгдэл (Менежер Grid)",
+        date: currentDate,
+        worker_name: "Менежер",
+      });
     }
-  };
+
+    if (logsToInsert.length === 0) {
+      alert("Хадгалах тоолсон утга алга. Эхлээд барааны тооллогын утга оруулна уу.");
+      return;
+    }
+
+    const { error: logError } = await supabase
+      .from("inventory_logs")
+      .insert(logsToInsert);
+
+    if (logError) throw logError;
+    setBulkStock({});
+
+    alert(`${logsToInsert.length} барааны тооллогын бүртгэл хадгалагдлаа!`);
+
+    await fetchDatabaseData(activeClient);
+  } catch (e: any) {
+    alert(`Алдаа гарлаа: ${e.message}`);
+  } finally {
+    setIsSavingBulk(false);
+  }
+};
 
   const lowStockItems = ingredients.filter(
     (i: any) => parseFloat(i.current_stock) <= 50,
@@ -465,11 +482,7 @@ export default function InventoryTab({
                           <input
                             type="number"
                             step="any"
-                            value={
-                              bulkStock[ing.id] !== undefined
-                                ? bulkStock[ing.id]
-                                : ing.current_stock || ""
-                            }
+                           value={bulkStock[ing.id] ?? ""}
                             onChange={(e) =>
                               setBulkStock({
                                 ...bulkStock,

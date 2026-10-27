@@ -164,8 +164,8 @@ BEGIN
     -- 4. Албан тушаалуудыг үүсгэх
     INSERT INTO public.company_roles (client_id, role_name)
     VALUES 
-        (target_client_id, 'Бариста ☕'),
-        (target_client_id, 'Тогооч 🍳')
+        (target_client_id, 'Бариста'),
+        (target_client_id, 'Тогооч')
     ON CONFLICT (client_id, role_name) DO NOTHING;
 END;
 $$;
