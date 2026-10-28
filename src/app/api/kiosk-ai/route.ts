@@ -4,6 +4,11 @@ import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
 import { getAnalyticsData } from "../../../lib/analytics";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
+import {
+  searchRelevantAiMemory,
+  saveBusinessMemoryEmbedding,
+  saveBusinessExperienceEmbedding,
+} from "../../../lib/aiMemory";
 
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
@@ -55,34 +60,170 @@ function getFriendlyErrorMessage(errorMsg: string): string {
 }
 
 const OWNER_CFO_PROMPT = `
-  Та бол кофе шоп, рестораны Ахлах Санхүүгийн Зөвлөх (CFO) бөгөөд Алдагдал Хяналтын Мөрдөгч Аудитор (Forensic Auditor) юм.
-  
-  [ҮНДСЭН ДҮРЭМ]:
-  - Ирсэн CONTEXT_DATA дахь тоон дээр үндэслэн шууд товч, цэгцтэй, үнэн зөв хариулна.
-  - Ундааны эрүүл маржин 75%-85%, хоолных 60%-70% байх ёстой.
-  
-  [АЛДАГДАЛ ШИНЖЛЭХ МӨРДЛӨГИЙН ЛОГИК - ХАТУУ МӨРДӨХ]:
-  Хэрэглэгч "Шалтгаангүй алдагдал" (Unexplained Waste), "Зөрүү", эсвэл "Энэ хулгай юу?" гэж асуувал зүгээр л тоог нь давтаж хэлэх БИШ, өгөгдлийг хооронд нь уялдуулж дараах 4 магадлалаар бодитоор шинжилж дүгнэлт өгнө:
-  
-  1. БЭЛЭН МӨНГӨНИЙ ХУЛГАЙ (Cash Theft / Un-rung Sales): 
-     Хэрэв Кофе үр, Сүү, Аяга зэрэг хоорондоо жороор холбогддог хэд хэдэн бараа зэрэгцэн (пропорционалиар) дутсан атлаа ПОС дээр борлуулалт ороогүй байвал: 
-     " Бэлэн мөнгөний хулгай байх 90%-ийн магадлалтай. Бариста ПОС-д шивэлгүй бэлэн мөнгө авч кофе гаргасан байж болзошгүй тул Хяналтын Камераа (CCTV) шалгана уу" гэж оношилно.
-  
-  2. ОРЦ ХЭТРҮҮЛЭЛТ (Overpouring): 
-     Хэрэв зарагдсан тоотой харьцуулахад нэг аяганд ногдох хэмжээгээр (жишээ нь тус бүр 10-20мл) тогтмол дутсан, эсвэл зөвхөн ганц бараа (зөвхөн сүү) дутсан байвал: 
-     "Орц хэтрүүлэлт эсвэл бутлагчийн тохиргоо алдагдсан байх магадлалтай. Бариста нарын хэмжээст савны хэрэглээг шалгана уу" гэж оношилно.
-  
-  3. БҮРТГЭЭГҮЙ ХАЯГДАЛ (Forgot to log): 
-     Хэрэв 1-2 ширхэг өндөг, талх гэх мэт жижиг зөрүү байвал:
-     "Ажилтан хоолондоо хэрэглэсэн эсвэл асгаснаа Kiosk-д бүртгэхээ мартсан байх магадлалтай. Ажилтнаар нөхөж бүртгүүлбэл энэ алдагдал 0 болж цэвэрлэгдэнэ" гэж зөвлөнө.
-  
-  4. ФИЗИК ХУЛГАЙ (Physical Theft / Big Spills): 
-     Бүтэн хайрцаг (1000мл, 1кг) зэргээр их хэмжээгээр бүхлээрээ гэнэт дутсан бол:
-     "Том хэмжээний асгаралт эсвэл бодит физик хулгай байх эрсдэлтэй. Тухайн ээлжийн ажилтнаас шууд тайлбар шаардана уу." гэж зөвлөнө.
+Та бол OperaLink системийн кофе шоп, ресторануудад зориулсан
+Ахлах Санхүүгийн Зөвлөх (CFO), бизнесийн аналитикч,
+бараа материалын тулгалт болон эрсдэлийн аудитор юм.
 
-  Хэрэглэгчийн асуултад хариулахдаа үргэлж хамгийн өндөр магадлалтай шалтгааныг нь баримттайгаар (тоотой нь) тайлбарлаж, яг ямар арга хэмжээ авахыг нь зааж өг!
+ТАНЫ ЗОРИЛГО:
+Бизнесийн эзэнд санхүүгийн мэдээллээ ойлгох, зардлаа хянах,
+алдагдлыг илрүүлэх, шийдвэр гаргах болон үйл ажиллагаагаа
+сайжруулахад нь туслах. Баримт, тооцоолол, таамаглалыг
+хооронд нь хэзээ ч андуурч болохгүй.
+
+[1. ЭХ СУРВАЛЖ БА ТООН ҮНЭН ЗӨВ БАЙДАЛ]
+
+- Юуны өмнө тухайн асуултад хамаарах хугацаа, бизнес,
+  бүтээгдэхүүн болон эх сурвалжийг тодорхойл.
+- CONTEXT_DATA-д байгаа CODE-CALCULATED гэж тэмдэглэсэн
+  дүнг тухайн үзүүлэлтийн кодоор тооцсон үр дүн гэж үз.
+- Кодын тооцоолсон дүнг өмнөх AI хариулт, хуучин чат,
+  ерөнхий таамаг эсвэл таамгаар дахин гаргасан дүнгээр бүү соль.
+- Эх сурвалжийн лог болон кодын тооцоолол хоорондоо зөрвөл
+  зөрүүг нээлттэй тайлбарла. Аль ч утгыг дуугүйгээр сонгож болохгүй.
+- Шаардлагатай дүн CONTEXT_DATA-д байхгүй бол "Өгөгдөл дутуу"
+  эсвэл "Тооцоолох боломжгүй" гэж хэл. Хариуг зохиомлоор бөглөж болохгүй.
+- Мөнгөний дүн, ширхэг, жин, эзлэхүүн, хувь болон огноог
+  эх сурвалжид заасан нэгж, нарийвчлалаар илэрхийл.
+- Нэгж хөрвүүлэх шаардлагатай бол хөрвүүлэлтийг тодорхой харуул.
+- Борлуулалтын түүхий нэр, албан ёсны бүтээгдэхүүний нэр,
+  жорын нэр гурав өөр бол тэдгээрийг хооронд нь ялгаж бич.
+
+[2. КОДООР ТООЦСОН ҮР ДҮН]
+
+- CODE-CALCULATED THEORETICAL MILK TOTAL,
+  CODE-CALCULATED INVENTORY-RECORDED MILK USAGE,
+  CODE-CALCULATED DIFFERENCE зэрэг талбар байвал тэдгээрийн
+  утгыг яг хэвээр нь ашигла.
+- Нийт дүн болон зөрүүг харуулахдаа боломжтой бол тооцооны
+  мөрийг мөн харуул.
+- Нэг үзүүлэлтийн кодоор тооцсон үр дүн байхгүй бол
+  түүнийг байгаа мэтээр бүү тайлбарла.
+- Кодын нийлбэр болон мөр бүрийн нийлбэр хоорондоо таарахгүй
+  байвал үүнийг тэмдэглэж, зөрүүг нягтлах шаардлагатайг хэл.
+- Шинэ тоо гаргахын тулд хуучин чатад гарсан утгыг эх сурвалж
+  болгон ашиглаж болохгүй.
+- Тоон үр дүнг тайлбарлаж болно. Харин эх сурвалжид байхгүй
+  шинэ тоо, хувь, магадлал, ID зохиож болохгүй.
+
+[3. БҮТЭЭГДЭХҮҮНИЙ НЭР БА ЖОРЫН ЗУРАГЛАЛ]
+
+- learned_menus-д тухайн бизнесийн хувьд хадгалагдсан
+  ил тод зураглалыг л зөвшөөрөгдсөн нэрийн холбоос гэж үз.
+- Жишээ нь, Latte -> Caffe Latte гэж зураглагдсан бол
+  тухайн хоёр нэрийн борлуулалтыг жортой тулгахдаа нэгтгэж болно.
+- Mocha -> Caffe mocha зэрэг зураглалыг мөн адил хэрэглэж болно.
+- Ил тод зураглалгүй бусад нэрийг зөвхөн төстэй үгтэй нь
+  таарч байна гээд нэг бүтээгдэхүүн гэж үзэж болохгүй.
+- Flavored Caffe Latte, Matcha Latte, Mocha Frappuccino зэрэг
+  өөр бүтээгдэхүүний нэрийг зөвшөөрөлгүйгээр нэгтгэж болохгүй.
+- Зурагласан нийт борлуулалт болон анхны POS нэрсийн
+  борлуулалтын дүнг ялгаж харуул.
+- Жорын тодорхой орц эх сурвалжид байхгүй бол тухайн орцыг
+  таамгаар нөхөж тооцохгүй.
+
+[4. САНХҮҮГИЙН ШИНЖИЛГЭЭ]
+
+Асуултад хамаарах үед дараах мэдээллийг шинжил:
+- Орлого, борлуулалтын тоо, мөнгөн урсгал.
+- Бараа материалын хөдөлгөөн, худалдан авалт, үлдэгдэл.
+- Жорын онолын хэрэглээ болон бүртгэлээс тооцсон хэрэглээ.
+- Хаягдал, тайлбарлагдаагүй зөрүү, бүтээгдэхүүний өртөг.
+- Нийт ашиг, ашгийн маржин, үйл ажиллагааны зардал.
+- Бүтээгдэхүүний гүйцэтгэл болон үйл ажиллагааны үр ашгийг сайжруулах боломж.
+
+Маржины зорилтот түвшин эсвэл бизнесийн бодлого CONTEXT_DATA-д
+байвал түүнийг ашигла. Байхгүй бол санал болгосон жишиг
+түвшнийг таамаглал эсвэл зөвлөмж гэдгийг тодорхой тэмдэглэ.
+
+Хэрэглэгч энгийн асуулт асуусан бол шаардлагагүй урт тайлан
+гаргахгүй. Хэрэглэгч дэлгэрэнгүй аудит хүссэн үед дэлгэрэнгүй тайлагна.
+
+[5. АУДИТЫН НОТЛОГОО БА ЭРСДЭЛ]
+
+Дүгнэлт бүрийг дараах ангиллаас тохирохоор нь ялгаж бич:
+
+1. СИСТЕМД БҮРТГЭГДСЭН БАРИМТ:
+   Өгөгдлийн санд ямар бүртгэл байгааг хэлнэ.
+   Энэ нь физик бодит байдлыг бие даан баталгаажуулсан гэсэн үг биш.
+
+2. КОДООР ТООЦСОН ҮР ДҮН:
+   Өгөгдсөн эх сурвалж дээр кодоор тооцоолсон үзүүлэлт.
+
+3. БАТАЛГААЖААГҮЙ ТААМАГЛАЛ:
+   Зөрүүг тайлбарлаж болох боловч одоогоор нотлогдоогүй шалтгаан.
+
+4. ДАРААГИЙН ШАЛГАЛТ:
+   Дүгнэлтийг баталгаажуулахын тулд хийх шаардлагатай шалгалт.
+
+- Бараа материалын зөрүү дангаараа хулгай, залилан,
+  бүртгэлгүй борлуулалт, ажилтны буруутай үйлдэл эсвэл
+  зориудын орц хэтрүүлэлтийг нотлохгүй.
+- Баримт, статистик загвар эсвэл баталгаатай магадлалын тооцоолол
+  байхгүй бол "90% магадлалтай" зэрэг хувь зохиож болохгүй.
+- Боломжит шалтгаанд орц хэтрүүлэлт, бүртгэгдээгүй хаягдал,
+  жорын стандартын өөрчлөлт, бүртгэлийн алдаа, POS-ийн зөрүү
+  зэрэг хувилбар багтаж болно. Гэхдээ эдгээрийг батлагдсан
+  шалтгаан мэт тайлбарлаж болохгүй.
+- Эрсдэл илэрвэл ямар эх сурвалжийг нягтлах, ямар физик
+  тооллого хийх, ямар бүртгэлийг тулгахыг төвийг сахисан
+  байдлаар зөвлө.
+- Синтетик хөгжүүлэлтийн өгөгдөл гэж тэмдэглэсэн мэдээллийг
+  бодит бизнесийн үйл явдлын шууд нотолгоо болгон бүү үз.
+- Синтетик өгөгдөл дээр ажилтныг буруутгасан дүгнэлт бүү гарга.
+
+[6. ЭХ СУРВАЛЖИЙН ID]
+
+- ID-г зөвхөн өгөгдсөн эх сурвалжаас яг хэвээр нь ашигла.
+- Inventory log ID нь бараа материалын бүртгэлийг заана;
+  борлуулалт эсвэл жорын бүртгэлийн ID мэт бүү харуул.
+- Олон ID-г зөвхөн хамрах хүрээг нь ойлгомжтой, алдаагүй
+  илэрхийлж чадах үед товчилж болно. Эргэлзээтэй бол ID бүрийг
+  тусад нь жагсаа.
+- ID эсвэл баримтын дэлгэрэнгүй байхгүй бол байхгүйг нь хэл.
+  Хэзээ ч ID зохиож болохгүй.
+
+[7. ЦЭВЭР MARKDOWN ФОРМАТ]
+
+- Хариултыг уншихад хялбар, цэгцтэй Markdown хэлбэрээр гарга.
+- Шаардлагатай үед ### 1. Гарчиг хэлбэрийг ашигла.
+- Жагсаалтын мөр бүрт "- " эсвэл зөв дугаарлалт, дараа нь
+  бодит агуулга бич.
+- Дан "-", "*", "1." зэрэг хоосон жагсаалтын мөр бүү гарга.
+- Жагсаалтын тэмдэглэгээг тусдаа мөрөнд бүү гарга.
+- Нэг жагсаалтад санамсаргүйгээр давхар дугаарлалт бүү үүсгэ.
+- Тоон томьёог энгийн текстээр тодорхой харуул.
+  Жишээ: 35,800 мл - 29,000 мл = 6,800 мл
+- Хүснэгт нь ойлгомжтой бол хүснэгт ашиглаж болно.
+- Нэг ижил дүгнэлтийг олон удаа давтахгүй бай.
+- Хариултаа илгээхээс өмнө жагсаалт, тооцоо, нэгж, ID,
+  гарчиг болон хоосон мөрүүдийг шалгаж зас.
+
+[8. АУДИТЫН ТАЙЛАНГИЙН БҮТЭЦ]
+
+Хэрэглэгч дэлгэрэнгүй тулгалт эсвэл аудит хүссэн үед л
+доорх бүтцийг тохируулан ашигла:
+
+1. Тайлангийн хугацаа ба өгөгдлийн хязгаарлалт.
+2. Эх сурвалжийн борлуулалт ба зурагласан нэрс.
+3. Жорын онолын хэрэглээ.
+4. Бүртгэлээс тооцсон хэрэглээ.
+5. Зөрүү ба арифметик.
+6. Системд бүртгэгдсэн баримт, баталгаажаагүй таамаглал,
+   цаашид шалгах шаардлагатай зүйлс.
+
+Бүх хэсгийг заавал зохиомлоор бөглөх албагүй.
+Мэдээлэл байхгүй хэсгийг ил тод тэмдэглэ.
+
+ХАРИУЛТЫН ЭЦСИЙН ШАЛГАЛТ:
+- Тоонууд эх сурвалжтай нийцэж байна уу?
+- Кодын тооцоолсон үр дүнг өөрчлөөгүй юу?
+- Таамаглалыг баримт мэт бичээгүй юу?
+- Хулгай эсвэл ажилтны буруутай үйлдлийг нотолгоогүйгээр дүгнээгүй юу?
+- ID, нэгж, огноо зөв үү?
+- Markdown цэвэр, жагсаалт бүрэн байна уу?
+
+Эдгээр шалгалтыг хийсний дараа л хариултаа гарга.
 `;
-
 const WORKER_KIOSK_PROMPT = `
   Та гал тогооны ажилтнуудад зориулагдсан "Kiosk AI туслах" юм.
   [ДҮРЭМ]:
@@ -372,10 +513,15 @@ if (newMemories.length === 0) return;
   }
 }
 
-async function assessPredictionAgainstOutcome(
+async function evaluateExperienceOutcome(
+  situation: string | null,
   prediction: string | null,
+  actionTaken: string | null,
   outcome: string
-): Promise<string> {
+): Promise<{
+  assessment: string;
+  suggestedLesson: string | null;
+}> {
   const allowedAssessments = new Set([
     "prediction_matched",
     "partially_matched",
@@ -383,15 +529,16 @@ async function assessPredictionAgainstOutcome(
     "inconclusive",
   ]);
 
-  if (!prediction?.trim() || !outcome.trim()) {
-    return "unassessed";
-  }
-
   const key = (process.env.GEMINI_API_KEY || "")
     .replace(/["']/g, "")
     .trim();
 
-  if (!key) return "unassessed";
+  if (!key || !outcome.trim()) {
+    return {
+      assessment: "unassessed",
+      suggestedLesson: null,
+    };
+  }
 
   try {
     const ai = new GoogleGenerativeAI(key);
@@ -405,27 +552,41 @@ async function assessPredictionAgainstOutcome(
     });
 
     const prompt = `
-Compare a business prediction with an owner-reported outcome.
+Analyze a business experiment using the information below.
 
-Return only JSON:
-{"assessment":"prediction_matched"}
+Return only valid JSON in this format:
+{
+  "assessment": "inconclusive",
+  "suggestedLesson": "A concise, actionable lesson"
+}
 
-Allowed assessment values:
+assessment must be exactly one of:
 - prediction_matched
 - partially_matched
 - prediction_not_matched
 - inconclusive
 
 Rules:
-- Compare only the prediction and the reported outcome.
-- Do not invent missing facts.
-- Do not treat an owner-reported outcome as independently verified.
-- Use inconclusive when the outcome does not clearly establish
-  whether the prediction matched.
-- Do not evaluate whether the prediction was a good business decision.
+- A result occurring after an action does not prove that the action caused it.
+- Never say an action "prevented", "caused", "reduced", "improved",
+  "solved", or "was effective" unless the supplied evidence supports
+  that specific causal conclusion.
+- Adding "in this instance" or "this does not prove a general rule"
+  does not make an unsupported causal claim acceptable.
+- When only one observation is available, describe the observed
+  outcome and explicitly state that causation has not been established.
+- Distinguish prediction_assessment from causal proof:
+  a prediction may match the reported outcome without the action
+  being proven to have caused that outcome.
+
+Situation:
+${JSON.stringify(situation)}
 
 Prediction:
 ${JSON.stringify(prediction)}
+
+Action taken:
+${JSON.stringify(actionTaken)}
 
 Owner-reported outcome:
 ${JSON.stringify(outcome)}
@@ -439,12 +600,23 @@ ${JSON.stringify(outcome)}
 
     const parsed = JSON.parse(raw);
 
-    return allowedAssessments.has(parsed.assessment)
+    const assessment = allowedAssessments.has(parsed.assessment)
       ? parsed.assessment
       : "unassessed";
+
+    const suggestedLesson =
+      typeof parsed.suggestedLesson === "string"
+        ? parsed.suggestedLesson.trim().slice(0, 1000) || null
+        : null;
+
+    return { assessment, suggestedLesson };
   } catch (error) {
-    console.error("Prediction assessment failed:", error);
-    return "unassessed";
+    console.error("Experience outcome evaluation failed:", error);
+
+    return {
+      assessment: "unassessed",
+      suggestedLesson: null,
+    };
   }
 }
 
@@ -657,8 +829,9 @@ if (
 }
 
 // Owner command: record the actual outcome of an experience.
+// Owner command: record the actual outcome of an experience.
 const experienceResultMatch = text.match(
-  /^\s*(?:Туршлага үр дүн|Experience result)\s*:\s*([0-9a-f-]{36})\s*\|\s*([^|]{3,1000})\s*\|\s*(.{5,1000})\s*$/i
+  /^\s*(?:Туршлага үр дүн|Experience result)\s*:\s*([0-9a-f-]{36})\s*\|\s*([^|]{3,1000})(?:\s*\|\s*(.{5,1000}))?\s*$/i
 );
 
 if (
@@ -669,61 +842,83 @@ if (
 ) {
   const experienceId = experienceResultMatch[1].trim();
   const outcome = experienceResultMatch[2].trim();
-  const lesson = experienceResultMatch[3].trim();
+  const ownerLesson = experienceResultMatch[3]?.trim() || null;
 
-  const { data: priorExperience, error: priorExperienceError } =
-  await supabaseAdmin
+  const {
+    data: priorExperience,
+    error: priorExperienceError,
+  } = await supabaseAdmin
     .from("business_experiences")
-    .select("prediction")
+    .select("situation, prediction, action_taken")
     .eq("client_id", clientId)
     .eq("id", experienceId)
     .eq("status", "open")
     .maybeSingle();
 
-if (priorExperienceError) {
-  console.error(
-    "Prediction lookup error:",
-    priorExperienceError.message
+  if (priorExperienceError) {
+    console.error(
+      "Experience lookup error:",
+      priorExperienceError.message
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Туршлагыг шалгахад алдаа гарлаа.",
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!priorExperience) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Нээлттэй туршлага олдсонгүй. ID-г шалгана уу.",
+      },
+      { status: 404 }
+    );
+  }
+
+  const review = await evaluateExperienceOutcome(
+    priorExperience.situation,
+    priorExperience.prediction,
+    priorExperience.action_taken,
+    outcome
   );
 
-  return NextResponse.json(
-    { success: false, message: "Туршлагыг шалгахад алдаа гарлаа." },
-    { status: 500 }
-  );
-}
+  // An owner-written lesson always takes priority.
+  const lesson = ownerLesson || review.suggestedLesson;
 
-if (!priorExperience) {
-  return NextResponse.json(
-    {
-      success: false,
-      message: "Нээлттэй туршлага олдсонгүй. ID-г шалгана уу.",
-    },
-    { status: 404 }
-  );
-}
+  // Do not close the experience without a usable lesson.
+  if (!lesson) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "AI сургамж гаргаж чадсангүй. Гурав дахь талбарт сургамжаа өөрөө оруулаад дахин илгээнэ үү.",
+      },
+      { status: 400 }
+    );
+  }
 
-const predictionAssessment = await assessPredictionAgainstOutcome(
-  priorExperience.prediction,
-  outcome
-);
-
-
-
-  const { data: experience, error: experienceError } =
-    await supabaseAdmin
-      .from("business_experiences")
-      .update({
-        outcome,
-        lesson,
-        prediction_assessment: predictionAssessment,
-        status: "resolved",
-        resolved_at: new Date().toISOString(),
-      })
-      .eq("id", experienceId)
-      .eq("client_id", clientId)
-      .eq("status", "open")
-      .select("id")
-      .maybeSingle();
+  const {
+    data: experience,
+    error: experienceError,
+  } = await supabaseAdmin
+    .from("business_experiences")
+    .update({
+      outcome,
+      lesson,
+      prediction_assessment: review.assessment,
+      status: "resolved",
+      resolved_at: new Date().toISOString(),
+    })
+    .eq("id", experienceId)
+    .eq("client_id", clientId)
+    .eq("status", "open")
+    .select("id")
+    .maybeSingle();
 
   if (experienceError) {
     console.error(
@@ -751,8 +946,9 @@ const predictionAssessment = await assessPredictionAgainstOutcome(
     );
   }
 
-  const message =
-    "Туршлагын бодит үр дүн болон сургамжийг хадгаллаа.";
+const message = ownerLesson
+  ? `Туршлагын үр дүн болон таны бичсэн сургамжийг хадгаллаа.\nСургамж: ${lesson}`
+  : `Туршлагын үр дүн болон AI-ийн санал болгосон сургамжийг хадгаллаа. Сургамжийг шалгана уу.\nAI-ийн санал болгосон сургамж: ${lesson}`;
 
   await saveOwnerChatTurn(clientId, text, message);
 
@@ -761,9 +957,11 @@ const predictionAssessment = await assessPredictionAgainstOutcome(
     message,
     experienceId: experience.id,
     status: "resolved",
+    predictionAssessment: review.assessment,
+    lesson,
+    lessonSource: ownerLesson ? "owner" : "ai_suggestion",
   });
 }
-
 // Owner command: link an inventory record to an experience.
 const experienceEvidenceMatch = text.match(
   /^\s*(?:Туршлагын нотлох баримт|Experience evidence)\s*:\s*([0-9a-f-]{36})\s*\|\s*([0-9a-f-]{36})\s*\|\s*(inventory_count|purchase|spoilage|other)(?:\s*\|\s*(.{1,500}))?\s*$/i
@@ -1343,19 +1541,33 @@ ${JSON.stringify(unmatched)}`;
 
     // 1. UNDO
     if (action === "undo" && logId) {
-      const { error } = await supabaseAdmin
-        .from("inventory_logs")
-        .delete()
-        .eq("id", logId);
-      if (error)
-        return NextResponse.json({
-          success: false,
-          message: `Алдаа: ${error.message}`,
-        });
-      return NextResponse.json({
-        success: true,
-        message: "Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
-      });
+          const { data: deletedLog, error } = await supabaseAdmin
+          .from("inventory_logs")
+          .delete()
+          .eq("id", logId)
+          .eq("client_id", clientId)
+          .select("id")
+          .maybeSingle();
+
+        if (error) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `Алдаа: ${error.message}`,
+            },
+            { status: 500 }
+          );
+        }
+
+        if (!deletedLog) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Бүртгэл олдсонгүй эсвэл энэ бизнест хамаарахгүй.",
+            },
+            { status: 404 }
+          );
+        }
     }
 
     let allowedNames: string[] = [];
@@ -1669,6 +1881,634 @@ ${JSON.stringify(unmatched)}`;
       );
       const fin = analyticsData.financial_ladder || {};
 
+            // Fetch the underlying sales rows for the current report date range.
+      // Preserve exact product names; do not merge aliases automatically.
+      let salesPeriodRows: any[] = [];
+
+      if (activeStart && activeEnd) {
+        const {
+          data: rows,
+          error: salesRowsError,
+        } = await supabaseAdmin
+          .from("sales_logs")
+          .select(
+            "id, date, product_name, quantity_sold, total_revenue, payment_method"
+          )
+          .eq("client_id", clientId)
+          .gte("date", activeStart)
+          .lte("date", activeEnd)
+          .order("date", { ascending: true })
+          .limit(1000);
+
+        if (salesRowsError) {
+          console.error(
+            "Sales period query error:",
+            salesRowsError.message
+          );
+        } else {
+          salesPeriodRows = rows ?? [];
+        }
+      }
+
+  // Calculate totals in code instead of asking the AI to guess or sum them.
+  const salesTotalsByExactName = new Map<
+    string,
+    { units: number; revenue: number; rows: number }
+  >();
+
+  for (const row of salesPeriodRows) {
+    const productName = row.product_name;
+    const current = salesTotalsByExactName.get(productName) ?? {
+      units: 0,
+      revenue: 0,
+      rows: 0,
+    };
+
+    current.units += Number(row.quantity_sold) || 0;
+    current.revenue += Number(row.total_revenue) || 0;
+    current.rows += 1;
+
+    salesTotalsByExactName.set(productName, current);
+  }
+
+// Resolve sales names using this client's explicit POS mappings.
+// Keep the original sales rows unchanged.
+const { data: learnedMenuMappings, error: learnedMenuMappingsError } =
+  await supabaseAdmin
+    .from("learned_menus")
+    .select("pos_name, official_product_name")
+    .eq("client_id", clientId);
+
+if (learnedMenuMappingsError) {
+  console.error(
+    "Failed to load learned menu mappings:",
+    learnedMenuMappingsError
+  );
+}
+
+const learnedMenuAliasMap = new Map<string, string>();
+
+for (const mapping of learnedMenuMappings || []) {
+  const posName = String(mapping.pos_name || "").trim().toLowerCase();
+  const officialName = String(
+    mapping.official_product_name || ""
+  ).trim();
+
+  if (posName && officialName) {
+    learnedMenuAliasMap.set(posName, officialName);
+  }
+}
+
+// Build separate totals for recipe comparisons.
+// Original sales data and original product names remain unchanged.
+const salesTotalsByRecipeName = new Map<
+  string,
+  { units: number; revenue: number; rows: number }
+>();
+
+for (const row of salesPeriodRows) {
+  const originalName = String(row.product_name || "").trim();
+
+  if (!originalName) continue;
+
+  const resolvedName =
+    learnedMenuAliasMap.get(originalName.toLowerCase()) ||
+    originalName;
+
+  const totals = salesTotalsByRecipeName.get(resolvedName) || {
+    units: 0,
+    revenue: 0,
+    rows: 0,
+  };
+
+  totals.units += Number(row.quantity_sold || 0);
+  totals.revenue += Number(row.total_revenue || 0);
+  totals.rows += 1;
+
+  salesTotalsByRecipeName.set(resolvedName, totals);
+}
+
+const salesTotalsByRecipeNameText = Array.from(
+  salesTotalsByRecipeName.entries()
+)
+  .map(
+    ([name, totals]) =>
+      `${name} | sold:${totals.units} | revenue:${totals.revenue}₮ | rows:${totals.rows}`
+  )
+  .join("\n");
+
+
+  const salesTotalsText =
+    [...salesTotalsByExactName.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(
+        ([productName, totals]) =>
+          `${productName} | units: ${totals.units} | ` +
+          `revenue: ${totals.revenue.toFixed(2)} | ` +
+          `rows: ${totals.rows}`
+      )
+      .join("\n") || "No sales rows found for this report range.";
+
+  const salesRowsText =
+    salesPeriodRows
+      .map(
+        (row) =>
+          `ID: ${row.id} | ` +
+          `Date UTC: ${row.date} | ` +
+          `Product: ${row.product_name} | ` +
+          `Quantity: ${row.quantity_sold} | ` +
+          `Revenue: ${row.total_revenue} | ` +
+          `Payment: ${row.payment_method}`
+      )
+      .join("\n") || "No individual sales rows available.";
+
+// Calculate theoretical milk usage from exact sales mappings and recipes.
+const recipeMapForMilkAudit = (
+  analyticsData.all_recipes || {}
+) as Record<string, Record<string, number>>;
+
+let deterministicTheoreticalMilkMl = 0;
+const deterministicMilkRecipeLines: string[] = [];
+
+for (const [productName, totals] of salesTotalsByRecipeName.entries()) {
+  const recipeName = Object.keys(recipeMapForMilkAudit).find(
+    (name) =>
+      name.trim().toLowerCase() === productName.trim().toLowerCase()
+  );
+
+  if (!recipeName) {
+    deterministicMilkRecipeLines.push(
+      `${productName}: no exact recipe found; excluded from calculation.`
+    );
+    continue;
+  }
+
+  const recipe = recipeMapForMilkAudit[recipeName];
+
+  const milkIngredient = Object.entries(recipe).find(
+    ([ingredientName]) =>
+      ingredientName.trim().toLowerCase() === "milk"
+  );
+
+  if (!milkIngredient) {
+    deterministicMilkRecipeLines.push(
+      `${recipeName}: no exact Milk ingredient in recipe; excluded from milk total.`
+    );
+    continue;
+  }
+
+  const milkPerServingMl = Number(milkIngredient[1]);
+
+  if (!Number.isFinite(milkPerServingMl) || milkPerServingMl < 0) {
+    deterministicMilkRecipeLines.push(
+      `${recipeName}: invalid milk quantity; excluded from calculation.`
+    );
+    continue;
+  }
+
+  const productMilkMl = totals.units * milkPerServingMl;
+
+  deterministicTheoreticalMilkMl += productMilkMl;
+
+  deterministicMilkRecipeLines.push(
+    `${recipeName}: ${totals.units} × ${milkPerServingMl} ml = ${productMilkMl} ml`
+  );
+}
+
+const deterministicMilkRecipeContext = [
+  ...deterministicMilkRecipeLines,
+  `CODE-CALCULATED THEORETICAL MILK TOTAL: ${deterministicTheoreticalMilkMl} ml`,
+  "Use this code-calculated total as authoritative. Do not substitute another number."
+].join("\n");
+
+// Calculate inventory-recorded milk usage from database records.
+const { data: exactMilkIngredients, error: milkIngredientsError } =
+  await supabaseAdmin
+    .from("ingredients")
+    .select("id, name, unit")
+    .eq("client_id", clientId)
+    .ilike("name", "Milk");
+
+if (milkIngredientsError) {
+  console.error(
+    "Failed to load Milk ingredient:",
+    milkIngredientsError.message
+  );
+}
+
+let milkInventoryRows: any[] = [];
+
+const milkIngredientIds = (exactMilkIngredients || []).map(
+  (ingredient) => ingredient.id
+);
+
+if (milkIngredientIds.length === 1) {
+  const { data: rows, error: milkLogsError } = await supabaseAdmin
+    .from("inventory_logs")
+    .select("id, ingredient_id, type, date, quantity, notes, is_test")
+    .eq("client_id", clientId)
+    .eq("is_test", false)
+    .in("ingredient_id", milkIngredientIds)
+    .gte("date", activeStart)
+    .lte("date", activeEnd)
+    .order("date", { ascending: true });
+
+  if (milkLogsError) {
+    console.error(
+      "Failed to load Milk inventory logs:",
+      milkLogsError.message
+    );
+  } else {
+    milkInventoryRows = rows || [];
+  }
+}
+
+const milkUnit = String(
+  exactMilkIngredients?.[0]?.unit || ""
+).trim().toLowerCase();
+
+const isMlUnit = ["ml", "мл", "milliliter", "milliliters"].includes(
+  milkUnit
+);
+
+let deterministicRecordedMilkUsageMl: number | null = null;
+const deterministicMilkInventoryLines: string[] = [];
+
+if (milkIngredientIds.length !== 1) {
+  deterministicMilkInventoryLines.push(
+    "Cannot calculate: expected exactly one ingredient named Milk."
+  );
+} else if (!isMlUnit) {
+  deterministicMilkInventoryLines.push(
+    `Cannot calculate in ml: Milk ingredient unit is "${milkUnit}".`
+  );
+} else {
+  const countRows = milkInventoryRows
+    .filter(
+      (row) => String(row.type).toLowerCase() === "count"
+    )
+    .sort(
+      (a, b) => Date.parse(a.date) - Date.parse(b.date)
+    );
+
+  if (countRows.length < 2) {
+    deterministicMilkInventoryLines.push(
+      "Cannot calculate: at least two inventory_count records are required."
+    );
+  } else {
+    let totalRecordedUsageMl = 0;
+    let calculationValid = true;
+
+    for (let i = 0; i < countRows.length - 1; i++) {
+      const startCount = countRows[i];
+      const endCount = countRows[i + 1];
+
+      const startTime = Date.parse(startCount.date);
+      const endTime = Date.parse(endCount.date);
+
+      const movements = milkInventoryRows.filter((row) => {
+        const rowTime = Date.parse(row.date);
+
+        return (
+          String(row.type).toLowerCase() !== "count" &&
+          rowTime > startTime &&
+          rowTime < endTime
+        );
+      });
+
+      const startQty = Number(startCount.quantity);
+      const endQty = Number(endCount.quantity);
+      const movementTotal = movements.reduce(
+        (sum, row) => sum + Number(row.quantity),
+        0
+      );
+
+      const segmentUsageMl = startQty + movementTotal - endQty;
+
+      if (
+        !Number.isFinite(startQty) ||
+        !Number.isFinite(endQty) ||
+        !Number.isFinite(movementTotal) ||
+        !Number.isFinite(segmentUsageMl)
+      ) {
+        calculationValid = false;
+        break;
+      }
+
+      totalRecordedUsageMl += segmentUsageMl;
+
+      deterministicMilkInventoryLines.push(
+        `${startQty} ml + movements (${movements
+          .map((row) => `${row.type}: ${Number(row.quantity)} ml`)
+          .join(" + ") || "0 ml"}) - ${endQty} ml = ${segmentUsageMl} ml`
+      );
+    }
+
+    if (calculationValid) {
+      deterministicRecordedMilkUsageMl = totalRecordedUsageMl;
+
+      deterministicMilkInventoryLines.push(
+        `CODE-CALCULATED INVENTORY-RECORDED MILK USAGE: ${totalRecordedUsageMl} ml`
+      );
+    } else {
+      deterministicMilkInventoryLines.push(
+        "Cannot calculate: one or more inventory quantities are invalid."
+      );
+    }
+  }
+}
+
+const deterministicMilkInventoryContext =
+  deterministicMilkInventoryLines.join("\n");
+
+const deterministicMilkDifferenceMl =
+  deterministicRecordedMilkUsageMl === null
+    ? null
+    : deterministicTheoreticalMilkMl -
+      deterministicRecordedMilkUsageMl;
+
+const deterministicMilkDifferenceContext =
+  deterministicMilkDifferenceMl === null
+    ? "FINAL DIFFERENCE: unavailable because inventory usage could not be calculated."
+    : `CODE-CALCULATED DIFFERENCE (theoretical - inventory-recorded): ${deterministicTheoreticalMilkMl} - ${deterministicRecordedMilkUsageMl} = ${deterministicMilkDifferenceMl} ml`;
+
+
+// Generalize theoretical usage calculations to all exact recipe ingredients.
+const allRecipesForAudit = (
+  analyticsData.all_recipes || {}
+) as Record<string, Record<string, number>>;
+
+const { data: auditIngredients, error: auditIngredientsError } =
+  await supabaseAdmin
+    .from("ingredients")
+    .select("id, name, unit")
+    .eq("client_id", clientId);
+
+if (auditIngredientsError) {
+  console.error(
+    "Failed to load ingredient units for audit:",
+    auditIngredientsError.message
+  );
+}
+
+const auditIngredientUnitMap = new Map<string, string>();
+
+for (const ingredient of auditIngredients || []) {
+  const key = String(ingredient.name || "").trim().toLowerCase();
+  const unit = String(ingredient.unit || "").trim();
+
+  if (key && unit) {
+    auditIngredientUnitMap.set(key, unit);
+  }
+}
+
+const theoreticalUsageByIngredient = new Map<
+  string,
+  {
+    name: string;
+    unit: string;
+    total: number;
+    details: string[];
+  }
+>();
+
+for (const [soldProductName, totals] of salesTotalsByRecipeName.entries()) {
+  // Only match an exact recipe name after applying the saved explicit mapping.
+  const recipeName = Object.keys(allRecipesForAudit).find(
+    (name) =>
+      name.trim().toLowerCase() === soldProductName.trim().toLowerCase()
+  );
+
+  if (!recipeName) continue;
+
+  const recipe = allRecipesForAudit[recipeName];
+
+  for (const [ingredientName, amountRaw] of Object.entries(recipe)) {
+    const ingredientKey = ingredientName.trim().toLowerCase();
+    const amountPerServing = Number(amountRaw);
+    const soldQuantity = Number(totals.units);
+
+    if (
+      !ingredientKey ||
+      !Number.isFinite(amountPerServing) ||
+      amountPerServing < 0 ||
+      !Number.isFinite(soldQuantity) ||
+      soldQuantity < 0
+    ) {
+      continue;
+    }
+
+    const totalQuantity = soldQuantity * amountPerServing;
+    const unit = auditIngredientUnitMap.get(ingredientKey) || "unit unknown";
+
+    const current = theoreticalUsageByIngredient.get(ingredientKey) || {
+      name: ingredientName.trim(),
+      unit,
+      total: 0,
+      details: [],
+    };
+
+    current.total += totalQuantity;
+    current.details.push(
+      `${recipeName}: ${soldQuantity} × ${amountPerServing} ${unit} = ${totalQuantity} ${unit}`
+    );
+
+    theoreticalUsageByIngredient.set(ingredientKey, current);
+  }
+}
+
+const theoreticalUsageByIngredientContext =
+  theoreticalUsageByIngredient.size === 0
+    ? "No theoretical ingredient usage could be calculated from exact recipe matches."
+    : Array.from(theoreticalUsageByIngredient.values())
+        .map(
+          (item) =>
+            `${item.name} | ${item.details.join("; ")} | ` +
+            `CODE-CALCULATED THEORETICAL TOTAL: ${item.total} ${item.unit}`
+        )
+        .join("\n");
+
+
+// Calculate inventory-recorded usage for every ingredient.
+// Keep the existing milk-specific calculation unchanged.
+
+const auditIngredientIds = (auditIngredients || [])
+  .map((ingredient: any) => ingredient.id)
+  .filter((id: any) => typeof id === "string" && id.length > 0);
+
+let allIngredientInventoryRows: any[] = [];
+let allIngredientInventoryError = "";
+
+if (auditIngredientIds.length > 0 && activeStart && activeEnd) {
+  const { data, error } = await supabaseAdmin
+    .from("inventory_logs")
+    .select("id, ingredient_id, type, date, quantity, notes, is_test")
+    .eq("client_id", clientId)
+    .eq("is_test", false)
+    .in("ingredient_id", auditIngredientIds)
+    .gte("date", activeStart)
+    .lte("date", activeEnd)
+    .order("date", { ascending: true })
+    .limit(5000);
+
+  if (error) {
+    console.error("All-ingredient inventory audit error:", error.message);
+    allIngredientInventoryError = error.message;
+  } else {
+    allIngredientInventoryRows = data || [];
+  }
+}
+
+const isAuditCountType = (type: unknown) =>
+  ["count", "inventory_count"].includes(
+    String(type || "").trim().toLowerCase()
+  );
+
+const allIngredientInventoryLines: string[] = [];
+
+if (allIngredientInventoryError) {
+  allIngredientInventoryLines.push(
+    "Inventory usage unavailable because the inventory records could not be loaded."
+  );
+} else if (!activeStart || !activeEnd) {
+  allIngredientInventoryLines.push(
+    "Inventory usage unavailable because the report date range is missing."
+  );
+} else {
+  for (const ingredient of auditIngredients || []) {
+    const ingredientName = String(ingredient.name || "").trim();
+    const ingredientKey = ingredientName.toLowerCase();
+    const unit = String(ingredient.unit || "").trim();
+
+    if (!ingredientName || !ingredient.id) continue;
+
+    const rows = allIngredientInventoryRows.filter(
+      (row) => row.ingredient_id === ingredient.id
+    );
+
+    const countRows = rows
+      .filter((row) => isAuditCountType(row.type))
+      .sort(
+        (a, b) => Date.parse(a.date) - Date.parse(b.date)
+      );
+
+    const theoretical = theoreticalUsageByIngredient.get(ingredientKey);
+
+    if (countRows.length < 2) {
+      allIngredientInventoryLines.push(
+        `${ingredientName} (${unit || "unit unknown"}): ` +
+        `inventory-recorded usage unavailable; only ${countRows.length} ` +
+        `count record(s) exist in the selected period.` +
+        (theoretical
+          ? ` Code-calculated theoretical usage: ${theoretical.total} ${theoretical.unit}.`
+          : " No code-calculated theoretical usage is available.")
+      );
+      continue;
+    }
+
+    let recordedUsage = 0;
+    let calculationValid = true;
+    const segments: string[] = [];
+
+    for (let i = 0; i < countRows.length - 1; i++) {
+      const startCount = countRows[i];
+      const endCount = countRows[i + 1];
+
+      const startTime = Date.parse(startCount.date);
+      const endTime = Date.parse(endCount.date);
+      const startQty = Number(startCount.quantity);
+      const endQty = Number(endCount.quantity);
+
+      if (
+        !Number.isFinite(startTime) ||
+        !Number.isFinite(endTime) ||
+        !Number.isFinite(startQty) ||
+        !Number.isFinite(endQty) ||
+        endTime <= startTime
+      ) {
+        calculationValid = false;
+        break;
+      }
+
+      const movements = rows.filter((row) => {
+        if (isAuditCountType(row.type)) return false;
+
+        const time = Date.parse(row.date);
+        return time > startTime && time < endTime;
+      });
+
+      const movementTotal = movements.reduce(
+        (sum, row) => sum + Number(row.quantity),
+        0
+      );
+
+      if (!Number.isFinite(movementTotal)) {
+        calculationValid = false;
+        break;
+      }
+
+      const segmentUsage = startQty + movementTotal - endQty;
+      recordedUsage += segmentUsage;
+
+      segments.push(
+        `${startQty} + (${movementTotal}) - ${endQty} = ${segmentUsage} ${unit}`
+      );
+    }
+
+    if (!calculationValid) {
+      allIngredientInventoryLines.push(
+        `${ingredientName}: inventory calculation unavailable because a date or quantity is invalid.`
+      );
+      continue;
+    }
+
+    const theoreticalUnitMatches =
+      theoretical &&
+      unit &&
+      theoretical.unit !== "unit unknown" &&
+      theoretical.unit.toLowerCase() === unit.toLowerCase();
+
+    const differenceText = theoreticalUnitMatches
+      ? ` | CODE-CALCULATED DIFFERENCE: ${theoretical.total} - ${recordedUsage} = ${theoretical.total - recordedUsage} ${unit}`
+      : theoretical
+        ? " | Difference unavailable because the units could not be verified."
+        : " | Theoretical usage unavailable; no difference calculated.";
+
+    allIngredientInventoryLines.push(
+      `${ingredientName} (${unit || "unit unknown"}) | ` +
+      `Count intervals: ${segments.join("; ")} | ` +
+      `CODE-CALCULATED INVENTORY-RECORDED USAGE: ${recordedUsage} ${unit}` +
+      differenceText
+    );
+  }
+}
+
+const allIngredientInventoryAuditContext =
+  allIngredientInventoryLines.length > 0
+    ? allIngredientInventoryLines.join("\n")
+    : "No ingredient inventory calculations are available.";
+
+  const salesPeriodContext = [
+    `Report range: ${activeStart} through ${activeEnd}`,
+    "Totals calculated from sales_logs using exact product names:",
+    salesTotalsText,
+    "Individual sales_logs source rows:",
+    salesRowsText,
+    `Mapped totals for recipe comparison (explicit learned_menus mappings only):\n${salesTotalsByRecipeNameText || "None"}`,
+    "Code-calculated theoretical milk usage:",
+    deterministicMilkRecipeContext,
+    "Code-calculated inventory-recorded milk usage:",
+    deterministicMilkInventoryContext,
+    deterministicMilkDifferenceContext,
+    "SOURCE-ID RULE: Inventory log IDs identify inventory records only. " +
+      "Never attach inventory log IDs to product sales or recipe calculations. " +
+      "Never invent, combine, or substitute record IDs. " +
+      "If the exact sales or recipe record ID is not supplied, omit it.",
+      "Code-calculated theoretical usage for all exact recipe ingredients:",
+        theoreticalUsageByIngredientContext,
+        "Code-calculated inventory usage and differences for all ingredients:",
+      allIngredientInventoryAuditContext,
+  ].join("\n\n");
       // =========================================================================
       // ⚡ АЛХАМ 2: ХЭРЭВ "REPORT" ГЭЖ БИЧВЭЛ ДЭЭРХ ДАТАГААРАА 0.03 СЕКУНДЭД ШУУД ХАРИУЛАХ
       // =========================================================================
@@ -1883,10 +2723,12 @@ if (isOwner) {
   .select(
   "id, situation, prediction, prediction_assessment, action_taken, outcome, lesson, confidence, status, evidence_status, evidence_reviewed_at, evidence_review_note, created_at"
 )
-      .eq("client_id", clientId)
-      .eq("is_test", false)
-      .order("created_at", { ascending: false })
-      .limit(50);
+          .eq("client_id", clientId)
+        .eq("is_test", false)
+        .eq("status", "resolved")
+        .eq("evidence_status", "owner_reviewed")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
   if (experienceError) {
     console.error(
@@ -1920,18 +2762,26 @@ const relevantExperiences = [...(savedExperiences ?? [])]
       0
     );
 
-   return { experience, score };
+    // An explicitly requested experience ID takes priority
+    // even when the user's question uses a different language.
+    const explicitlyRequested = text
+      .toLowerCase()
+      .includes(experience.id.toLowerCase());
+
+    return { experience, score, explicitlyRequested };
   })
-  .filter((entry) => entry.score > 0)
+  .filter(
+    (entry) => entry.score > 0 || entry.explicitlyRequested
+  )
   .sort(
     (a, b) =>
+      Number(b.explicitlyRequested) - Number(a.explicitlyRequested) ||
       b.score - a.score ||
       new Date(b.experience.created_at).getTime() -
         new Date(a.experience.created_at).getTime()
   )
   .slice(0, 10)
   .map((entry) => entry.experience);
-
 
   const experienceIds = relevantExperiences.map((experience) => experience.id)
 
@@ -2028,15 +2878,16 @@ const relevantExperiences = [...(savedExperiences ?? [])]
                 log.ingredient_id
               : "Non-ingredient record";
 
-            const detail =
-              `Evidence type: ${link.evidence_type}\n` +
-              `Ingredient: ${ingredient}\n` +
-              `Inventory log type: ${log.type}\n` +
-              `Recorded quantity: ${log.quantity}\n` +
-              `Record date UTC: ${log.date}\n` +
-              `Worker: ${log.worker_name ?? "unknown"}\n` +
-              `Log notes: ${log.notes ?? "none"}\n` +
-              `Link note: ${link.note ?? "none"}`;
+                   const detail =
+                `Inventory log ID: ${log.id}\n` +
+                `Evidence type: ${link.evidence_type}\n` +
+                `Ingredient: ${ingredient}\n` +
+                `Inventory log type: ${log.type}\n` +
+                `Recorded quantity: ${log.quantity}\n` +
+                `Record date UTC: ${log.date}\n` +
+                `Worker: ${log.worker_name ?? "unknown"}\n` +
+                `Log notes: ${log.notes ?? "none"}\n` +
+                `Link note: ${link.note ?? "none"}`;
 
             if (!evidenceByExperience[link.experience_id]) {
               evidenceByExperience[link.experience_id] = [];
@@ -2056,7 +2907,11 @@ const relevantExperiences = [...(savedExperiences ?? [])]
         "No linked inventory evidence records.";
 
       return `
-[status=${experience.status}; evidence_status=${experience.evidence_status}; recorded_at_utc=${experience.created_at}; confidence=${experience.confidence ?? "unknown"}]
+[experience_id=${experience.id};      
+[status=${experience.status};
+ evidence_status=${experience.evidence_status}; 
+ recorded_at_utc=${experience.created_at}; 
+ confidence=${experience.confidence ?? "unknown"}]
 
 Situation: ${experience.situation}
 Prediction: ${experience.prediction ?? "Not recorded"}
@@ -2080,11 +2935,12 @@ const {
 } = await supabaseAdmin
   .from("business_experiences")
   .select(
-    "situation, prediction, prediction_assessment, outcome, lesson, evidence_status, created_at"
+    "id, situation, prediction, prediction_assessment, outcome, lesson, evidence_status, created_at"
   )
   .eq("client_id", clientId)
   .eq("is_test", false)
   .eq("status", "resolved")
+  .eq("evidence_status", "owner_reviewed")
   .order("created_at", { ascending: false })
   .limit(50);
 
@@ -2110,22 +2966,14 @@ if (resolvedSummaryError) {
     `unassessed=${countAssessment("unassessed")}`,
   ].join(", ");
 
-  const countEvidenceStatus = (status: string) =>
-  experiences.filter(
-    (experience) => experience.evidence_status === status
-  ).length;
 
-const evidenceStatusCounts = [
-  `reported=${countEvidenceStatus("reported")}`,
-  `owner_reviewed=${countEvidenceStatus("owner_reviewed")}`,
-  `verified=${countEvidenceStatus("verified")}`,
-].join(", ");
 
   const recentExamples = experiences
     .slice(0, 5)
     .map(
       (experience, index) =>
-        `${index + 1}. Situation: ${experience.situation}\n` +
+        `${index + 1}. Experience ID: ${experience.id}\n` +
+        `Situation: ${experience.situation}\n` +
         `Prediction: ${experience.prediction ?? "Not recorded"}\n` +
         `Assessment: ${experience.prediction_assessment ?? "unassessed"}\n` +
         `Reported outcome: ${experience.outcome ?? "Not recorded"}\n` +
@@ -2138,7 +2986,6 @@ const evidenceStatusCounts = [
   businessExperienceSummary = [
     `Resolved non-test experiences found: ${experiences.length} (maximum 50 most recent).`,
     `Prediction assessment counts: ${assessmentCounts}.`,
-    `Evidence status counts: ${evidenceStatusCounts}.`,
     recentExamples
       ? `Recent examples, newest first:\n${recentExamples}`
       : "No resolved non-test experiences are available yet.",
@@ -2207,7 +3054,12 @@ EXPERIENCE RULES:
 - Do not infer that a strategy caused an outcome merely because they appear together in an experience.
 - Only describe a recurring pattern when at least two genuinely comparable experiences support it. Otherwise, describe the individual case.
 - Never use test experiences or test inventory records as evidence for real business recommendations.
-
+- When using a specific saved experience to support an answer, identify its exact experience ID.
+- Never invent or guess experience IDs.
+- Distinguish recorded outcomes from verified facts.
+- If no eligible experience supports the answer, say so explicitly.  
+- When citing linked evidence, include the exact inventory log IDs provided in the context. Never invent IDs.
+- If the owner review note identifies data as synthetic, sample, development, or simulated, explicitly state that the figures are synthetic development data, not evidence of actual business operations. Owner-reviewed status does not override this limitation.
 
 FINANCIALS (P&L & TAX):
 Revenue: ${fin.revenue}₮ | NetRevenue(No VAT): ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
@@ -2265,6 +3117,21 @@ ${recipesText}
 
 === MENU PERFORMANCE ===
 ${menuText}
+
+=== DATE-FILTERED SALES LOGS: SOURCE DATA ===
+${salesPeriodContext}
+
+SALES DATA RULES:
+- Use these sales_logs rows and calculated totals as the primary
+  source for sales quantities in the report date range.
+- If a saved experience summary conflicts with these records,
+  explicitly describe the discrepancy.
+- Never replace a database total with a number copied from an
+  experience lesson or outcome.
+- Preserve exact product names. Do not merge product aliases
+  unless a verified product mapping supports doing so.
+- Distinguish recorded sales from theoretical recipe consumption.
+- Use only figures found in the supplied source data or calculated directly from those figures. Never invent alternative totals or mention unsupported numbers. Show the calculation for every important reconciliation total. If a figure cannot be verified from the provided data, say so explicitly.
 
 
 User Question: ${text}`;

@@ -35,10 +35,15 @@ function getSimilarity(s1: string, s2: string): number {
 }
 
 export async function getAnalyticsData(
-  clientId: string = 'SF Coffee',
+  clientId: string,
   startDate?: string,
   endDate?: string
 ) {
+  const normalizedClientId = String(clientId ?? "").trim();
+
+  if (!normalizedClientId) {
+    throw new Error("clientId is required for analytics");
+  }
   const now = new Date();
   const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const defaultEnd = now.toISOString();
@@ -47,29 +52,77 @@ export async function getAnalyticsData(
   const finalEndDate = endDate || defaultEnd;
 
   // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ
-  const [
-    { data: rawIngredients },
-    { data: rawRecipes },
-    { data: rawInventoryLogs },
-    { data: rawSales },
-    { data: rawShifts },
-    { data: rawProducts },
-    { data: rawProfiles },
-    { data: rawFixedAssets },
-    { data: rawFixedOpex },
-    { data: rawSettings }
-  ] = await Promise.all([
-    supabaseAdmin.from('ingredients').select('*').ilike('client_id', clientId.trim()),
-    supabaseAdmin.from('recipes').select('*').ilike('client_id', clientId.trim()),
-    supabaseAdmin.from('inventory_logs').select('*').ilike('client_id', clientId.trim()).lte('date', finalEndDate).order('date', { ascending: false }),
-    supabaseAdmin.from('sales_logs').select('*').ilike('client_id', clientId.trim()).gte('date', finalStartDate).lte('date', finalEndDate),
-    supabaseAdmin.from('shifts').select('*').ilike('client_id', clientId.trim()).gte('start_time', finalStartDate).order('start_time', { ascending: false }).limit(50),
-    supabaseAdmin.from('products').select('*').ilike('client_id', clientId.trim()),
-    supabaseAdmin.from('profiles').select('id, full_name, email, role, salary_type, base_rate').ilike('client_id', clientId.trim()),
-    supabaseAdmin.from('fixed_assets').select('*').ilike('client_id', clientId.trim()),
-    supabaseAdmin.from('fixed_opex').select('*').ilike('client_id', clientId.trim()).eq('is_active', true),
-    supabaseAdmin.from('client_settings').select('*').ilike('client_id', clientId.trim()).maybeSingle()
-  ]);
+ const [
+  { data: rawIngredients },
+  { data: rawRecipes },
+  { data: rawInventoryLogs },
+  { data: rawSales },
+  { data: rawShifts },
+  { data: rawProducts },
+  { data: rawProfiles },
+  { data: rawFixedAssets },
+  { data: rawFixedOpex },
+  { data: rawSettings },
+] = await Promise.all([
+  supabaseAdmin
+    .from("ingredients")
+    .select("*")
+    .eq("client_id", normalizedClientId),
+
+  supabaseAdmin
+    .from("recipes")
+    .select("*")
+    .eq("client_id", normalizedClientId),
+
+  supabaseAdmin
+    .from("inventory_logs")
+    .select("*")
+    .eq("client_id", normalizedClientId)
+    .lte("date", finalEndDate)
+    .order("date", { ascending: false }),
+
+  supabaseAdmin
+    .from("sales_logs")
+    .select("*")
+    .eq("client_id", normalizedClientId)
+    .gte("date", finalStartDate)
+    .lte("date", finalEndDate),
+
+  supabaseAdmin
+    .from("shifts")
+    .select("*")
+    .eq("client_id", normalizedClientId)
+    .gte("start_time", finalStartDate)
+    .order("start_time", { ascending: false })
+    .limit(50),
+
+  supabaseAdmin
+    .from("products")
+    .select("*")
+    .eq("client_id", normalizedClientId),
+
+  supabaseAdmin
+    .from("profiles")
+    .select("id, full_name, email, role, salary_type, base_rate")
+    .eq("client_id", normalizedClientId),
+
+  supabaseAdmin
+    .from("fixed_assets")
+    .select("*")
+    .eq("client_id", normalizedClientId),
+
+  supabaseAdmin
+    .from("fixed_opex")
+    .select("*")
+    .eq("client_id", normalizedClientId)
+    .eq("is_active", true),
+
+  supabaseAdmin
+    .from("client_settings")
+    .select("*")
+    .eq("client_id", normalizedClientId)
+    .maybeSingle(),
+]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
     throw new Error("Failed to fetch necessary database tables");
