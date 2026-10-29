@@ -5,6 +5,13 @@ function cleanString(str: string) {
   return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
 }
 
+function normalizeDateBound(value: string, isEndOfDay = false): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return `${value}T${isEndOfDay ? "23:59:59.999" : "00:00:00.000"}Z`;
+  }
+  return value;
+}
+
 function getSimilarity(s1: string, s2: string): number {
   let longer = s1.toLowerCase().trim();
   let shorter = s2.toLowerCase().trim();
@@ -48,8 +55,8 @@ export async function getAnalyticsData(
   const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const defaultEnd = now.toISOString();
 
-  const finalStartDate = startDate || defaultStart;
-  const finalEndDate = endDate || defaultEnd;
+  const finalStartDate = normalizeDateBound(startDate || defaultStart, false);
+  const finalEndDate = normalizeDateBound(endDate || defaultEnd, true);
 
   // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ
  const [
@@ -78,8 +85,9 @@ export async function getAnalyticsData(
     .from("inventory_logs")
     .select("*")
     .eq("client_id", normalizedClientId)
+    .gte("date", finalStartDate)
     .lte("date", finalEndDate)
-    .order("date", { ascending: false }),
+    .order("date", { ascending: true }),
 
   supabaseAdmin
     .from("sales_logs")
@@ -139,6 +147,7 @@ export async function getAnalyticsData(
   let totalRevenue = 0;
   let cashRevenue = 0;
   let bankRevenue = 0;
+  let unclassifiedRevenue = 0;
   let rawActualCogs = 0;
   let totalTheoCogs = 0;
   let totalWasteLoss = 0;
@@ -151,6 +160,7 @@ export async function getAnalyticsData(
 
   let totalPurchasesCashPaid = 0;
   let totalPurchasesBankPaid = 0;
+  let totalPurchasesUnclassified = 0;
   let totalPurchasesWithEbarimt = 0;
   let totalPurchasesNoEbarimt = 0;
   let totalOwnerDraws = 0;
@@ -211,7 +221,8 @@ export async function getAnalyticsData(
     const logDate = log.date ? log.date.split('T')[0] : '';
     const noteText = (log.notes || "").toLowerCase();
     const isEbarimt = log.is_ebarimt !== false && !noteText.includes('баримтгүй') && !noteText.includes('зураг');
-    const isCashPay = log.payment_method === 'cash' || noteText.includes('бэлэн');
+    const paymentMethod = cleanString(log.payment_method).toLowerCase();
+    const isCashPay = paymentMethod === 'cash' || (noteText.includes('бэлэн') && !noteText.includes('бэлэн бус'));
 
     if (noteText.includes('эзний') || noteText.includes('хувийн') || noteText.includes('draw')) {
       totalOwnerDraws += cost > 0 ? cost : Math.abs(qty);
@@ -219,7 +230,8 @@ export async function getAnalyticsData(
 
     if (log.type === 'purchase') {
       if (isCashPay) totalPurchasesCashPaid += cost;
-      else totalPurchasesBankPaid += cost;
+      else if (paymentMethod === 'bank') totalPurchasesBankPaid += cost;
+      else totalPurchasesUnclassified += cost;
 
       if (isEbarimt) totalPurchasesWithEbarimt += cost;
       else totalPurchasesNoEbarimt += cost;
@@ -256,27 +268,38 @@ export async function getAnalyticsData(
     }
   });
 
-  // 🎯 БАРАА ТУС БҮРИЙН START БА END-ИЙГ ДАРААЛЛААР НЬ ОНООХ
+  // Stock reconciliation is only valid when the selected period has
+  // count records on both boundary dates. Otherwise, report the gap as unavailable.
   for (const key in master) {
-    const history = itemCountsHistory[key] || [];
-    // Хуучнаас шинэ рүү цагаар нь эрэмбэлэх
-    history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const history = (itemCountsHistory[key] || []).slice().sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
-    if (history.length === 0) {
+    const openingCount = history.find(
+      (count) => String(count.date || '').split('T')[0] === startDay
+    );
+    const closingCount = history
+      .filter((count) => String(count.date || '').split('T')[0] === endDay)
+      .at(-1);
+
+    const validCountInterval = Boolean(
+      openingCount &&
+      closingCount &&
+      Number.isFinite(Number(openingCount.qty)) &&
+      Number.isFinite(Number(closingCount.qty)) &&
+      Date.parse(closingCount.date) > Date.parse(openingCount.date)
+    );
+
+    master[key].inventory_reconciliation_available = validCountInterval;
+    master[key].opening_count_date = validCountInterval ? openingCount!.date : null;
+    master[key].closing_count_date = validCountInterval ? closingCount!.date : null;
+
+    if (validCountInterval) {
+      master[key].start = Number(openingCount!.qty);
+      master[key].end = Number(closingCount!.qty);
+    } else {
       master[key].start = 0;
       master[key].end = master[key].live_stock;
-    } else if (history.length === 1) {
-      // 💡 ГАНЦХАН ТОOЛСОН ҮЕД (Жишээ нь 10.03-ны 897.5г):
-      // Энэ нь START мөн одоогоор END болно (Хэрэглээ = 0, Хасах өртөг үүсэхгүй!)
-      master[key].start = history[0].qty;
-      master[key].end = history[0].qty;
-    } else {
-      // 💡 2 БА ТҮҮНЭЭС ДЭЭШ ТООЛСОН ҮЕД (10.03-нд 10л, 10.04-нд 8.5л):
-      // Хамгийн анхных нь -> START (10л)
-      // Хамгийн сүүлчийнх нь -> END (8.5л)
-      // Хэрэглээ: 10 - 8.5 = 1.5л бодитоор бодогдоно!
-      master[key].start = history[0].qty;
-      master[key].end = history[history.length - 1].qty;
     }
   }
 
@@ -299,8 +322,10 @@ export async function getAnalyticsData(
 
     totalRevenue += revenue;
 
-    if (s.payment_method === 'cash') cashRevenue += revenue;
-    else bankRevenue += revenue;
+    const paymentMethod = cleanString(s.payment_method).toLowerCase();
+    if (paymentMethod === 'cash') cashRevenue += revenue;
+    else if (paymentMethod === 'bank') bankRevenue += revenue;
+    else unclassifiedRevenue += revenue;
 
     // Жороо олох
     let matchedRecipeKey = Object.keys(allRecipesMap).find(rName => 
@@ -312,10 +337,6 @@ export async function getAnalyticsData(
     productSales[finalKey] = (productSales[finalKey] || 0) + qty;
   });
 
-  if (cashRevenue === 0 && bankRevenue === 0 && totalRevenue > 0) {
-    bankRevenue = Math.round(totalRevenue * 0.85);
-    cashRevenue = Math.round(totalRevenue * 0.15);
-  }
 
   rawRecipes.forEach((r: any) => {
     const pName = cleanString(r.product_name);
@@ -344,7 +365,7 @@ export async function getAnalyticsData(
 
     let recipeItems = rawRecipes.filter((r: any) => cleanString(r.product_name).toLowerCase() === cleanP);
     if (recipeItems.length === 0) {
-      const rMatch = Array.from(new Set(rawRecipes.map((r: any) => r.product_name))).find(rName => 
+      const rMatch = Array.from(new Set<string>(rawRecipes.map((r: any) => String(r.product_name || "")))).find(rName =>
         calculateMatchScore(pName, rName) >= 0.80
       );
       if (rMatch) {
@@ -450,25 +471,49 @@ export async function getAnalyticsData(
       weightedPrice = ((m.start * m.unit_price) + totalPurchaseCost) / totalAvailableQty;
     }
 
-    const actual = (m.start + m.purchased) - m.end;
-    const safeActual = Math.max(0, actual); // 👈 ХАМГААЛАЛТ: Хэзээ ч 0-ээс доош унахгүй!
-    
-    const actualMoney = Math.round(safeActual * weightedPrice) || 0;
+    const actual = m.inventory_reconciliation_available
+      ? (m.start + m.purchased) - m.end
+      : null;
+    const safeActual = actual === null ? 0 : Math.max(0, actual);
+
+    // Keep gross stock depletion for accounting, but expose product usage
+    // separately after subtracting recorded non-sales outflows (e.g. spoilage).
+    const itemLogs = loggedEvents[m.name] || {
+      spoilage: 0,
+      testing: 0,
+      staff_meal: 0,
+      other: 0,
+      notes: [],
+    };
+    const recordedOutflows =
+      itemLogs.spoilage + itemLogs.testing + itemLogs.staff_meal + itemLogs.other;
+    const actualProductUsage = actual === null ? null : actual - recordedOutflows;
+    // Positive means recipe-theoretical usage exceeds recorded product usage.
+    const usageGap = actualProductUsage === null
+      ? null
+      : m.theoretical - actualProductUsage;
+
+    const actualMoney = actual === null ? 0 : (Math.round(safeActual * weightedPrice) || 0);
     const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
-   
+
     rawActualCogs += actualMoney;
     totalTheoCogs += theoMoney;
 
-    const rawGap = actual - m.theoretical;
+    const rawGap = actual === null ? 0 : actual - m.theoretical;
     const impact = Math.round(rawGap * weightedPrice) || 0;
 
     if (impact > 1) totalWasteLoss += impact;
-    else if (impact < -1) totalSurplusSavings += Math.abs(impact);
+    // Surplus/under-use compares product usage after recorded waste events
+    // against recipe-theoretical usage, not gross depletion including waste.
+    else if (usageGap !== null && usageGap > 1) {
+      totalSurplusSavings += Math.round(usageGap * weightedPrice) || 0;
+    }
 
     if (m.start === 0 && m.purchased === 0 && m.end === 0 && m.theoretical === 0) continue;
 
-    const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
-    const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
+    const unexplainedGap = m.inventory_reconciliation_available
+      ? Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other)
+      : 0;
     const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
     totalUnexplainedWaste += unexplainedImpact;
     totalLoggedSpoilage += Math.round(itemLogs.spoilage * m.unit_price) || 0;
@@ -484,13 +529,18 @@ export async function getAnalyticsData(
       par_level: Math.round(activeParLevel * 100) / 100, 
       suggested_order: finalSuggestion,
       theoretical: Math.round(m.theoretical * 100) / 100 || 0,
+      actual_usage: actualProductUsage === null ? null : Math.round(actualProductUsage * 100) / 100,
+      usage_gap: usageGap === null ? null : Math.round(usageGap * 100) / 100,
+      inventory_reconciliation_available: m.inventory_reconciliation_available,
+      opening_count_date: m.opening_count_date,
+      closing_count_date: m.closing_count_date,
       gap: Math.abs(Math.round(unexplainedGap * 100) / 100) || 0,
       impact: Math.abs(unexplainedImpact) || 0,
       unit: m.unit,
       price: weightedPrice || m.unit_price || 0,
       unit_price: weightedPrice || m.unit_price || 0,
       is_waste: unexplainedGap > 0.1,
-      is_under: rawGap < -0.1,
+      is_under: usageGap !== null && usageGap > 0.1,
       live_stock: m.live_stock,
       current_stock: m.live_stock,
       last_counted_at: m.last_counted_at,
@@ -504,7 +554,7 @@ export async function getAnalyticsData(
       wasteAuditItems.push({
         name: m.name,
         theo_usage: Math.round(m.theoretical * 10) / 10,
-        actual_usage: Math.round(safeActual * 10) / 10,
+        actual_usage: actualProductUsage === null ? null : Math.round(actualProductUsage * 10) / 10,
         gap_qty: Math.round(itemLogs.spoilage * 10) / 10,
         unit: m.unit,
         unit_price: m.unit_price,
@@ -517,7 +567,7 @@ export async function getAnalyticsData(
       wasteAuditItems.push({
         name: m.name,
         theo_usage: Math.round(m.theoretical * 10) / 10,
-        actual_usage: Math.round(safeActual * 10) / 10,
+        actual_usage: actualProductUsage === null ? null : Math.round(actualProductUsage * 10) / 10,
         gap_qty: Math.round(unexplainedGap * 10) / 10,
         unit: m.unit,
         unit_price: m.unit_price,
@@ -679,13 +729,21 @@ export async function getAnalyticsData(
     activeTaxAmount = standardTax10Pct;
   }
 
-  const cashInitial = parseFloat(rawSettings?.initial_cash) || 0;
-  const bankInitial = parseFloat(rawSettings?.initial_bank) || 0;
-  const cashOutOpexCash = Math.round(adjustedOpex * 0.20);
-  const cashOutOpexBank = Math.round(adjustedOpex * 0.80);
-  
-  const cashEndBalance = cashInitial + cashRevenue - totalPurchasesCashPaid - cashOutOpexCash - Math.round(totalOwnerDraws * 0.3);
-  const bankEndBalance = bankInitial + bankRevenue - totalPurchasesBankPaid - cashOutOpexBank - Math.round(totalOwnerDraws * 0.7) - fixedAssetsPurchasedThisMonthBank;
+  const cashInitial: number | null =
+    rawSettings?.initial_cash == null || !Number.isFinite(Number(rawSettings.initial_cash))
+      ? null
+      : Number(rawSettings.initial_cash);
+  const bankInitial: number | null =
+    rawSettings?.initial_bank == null || !Number.isFinite(Number(rawSettings.initial_bank))
+      ? null
+      : Number(rawSettings.initial_bank);
+  // Payment allocation for OPEX, owner draws, and fixed assets is not
+  // reliably recorded, so account end balances are intentionally unavailable.
+  const cashOutOpexCash: number | null = null;
+  const cashOutOpexBank: number | null = null;
+  const cashEndBalance: number | null = null;
+  const bankEndBalance: number | null = null;
+  const netEndBalance: number | null = null;
 
   const staffHoursMap: Record<string, { role: string; totalMinutes: number; shiftCount: number }> = {};
 
@@ -749,7 +807,7 @@ export async function getAnalyticsData(
       qty: log.quantity,
       unit: ing ? ing.unit : 'ш',
       type: log.type,
-      payment_method: log.payment_method || 'bank',
+      payment_method: log.payment_method || 'unknown',
       is_ebarimt: log.is_ebarimt !== false,
       image_url: log.image_url || null,
       incident_type: log.incident_type || 'normal',
@@ -771,7 +829,9 @@ export async function getAnalyticsData(
   // ===========================================================================
   // 🧠 УХААЛАГ ӨРТӨГ & МЕНЮТЭЙ 100% ЯГ ТААРДАГ ЖОРГҮЙ ЦЭСИЙН ТООЛОЛТ (ЯГ 7)
   // ===========================================================================
-  const hasMassCount = rawActualCogs > 0;
+  const hasMassCount =
+    fullInventory.length > 0 &&
+    fullInventory.every((item: any) => item.inventory_reconciliation_available === true);
   
   const effectiveActualCogs = hasMassCount 
     ? adjustedCogs 
@@ -859,17 +919,21 @@ export async function getAnalyticsData(
       cash_in_total: totalRevenue,
       cash_in_cash: cashRevenue,
       cash_in_bank: bankRevenue,
+      cash_in_unclassified: unclassifiedRevenue,
       initial_cash: cashInitial,
       initial_bank: bankInitial,
       cash_out_purchases_cash: totalPurchasesCashPaid,
       cash_out_purchases_bank: totalPurchasesBankPaid,
+      cash_out_purchases_unclassified: totalPurchasesUnclassified,
       cash_out_opex_cash: cashOutOpexCash,
       cash_out_opex_bank: cashOutOpexBank,
+      cash_out_opex_allocation_status: "unavailable: payment channel is not recorded by category",
       owner_draws: totalOwnerDraws,
-      fixed_assets_paid: fixedAssetsPurchasedThisMonthBank,
+      fixed_assets_paid: null,
       end_cash_balance: cashEndBalance,
       end_bank_balance: bankEndBalance,
-      net_total_balance: cashEndBalance + bankEndBalance
+      net_total_balance: netEndBalance,
+      account_balance_status: "unavailable: OPEX, owner-draw, and fixed-asset payment allocations are not fully recorded"
     },
     payroll_summary: payrollSummary,
     fixed_assets: processedFixedAssets,
