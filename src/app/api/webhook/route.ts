@@ -39,7 +39,7 @@ function getFriendlyErrorMessage(errorMsg: string): string {
     errStr.includes("unavailable") ||
     errStr.includes("overloaded")
   ) {
-    return "AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү. ☕";
+    return "AI зөвлөхийн ачаалал түр ихэссэн байна. Та 5-10 секундын дараа асуултаа дахин илгээнэ үү.";
   }
   if (
     errStr.includes("429") ||
