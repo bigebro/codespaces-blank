@@ -762,7 +762,7 @@ ${JSON.stringify(unmatched)}`;
               is_log: true,
               log_id: log?.id,
               learned_alias_id: newlyLearnedId, // 👈 Undo хийх үед устгах ID
-              message: `📝 **Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
+              message: `**Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
             });
           }
         }

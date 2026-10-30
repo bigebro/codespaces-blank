@@ -574,7 +574,7 @@ function KioskAiChatSection({
       ...prev,
       {
         sender: "worker",
-        text: file ? "📸 Зураг илгээлээ (E-Barimt/Бараа)" : textToProcess,
+        text: file ? "Зураг илгээлээ (E-Barimt/Бараа)" : textToProcess,
       },
     ]);
 
@@ -2428,7 +2428,7 @@ const handleCloseShift = async () => {
             >
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">
-                  📸 Ээлж хүлээж авах үеийн зураг (Нотлох зураг)
+                  Ээлж хүлээж авах үеийн зураг (Нотлох зураг)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -2458,7 +2458,7 @@ const handleCloseShift = async () => {
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">
-                  📝 Тэмдэглэл / Хүлээлцэх тайлбар
+                   Тэмдэглэл / Хүлээлцэх тайлбар
                 </label>
                 <textarea
                   rows={3}
@@ -2472,12 +2472,12 @@ const handleCloseShift = async () => {
               <button
                 type="submit"
                 disabled={isAiLoading}
-                className="w-full bg-white hover:bg-zinc-200 active:scale-95 text-white font-black py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 font-black py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
               >
                 <span>
                   {isAiLoading
                     ? "Эхлүүлж байна..."
-                    : "☀️ Ээлж Албан Ёсоор Эхлүүлэх"}
+                    : "Ээлж Албан Ёсоор Эхлүүлэх"}
                 </span>
               </button>
             </form>
@@ -4088,7 +4088,7 @@ const handleCloseShift = async () => {
                     </div>
                   </div>
 
-                  {/* 📸 Зураг заавал шаардах хэсэг */}
+                  {/* Зураг заавал шаардах хэсэг */}
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-zinc-400">
                       Шинэ барааны зураг (Заавал):

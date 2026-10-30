@@ -947,7 +947,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ status: "ok" });
           }
 
-          const confirmText = `📝 Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || "Тэмдэглэл байхгүй"}`;
+          const confirmText = `Бүртгэгдлээ:\n• Төрөл: ${aiAnalysis.type}\n• Бараа: ${aiAnalysis.item_name}\n• Хэмжээ: ${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}\n• Тайлбар: ${aiAnalysis.notes || "Тэмдэглэл байхгүй"}`;
           await sendTelegramMessageWithUndo(currentChatId, confirmText, log.id);
           return NextResponse.json({ status: "ok" });
         }
@@ -1522,7 +1522,7 @@ async function generateInventoryChecklist(
         return [{ text: ` ${item.name} (Тоолов)`, callback_data: `ignore` }];
       return [
         {
-          text: `📝 ${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,
+          text: `${item.name} (Системд: ${Math.round((item.live_stock || 0) * 10) / 10} ${item.unit})`,
           callback_data: `cnt_${item.name}`,
         },
       ];
