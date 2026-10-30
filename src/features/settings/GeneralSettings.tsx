@@ -369,7 +369,7 @@ export default function GeneralSettings({
                           </div>
                         </div>
                       ) : (
-                        /* CONNECTED PAIRED DEVICE */
+                        /* CONNECTED PAIR DEVICE */
                         <div>
                           <p className="text-sm font-bold text-white leading-snug break-words">
                             {dev.device_name}
