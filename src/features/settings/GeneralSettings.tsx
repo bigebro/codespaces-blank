@@ -8,6 +8,11 @@ import {
   Croissant,
   Package,
   Archive,
+  Smartphone,
+  Trash2,
+  Copy,
+  Check,
+  Clock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -83,11 +88,123 @@ export default function GeneralSettings({
   const [newAssetCost, setNewAssetCost] = useState("");
   const [newAssetMonths, setNewAssetMonths] = useState("60");
   const newAssetDate = new Date().toISOString().split("T")[0];
+  // 📱 KIOSK ТӨХӨӨРӨМЖ УДИРДАХ
+  const [kioskDevices, setKioskDevices] = useState<any[]>([]);
+  const [activePairingCode, setActivePairingCode] = useState<string | null>(null);
+   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // 1. Fetch devices (retrieves both active devices and pending codes)
+  const fetchKioskDevices = useCallback(async () => {
+    if (!activeClient) return;
+    const { data } = await supabase
+      .from("kiosk_devices")
+      .select("id, device_name, is_active, last_seen_at, created_at, pairing_code")
+      .ilike("client_id", activeClient.trim())
+      .order("created_at", { ascending: false });
+    if (data) setKioskDevices(data);
+  }, [activeClient]);
+
+  // 2. ⚡ Realtime live listener + Broadcast
+  useEffect(() => {
+    if (!activeClient) return;
+    fetchKioskDevices();
+
+    const channel = supabase
+      .channel(`kiosk_events_${activeClient.trim().replace(/\s+/g, "_")}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "kiosk_devices" },
+        () => fetchKioskDevices()
+      )
+      .on("broadcast", { event: "device_paired" }, () => {
+        fetchKioskDevices();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeClient, fetchKioskDevices]);
+
+  // 3. ⚡ Background poller: if ANY pending code exists, refresh every 2s until connected
+  useEffect(() => {
+    const hasPending = kioskDevices.some((d) => d.pairing_code);
+    if (!hasPending) return;
+
+    const interval = setInterval(() => {
+      fetchKioskDevices();
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [kioskDevices, fetchKioskDevices]);
+
+  // 4. Generate a new pending device slot
+  const handleGeneratePairingCode = async () => {
+    // Safety guardrail: don't allow more than 3 pending codes at once
+    const pendingCount = kioskDevices.filter((d) => d.pairing_code).length;
+    if (pendingCount >= 3) {
+      alert("Одоогоор 3 төхөөрөмж холболт хүлээж байна. Эхлээд тэдгээрийг холбоно уу эсвэл устгана уу.");
+      return;
+    }
+
+    setLoading(true);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const deviceToken = "kiosk_" + crypto.randomUUID().replace(/-/g, "");
+      // ⚡ 15 MINUTES EXPIRATION (Industry standard for 6-digit codes)
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    const { error } = await supabase.from("kiosk_devices").insert([
+      {
+        client_id: activeClient,
+        device_name: "Шинэ төхөөрөмж",
+        device_token: deviceToken,
+        pairing_code: code,
+        pairing_expires_at: expiresAt,
+        is_active: true,
+      },
+    ]);
+
+    if (error) {
+      alert("Код үүсгэхэд алдаа: " + error.message);
+    } else {
+      fetchKioskDevices();
+    }
+    setLoading(false);
+  };
+
+  // 5. 1-Click copy code handler
+  const handleCopy = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // 6. Delete/Revoke device
+  const handleRevokeDevice = async (id: string, name: string) => {
+    if (!confirm(`"${name}" төхөөрөмжийн эрхийг устгах уу?`)) return;
+    await supabase.from("kiosk_devices").delete().eq("id", id);
+    fetchKioskDevices();
+  };
+
+  const formatLocalTime = (isoString?: string) => {
+    if (!isoString) return "-";
+    return new Date(isoString).toLocaleString("mn-MN", {
+      timeZone: "Asia/Ulaanbaatar",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const isDeviceLive = (lastSeen?: string) => {
+    if (!lastSeen) return false;
+    return Date.now() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
+  };
   // 1. Дата татах
   const fetchData = useCallback(async () => {
     if (!activeClient) return;
     setLoading(true);
-
+ fetchKioskDevices();
     const [{ data: faData }, { data: opData }, { data: settData }] =
       await Promise.all([
         supabase
@@ -155,7 +272,142 @@ export default function GeneralSettings({
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+     <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-xl">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800">
+          <div>
+            <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-zinc-400" />
+              Төхөөрөмжийн Удирдлага (Live)
+            </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Холбогдсон болон холболт хүлээж буй бүх төхөөрөмжүүд
+            </p>
+          </div>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleGeneratePairingCode}
+            className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-xs transition shadow-lg active:scale-95 cursor-pointer shrink-0"
+          >
+            + Шинэ төхөөрөмж нэмэх
+          </button>
+        </div>
+
+        {/* Devices list */}
+        <div className="space-y-3">
+          {kioskDevices.length === 0 ? (
+            <div className="text-center text-zinc-500 text-xs py-8 border border-zinc-800/80 rounded-2xl italic">
+              Одоогоор холбогдсон болон хүлээгдэж буй төхөөрөмж байхгүй байна.
+            </div>
+          ) : (
+            kioskDevices.map((dev) => {
+              const isPending = Boolean(dev.pairing_code);
+              const live = !isPending && isDeviceLive(dev.last_seen_at);
+
+              return (
+                <div
+                  key={dev.id}
+                  className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${
+                    isPending
+                      ? "bg-zinc-950 border-dashed border-zinc-700 shadow-inner"
+                      : "bg-zinc-950 border-zinc-800 hover:border-zinc-700 shadow-sm"
+                  }`}
+                >
+                  {/* Left: Device status & details */}
+                  <div className="flex items-start gap-3 min-w-0">
+                    {/* Status dot */}
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full mt-1.5 shrink-0 ${
+                        isPending
+                          ? "bg-zinc-400 animate-pulse"
+                          : live
+                            ? "bg-zinc-200 animate-pulse"
+                            : "bg-zinc-600"
+                      }`}
+                    />
+
+                    <div className="min-w-0">
+                      {isPending ? (
+                        /* PENDING STATE CARD */
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-zinc-400 uppercase tracking-wider">
+                              Холболт хүлээж байна
+                            </span>
+                            <span className="text-xs text-zinc-500 font-mono">
+                              ({formatLocalTime(dev.created_at)})
+                            </span>
+                          </div>
+
+                          {/* 🔢 THE 6-DIGIT CODE DISPLAYED RIGHT INSIDE THE CARD */}
+                          <div className="flex items-center gap-2.5 mt-2">
+                            <div className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-xl font-mono text-xl sm:text-2xl font-black text-white tracking-[0.2em]">
+                              {dev.pairing_code}
+                            </div>
+
+                            {/* 1-Click Copy */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(dev.pairing_code, dev.id)}
+                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer"
+                            >
+                              {copiedId === dev.id ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                  <span className="text-emerald-400 text-xs">Хуулагдлаа</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3.5 w-3.5 text-zinc-400" />
+                                  <span className="text-xs">Хуулах</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* CONNECTED PAIRED DEVICE */
+                        <div>
+                          <p className="text-sm font-bold text-white leading-snug break-words">
+                            {dev.device_name}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 font-mono mt-1">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-zinc-500" />
+                              Холбогдсон: {formatLocalTime(dev.created_at)}
+                            </span>
+                            <span>•</span>
+                            <span className={live ? "text-zinc-200 font-bold" : "text-zinc-500"}>
+                              {live ? " Онлайн" : `Сүүлд: ${formatLocalTime(dev.last_seen_at)}`}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Delete Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleRevokeDevice(dev.id, dev.device_name || "төхөөрөмж")}
+                    className="self-end sm:self-center text-zinc-500 hover:text-rose-400 p-2 transition bg-zinc-900 rounded-xl border border-zinc-800 hover:border-rose-500/30 cursor-pointer"
+                    title="Устгах / Салгах"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    
+   
+
+        
         {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <h3 className="text-base font-bold mb-4 text-zinc-200 flex items-center gap-2">
@@ -235,7 +487,7 @@ export default function GeneralSettings({
                 >
                   Зураг солих
                 </label>
-                <p className="text-[10px] text-zinc-500 mt-0.5 truncate">
+                <p className="text-xs text-zinc-500 mt-0.5 truncate">
                   Зөвхөн Kiosk таблет дээр харагдана
                 </p>
               </div>
@@ -317,7 +569,9 @@ export default function GeneralSettings({
           </form>
         </div>
 
-        {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
+     
+      </div>
+         {/* 2. ТОГТМОЛ ЗАРДАЛ (OPEX) НЭМЭХ/УСТГАХ */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 lg:col-span-2">
           <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
              Сар бүрийн Тогтмол Зардал (Түрээс, Тог, Агааржуулалт, Хий)
@@ -418,7 +672,6 @@ export default function GeneralSettings({
             </table>
           </div>
         </div>
-      </div>
       {/* 3. ҮНДСЭН ХӨРӨНГӨ (ТОНОГ ТӨХӨӨРӨМЖ, ШАРАХ ШҮҮГЭЭ, КОФЕ МАШИН) */}
       <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
         <h3 className="text-base font-bold mb-4 text-zinc-300 flex items-center gap-2">
@@ -584,7 +837,7 @@ export default function GeneralSettings({
                     <span>{cat.icon}</span>
                     <span>{cat.name.replace(/^[^\s]+\s/, "")}</span>
                   </span>
-                  <span className="text-[10px] text-zinc-500 font-mono">
+                  <span className="text-xs text-zinc-500 font-mono">
                     Стандарт: {DEFAULT_GLOBAL_MARGINS[cat.id]}%
                   </span>
                 </div>
@@ -619,7 +872,7 @@ export default function GeneralSettings({
                           [cat.id]: DEFAULT_GLOBAL_MARGINS[cat.id],
                         }))
                       }
-                      className="text-[10px] text-zinc-400 hover:text-white bg-zinc-800 px-2 py-2 rounded-xl border border-zinc-700"
+                      className="text-xs text-zinc-400 hover:text-white bg-zinc-800 px-2 py-2 rounded-xl border border-zinc-700"
                       title="Стандарт руу буцаах"
                     >
                       Reset
@@ -627,7 +880,7 @@ export default function GeneralSettings({
                   )}
                 </div>
 
-                <p className="text-[10px] text-zinc-500 font-mono">
+                <p className="text-xs text-zinc-500 font-mono">
                   Зорилтот өртөг (Food Cost):{" "}
                   <strong>{(100 - currentVal).toFixed(0)}%</strong>
                 </p>

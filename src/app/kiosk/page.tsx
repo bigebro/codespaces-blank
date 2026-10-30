@@ -37,6 +37,7 @@ import {
   Receipt,
   ShoppingCart,
   ChefHat,
+  Smartphone,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1063,6 +1064,8 @@ function KioskAiChatSection({
 function KioskPage() {
   const router = useRouter();
   const [step, setStep] = useState<
+    | "initializing"
+    | "pairing"   
     | "select_worker"
     | "pin_code"
     | "shift_handover"
@@ -1071,8 +1074,10 @@ function KioskPage() {
     | "tasks"
     | "incident_report"
     | "close_shift"
-  >("select_worker");
-
+  >("pairing");
+// 🔐 ХОЛБОЛТЫН СТЭЙТ (PAIRING)
+  const [pairingCodeInput, setPairingCodeInput] = useState("");
+  const [isPairing, setIsPairing] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState(""); 
   const [tenantClientId, setTenantClientId] = useState<string>("");
   const [clientLogo, setClientLogo] = useState<string | null>(null);
@@ -1444,40 +1449,125 @@ function KioskPage() {
     if (data) setTodayLogs(data);
   };
 
-  const initKioskContext = async () => {
+// ⚡ DEEP HARDWARE & DEVICE MODEL PROFILER
+  const getDeepDeviceInfo = async (): Promise<string> => {
+    if (typeof window === "undefined") return "Үл мэдэгдэх төхөөрөмж";
+
+    const ua = navigator.userAgent;
+    const width = window.screen.width;
+    const height = window.screen.height;
+    const dpr = window.devicePixelRatio || 1;
+    const isTouch = navigator.maxTouchPoints > 0;
+
+    // 1. WebGL Graphics Renderer (Reveals M1/M2/M3 chips, Intel Iris, Nvidia, Adreno)
+    let gpu = "";
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (gl) {
+        const debugInfo = (gl as any).getExtension("WEBGL_debug_renderer_info");
+        if (debugInfo) {
+          gpu = (gl as any).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || "";
+          // Clean up common vendor noise
+          gpu = gpu.replace(/ANGLE \(|Direct3D.*|vs_.*|\)/gi, "").trim();
+        }
+      }
+    } catch (e) {}
+
+    // 2. High-Entropy Client Hints (Works on Chrome / Android to get exact OEM models)
+    let modelName = "";
+    try {
+      if ((navigator as any).userAgentData?.getHighEntropyValues) {
+        const hints = await (navigator as any).userAgentData.getHighEntropyValues(["model", "platformVersion"]);
+        if (hints.model) modelName = hints.model;
+      }
+    } catch (e) {}
+
+    // 3. Apple Hardware Matrix (iPad & iPhone model resolution matching)
+    if (/iPad/i.test(ua) || (navigator.platform === "MacIntel" && isTouch)) {
+      const maxDim = Math.max(width, height);
+      const minDim = Math.min(width, height);
+
+      if (maxDim === 1366 && minDim === 1024) modelName = "iPad Pro 12.9\"";
+      else if (maxDim === 1194 && minDim === 834) modelName = "iPad Pro 11\"";
+      else if (maxDim === 1180 && minDim === 820) modelName = "iPad Air (10.9\")";
+      else if (maxDim === 1080 && minDim === 810) modelName = "iPad (10.2\")";
+      else if (maxDim === 1133 && minDim === 744) modelName = "iPad mini";
+      else modelName = "Apple iPad";
+    } else if (/iPhone/i.test(ua)) {
+      const maxDim = Math.max(width, height);
+      const minDim = Math.min(width, height);
+
+      if (maxDim === 932 && minDim === 430) modelName = "iPhone 15/14 Pro Max";
+      else if (maxDim === 852 && minDim === 393) modelName = "iPhone 15/14 Pro";
+      else if (maxDim === 844 && minDim === 390) modelName = "iPhone 14/13/12";
+      else if (maxDim === 926 && minDim === 428) modelName = "iPhone 13/12 Pro Max";
+      else if (maxDim === 812 && minDim === 375) modelName = "iPhone X/11/12 mini";
+      else modelName = "Apple iPhone";
+    }
+
+    // 4. Fallback OS categorization
+    let osLabel = "PC / Төхөөрөмж";
+    if (/Windows/i.test(ua)) osLabel = "Windows PC";
+    else if (/Android/i.test(ua)) osLabel = modelName ? `Android (${modelName})` : "Android Таблет";
+    else if (/Macintosh/i.test(ua) && !isTouch) osLabel = "Mac Компьютер";
+    else if (modelName) osLabel = modelName;
+
+    // 5. Construct deep display signature
+    const parts = [modelName || osLabel];
+    if (gpu) parts.push(gpu.split(",")[0].trim());
+    parts.push(`${width}×${height} @${dpr}x`);
+
+    return parts.join(" • ");
+  };
+
+const initKioskContext = async () => {
     setIsLoadingKiosk(true);
     try {
-      let resolvedClient: string = "";
+      const savedToken = localStorage.getItem("kiosk_device_token");
+      const savedClient = localStorage.getItem("kiosk_client_id");
 
-      // 1. URL дээрээс шалгах (/kiosk?clientId=...)
-      if (typeof window !== "undefined") {
-        const urlParams = new URLSearchParams(window.location.search);
-        resolvedClient = urlParams.get("clientId") || "";
-      }
-
-      // 2. Хэрэв URL-д байхгүй бол нэвтэрсэн session-оос авах
-      if (!resolvedClient) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        resolvedClient = session?.user?.user_metadata?.client_id || "";
-      }
-
-      // 3. Хэрэв олдохгүй бол localStorage-аас авах
-      if (!resolvedClient && typeof window !== "undefined") {
-        resolvedClient = localStorage.getItem("kiosk_client_id") || "";
-      }
-
-      // Хэрэв салбар тодорхойлогдсон бол
-      if (resolvedClient.trim()) {
-        const cleanName = resolvedClient.trim();
-        setTenantClientId(cleanName);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("kiosk_client_id", cleanName);
+      if (savedToken) {
+        // If offline, trust local storage to avoid kitchen downtime
+        if (!navigator.onLine && savedClient) {
+          setTenantClientId(savedClient);
+          setStep("select_worker");
+          await fetchKioskData(savedClient);
+          setIsLoadingKiosk(false);
+          return;
         }
-        await fetchKioskData(cleanName);
+
+        // Verify token with backend
+        try {
+          const res = await fetch("/api/kiosk/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deviceToken: savedToken }),
+          });
+          const data = await res.json();
+
+          if (data.valid && data.clientId) {
+            localStorage.setItem("kiosk_client_id", data.clientId);
+            setTenantClientId(data.clientId);
+            await fetchKioskData(data.clientId);
+            setStep("select_worker"); // 👈 Transitions directly to workers!
+          } else {
+            // Revoked from dashboard!
+            localStorage.removeItem("kiosk_device_token");
+            localStorage.removeItem("kiosk_client_id");
+            setStep("pairing");
+          }
+        } catch (err) {
+          if (savedClient) {
+            setTenantClientId(savedClient);
+            await fetchKioskData(savedClient);
+            setStep("select_worker");
+          } else {
+            setStep("pairing");
+          }
+        }
       } else {
-        setTenantClientId("");
+        setStep("pairing");
       }
     } finally {
       setIsLoadingKiosk(false);
@@ -1650,19 +1740,21 @@ function KioskPage() {
       setPin("");
       return;
     }
-
-    // ⚡ Хоёр хүсэлтийг зэрэг дуудаж хугацааг хэмнэнэ
+const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : selectedWorker.full_name;
+    const fullNameRole = `${selectedWorker.role} (${(selectedWorker.full_name || workerName).trim()})`;
     const [shiftRes, liveTasks] = await Promise.all([
       supabase
         .from("shifts")
         .select("*")
         .eq("client_id", tenantClientId)
         .eq("is_active", true)
+        .ilike("character_role", fullNameRole) // 👈 THIS CHECKS THIS WORKER ONLY!
         .order("start_time", { ascending: false })
         .limit(1)
         .maybeSingle(),
       loadLiveTodayTasks(tenantClientId, selectedWorker),
     ]);
+
 
     setTasks(liveTasks);
 
@@ -1806,8 +1898,8 @@ function KioskPage() {
 
   // ⚡ 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
 
-  const handleCloseShift = () => {
-    // 1. ШАЛГАЛТУУД (Дутуу зүйл байвал шууд анхааруулна)
+const handleCloseShift = async () => {
+    // 1. ШАЛГАЛТУУД (Дутуу зүйл байвал шууд анхааруулна) - 100% ORIGINAL
     const uncountedItems = inventoryToCount.filter(
       (i) =>
         counts[i.id] === undefined || counts[i.id].toString().trim() === "",
@@ -1833,7 +1925,7 @@ function KioskPage() {
       return;
     }
 
-    // ⚡ 2. ӨГӨГДЛҮҮДИЙГ БЭЛТГЭХ
+    // ⚡ 2. ӨГӨГДЛҮҮДИЙГ БЭЛТГЭХ - 100% ORIGINAL
     const endTime = new Date().toISOString();
     const fileToUpload = posZFile;
     const cashVal = actualCashDrawer;
@@ -1844,83 +1936,94 @@ function KioskPage() {
       .filter((t: any) => t.done && t.id)
       .map((t: any) => t.id);
 
-    // ⚡ 3. ДЭЛГЭЦ ШУУД 0 МИЛЛИСЕКУНДЭД АМЖИЛТТАЙ ГЭЖ СОЛИГДОНО! (Хүлээхгүй)
-    setMsg("🌙 Ээлж амжилттай хаагдлаа!");
-    setStep("select_worker");
-    setSelectedWorker(null);
-    setActiveShift(null);
-    setTasks([]);
-    setCounts({});
-    setPosZFile(null);
-    setActualCashDrawer("");
+    setIsAiLoading(true);
+    setMsg("");
 
-    // ⚡ 4. ЗУРАГ ХУУЛАХ БА БААЗАД ХИЙХИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ АЖИЛЛУУЛАХ (Background)
-    (async () => {
-      try {
-        let posZUrl = null;
-        if (fileToUpload) {
-          posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports");
-        }
+    // ⚡ 3. ЗУРАГ ХУУЛАХ БА БААЗАД ХАДГАЛАХ
+    try {
+      let posZUrl = null;
+      if (fileToUpload) {
+        posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports");
+      }
 
-        const countLogsToInsert: any[] = itemsCounted.map((item) => ({
+      const countLogsToInsert: any[] = itemsCounted.map((item) => ({
+        client_id: tenantClientId,
+        ingredient_id: item.id,
+        quantity: parseFloat(itemCounts[item.id]) || 0,
+        type: "count",
+        notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
+        worker_name:
+          currentShift?.character_role || selectedWorker?.full_name,
+        date: endTime,
+      }));
+
+      if (cashVal && parseFloat(cashVal) >= 0) {
+        countLogsToInsert.push({
           client_id: tenantClientId,
-          ingredient_id: item.id,
-          quantity: parseFloat(itemCounts[item.id]) || 0,
+          ingredient_id: null,
+          non_food_item: "Кассын хаалтын үлдэгдэл",
+          quantity: 1,
+          total_cost: parseFloat(cashVal) || 0,
           type: "count",
-          notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
+          notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(cashVal) || 0).toLocaleString()}₮`,
+          payment_method: "cash",
           worker_name:
             currentShift?.character_role || selectedWorker?.full_name,
           date: endTime,
-        }));
+        });
+      }
 
-        if (cashVal && parseFloat(cashVal) >= 0) {
-          countLogsToInsert.push({
-            client_id: tenantClientId,
-            ingredient_id: null,
-            non_food_item: "Кассын хаалтын үлдэгдэл",
-            quantity: 1,
-            total_cost: parseFloat(cashVal) || 0,
-            type: "count",
-            notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(cashVal) || 0).toLocaleString()}₮`,
-            payment_method: "cash",
-            worker_name:
-              currentShift?.character_role || selectedWorker?.full_name,
-            date: endTime,
-          });
-        }
+      const logsPromise = supabase
+        .from("inventory_logs")
+        .insert(countLogsToInsert);
 
-        const logsPromise = supabase
-          .from("inventory_logs")
-          .insert(countLogsToInsert);
+      const shiftPromise = currentShift
+        ? supabase
+            .from("shifts")
+            .update({
+              is_active: false,
+              end_time: endTime,
+              pos_z_image_url: posZUrl,
+            })
+            .eq("id", currentShift.id)
+        : Promise.resolve();
 
-        const shiftPromise = currentShift
+      const tasksPromise =
+        completedTaskIds.length > 0
           ? supabase
-              .from("shifts")
-              .update({
-                is_active: false,
-                end_time: endTime,
-                pos_z_image_url: posZUrl,
-              })
-              .eq("id", currentShift.id)
+              .from("tasks")
+              .update({ is_active: false })
+              .in("id", completedTaskIds)
           : Promise.resolve();
 
-        const tasksPromise =
-          completedTaskIds.length > 0
-            ? supabase
-                .from("tasks")
-                .update({ is_active: false })
-                .in("id", completedTaskIds)
-            : Promise.resolve();
+      // 🚀 Бүгдийг зэрэг гүйцэтгэхийг хүлээх (AWAIT)
+      const results = await Promise.all([logsPromise, shiftPromise, tasksPromise]);
 
-        // 🚀 Бүгдийг зэрэг гүйцэтгэнэ
-        await Promise.all([logsPromise, shiftPromise, tasksPromise]);
-        fetchKioskData(tenantClientId);
-      } catch (e) {
-        console.error("Close shift background error:", e);
+      // Хэрэв аль нэг дээр нь алдаа гарсан бол мэдээлэх
+      for (const res of results) {
+        if (res && typeof res === "object" && "error" in res && res.error) {
+          throw res.error;
+        }
       }
-    })();
-  };
 
+      // ⚡ 4. БААЗАД АМЖИЛТТАЙ ХАДГАЛАГДСАНЫ ДАРАА Л ДЭЛГЭЦИЙГ ЦЭВЭРЛЭХ
+      setMsg("🌙 Ээлж амжилттай хаагдлаа!");
+      setStep("select_worker");
+      setSelectedWorker(null);
+      setActiveShift(null);
+      setTasks([]);
+      setCounts({});
+      setPosZFile(null);
+      setActualCashDrawer("");
+
+      await fetchKioskData(tenantClientId);
+    } catch (e: any) {
+      console.error("Close shift error:", e);
+      setMsg(`Хадгалахад алдаа гарлаа: ${e?.message || "Сүлжээ шалгана уу"}`);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
   return (
     <div className="h-[100dvh] w-full bg-zinc-950 text-zinc-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
       {/* 🔝 HEADER */}
@@ -1989,11 +2092,83 @@ function KioskPage() {
       </header>
 
       {/* 🚀 MAIN CONTENT */}
-      <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
-        {msg && (
-          <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20  flex items-center justify-center gap-2 shrink-0">
-            <ShieldAlert className="h-4 w-4 shrink-0" />
-            <span>{msg}</span>
+       <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
+        {/* ⚡ 1. CLEAN LOADING SCREEN WHILE VERIFYING (Eliminates the glimpse!) */}
+        {isLoadingKiosk || step === "initializing" ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950 select-none">
+            <div className="h-8 w-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin mb-3" />
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+        
+            </p>
+          </div>
+        ) : (
+          <>
+            {msg && (
+              <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20 flex items-center justify-center gap-2 shrink-0">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                <span>{msg}</span>
+              </div>
+            )}
+
+        {/* 0. PAIRING SCREEN (АЖИЛЛАХААС ӨМНӨ 1 УДАА КОД НЭХЭХ) */}
+        {step === "pairing" && (
+          <div className="w-full h-full bg-zinc-900 p-6 rounded-3xl border border-zinc-800 shadow-xl flex flex-col items-center justify-center text-center">
+            <div className="bg-zinc-800/60 p-4 rounded-full mb-6 border border-zinc-700/50">
+              <Smartphone className="h-10 w-10 text-zinc-300" />
+            </div>
+            <h2 className="text-2xl font-black text-white mb-2">Шинэ төхөөрөмж</h2>
+            <p className="text-sm text-zinc-400 mb-8 max-w-sm">
+              Таблетыг холбохын тулд Dashboard-ийн <strong>Тохиргоо</strong> цэснээс үүсгэсэн 6 оронтой кодыг оруулна уу.
+            </p>
+
+            <input
+              type="text"
+              maxLength={6}
+              value={pairingCodeInput}
+              onChange={(e) => setPairingCodeInput(e.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+              className="bg-zinc-950 border border-zinc-700 focus:border-zinc-500 rounded-2xl px-6 py-4 text-center text-3xl text-white font-mono font-black tracking-[0.5em] w-64 outline-none mb-6 shadow-inner"
+            />
+
+            <button
+              type="button"
+              disabled={pairingCodeInput.length !== 6 || isPairing}
+                onClick={async () => {
+                  setIsPairing(true);
+                  setMsg("");
+                  try {
+                    // ⚡ Await the deep hardware inspection
+                    const deepHardwareInfo = await getDeepDeviceInfo();
+
+                    const res = await fetch("/api/kiosk/pair", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ 
+                        code: pairingCodeInput,
+                        deviceInfo: deepHardwareInfo
+                      }),
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                      localStorage.setItem("kiosk_device_token", data.deviceToken);
+                      localStorage.setItem("kiosk_client_id", data.clientId);
+                      setTenantClientId(data.clientId);
+                      await fetchKioskData(data.clientId);
+                      setStep("select_worker");
+                    } else {
+                      setMsg(data.message || "Код буруу байна.");
+                    }
+                  } catch (err) {
+                    setMsg("Сүлжээнд алдаа гарлаа.");
+                  } finally {
+                    setIsPairing(false);
+                  }
+                }}
+              className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-8 py-3.5 rounded-xl text-sm transition shadow-lg w-64"
+            >
+              {isPairing ? "Холбогдож байна..." : "Холбох"}
+            </button>
           </div>
         )}
 
@@ -4926,7 +5101,12 @@ function KioskPage() {
               })()}
             </div>
           </div>
-        )}
+       
+       )}
+
+       
+              </>
+            )}
       </main>
     </div>
   );
