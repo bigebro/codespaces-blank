@@ -4,7 +4,8 @@ import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
 import { getAnalyticsData } from "../../../lib/analytics";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
-
+import { routeAiRequest } from "@/ai/agents/router.agent";
+import { AgentContext } from "@/types/agent.types";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -54,41 +55,7 @@ function getFriendlyErrorMessage(errorMsg: string): string {
   return " Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
 }
 
-const OWNER_CFO_PROMPT = `
-  Та бол кофе шоп, рестораны Ахлах Санхүүгийн Зөвлөх (CFO) бөгөөд Алдагдал Хяналтын Мөрдөгч Аудитор (Forensic Auditor) юм.
-  
-  [ҮНДСЭН ДҮРЭМ]:
-  - Ирсэн CONTEXT_DATA дахь тоон дээр үндэслэн шууд товч, цэгцтэй, үнэн зөв хариулна.
-  - Ундааны эрүүл маржин 75%-85%, хоолных 60%-70% байх ёстой.
-  
-  [АЛДАГДАЛ ШИНЖЛЭХ МӨРДЛӨГИЙН ЛОГИК - ХАТУУ МӨРДӨХ]:
-  Хэрэглэгч "Шалтгаангүй алдагдал" (Unexplained Waste), "Зөрүү", эсвэл "Энэ хулгай юу?" гэж асуувал зүгээр л тоог нь давтаж хэлэх БИШ, өгөгдлийг хооронд нь уялдуулж дараах 4 магадлалаар бодитоор шинжилж дүгнэлт өгнө:
-  
-  1. БЭЛЭН МӨНГӨНИЙ ХУЛГАЙ (Cash Theft / Un-rung Sales): 
-     Хэрэв Кофе үр, Сүү, Аяга зэрэг хоорондоо жороор холбогддог хэд хэдэн бараа зэрэгцэн (пропорционалиар) дутсан атлаа ПОС дээр борлуулалт ороогүй байвал: 
-     " Бэлэн мөнгөний хулгай байх 90%-ийн магадлалтай. Бариста ПОС-д шивэлгүй бэлэн мөнгө авч кофе гаргасан байж болзошгүй тул Хяналтын Камераа (CCTV) шалгана уу" гэж оношилно.
-  
-  2. ОРЦ ХЭТРҮҮЛЭЛТ (Overpouring): 
-     Хэрэв зарагдсан тоотой харьцуулахад нэг аяганд ногдох хэмжээгээр (жишээ нь тус бүр 10-20мл) тогтмол дутсан, эсвэл зөвхөн ганц бараа (зөвхөн сүү) дутсан байвал: 
-     "Орц хэтрүүлэлт эсвэл бутлагчийн тохиргоо алдагдсан байх магадлалтай. Бариста нарын хэмжээст савны хэрэглээг шалгана уу" гэж оношилно.
-  
-  3. БҮРТГЭЭГҮЙ ХАЯГДАЛ (Forgot to log): 
-     Хэрэв 1-2 ширхэг өндөг, талх гэх мэт жижиг зөрүү байвал:
-     "Ажилтан хоолондоо хэрэглэсэн эсвэл асгаснаа Kiosk-д бүртгэхээ мартсан байх магадлалтай. Ажилтнаар нөхөж бүртгүүлбэл энэ алдагдал 0 болж цэвэрлэгдэнэ" гэж зөвлөнө.
-  
-  4. ФИЗИК ХУЛГАЙ (Physical Theft / Big Spills): 
-     Бүтэн хайрцаг (1000мл, 1кг) зэргээр их хэмжээгээр бүхлээрээ гэнэт дутсан бол:
-     "Том хэмжээний асгаралт эсвэл бодит физик хулгай байх эрсдэлтэй. Тухайн ээлжийн ажилтнаас шууд тайлбар шаардана уу." гэж зөвлөнө.
 
-  Хэрэглэгчийн асуултад хариулахдаа үргэлж хамгийн өндөр магадлалтай шалтгааныг нь баримттайгаар (тоотой нь) тайлбарлаж, яг ямар арга хэмжээ авахыг нь зааж өг!
-`;
-
-const WORKER_KIOSK_PROMPT = `
-  Та гал тогооны ажилтнуудад зориулагдсан "Kiosk AI туслах" юм.
-  [ДҮРЭМ]:
-  - Зөвхөн зарлага, хаягдал бүртгэх үүрэгтэй.
-  - Санхүүгийн ашиг, орлого асуувал: "Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой." гэж хариул.
-`;
 
 async function callGroqFallback(systemPrompt: string, userText: string) {
   const groqKey = process.env.GROQ_API_KEY;
@@ -135,47 +102,6 @@ async function callGroqFallback(systemPrompt: string, userText: string) {
 
   throw new Error(`Groq сервер хариу өгсөнгүй: ${lastGroqError}`);
 }
-let globalKeyIndex = 0;
-
-async function callGeminiStreamWithFailover(
-  systemPrompt: string,
-  promptPayload: string,
-) {
-  const key = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
-  if (!key) {
-    throw new Error("GEMINI_API_KEY олдсонгүй (.env.local шалгана уу");
-  }
-
-  const activeGenAI = new GoogleGenerativeAI(key);
-  const model = activeGenAI.getGenerativeModel({
-    model: "gemini-3.5-flash-lite",
-    systemInstruction: systemPrompt,
-    generationConfig: {
-      temperature: 0.3,
-    },
-  });
-
-  const response = await model.generateContentStream({
-    contents: [{ role: "user", parts: [{ text: promptPayload }] }],
-  });
-
-  // Эхний үгийг шалгах (алдаа гарвал шууд гаднах catch/Groq руу үсэрнэ)
-  const iterator = response.stream[Symbol.asyncIterator]();
-  const firstChunk = await iterator.next();
-
-  async function* combinedStream() {
-    if (!firstChunk.done && firstChunk.value) {
-      yield firstChunk.value;
-    }
-    while (true) {
-      const next = await iterator.next();
-      if (next.done) break;
-      yield next.value;
-    }
-  }
-
-  return { stream: combinedStream() };
-}
 
 export async function POST(request: Request) {
   try {
@@ -220,7 +146,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const clientId = profile.client_id;
     const isOwner = profile.role === "owner";
-    const ACTIVE_PROMPT = isOwner ? OWNER_CFO_PROMPT : WORKER_KIOSK_PROMPT;
+   
 
     const workerName = body.workerName || profile.full_name || "Ажилтан";
     const text = (body.text || body.payloadText || body.input || "").trim();
@@ -799,326 +725,95 @@ ${JSON.stringify(unmatched)}`;
         }
       }
 
-      // 🚀 1 Л УДАА ТАТАХ:
-      const analyticsData = await getCachedAnalytics(
-        clientId,
-        activeStart,
-        activeEnd,
-      );
-      const fin = analyticsData.financial_ladder || {};
 
-      // =========================================================================
-      // ⚡ АЛХАМ 2: ХЭРЭВ "REPORT" ГЭЖ БИЧВЭЛ ДЭЭРХ ДАТАГААРАА 0.03 СЕКУНДЭД ШУУД ХАРИУЛАХ
-      // =========================================================================
-      const isReportCommand =
-        lower === "report" ||
-        lower === "/report" ||
-        lower === "тайлан" ||
-        lower === "тайлан харах" ||
-        lower.startsWith("report ") ||
-        lower.startsWith("/report ");
+   if (isOwner) {
+        // ⚡ ХУРДАН ТАЙЛАНГИЙН ТУШААЛ (0.03 секундэд шууд хариулах, 0 токен зарцуулна)
+        const isReportCommand =
+          lower === "report" ||
+          lower === "/report" ||
+          lower === "тайлан" ||
+          lower === "тайлан харах" ||
+          lower.startsWith("report ") ||
+          lower.startsWith("/report ");
 
-      if (isReportCommand) {
-        if (!isOwner) {
+        if (isReportCommand) {
+          const analyticsData = await getCachedAnalytics(clientId, body.startDate, body.endDate);
+          const fin = analyticsData.financial_ladder || {};
+
+          const instantReport =
+            `📊 **САНХҮҮГИЙН ТАЙЛАН (${clientId}):**\n\n` +
+            `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
+            `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
+            `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
+            `• **OPEX зардал:** ${Math.round(fin.opex || 0).toLocaleString()} ₮\n` +
+            `• **EBIT (Татварын өмнөх):** ${Math.round(fin.ebit || 0).toLocaleString()} ₮\n` +
+            `• **ЦЭВЭР АШИГ:** ${Math.round(fin.net_profit || 0).toLocaleString()} ₮ *(${fin.net_margin || "0%"})*\n\n` +
+            `🗑 **Бодит алдагдал (Waste):** ${Math.round(analyticsData.total_waste_loss || 0).toLocaleString()} ₮\n` +
+            `⚡ **Бүтээмж:** ${analyticsData.efficiency || "0%"}\n\n` +
+            `💎 **ТОП ХАЯГДАЛ:**\n` +
+            (analyticsData.top_wasters?.length > 0
+              ? analyticsData.top_wasters
+                  .map((w: any) => `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`)
+                  .join("\n")
+              : "• Бүртгэгдсэн хаягдал байхгүй.") +
+            `\n\n💡 *Та санхүү, хаягдал, үнийн бодлогын талаар ямар ч асуултаа шууд асууж болно.*`;
+
           return NextResponse.json({
             success: true,
             is_log: false,
-            message:
-              "Уучлаарай, санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой.",
+            message: instantReport,
           });
         }
 
-        const instantReport =
-          `📊 **САНХҮҮГИЙН ТАЙЛАН (${clientId}):**\n\n` +
-          `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
-          `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
-          `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
-          `• **OPEX зардал:** ${Math.round(fin.opex || 0).toLocaleString()} ₮\n` +
-          `• **EBIT (Татварын өмнөх):** ${Math.round(fin.ebit || 0).toLocaleString()} ₮\n` +
-          `• **ЦЭВЭР АШИГ:** ${Math.round(fin.net_profit || 0).toLocaleString()} ₮ *(${fin.net_margin || "0%"})*\n\n` +
-          `🗑 **Бодит алдагдал (Waste):** ${Math.round(analyticsData.total_waste_loss || 0).toLocaleString()} ₮\n` +
-          `⚡ **Бүтээмж:** ${analyticsData.efficiency || "0%"}\n\n` +
-          `💎 **ТОП ХАЯГДАЛ:**\n` +
-          (analyticsData.top_wasters?.length > 0
-            ? analyticsData.top_wasters
-                .map(
-                  (w: any) =>
-                    `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`,
-                )
-                .join("\n")
-            : "• Бүртгэгдсэн хаягдал байхгүй.") +
-          `\n\n💡 *Та санхүү, хаягдал, үнийн бодлогын талаар ямар ч асуултаа шууд асууж болно.*`;
-
-        return NextResponse.json({
-          success: true,
-          is_log: false,
-          message: instantReport,
-        });
-      }
-
-      // =========================================================================
-      // ⚡ FORMAT ALL ANALYTICS DETAILS FOR 100% AI VISIBILITY
-      // =========================================================================
-
-      // 1. Inventory Table
-      const invTable = (analyticsData.all_inventory_data || [])
-        .map(
-          (i: any) =>
-            `${i.name} | stock:${i.live_stock}${i.unit} | par:${i.par_level} | price:${i.price}₮ | gap:${i.gap} | loss:${i.impact}₮ | class:${i.abc_class} | order:${i.suggested_order}`,
-        )
-        .join("\n");
-
-      // 2. Recipes
-      const recipesText = Object.entries(analyticsData.all_recipes || {})
-        .map(
-          ([pName, ingMap]: any) =>
-            `${pName} = ` +
-            Object.entries(ingMap)
-              .map(([ing, amt]) => `${amt} ${ing}`)
-              .join(" + "),
-        )
-        .join("\n");
-
-      // 3. Menu Performance
-      const menuText = (analyticsData.menu_performance || [])
-        .map(
-          (m: any) =>
-            `${m.name} | sold:${m.sold} | price:${m.selling_price}₮ | cost:${m.cost_per_item}₮ | margin:${m.gross_margin_pct}%`,
-        )
-        .join("\n");
-
-      // 4. Payroll & OPEX
-      const payrollText = (analyticsData.payroll_summary || [])
-        .map(
-          (p: any) =>
-            `${p.worker_name} (${p.role || "Ажилтан"}): ${p.total_hours}hrs | Gross:${p.gross_salary}₮ | NetTakeHome:${p.net_take_home}₮ | NDSH(11.5%):${p.ndsh_deduction}₮`,
-        )
-        .join(", ");
-
-      const opexText = (analyticsData.opex_details || [])
-        .map((o: any) => `${o.item}: ${o.cost}₮`)
-        .join(", ");
-
-      // 5. Margin Guard (Price Hike Suggestions)
-      const marginGuardText =
-        (analyticsData.margin_guard_alerts || []).length > 0
-          ? (analyticsData.margin_guard_alerts || [])
-              .map(
-                (a: any) =>
-                  `• ${a.product_name}: CurrentPrice ${a.selling_price}₮ -> SUGGESTED: ${a.suggested_price}₮ (+${a.price_gap}₮) | Cost: ${a.cost_price}₮, Margin: ${a.current_margin_pct} (Target: ${a.target_margin_pct})`,
-              )
-              .join("\n")
-          : "None (All products have healthy margins >= 75%)";
-
-      // 6. Cross-Shift Fraud & Worker Incidents Matrix
-      const fraudMatrixText =
-        Object.keys(analyticsData.worker_fraud_matrix || {}).length > 0
-          ? Object.entries(analyticsData.worker_fraud_matrix || {})
-              .map(([worker, data]: any) => {
-                const incidents = (data.incidents || [])
-                  .map(
-                    (inc: any) =>
-                      `[${inc.date}] reported by ${inc.reporter}: "${inc.notes}" (-${inc.loss_amount}₮)`,
-                  )
-                  .join("; ");
-                return `• Worker: ${worker} | Incidents: ${data.totalIncidents} | TotalLoss: ${data.totalLossAmount}₮ | Details: ${incidents}`;
-              })
-              .join("\n")
-          : "No cross-shift damage or incident reports recorded.";
-
-      // 7. Cashflow In & Out Breakdown
-      const cf = analyticsData.cashflow_summary || {};
-      const cashflowDetail = `
-InitialBalances: Cash:${cf.initial_cash || 0}₮, Bank:${cf.initial_bank || 0}₮
-Cash Inflow: CashSales:${cf.cash_in_cash || 0}₮, BankSales:${cf.cash_in_bank || 0}₮ (TotalIn: ${cf.cash_in_total || 0}₮)
-Cash Outflow Purchases: CashPaid:${cf.cash_out_purchases_cash || 0}₮, BankPaid:${cf.cash_out_purchases_bank || 0}₮
-Cash Outflow OPEX: CashPaid:${cf.cash_out_opex_cash || 0}₮, BankPaid:${cf.cash_out_opex_bank || 0}₮
-Fixed Assets Paid (Equipment): ${cf.fixed_assets_paid || 0}₮
-Owner Withdrawals (Draws): ${cf.owner_draws || 0}₮
-Final Balances: CashInHand:${cf.end_cash_balance || 0}₮, BankAccount:${cf.end_bank_balance || 0}₮, NetTotal:${cf.net_total_balance || 0}₮`;
-
-      // 8. Purchases & E-Barimt Ratio
-      const pur = analyticsData.purchases_summary || {};
-      const purchasesText = `TotalPurchases: ${pur.total_purchases || 0}₮ | WithEBarimt: ${pur.with_ebarimt || 0}₮ | WithoutEBarimt: ${pur.without_ebarimt || 0}₮ | NewEquipmentBought: ${pur.fixed_assets_invested || 0}₮`;
-
-      // 9. Fixed Assets & Depreciation (Equipment)
-      const faText =
-        (analyticsData.fixed_assets || []).length > 0
-          ? (analyticsData.fixed_assets || [])
-              .map(
-                (f: any) =>
-                  `• ${f.name} (${f.code}): InitialCost ${f.initialCost}₮ | UsefulMonths: ${f.usefulMonths} | MonthlyDep: ${f.monthlyDep}₮ | CurrentBookValue: ${f.bookValue}₮`,
-              )
-              .join("\n")
-          : "No fixed assets recorded.";
-
-      // 10. Official Waste Act (Tax Law 14 Write-offs)
-      const wasteActText =
-        (analyticsData.waste_act_items || []).length > 0
-          ? (analyticsData.waste_act_items || [])
-              .slice(0, 10)
-              .map(
-                (w: any) =>
-                  `• ${w.name}: TheoUsage ${w.theo_usage}${w.unit}, ActualUsage ${w.actual_usage}${w.unit}, Gap ${w.gap_qty}${w.unit} | Loss: ${w.loss_amount}₮ | Legal Cause: ${w.cause}`,
-              )
-              .join("\n")
-          : "None";
-
-      // 11. ABC Pareto Cycle Count Status
-      const abc = analyticsData.abc_summary || {};
-      const abcText = `TotalItems: ${abc.total_items || 0} | A-Class:${abc.a_count || 0}, B-Class:${abc.b_count || 0}, C-Class:${abc.c_count || 0} | CountedIn30Days:${abc.counted_in_cycle || 0}, Uncounted:${abc.uncounted_in_cycle || 0}, RecommendedCountPerShift:${abc.suggested_cycle_per_shift || 0}`;
-
-      // 12. Recent Shifts & SOP Compliance
-      const shiftsText = (analyticsData.recent_shifts || [])
-        .slice(0, 5)
-        .map((s: any) => {
-          const tasks = s.tasks_done || [];
-          const doneCount = tasks.filter((t: any) => t.done).length;
-          return `• ${s.worker} | Started: ${s.start_time} | Ended: ${s.end_time} | SOP Tasks: ${doneCount}/${tasks.length} done | Z-Report: ${s.pos_z_image_url ? "Uploaded" : "Missing"}`;
-        })
-        .join("\n");
-
-      // 13. Recent Activity Logs (Last 10 actions)
-      const recentLogsText = (analyticsData.recent_worker_logs || [])
-        .slice(0, 10)
-        .map(
-          (l: any) =>
-            `[${l.date} ${l.time}] ${l.worker} logged ${l.type} on ${l.item}: ${l.qty}${l.unit} (Notes: ${l.notes || "None"})`,
-        )
-        .join("\n");
-
-      // =========================================================================
-      // 🚀 100% ASSEMBLED PROMPT PAYLOAD (ALL ANALYTICS COVERED)
-      // =========================================================================
-      const promptPayload = `
-=== BUSINESS: ${clientId} ===
-FINANCIALS (P&L & TAX):
-Revenue: ${fin.revenue}₮ | NetRevenue(No VAT): ${fin.net_revenue}₮ | ActualCOGS: ${fin.actual_cogs}₮ | TheoCOGS: ${fin.theo_cogs}₮ | GrossMargin: ${fin.gross_margin}
-TheoreticalMode: ${fin.is_theoretical_mode ? "YES (Waiting for physical inventory count)" : "NO (Reconciled with actual count)"}
-LockedDueToMissingRecipes: ${fin.has_unmapped_recipes ? `YES (${fin.unmapped_recipes_count} sold items have NO recipes!)` : "NO (All recipes complete)"}
-OPEX: ${fin.opex}₮ | Depreciation: ${fin.depreciation}₮ | EBIT: ${fin.ebit}₮ | NetProfit: ${fin.net_profit}₮ (${fin.net_margin})
-TAX SUMMARY: Mode:${analyticsData.tax_summary?.tax_mode} | ActiveTaxAmount:${analyticsData.tax_summary?.active_tax_amount}₮ | VAT(10%):${analyticsData.tax_summary?.estimated_vat_10pct}₮ | Above300M:${analyticsData.tax_summary?.is_above_300m}
-
-CASHFLOW BREAKDOWN:
-${cashflowDetail}
-
-PURCHASES & E-BARIMT STATUS:
-${purchasesText}
-
-DETAILED LOSSES & WASTE CATEGORIES:
-TotalWasteLoss: ${analyticsData.total_waste_loss}₮ | UnexplainedWaste: ${analyticsData.total_unexplained_waste}₮ | Efficiency: ${analyticsData.efficiency}
-• Logged Spoilage (Муудсан/Асгарсан): ${analyticsData.total_logged_spoilage}₮
-• Staff Meals (Ажилчдын хоол): ${analyticsData.total_logged_staff_meal}₮
-• Testing/R&D (Амталгаа/Туршилт): ${analyticsData.total_logged_testing}₮
-• Other Logged: ${analyticsData.total_logged_other}₮
-• Surplus Savings (Хэмнэсэн илүүдэл): ${analyticsData.total_surplus_savings}₮
-
-TAX DEDUCTIBLE WASTE ACT ITEMS (Law Art 14):
-${wasteActText}
-
-MARGIN GUARD (Price Hike Alerts):
-${marginGuardText}
-
-CROSS-SHIFT FRAUD & INCIDENTS:
-${fraudMatrixText}
-
-ABC PARETO & AUDIT STATUS:
-${abcText}
-
-FIXED ASSETS (Equipment & Wear):
-${faText}
-
-PAYROLL BREAKDOWN:
-${payrollText || "None"}
-
-OPEX BREAKDOWN:
-${opexText || "None"}
-
-RECENT SHIFTS & SOP TASKS:
-${shiftsText || "None"}
-
-RECENT ACTIVITY LOGS:
-${recentLogsText || "None"}
-
-=== ALL INVENTORY (${(analyticsData.all_inventory_data || []).length} items) ===
-${invTable}
-
-=== ALL RECIPES ===
-${recipesText}
-
-=== MENU PERFORMANCE ===
-${menuText}
-
-
-User Question: ${text}`;
-
-      let responseStream: any = null;
-      let fallbackText = "";
-
-      try {
-        // 1. Google Gemini 3.5 Flash-Lite дуудах
-        responseStream = await callGeminiStreamWithFailover(
-          ACTIVE_PROMPT,
-          promptPayload,
-        );
-      } catch (geminiErr: any) {
-        console.warn(
-          "Gemini гацлаа. Groq нөөц сервер ажиллаж байна...",
-          geminiErr.message,
-        );
+        // 🧠 ХЭРЭВ АСУУЛТ АСУУСАН БОЛ -> CFO AGENT АЖИЛЛАНА
+        const agentContext: AgentContext = {
+          clientId,
+          userId: user.id,
+          userRole: "owner",
+          workerName,
+          activeStartDate: body.startDate, 
+          activeEndDate: body.endDate, 
+        };
 
         try {
-          // 2. Groq руу шилжих (Маш хурдан 0.3 секунд)
-          fallbackText = await callGroqFallback(ACTIVE_PROMPT, promptPayload);
-        } catch (groqErr: any) {
-          console.error("❌ Groq бас ажилласангүй:", groqErr.message);
+          const stream = await routeAiRequest(agentContext, { text });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Cache-Control": "no-cache",
+            },
+          });
+        } catch (agentErr: any) {
+          console.error("CFO Agent Execution Error:", agentErr);
           return NextResponse.json({
             success: false,
-            message: `Серверийн саатал: ${groqErr.message}`,
+            message: getFriendlyErrorMessage(agentErr.message || String(agentErr)),
           });
         }
       }
-
-      // Хэрэв Groq хариулсан бол текстийг буцаана:
-      if (fallbackText) {
-        return new Response(fallbackText, {
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-        });
-      }
-
-      // Gemini хариулсан бол урсгалаар (Stream) буцаана:
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            for await (const chunk of responseStream.stream) {
-              const chunkText = chunk.text();
-              if (chunkText) controller.enqueue(encoder.encode(chunkText));
-            }
-            controller.close();
-          } catch (err) {
-            controller.error(err);
-          }
-        },
-      });
-
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Cache-Control": "no-cache",
-        },
-      });
     }
 
+    // ⚡ 1. Хэрэв дээрх нөхцөлүүдийн алинд ч ороогүй бол заавал Response буцаах ёстой:
     return NextResponse.json({
       success: false,
-      message: "Хоосон утга илгээсэн байна.",
+      message: "Хоосон утга эсвэл тодорхойгүй үйлдэл ирсэн байна.",
     });
-  } catch (error: any) {
-    console.error("Kiosk AI Error:", error);
+
+  } catch (error: any) { // 👈 2. Бүхэл серверийг уналтаас хамгаалах гаднах CATCH
+    console.error("Kiosk AI Global Error:", error);
     return NextResponse.json({
       success: false,
       message: getFriendlyErrorMessage(error.message || String(error)),
     });
   }
 }
+
+
+
+
+
+
+    
+ 
+
