@@ -11,12 +11,20 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
   const apiKey = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-3.5-flash-lite",
-    systemInstruction: CFO_SYSTEM_PROMPT,
-    tools: [{ functionDeclarations: [...financialToolDeclarations, ...memoryToolDeclarations] }],
-    generationConfig: { temperature: 0.2 },
-  });
+// ✅ CLEAN FIX: Just tell him today's date and the selected dashboard period!
+const today = new Date().toISOString().split("T")[0]; // e.g. "2026-10-31"
+const activePeriod = context.activeStartDate 
+  ? `Сонгогдсон тайлант хугацаа: ${context.activeStartDate} -ээс ${context.activeEndDate}`
+  : `Одоогийн он: ${today.split("-")[0]}`;
+
+const systemInstruction = `${CFO_SYSTEM_PROMPT}\n\n[ЦАГ ХУГАЦААНЫ БОДИТ МЭДЭЭЛЭЛ]:\n- Өнөөдрийн огноо: ${today}\n- ${activePeriod}`;
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-3.5-flash-lite",
+  systemInstruction: systemInstruction, // 👈 Now Gemini knows today is 2026!
+  tools: [{ functionDeclarations: [...financialToolDeclarations, ...memoryToolDeclarations] }],
+  generationConfig: { temperature: 0.2 },
+});
 
   // ⚡ 1. Хувьсагчийг try блокийн ГАДНА зарласнаар Scope алдаа гарахгүй:
   let finalAnswerText = "";
@@ -69,26 +77,30 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
         });
       }
 
-// ⚡ 1. Төгсгөлд нь текстийн тушаал хамт өгөх (Хоосон STOP хийхээс сэргийлнэ)
+
+
+      // Төгсгөлд нь текстийн тушаал өгөх:
       contents.push({
         role: "user",
-        parts: [
-          ...functionResponseParts,
-          { text: "Дээрх хэрэгслийн (Tool) хариунд үндэслэн миний асуултад шууд, тодорхой Монгол хэлээр хариулна уу." },
-        ],
+        parts: [{ text: "Дээрх хэрэгслийн хариунд үндэслэн асуултад тодорхой Монгол хэлээр хариулна уу." }],
       });
 
       const finalResponse = await model.generateContent({ contents });
       finalAnswerText = finalResponse.response.text();
 
-      // ⚡ 2. ХАМГААЛАЛТ: Хэрэв Google хоосон текст буцаавал тоонуудыг шууд уншуулж хариулт гаргуулна
+      // 2. Хэрэв хоосон гарвал Tools-гүй цэвэр текст моделиор хариултыг заавал гаргуулах:
       if (!finalAnswerText || !finalAnswerText.trim()) {
+        const textOnlyModel = genAI.getGenerativeModel({
+          model: "gemini-3.5-flash-lite",
+          systemInstruction: CFO_SYSTEM_PROMPT,
+        });
+
         const toolResultsSummary = JSON.stringify(
           functionResponseParts.map((p: any) => p.functionResponse?.response?.result)
         );
-        const synthResponse = await model.generateContent([
-          { text: CFO_SYSTEM_PROMPT },
-          { text: `Хэрэглэгчийн асуулт: "${userMessage}"\n\nБодит өгөгдөл (Tools-ээс ирсэн тоонууд):\n${toolResultsSummary}\n\nДээрх тоонууд дээр тулгуурлан миний асуултад цэгцтэй Монголоор хариулна уу.` }
+
+        const synthResponse = await textOnlyModel.generateContent([
+          { text: `Хэрэглэгчийн асуулт: "${userMessage}"\n\nБодит өгөгдөл:\n${toolResultsSummary}\n\nДээрх өгөгдлөөс хэн ямар цагт ямар бараа хаягдал болгосныг жагсааж Монголоор хариулна уу.` }
         ]);
         finalAnswerText = synthResponse.response.text();
       }

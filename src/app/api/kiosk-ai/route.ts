@@ -701,29 +701,12 @@ ${JSON.stringify(unmatched)}`;
         });
       }
 
-      // =========================================================================
+
       // ЗӨВХӨН ЭЗЭН БАЙВАЛ Л ДООШОО ГҮЙЖ САНХҮҮГИЙН МОТОР АЖИЛЛАНА:
       // =========================================================================
-      let activeStart = body.startDate;
-      let activeEnd = body.endDate;
+    
 
-      // Хэрэв огноо ирээгүй бол автоматаар хамгийн сүүлийн борлуулалттай сарыг олох
-      if (!activeStart || !activeEnd) {
-        const { data: latestSale } = await supabaseAdmin
-          .from("sales_logs")
-          .select("date")
-          .eq("client_id", clientId)
-          .order("date", { ascending: false })
-          .limit(1)
-          .maybeSingle();
 
-        if (latestSale && latestSale.date) {
-          const ym = latestSale.date.substring(0, 7);
-          const [year, month] = ym.split("-").map(Number);
-          activeStart = `${ym}-01T00:00:00.000Z`;
-          activeEnd = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}T23:59:59.999Z`;
-        }
-      }
 
 
    if (isOwner) {

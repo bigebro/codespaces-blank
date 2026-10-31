@@ -822,6 +822,21 @@ export async function getAnalyticsData(
     fixed_assets: processedFixedAssets,
     waste_act_items: wasteAuditItems,
     top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
+      //  Ажилтнуудын Kiosk-оор бүртгэсэн бодит хаягдлуудын нэгдсэн жагсаалт:
+   // ⚡ Ажилтны нэр (worker) болон ээлжийн тэмдэглэлтэй нь хамт гаргах:
+logged_spoilage_items: (rawInventoryLogs || [])
+  .filter((log: any) => log.type === 'spoilage' && (log.date ? log.date.split('T')[0] >= startDay && log.date.split('T')[0] <= endDay : true))
+  .map((log: any) => {
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    return {
+      item: ing ? ing.name : (log.non_food_item || "Unknown"),
+      quantity: Math.abs(parseFloat(log.quantity) || 0),
+      unit: ing ? ing.unit : "ш",
+      worker: log.worker_name || "Үл мэдэгдэх", // 👈 ЭНД АЖИЛТНЫ НЭРИЙГ ӨГНӨ!
+      time: log.date ? new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
+      notes: log.notes || ""
+    };
+  }),
     top_expensive: fullInventory.sort((a,b) => b.price - a.price).slice(0, 3),
     all_inventory_data: fullInventory,
     wasted_only: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact),

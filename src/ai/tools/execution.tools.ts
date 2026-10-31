@@ -28,8 +28,11 @@ export async function executeAiTool(
         return {
           success: true,
           data: {
+            logged_spoilage_list: auditData.logged_spoilage_items || [],
+            total_logged_spoilage_amount: auditData.total_logged_spoilage || 0,
             top_wasters: auditData.top_wasters,
             unexplained_waste: auditData.total_unexplained_waste,
+            top_unexplained_wasters: auditData.top_wasters || [],
             worker_incidents: auditData.worker_fraud_matrix
           }
         };
