@@ -2270,7 +2270,7 @@ export default function ImportTab({
               {/* Толгой хэсэг */}
               <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                 <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                  📊 Excel / Sheets-ээс хуулах албан ёсны загвар
+                  Excel / Sheets-ээс хуулах албан ёсны загвар
                 </h3>
                 <button
                   onClick={() => setActiveSampleModal(null)}

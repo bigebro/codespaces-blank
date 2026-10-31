@@ -1374,8 +1374,8 @@ async function sendTelegramMessageWithMenu(
       text: text,
       reply_markup: {
         keyboard: [
-          [{ text: "☀️ Ээлж эхлэх" }, { text: "🌙 Ээлж хаах" }],
-          [{ text: "📊 Тайлан харах" }],
+          [{ text: "Ээлж эхлэх" }, { text: "🌙 Ээлж хаах" }],
+          [{ text: "Тайлан харах" }],
         ],
         resize_keyboard: true,
         one_time_keyboard: false,

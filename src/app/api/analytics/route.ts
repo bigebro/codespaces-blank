@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getAnalyticsData } from '../../../lib/analytics';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { createServerSupabase } from '../../../lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +13,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 🔒 ШИНЭ: createClient үүсгэхгүйгээр supabaseAdmin-аар токенийг шууд шалгана
+    // 1. Verify token validity via Admin
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabaseAdmin
+    // 2. Create SECURE client bounded by RLS
+    const supabaseSecure = createServerSupabase(token);
+
+    // 3. Fetch profile securely
+    const { data: profile } = await supabaseSecure
       .from('profiles')
       .select('client_id, role')
       .eq('id', user.id)
@@ -34,6 +39,7 @@ export async function GET(request: Request) {
       searchParams.get('startDate') || undefined,
       searchParams.get('endDate') || undefined
     );
+    
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

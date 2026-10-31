@@ -724,7 +724,7 @@ ${JSON.stringify(unmatched)}`;
           const fin = analyticsData.financial_ladder || {};
 
           const instantReport =
-            `📊 **САНХҮҮГИЙН ТАЙЛАН (${clientId}):**\n\n` +
+            `**САНХҮҮГИЙН ТАЙЛАН (${clientId}):**\n\n` +
             `• **Нийт орлого:** ${Math.round(fin.revenue || 0).toLocaleString()} ₮\n` +
             `• **Бодит COGS:** ${Math.round(fin.actual_cogs || 0).toLocaleString()} ₮ *(Онол: ${Math.round(fin.theo_cogs || 0).toLocaleString()} ₮)*\n` +
             `• **Бохир ашиг:** ${fin.gross_margin || "0%"}\n` +
