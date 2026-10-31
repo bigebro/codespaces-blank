@@ -1,11 +1,11 @@
 // src/features/ai-cfo/AiCfoChat.tsx
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect   } from "react";
 import { 
   CheckCircle2, ArrowUpRight, PlusCircle, 
   Send, Clock, TerminalSquare, ShieldAlert,
-  Brain, FileText, Activity
+  Brain, FileText, Activity, RotateCcw, ArrowDown 
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -38,17 +38,86 @@ export default function AiCfoChat({
   const [cfoChatInput, setCfoChatInput] = useState("");
   const [cfoChatHistory, setCfoChatHistory] = useState<ChatMessage[]>([]);
   const [isCfoLoading, setIsCfoLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [executedProposals, setExecutedProposals] = useState<Record<string, string>>({});
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+const isScrolledUpRef = useRef(false); 
+  const [showScrollButton, setShowScrollButton] = useState(false); // 👈 Доошлуулах товчийг харуулах эсэх
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    isScrolledUpRef.current = false;
+    setShowScrollButton(false);
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    // Хамгийн доод цэгээс 150px дээшээ явсан бол сумыг харуулна
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 150;
+    setShowScrollButton(isScrolledUp);
+  };
+const fetchChatHistory = useCallback(async () => {
+    if (!activeClient) return;
+    setIsHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("ai_chat_messages")
+        .select("id, role, content, created_at")
+        .ilike("client_id", activeClient.trim())
+        .order("created_at", { ascending: false }) // 👈 1. Хамгийн сүүлийн ШИНЭ мессежүүдийг татна
+        .limit(40);
+
+      if (!error && data && data.length > 0) {
+    
+        const latestInOrder = [...data].reverse();
+
+        setCfoChatHistory(
+          latestInOrder.map((msg) => ({
+            id: msg.id,
+            sender: msg.role === "owner" ? "owner" : "ai",
+            text: stripEmojis(msg.content),
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Chat history load error:", err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [activeClient]);
+
   useEffect(() => {
-    scrollToBottom();
-  }, [cfoChatHistory, isCfoLoading]);
+    fetchChatHistory();
+  }, [fetchChatHistory]);
+
+   useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      // 1. Чат дэлгэцэнд бодитоор ил гарсан үед л ажиллана (height > 0)
+      if (container.clientHeight > 0) {
+        // 2. Хэрэв хэрэглэгч өөрөө дээшээ гараараа гүйлгээгүй бол ҮРГЭЛЖ хамгийн доор нь байлгана
+        if (!isScrolledUpRef.current) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [cfoChatHistory.length, isHistoryLoading]);
+
+
+    // Шинээр өөрөө мессеж илгээх үед зөөлөн доошлуулах
+  useEffect(() => {
+    if (isCfoLoading) {
+      scrollToBottom("smooth");
+    }
+  }, [isCfoLoading]);
 
   const handleApproveProposal = async (proposal: any, cardKey: string) => {
     try {
@@ -311,9 +380,17 @@ export default function AiCfoChat({
 
   return (
     <div className="w-full mx-auto bg-zinc-950 rounded-2xl border border-zinc-800/80 flex flex-col h-[85vh] shadow-2xl relative overflow-hidden font-sans">
-      
+        {showScrollButton && (
+        <button
+          onClick={() => scrollToBottom("smooth")}
+          className="absolute bottom-24 right-1/2 translate-x-1/2 sm:translate-x-0 sm:right-8 z-50 bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 p-2 rounded-full border border-zinc-700 shadow-2xl transition-all active:scale-95 animate-in fade-in zoom-in-95 cursor-pointer"
+          title="Хамгийн сүүлийн мессеж рүү очих"
+        >
+          <ArrowDown className="h-3 w-3" />
+        </button>
+      )}
       {/* CHAT HISTORY (Auto-scrolls) */}
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-6 scroll-smooth">
+      <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 p-4 space-y-6 sm:p-6 overflow-y-auto space-y-6 no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         
         {/* ========================================================= */}
         {/* 📚 THE EMPTY STATE GUIDANCE (Only shows at the start) */}
@@ -322,7 +399,7 @@ export default function AiCfoChat({
           <div className="max-w-2xl mx-auto mt-4 sm:mt-10 space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div className="text-center space-y-3">
               <TerminalSquare className="h-10 w-10 mx-auto text-zinc-700 mb-2 opacity-50" />
-              <p className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase">Систем бэлэн</p>
+              <p className="text-xs font-mono tracking-widest text-zinc-500 uppercase">Систем бэлэн</p>
             </div>
 
             <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-3xl p-6 shadow-inner">

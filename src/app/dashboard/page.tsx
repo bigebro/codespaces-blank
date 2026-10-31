@@ -2646,7 +2646,7 @@ function Home() {
                     <div className="relative z-10 flex items-center justify-center">
                       <div className="absolute inset-0 bg-zinc-800 rounded-full " />
                       {/* Арай томруулсан цагираг: h-10 w-10 */}
-                      <div className="h-10 w-10 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
+                      <div className="h-10 w-10 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin " />
                     </div>
                   </div>
 

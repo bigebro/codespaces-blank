@@ -160,9 +160,9 @@ export async function runCfoAgent(
             await new Promise((r) => setTimeout(r, 15));
           }
         }
-        controller.close();
-        await recordChatMessage(context.clientId, "owner", userMessage);
-        await recordChatMessage(context.clientId, "ai", finalAnswerText);
+      await recordChatMessage(context.clientId, "owner", userMessage);
+      await recordChatMessage(context.clientId, "ai", finalAnswerText);
+      controller.close();
       } catch (err) {
         controller.error(err);
       }

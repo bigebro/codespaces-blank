@@ -1767,14 +1767,14 @@ export default function ImportTab({
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:border-zinc-700"
             />
 
-            {/* ☑️ ДАВХАРДЛААС ХАМГААЛАХ OVERWRITE CHECKBOX */}
+            {/* ДАВХАРДЛААС ХАМГААЛАХ OVERWRITE CHECKBOX */}
             {existingSales.length > 0 && (
-              <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-800 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={overwriteSales}
                   onChange={(e) => setOverwriteSales(e.target.checked)}
-                  className="rounded border-zinc-700 accent-amber-500"
+                  className="rounded border-zinc-700 accent-white"
                 />
                 <span>
                   Энэ хугацааны ({startDate} - {endDate}){" "}
@@ -1869,7 +1869,7 @@ export default function ImportTab({
 
             {/* OVERWRITE CHECKBOX */}
             {existingPurchases.length > 0 && (
-              <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-800 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={overwritePurchases}
@@ -1988,12 +1988,12 @@ export default function ImportTab({
             />
 
             {/* OVERWRITE CHECKBOX */}
-            <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-800 cursor-pointer">
               <input
                 type="checkbox"
                 checked={overwriteAudit}
                 onChange={(e) => setOverwriteAudit(e.target.checked)}
-                className="rounded border-zinc-700 accent-amber-500"
+                className="rounded border-zinc-700 accent-white"
               />
               <span>
                 Сонгосон огнооны ({auditDate}){" "}
@@ -2078,7 +2078,7 @@ export default function ImportTab({
 
             {/* OVERWRITE CHECKBOX */}
             {existingKitchenCount > 0 && (
-              <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-amber-500/20 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-zinc-300 bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-800 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={overwriteKitchen}
