@@ -39,6 +39,7 @@ import {
   Menu,
   ChevronDown,
   ChevronUp,
+  TerminalSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -2383,7 +2384,7 @@ function Home() {
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
-                    <Bot className="h-4 w-4" /> OP Ai
+                    <TerminalSquare className="h-4 w-4" /> OP Ai
                   </button>
                 </>
               )}
