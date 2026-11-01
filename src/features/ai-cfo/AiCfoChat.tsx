@@ -379,7 +379,7 @@ const fetchChatHistory = useCallback(async () => {
   };
 
   return (
-    <div className="w-full mx-auto bg-zinc-950 rounded-2xl border border-zinc-800/80 flex flex-col h-[85vh] shadow-2xl relative overflow-hidden font-sans">
+    <div className="w-full mx-auto bg-zinc-950 rounded-2xl border border-zinc-800/80 flex flex-col h-[87vh] shadow-2xl relative overflow-hidden font-sans">
         {showScrollButton && (
         <button
           onClick={() => scrollToBottom("smooth")}

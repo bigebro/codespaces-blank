@@ -2582,7 +2582,7 @@ function Home() {
           </div>
         </header>
         {/* SCROLLABLE BODY (Tab Contents go here) */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 relative w-full">
+      <main className={`flex-1 p-4  relative w-full ${activeTab === "ai_cfo" ? "overflow-hidden md:p-2" : "overflow-y-auto overflow-x-hidden md:p-8 "}`}>
           <div className="max-w-7xl mx-auto w-full max-w-full relative">
             {/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
             {tenantInfo?.isExpired && (
