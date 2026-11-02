@@ -20,72 +20,25 @@ export async function executeAiTool(
 ) {
   try {
     switch (toolName) {
-      // 1. Profitability
+      // 1. Profitability (Finance)
       case "skill_analyze_profitability": {
         const data = await getProfitabilityPackage(context.clientId, args.startDate, args.endDate);
         return { success: true, data };
       }
 
-      // 2. Pricing & Margins
+      // 2. Pricing & Margins (Finance)
       case "skill_evaluate_pricing_strategy": {
         const data = await getPricingStrategyPackage(context.clientId);
         return { success: true, data };
       }
 
-      // 3. Cashflow
+      // 3. Cashflow (Finance)
       case "skill_reconcile_cashflow": {
         const data = await getCashflowPackage(context.clientId, args.startDate, args.endDate);
         return { success: true, data };
       }
 
-      // 4. Fraud & Leakage
-      case "skill_detect_fraud_and_leakage": {
-        const data = await getFraudAndLeakagePackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 5. Staff Performance & Payroll
-      case "skill_analyze_staff_performance": {
-        const data = await getStaffPerformancePackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 6. Procurement & Stock Levels
-      case "skill_forecast_procurement": {
-        const data = await getProcurementForecastPackage(context.clientId);
-        return { success: true, data };
-      }
-
-      // 7. Shift Handovers
-      case "skill_review_shift_handovers": {
-        const data = await getShiftHandoversPackage(context.clientId, args.limit || 5);
-        return { success: true, data };
-      }
-
-      // 8. Vector Memory Search
-      case "skill_search_business_memory": {
-        const data = await searchBusinessMemory(context.clientId, args.query, args.matchCount || 5);
-        return { success: true, data };
-      }
-
-      // 9. Save Rule
-      case "action_save_business_rule": {
-        const data = await saveBusinessRule(context.clientId, args.topic, args.fact);
-        return { success: true, data };
-      }
-
-      // 10. Record Lesson
-      case "action_record_business_lesson": {
-        const data = await recordBusinessLesson(context.clientId, {
-          situation: args.situation,
-          actionTaken: args.actionTaken,
-          outcome: args.outcome,
-          lesson: args.lesson,
-        });
-        return { success: true, data };
-      }
-
-      // 11. Propose Price Change (HUMAN-IN-THE-LOOP)
+      // 4. Propose Price Change (Actuation / HITL)
       case "action_propose_price_change": {
         return {
           success: true,
@@ -104,7 +57,25 @@ export async function executeAiTool(
         };
       }
 
-      // 12. Create Staff Task (HUMAN-IN-THE-LOOP)
+      // 5. Leakage & Fraud (Operations)
+      case "skill_detect_fraud_and_leakage": {
+        const data = await getFraudAndLeakagePackage(context.clientId, args.startDate, args.endDate);
+        return { success: true, data };
+      }
+
+      // 6. Procurement & Stock (Operations)
+      case "skill_forecast_procurement": {
+        const data = await getProcurementForecastPackage(context.clientId);
+        return { success: true, data };
+      }
+
+      // 7. Shift Handovers (Operations)
+      case "skill_review_shift_handovers": {
+        const data = await getShiftHandoversPackage(context.clientId, args.limit || 5);
+        return { success: true, data };
+      }
+
+      // 8. Staff SOP Creation (Actuation / HITL)
       case "action_create_staff_task": {
         return {
           success: true,
@@ -122,11 +93,47 @@ export async function executeAiTool(
         };
       }
 
+      // 9. Staff Performance & Payroll (HR)
+      case "skill_analyze_staff_performance": {
+        const data = await getStaffPerformancePackage(context.clientId, args.startDate, args.endDate);
+        return { success: true, data };
+      }
+
+      // 10. Semantic Vector Memory Search (Shared)
+      case "skill_search_business_memory": {
+        const data = await searchBusinessMemory(context.clientId, args.query, args.matchCount || 5);
+        return { success: true, data };
+      }
+
+      // 11. Save Business Rule (Shared)
+      case "action_save_business_rule": {
+        const data = await saveBusinessRule(context.clientId, args.topic, args.fact);
+        return { success: true, data };
+      }
+
+      // 12. Record Business Lesson (Shared) with optional Evidence Log IDs
+      case "action_record_business_lesson": {
+        const evidenceLogIds = Array.isArray(args.evidenceLogIds)
+          ? args.evidenceLogIds.filter((id: unknown) => typeof id === "string" && id.trim().length > 0)
+          : [];
+
+        const data = await recordBusinessLesson(context.clientId, {
+          situation: args.situation,
+          actionTaken: args.actionTaken,
+          outcome: args.outcome,
+          lesson: args.lesson,
+          prediction: args.prediction,
+          confidence: args.confidence,
+          evidenceLogIds,
+        });
+        return { success: true, data };
+      }
+
       default:
-        return { success: false, error: `Tool ${toolName} not recognized.` };
+        return { success: false, error: `Tool '${toolName}' is not recognized in the switchboard.` };
     }
   } catch (err: any) {
-    console.error(`Tool Execution Error (${toolName}):`, err);
-    return { success: false, error: err.message || "Execution error" };
+    console.error(`[EXECUTION SWITCHBOARD ERROR] Tool '${toolName}':`, err);
+    return { success: false, error: err.message || "Internal execution error" };
   }
 }
