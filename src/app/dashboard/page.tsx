@@ -2158,7 +2158,11 @@ function Home() {
   const availableMonths = React.useMemo(() => {
     const monthsSet = new Set<string>();
 
-    // 1. Зөвхөн борлуулалт орсон саруудыг л авна
+     // 1. Одоогийн явж байгаа сарыг (11-р сар) ҮРГЭЛЖ заавал оруулна:
+    monthsSet.add(new Date().toISOString().substring(0, 7));
+
+
+    // 2. Зөвхөн борлуулалт орсон саруудыг л авна
     salesLogs
       .filter((s) => s.client_id === activeClient && s.date)
       .forEach((s) => monthsSet.add(s.date.substring(0, 7)));
