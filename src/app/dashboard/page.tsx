@@ -297,30 +297,28 @@ function Home() {
   const [initialBank, setInitialBank] = useState("0");
   const [taxMode, setTaxMode] = useState("auto");
 
-  // 3. Шинэ хөрөнгө, Тогтмол зардал нэмэх form state
-  const [newAssetName, setNewAssetName] = useState("");
-  const [newAssetCost, setNewAssetCost] = useState("");
-  const [newAssetMonths, setNewAssetMonths] = useState("60");
-  const [newAssetDate, setNewAssetDate] = useState(
-    () => new Date().toISOString().split("T")[0],
-  );
 
-  const [newOpexName, setNewOpexName] = useState("");
-  const [newOpexCost, setNewOpexCost] = useState("");
-  const [newOpexCategory, setNewOpexCategory] = useState("Байр, ашиглалт");
   const [userRole, setUserRole] = useState<string>("Ажилтан");
   const [isOwner, setIsOwner] = useState(false);
   const [shifts, setShifts] = useState<any[]>([]);
   const [activeClient, setActiveClient] = useState<string>("");
   const [tasks, setTasks] = useState<any[]>([]);
+// ⚡ 1. Сарыг динамикаар эхлүүлэх (Одоогийн сар)
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split("T")[0];
-  }); // Defaults to 1st of the month
-  const [endDate, setEndDate] = useState(
-    () => new Date().toISOString().split("T")[0],
-  ); // Defaults to today
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}-01`;
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const lastDay = new Date(y, m, 0).getDate(); // Тухайн сарын сүүлийн өдрийг автоматаар бодно (28, 30, 31)
+    return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  });
+
   const [workerSearchQuery, setWorkerSearchQuery] = useState("");
   // Database States
   const [ingredients, setIngredients] = useState<any[]>([]);
@@ -346,43 +344,18 @@ function Home() {
   const [isNonFood, setIsNonFood] = useState(false); // FIXED: Tracks if it is a non-food OPEX purchase
   const [nonFoodName, setNonFoodName] = useState(""); // FIXED: Stores non-food item name
 
-  const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false);
+
   const [logCost, setLogCost] = useState(""); // NEW: Holds the total purchase cost
   const [workersList, setWorkersList] = useState<any[]>([]);
   const [companyRoles, setCompanyRoles] = useState<any[]>([]);
 
-  const [ingredientsImportSuccess, setIngredientsImportSuccess] =
-    useState(false);
-
-  const [recipesImportSuccess, setRecipesImportSuccess] = useState(false);
-
-  const [productsImportSuccess, setProductsImportSuccess] = useState(false);
   const [myPin, setMyPin] = useState("");
-  const [invSearch, setInvSearch] = useState("");
-  const [invFilter, setInvFilter] = useState<"all" | "low" | "critical">("all");
-  const [activeSampleModal, setActiveSampleModal] = useState<string | null>(
-    null,
-  );
+
   const [showWasteGuideModal, setShowWasteGuideModal] = useState(false);
   // 1. Давхардлыг арилгаж, хуучныг цэвэрлэх 4 төлөв
   const [overwriteSales, setOverwriteSales] = useState(false);
-  const [overwritePurchases, setOverwritePurchases] = useState(false);
-  const [overwriteAudit, setOverwriteAudit] = useState(false);
-  const [overwriteKitchen, setOverwriteKitchen] = useState(false);
-  const [auditDate, setAuditDate] = useState("2026-09-01");
-  const [auditType, setAuditType] = useState<"start" | "end">("start");
 
-  // 🎯 Мастер Каталог: Checkbox олноор сонгох & Шинээр нэмэх State-үүд
-  const [selectedIngIds, setSelectedIngIds] = useState<string[]>([]);
-  const [selectedProdIds, setSelectedProdIds] = useState<string[]>([]);
-  const [selectedRecipeProducts, setSelectedRecipeProducts] = useState<
-    string[]
-  >([]);
-  // 🔍 Үнэ өссөн барааг хайх стэйт:
-  const [spikeSearch, setSpikeSearch] = useState("");
-  // 🚨 Үнийн өсөлтийг хумих/дэлгэх & Маржин хайх стэйтүүд:
-  const [isSpikesExpanded, setIsSpikesExpanded] = useState(false);
-  const [marginSearch, setMarginSearch] = useState("");
+
   // 🌐 ОРЧУУЛГЫН ХЯНАЛТЫН СТЭЙТҮҮД (Dashboard)
   const [translationsCache, setTranslationsCache] = useState<
     Record<string, string>
@@ -2156,10 +2129,12 @@ function Home() {
   // 💡 Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
 
   const availableMonths = React.useMemo(() => {
-    const monthsSet = new Set<string>();
+  const monthsSet = new Set<string>();
 
-     // 1. Одоогийн явж байгаа сарыг (11-р сар) ҮРГЭЛЖ заавал оруулна:
-    monthsSet.add(new Date().toISOString().substring(0, 7));
+    // Яг одоогийн сарыг ҮРГЭЛЖ оруулна (Борлуулалт ороогүй байсан ч сонгож болох ёстой):
+    const now = new Date();
+    const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    monthsSet.add(currentYm);
 
 
     // 2. Зөвхөн борлуулалт орсон саруудыг л авна
@@ -2167,6 +2142,11 @@ function Home() {
       .filter((s) => s.client_id === activeClient && s.date)
       .forEach((s) => monthsSet.add(s.date.substring(0, 7)));
 
+        // 3. Тооллого эсвэл зардал орсон саруудыг нэмэх:
+    (inventoryLogs || [])
+      .filter((l) => l.client_id === activeClient && l.date)
+      .forEach((l) => monthsSet.add(l.date.substring(0, 7)));
+      
     // Хэрэв огт борлуулалт ороогүй шинэ салбар бол одоогийн сарыг харуулна
     if (monthsSet.size === 0) {
       monthsSet.add(new Date().toISOString().substring(0, 7));
