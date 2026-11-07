@@ -1250,7 +1250,7 @@ const handleKioskBulkSave = async () => {
 
         // Хамгаалалт 1: Хасах тоог шууд хориглох
         if (qty < 0) {
-          alert(`❌ Алдаа: [${tName(ing.name)}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
+          alert(`Алдаа: [${tName(ing.name)}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
           setIsAiLoading(false);
           return;
         }
@@ -1258,7 +1258,7 @@ const handleKioskBulkSave = async () => {
         // Хамгаалалт 2: Грамм / Килограмм андуурах алдааг барих (Жишээ нь 2 кг-ийг 2 гр гэж бичвэл)
         if ((ing.unit === "гр" || ing.unit === "мл") && qty > 0 && qty < 10) {
           const confirmUnit = window.confirm(
-            `⚠️ САНУУЛГА: Та [${tName(ing.name)}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
+            `САНУУЛГА: Та [${tName(ing.name)}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
           );
           if (confirmUnit) {
             qty = qty * 1000;
@@ -1270,7 +1270,7 @@ const handleKioskBulkSave = async () => {
         const prevStock = parseFloat(ing.current_stock) || 0;
         if (prevStock > 0 && qty > (prevStock * 3) && (qty - prevStock) > 500) {
           const confirmVariance = window.confirm(
-            `🛑 АНХААР: [${tName(ing.name)}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
+            `АНХААР: [${tName(ing.name)}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
           );
           if (!confirmVariance) {
             setIsAiLoading(false);
@@ -1301,7 +1301,7 @@ const handleKioskBulkSave = async () => {
       });
 
       if (logsToInsert.length === 0) {
-        alert("⚠️ Та тоолох барааны тоо хэмжээг оруулна уу.");
+        alert("Та тоолох барааны тоо хэмжээг оруулна уу.");
         setIsAiLoading(false);
         return;
       }
@@ -1312,14 +1312,14 @@ const handleKioskBulkSave = async () => {
         .select("id");
       
       if (error) {
-        alert(`❌ Алдаа: ${error.message}`);
+        alert(`Алдаа: ${error.message}`);
       } else {
-        alert(`✅ Амжилттай! ${insertedData?.length || logsToInsert.length} барааны тооллого хадгалагдлаа.`);
+        alert(`Амжилттай! ${insertedData?.length || logsToInsert.length} барааны тооллого хадгалагдлаа.`);
         setKioskBulkStock({});
         await fetchKioskData(tenantClientId);
       }
     } catch (e: any) {
-      alert(`❌ Алдаа гарлаа: ${e.message}`);
+      alert(`Алдаа гарлаа: ${e.message}`);
     } finally {
       setIsAiLoading(false);
     }

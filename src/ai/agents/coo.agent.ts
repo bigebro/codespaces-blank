@@ -5,6 +5,7 @@ import { getConversationThread, recordChatMessage } from "@/ai/memory/thread.man
 import { getVitals } from "@/core/packages/pkg_vitals";
 import { extractAndSaveMemoryInBackground } from "@/ai/memory/chat_observer";
 import { AgentContext } from "@/types/agent.types";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
   if (!dateStr || typeof dateStr !== "string") return fallbackDate;
@@ -27,6 +28,33 @@ export async function runCooAgent(context: AgentContext, userMessage: string): P
 
   const vitals = await getVitals(context.clientId);
 
+   // ⚡ 1. Санах ойноос сүүлийн 8 дүрмийг .ilike-аар аюулгүй татах
+  const { data: rules } = await supabaseAdmin
+    .from("business_memory")
+    .select("topic, fact")
+    .ilike("client_id", context.clientId)
+    .order("updated_at", { ascending: false })
+    .limit(8);
+
+  const businessRulesText = rules && rules.length > 0 
+    ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" + 
+      rules.map(r => `- ${r.topic}: ${r.fact}`).join("\n") + 
+      "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
+    : "";
+
+    // ⚡ ШИНЭ: 7 хоногийн сүүлийн товч тайланг авах:
+  const { data: briefRow } = await supabaseAdmin
+    .from("business_memory")
+    .select("fact, updated_at")
+    .ilike("client_id", context.clientId)
+    .eq("topic", "WEEKLY_BRIEF")
+    .maybeSingle();
+
+  const weeklyBriefText = briefRow
+    ? `\n[LATEST 7-DAY OPERATIONAL BRIEF (${briefRow.updated_at.split("T")[0]})]:\n${briefRow.fact}\n`
+    : "";
+
+
   const cooSystemPrompt = `
 You are the Operlink AI Chief Operating Officer for "${context.clientId}". 
 [ABSOLUTE CONSTRAINT: NO EMOJIS]. You manage inventory waste, staff accountability, and operational efficiency. If you detect unlogged waste, suggest checking CCTV or confronting the shift worker. If a new SOP is needed, call action_create_staff_task. Answer in professional Mongolian.
@@ -36,6 +64,8 @@ You are the Operlink AI Chief Operating Officer for "${context.clientId}".
 - CURRENT YEAR: ${targetYear}
 - MTD LOGGED WASTE: ${vitals.totalLoggedWasteMNT.toLocaleString()} ₮
 - ACTIVE SHIFT: ${vitals.activeShiftStatus.isOpen ? `Open (${vitals.activeShiftStatus.workerRole || "Staff"})` : "Closed"}
+${businessRulesText}
+${weeklyBriefText}
 
 [FORENSIC LEAKAGE LOGIC]:
 1. Proportional multi-item depletion with 0 POS sales -> Flag as potential cash theft / un-rung sales (recommend CCTV audit).
@@ -120,7 +150,10 @@ You are the Operlink AI Chief Operating Officer for "${context.clientId}".
         await recordChatMessage(context.clientId, "ai", finalAnswerText);
         controller.close();
 
-        extractAndSaveMemoryInBackground(context.clientId, userMessage, finalAnswerText).catch(() => {});
+const maybeRule = /дүрэм|үүрэг|ирдэг|биш|буруу|үнэндээ|засах|зөв/i.test(userMessage);
+if (maybeRule) {
+  extractAndSaveMemoryInBackground(context.clientId, userMessage, finalAnswerText).catch(() => {});
+}
       } catch (err) {
         controller.error(err);
       }

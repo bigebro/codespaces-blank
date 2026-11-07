@@ -4,6 +4,7 @@ import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
 import { getAnalyticsData } from "../../../lib/analytics";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
+import { saveBusinessRule } from "@/ai/memory/memory.service";
 import { routeAiRequest } from "@/ai/agents/router.agent";
 import { AgentContext } from "@/types/agent.types";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
@@ -421,6 +422,21 @@ ${JSON.stringify(unmatched)}`;
         message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
       });
     }
+
+    // POST функц дотор бусад action (categorize, translate гэх мэт)-ийн хажууд нэмнэ:
+if (action === "save_correction") {
+  const { topic, fact } = body;
+  if (!fact || !fact.trim()) {
+    return NextResponse.json({ success: false, message: "Дүрэм хоосон байна." }, { status: 400 });
+  }
+
+  try {
+    const saved = await saveBusinessRule(clientId, topic || "Эзний залруулга", fact.trim());
+    return NextResponse.json({ success: true, rule: saved });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}
 
     let allowedNames: string[] = [];
     let ingredients: any[] | null = null;

@@ -4,6 +4,7 @@ import { executeAiTool } from "@/ai/tools/execution.tools";
 import { getConversationThread, recordChatMessage } from "@/ai/memory/thread.manager";
 import { extractAndSaveMemoryInBackground } from "@/ai/memory/chat_observer";
 import { AgentContext } from "@/types/agent.types";
+import { supabaseAdmin } from "@/lib/supabaseAdmin"; 
 
 function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
   if (!dateStr || typeof dateStr !== "string") return fallbackDate;
@@ -24,6 +25,20 @@ export async function runHrAgent(context: AgentContext, userMessage: string): Pr
     ? context.activeStartDate.split("-")[0]
     : String(now.getFullYear());
 
+  // ⚡ 1. Санах ойноос сүүлийн 8 дүрмийг .ilike-аар аюулгүй татах
+  const { data: rules } = await supabaseAdmin
+    .from("business_memory")
+    .select("topic, fact")
+    .ilike("client_id", context.clientId)
+    .order("updated_at", { ascending: false })
+    .limit(8);
+
+  const businessRulesText = rules && rules.length > 0 
+    ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" + 
+      rules.map(r => `- ${r.topic}: ${r.fact}`).join("\n") + 
+      "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
+    : "";
+
   const hrSystemPrompt = `
 You are the Operlink AI Human Resources & Payroll Specialist for "${context.clientId}". 
 [ABSOLUTE CONSTRAINT: NO EMOJIS]. You analyze staff shifts, payroll, net take-home pay, NDSH (11.5%), employer tax (12.5%), and evaluate worker incidents/damage reports. If a staff member needs training or accountability, call action_create_staff_task. Answer in professional Mongolian.
@@ -31,6 +46,7 @@ You are the Operlink AI Human Resources & Payroll Specialist for "${context.clie
 [CONTEXT]:
 - TODAY: ${currentIsoDate}
 - CURRENT YEAR: ${targetYear}
+${businessRulesText}
 `.trim();
 
   const model = genAI.getGenerativeModel({
@@ -108,8 +124,10 @@ You are the Operlink AI Human Resources & Payroll Specialist for "${context.clie
         await recordChatMessage(context.clientId, "owner", userMessage);
         await recordChatMessage(context.clientId, "ai", finalAnswerText);
         controller.close();
-
-        extractAndSaveMemoryInBackground(context.clientId, userMessage, finalAnswerText).catch(() => {});
+const maybeRule = /дүрэм|үүрэг|ирдэг|биш|буруу|үнэндээ|засах|зөв/i.test(userMessage);
+if (maybeRule) {
+  extractAndSaveMemoryInBackground(context.clientId, userMessage, finalAnswerText).catch(() => {});
+}
       } catch (err) {
         controller.error(err);
       }
