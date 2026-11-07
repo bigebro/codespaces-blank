@@ -1090,6 +1090,7 @@ function KioskPage() {
   const [activeShift, setActiveShift] = useState<any>(null);
   const [msg, setMsg] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
+
   // 🌐 ХОС ХЭЛНИЙ ТОХИРГОО (tenantClientId-ийн дараа байрлана)
   const [lang, setLang] = useState<"mn" | "en">("mn");
   const [translationsCache, setTranslationsCache] = useState<
@@ -1129,6 +1130,8 @@ function KioskPage() {
         });
     }
   }, [tenantClientId]);
+
+
 
   // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Толинд байхгүй бол AI-аар шууд орчуулж баазад цээжилнэ)
 
@@ -1214,11 +1217,11 @@ function KioskPage() {
   const [posZFile, setPosZFile] = useState<File | null>(null);
   // ⚡ ШИНЭ: Kiosk 2-Tap Горим & Numpad State-үүд
   const [kioskMode, setKioskMode] = useState<
-    "spoilage" | "staff_meal" | "testing" | "purchase"
+    "spoilage" | "staff_meal" | "testing" | "purchase"| "count"
   >("spoilage");
   const [quickItemModal, setQuickItemModal] = useState<any | null>(null);
   const [numpadTarget, setNumpadTarget] = useState<"qty" | "cost">("qty");
-
+  const [kioskBulkStock, setKioskBulkStock] = useState<Record<string, string>>({});
    // ⚡ 1. Заагч (Cursor)-ийг удирдах рефүүд:
   const qtyInputRef = useRef<HTMLInputElement>(null);
   const costInputRef = useRef<HTMLInputElement>(null);
@@ -1230,6 +1233,97 @@ function KioskPage() {
     }
   };
 
+
+
+const handleKioskBulkSave = async () => {
+    setIsAiLoading(true);
+
+    try {
+      // 1. ХАДГАЛАХААС ӨМНӨХ УХААЛАГ ШАЛГАЛТУУД (Грамм/Кг андуурах, илүү 0 дарахыг барих)
+      for (const id of Object.keys(kioskBulkStock)) {
+        let val = kioskBulkStock[id];
+        if (val === undefined || val.trim() === "") continue;
+
+        let qty = parseFloat(val);
+        const ing = ingredients.find((i) => i.id === id);
+        if (!ing) continue;
+
+        // Хамгаалалт 1: Хасах тоог шууд хориглох
+        if (qty < 0) {
+          alert(`❌ Алдаа: [${tName(ing.name)}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
+          setIsAiLoading(false);
+          return;
+        }
+
+        // Хамгаалалт 2: Грамм / Килограмм андуурах алдааг барих (Жишээ нь 2 кг-ийг 2 гр гэж бичвэл)
+        if ((ing.unit === "гр" || ing.unit === "мл") && qty > 0 && qty < 10) {
+          const confirmUnit = window.confirm(
+            `⚠️ САНУУЛГА: Та [${tName(ing.name)}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
+          );
+          if (confirmUnit) {
+            qty = qty * 1000;
+            kioskBulkStock[id] = qty.toString(); // Санах ойд автоматаар засаж хадгална
+          }
+        }
+
+        // Хамгаалалт 3: Хуруу андуурч хэт их тоо бичих (15 гэх гэж байгаад 1500 гээд дарчихвал)
+        const prevStock = parseFloat(ing.current_stock) || 0;
+        if (prevStock > 0 && qty > (prevStock * 3) && (qty - prevStock) > 500) {
+          const confirmVariance = window.confirm(
+            `🛑 АНХААР: [${tName(ing.name)}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
+          );
+          if (!confirmVariance) {
+            setIsAiLoading(false);
+            return;
+          }
+        }
+      }
+
+      // 2. БААЗ РУУ ХАДГАЛАХ (Таны баталсан ЦЭВЭРХЭН логик: Зөвхөн "kiosk_count")
+      const logsToInsert: any[] = [];
+      const currentDate = new Date().toISOString();
+      const currentWorkerName = activeShift?.character_role || selectedWorker?.full_name || "Ажилтан";
+
+      Object.keys(kioskBulkStock).forEach((id) => {
+        const val = kioskBulkStock[id];
+        if (val !== undefined && val.trim() !== "") {
+          logsToInsert.push({
+            client_id: tenantClientId,
+            ingredient_id: id,
+            quantity: parseFloat(val) || 0,
+            type: "count",
+            incident_type: "kiosk_count", // 👈 ЗӨВХӨН ЭНЭ Л БАЙНА, ӨӨР ИЛҮҮ ДУТУУ ТААМАГЛАЛ БАЙХГҮЙ
+            notes: `Kiosk Тооллого: ${val}`, 
+            date: currentDate,
+            worker_name: currentWorkerName,
+          });
+        }
+      });
+
+      if (logsToInsert.length === 0) {
+        alert("⚠️ Та тоолох барааны тоо хэмжээг оруулна уу.");
+        setIsAiLoading(false);
+        return;
+      }
+
+      const { data: insertedData, error } = await supabase
+        .from("inventory_logs")
+        .insert(logsToInsert)
+        .select("id");
+      
+      if (error) {
+        alert(`❌ Алдаа: ${error.message}`);
+      } else {
+        alert(`✅ Амжилттай! ${insertedData?.length || logsToInsert.length} барааны тооллого хадгалагдлаа.`);
+        setKioskBulkStock({});
+        await fetchKioskData(tenantClientId);
+      }
+    } catch (e: any) {
+      alert(`❌ Алдаа гарлаа: ${e.message}`);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
   // ⚡ Хуруу хүрэх тэр агшинд 0ms-д тоо оруулах
   const handleFastInsert = (digit: string) => {
     triggerHaptic(8);
@@ -1254,6 +1348,7 @@ function KioskPage() {
       setVal((prev) => prev + digit);
     }
   };
+
 
   // ⚡ 1 тоо устгах суурь функц
   const executeSingleDelete = () => {
@@ -1522,57 +1617,51 @@ function KioskPage() {
   };
 
 const initKioskContext = async () => {
-    setIsLoadingKiosk(true);
-    try {
-      const savedToken = localStorage.getItem("kiosk_device_token");
-      const savedClient = localStorage.getItem("kiosk_client_id");
+  setIsLoadingKiosk(true);
 
-      if (savedToken) {
-        // If offline, trust local storage to avoid kitchen downtime
-        if (!navigator.onLine && savedClient) {
-          setTenantClientId(savedClient);
-          setStep("select_worker");
-          await fetchKioskData(savedClient);
-          setIsLoadingKiosk(false);
-          return;
-        }
+  const savedToken = localStorage.getItem("kiosk_device_token");
+  const savedClient = localStorage.getItem("kiosk_client_id");
 
-        // Verify token with backend
-        try {
-          const res = await fetch("/api/kiosk/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ deviceToken: savedToken }),
-          });
-          const data = await res.json();
+  // 1. Цоо шинэ төхөөрөмж бол холболтын код нэхнэ:
+  if (!savedToken || !savedClient) {
+    setStep("pairing");
+    setIsLoadingKiosk(false);
+    return;
+  }
 
-          if (data.valid && data.clientId) {
-            localStorage.setItem("kiosk_client_id", data.clientId);
-            setTenantClientId(data.clientId);
-            await fetchKioskData(data.clientId);
-            setStep("select_worker"); // 👈 Transitions directly to workers!
-          } else {
-            // Revoked from dashboard!
-            localStorage.removeItem("kiosk_device_token");
-            localStorage.removeItem("kiosk_client_id");
-            setStep("pairing");
-          }
-        } catch (err) {
-          if (savedClient) {
-            setTenantClientId(savedClient);
-            await fetchKioskData(savedClient);
-            setStep("select_worker");
-          } else {
-            setStep("pairing");
-          }
-        }
-      } else {
+  // 2. Өмнө нь холбогдсон л бол ШУУД нэвтрүүлнэ (Сүлжээ тасарсан ч хэзээ ч код нэхэхгүй):
+  setTenantClientId(savedClient);
+  setStep("select_worker");
+
+  // 3. Цаана нь чимээгүйхэн шалгах (Background Verification):
+  try {
+    const res = await fetch("/api/kiosk/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceToken: savedToken }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      // ЗӨВХӨН админ Dashboard-аас тухайн таблетыг зориуд устгасан үед л салгана:
+      if (data.valid === false) {
+        localStorage.removeItem("kiosk_device_token");
+        localStorage.removeItem("kiosk_client_id");
         setStep("pairing");
+        return;
       }
-    } finally {
-      setIsLoadingKiosk(false);
     }
-  };
+
+    // Хэвийн үед датагаа татна:
+    await fetchKioskData(savedClient);
+  } catch (err) {
+    // Сүлжээ унасан, сервер гацсан ч түлхүүрийг ХЭЗЭЭ Ч УСТГАХГҮЙ, ажилласаар байна!
+    console.warn("Kiosk verify skipped due to network, using offline session.");
+    await fetchKioskData(savedClient);
+  } finally {
+    setIsLoadingKiosk(false);
+  }
+};
   const fetchKioskData = async (client: string) => {
     const target = client.trim();
 
@@ -1951,7 +2040,8 @@ const handleCloseShift = async () => {
         ingredient_id: item.id,
         quantity: parseFloat(itemCounts[item.id]) || 0,
         type: "count",
-        notes: "Ээлж хаалтын бодит тооллого (Kiosk)",
+        incident_type: "daily_cycle_count",
+        notes: `[CYCLE] Ээлж хаалтын цикл тооллого: ${item.name}`,
         worker_name:
           currentShift?.character_role || selectedWorker?.full_name,
         date: endTime,
@@ -1977,6 +2067,15 @@ const handleCloseShift = async () => {
         .from("inventory_logs")
         .insert(countLogsToInsert);
 
+     const closingChecklistSummary = itemsCounted.map((item) => ({
+        ingredient_id: item.id,
+        name: item.name,
+        quantity: parseFloat(itemCounts[item.id]) || 0,
+        unit: item.unit,
+        count_category: "daily_cycle_count",
+        counted_at: endTime,
+      }));
+
       const shiftPromise = currentShift
         ? supabase
             .from("shifts")
@@ -1984,6 +2083,7 @@ const handleCloseShift = async () => {
               is_active: false,
               end_time: endTime,
               pos_z_image_url: posZUrl,
+                 closing_checklist: closingChecklistSummary, 
             })
             .eq("id", currentShift.id)
         : Promise.resolve();
@@ -2598,7 +2698,23 @@ const handleCloseShift = async () => {
               </div>
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
-              <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">
+                
+                 {/* 5. ТОOЛОХ (Нэмэх) */}
+          <button
+            type="button"
+            onClick={() => setKioskMode("count")}
+            className={`py-2 sm:py-2.5 px-1 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
+              kioskMode === "count"
+                ? "bg-white text-zinc-950 font-black shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            <ListOrdered className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-xs font-bold leading-none">
+              {lang === "mn" ? "Тоолох" : "Count"}
+            </span>
+          </button>
                 {/* ХАЯГДАЛ */}
                 <button
                   type="button"
@@ -2799,7 +2915,45 @@ const handleCloseShift = async () => {
               </div>
             )}
 
-            {/*  А-CLASS БАРААНУУД БА ХАЙЛТ */}
+{kioskMode === "count" ? (
+  /* ⚡ ХУРДАН ТООЛЛОГЫН ХҮСНЭГТ (DASHBOARD ШИГ ШУУД ШИВЭХ) */
+  <div className="flex-1 min-h-0 flex flex-col bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden p-2">
+    <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+      <span className="text-xs font-bold text-zinc-400">Бодит тоогоо бичээд "Хадгалах" дарна уу:</span>
+      <button
+        type="button"
+        onClick={handleKioskBulkSave}
+        disabled={isAiLoading || Object.keys(kioskBulkStock).length === 0}
+        className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-1.5 rounded-xl text-xs transition shadow cursor-pointer disabled:opacity-40"
+      >
+        {isAiLoading ? "Хадгалж байна..." : "✓ Хадгалах"}
+      </button>
+    </div>
+
+    <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/60 pr-1">
+      {ingredients
+        .filter((ing) => !kioskSearch || tName(ing.name).toLowerCase().includes(kioskSearch.toLowerCase().trim()))
+        .map((ing) => (
+          <div key={ing.id} className="py-2 flex items-center justify-between gap-2">
+            <div>
+              <span className="font-bold text-sm text-white block">{tName(ing.name)}</span>
+              <span className="text-xs text-zinc-500 font-mono">Нэгж: {tUnit(ing.unit)}</span>
+            </div>
+            <input
+              type="number"
+              step="any"
+              placeholder="Тоо..."
+              value={kioskBulkStock[ing.id] ?? ""}
+              onChange={(e) => setKioskBulkStock({ ...kioskBulkStock, [ing.id]: e.target.value })}
+              className="w-24 bg-zinc-900 border border-zinc-700 focus:border-white rounded-xl py-1.5 px-2 text-right text-white font-mono font-black text-sm outline-none"
+            />
+          </div>
+        ))}
+    </div>
+  </div>
+) : (
+ <>
+   {/*  А-CLASS БАРААНУУД БА ХАЙЛТ */}
             <div className="flex-1 min-h-0 my-1 flex flex-col overflow-hidden">
               <div className="pb-1.5 shrink-0">
                 <input
@@ -2902,6 +3056,10 @@ const handleCloseShift = async () => {
                   ))}
               </div>
             </div>
+ </>
+)}
+
+          
 
             {/* 🔘 ДООД 3 ТОМ ТОВЧ: Даалгавар / Мөнгө гаргах / Ээлж хаах */}
             <div className="grid grid-cols-3 gap-1.5 pt-1.5 shrink-0 border-t border-zinc-800/80">
@@ -3580,105 +3738,123 @@ const handleCloseShift = async () => {
                         (!purchaseCost || parseFloat(purchaseCost) <= 0)) ||
                       isAiLoading
                     }
-                    onClick={() => {
-                      const costVal = parseFloat(purchaseCost) || 0;
+                 onClick={() => {
+  const costVal = parseFloat(purchaseCost) || 0;
 
-                      // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
-                      if (
-                        kioskMode === "purchase" &&
-                        costVal >= 10000 &&
-                        !noEbarimtFile
-                      ) {
-                        document.getElementById("single-pur-cam")?.click();
-                        return; // Зураг дартал хадгалахгүй түр хүлээнэ
-                      }
+  // 💡 1. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ! (Таны бичсэнээр хэвээрээ)
+  if (
+    kioskMode === "purchase" &&
+    costVal >= 10000 &&
+    !noEbarimtFile
+  ) {
+    document.getElementById("single-pur-cam")?.click();
+    return; // Зураг дартал хадгалахгүй түр хүлээнэ
+  }
 
-                      // ... (Цаашаа хуучин хадгалах ложик хэвээрээ үргэлжилнэ)
-                      const qtyNum = parseFloat(quickQty);
-                      const finalQty =
-                        kioskMode === "purchase"
-                          ? Math.abs(qtyNum)
-                          : -Math.abs(qtyNum);
-                      const itemToSave = quickItemModal;
-                      const fileToUpload = noEbarimtFile;
-                      const payMethod = purchasePayMethod;
+  const qtyNum = parseFloat(quickQty);
+  
+  // ⚡ 2. Тооллого болон Орлого бол заавал ЭЕРЭГ (+), хаягдал бол ХАСАХ (-):
+  const finalQty =
+    kioskMode === "purchase" || kioskMode === "count"
+      ? Math.abs(qtyNum)
+      : -Math.abs(qtyNum);
 
-                      setQuickItemModal(null);
-                      setQuickQty("");
-                      setPurchaseCost("");
-                      setNoEbarimtFile(null);
+  const itemToSave = quickItemModal;
+  const fileToUpload = noEbarimtFile;
+  const payMethod = purchasePayMethod;
 
-                      const modeLabel =
-                        kioskMode === "spoilage"
-                          ? "Хаягдал"
-                          : kioskMode === "staff_meal"
-                            ? "Хоол"
-                            : kioskMode === "testing"
-                              ? "Туршилт"
-                              : "Орлого";
+  setQuickItemModal(null);
+  setQuickQty("");
+  setPurchaseCost("");
+  setNoEbarimtFile(null);
 
-                      (async () => {
-                        try {
-                          let uploadedUrl = null;
-                          if (kioskMode === "purchase" && fileToUpload) {
-                            uploadedUrl = await uploadEvidencePhoto(
-                              fileToUpload,
-                              "purchases_proofs",
-                            );
-                          }
+  // 🏷️ 3. Бүх 5 горимын нэршил (Таны бичсэнээр хэвээрээ):
+  const modeLabel =
+    kioskMode === "spoilage"
+      ? "Хаягдал"
+      : kioskMode === "staff_meal"
+        ? "Хоол"
+        : kioskMode === "testing"
+          ? "Туршилт"
+          : kioskMode === "count"
+            ? "Тооллого"
+            : "Орлого";
 
-                          const { data: newLog, error } = await supabase
-                            .from("inventory_logs")
-                            .insert([
-                              {
-                                client_id: tenantClientId,
-                                ingredient_id: itemToSave.id,
-                                quantity: finalQty,
-                                total_cost: costVal,
-                                type: kioskMode,
-                                payment_method:
-                                  kioskMode === "purchase" ? payMethod : "bank",
-                                image_url: uploadedUrl,
-                                is_ebarimt: false,
-                                notes: `Kiosk 2-Tap (${kioskMode})`,
-                                worker_name:
-                                  activeShift?.character_role ||
-                                  selectedWorker?.full_name,
-                                date: new Date().toISOString(),
-                              },
-                            ])
-                            .select()
-                            .single();
+  (async () => {
+    try {
+      let uploadedUrl = null;
+      if (kioskMode === "purchase" && fileToUpload) {
+        uploadedUrl = await uploadEvidencePhoto(
+          fileToUpload,
+          "purchases_proofs",
+        );
+      }
 
-                          // ⚡ 100мл Apple syrup-ийн нэгжийн үнийг (13₮) баазад шууд шинэчлэх:
-                          if (
-                            kioskMode === "purchase" &&
-                            costVal > 0 &&
-                            qtyNum > 0
-                          ) {
-                            const latestUnitPrice = Math.round(
-                              costVal / qtyNum,
-                            ); // 1300₮ / 100мл = 13₮
-                            await supabase
-                              .from("ingredients")
-                              .update({ unit_price: latestUnitPrice })
-                              .eq("id", itemToSave.id);
-                          }
+      // 4. Бааз руу хадгалах бичилт:
+      const { data: newLog, error } = await supabase
+        .from("inventory_logs")
+        .insert([
+          {
+            client_id: tenantClientId,
+            ingredient_id: itemToSave.id,
+            quantity: finalQty,
+            total_cost: costVal,  
+            type: kioskMode,
+            payment_method:
+              kioskMode === "purchase" ? payMethod : "bank",
+            image_url: uploadedUrl,
+            is_ebarimt: false,
+            incident_type: kioskMode === "count" ? "kiosk_count" : null,
+            notes: kioskMode === "count" 
+              ? `Kiosk Тооллого: ${itemToSave.name}` 
+              : `Kiosk 2-Tap (${kioskMode})`,
+            worker_name:
+              activeShift?.character_role ||
+              selectedWorker?.full_name ||
+              "Ажилтан",
+            date: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
 
-                          if (!error && newLog) {
-                            setRecentToast({
-                              id: newLog.id,
-                              text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel})`,
-                            });
-                            fetchKioskData(tenantClientId);
-                          }
-                        } catch (err) {
-                          console.error("Background save failed:", err);
-                        }
-                      })();
-                    }}
+      // ⚠️ АЛДАА ГАРВАЛ ЧИМЭЭГҮЙ НУУХГҮЙ, ДЭЛГЭЦЭНД ШУУД ХАРУУЛНА:
+      if (error) {
+        alert(`❌ Kiosk хадгалах алдаа: ${error.message}`);
+        return;
+      }
+
+      // ⚡ 5. Татан авалт хийхэд нэгжийн үнийг баазад шууд шинэчлэх (Таны бичсэнээр хэвээрээ):
+      if (
+        kioskMode === "purchase" &&
+        costVal > 0 &&
+        qtyNum > 0
+      ) {
+        const latestUnitPrice = Math.round(
+          costVal / qtyNum,
+        );
+        await supabase
+          .from("ingredients")
+          .update({ unit_price: latestUnitPrice })
+          .eq("id", itemToSave.id);
+      }
+
+      // 6. Амжилттай болсныг дэлгэц дээр харуулах:
+      if (newLog) {
+        setRecentToast({
+          id: newLog.id,
+          text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel})`,
+        });
+        fetchKioskData(tenantClientId);
+      }
+    } catch (err: any) {
+      alert(`❌ Серверийн алдаа: ${err.message || err}`);
+      console.error("Background save failed:", err);
+    }
+  })();
+}}
                     className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
-                  >
+                       >
                     {isAiLoading
                       ? "Хадгалж байна..."
                       : kioskMode === "purchase" &&

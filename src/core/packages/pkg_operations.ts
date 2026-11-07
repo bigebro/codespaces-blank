@@ -82,12 +82,87 @@ export async function getStaffPerformancePackage(
 }
 
 export async function getShiftHandoversPackage(clientId: string, limit = 10) {
+  // 1. Fetch recent shifts
   const { data: shifts } = await supabaseAdmin
     .from("shifts")
-    .select("id, character_role, start_time, end_time, is_active, pos_z_image_url, start_notes, closing_variance_score, daily_tasks_checklist")
+    .select("id, character_role, start_time, end_time, is_active, pos_z_image_url, start_notes, closing_variance_score, daily_tasks_checklist, closing_checklist")
     .ilike("client_id", clientId)
     .order("start_time", { ascending: false })
     .limit(limit);
 
-  return shifts || [];
+  if (!shifts || shifts.length === 0) return [];
+
+  // 2. Fetch inventory counts for this client
+  const { data: countLogs } = await supabaseAdmin
+    .from("inventory_logs")
+    .select("id, date, ingredient_id, quantity, incident_type, notes, worker_name, ingredients(name, unit)")
+    .ilike("client_id", clientId)
+    .eq("type", "count")
+    .order("date", { ascending: false });
+
+  // 3. Map over shifts and correlate counts
+  const enrichedShifts = shifts.map((shift) => {
+    const shiftStart = new Date(shift.start_time).getTime();
+    const shiftEnd = shift.end_time
+      ? new Date(shift.end_time).getTime()
+      : Date.now();
+
+    // Correlate inventory_logs within shift timeframe + 1 hour buffer
+    const logsInShift = (countLogs || [])
+      .filter((log: any) => {
+        const logTime = new Date(log.date).getTime();
+        return (
+          logTime >= shiftStart - 15 * 60 * 1000 &&
+          logTime <= shiftEnd + 60 * 60 * 1000
+        );
+      })
+      .map((log: any) => ({
+        ingredient_id: log.ingredient_id,
+        name: log.ingredients?.name || log.notes || "Тодорхойгүй бараа",
+        quantity: Math.abs(parseFloat(log.quantity) || 0),
+        unit: log.ingredients?.unit || "ш",
+        count_category: log.incident_type || "random_count",
+        counted_at: log.date,
+      }));
+
+    // Parse existing closing_checklist from shift record
+    let savedChecklist = shift.closing_checklist;
+    if (typeof savedChecklist === "string") {
+      try {
+        savedChecklist = JSON.parse(savedChecklist);
+      } catch (e) {
+        savedChecklist = [];
+      }
+    }
+
+    const cycleItems = (Array.isArray(savedChecklist) ? savedChecklist : []).map(
+      (item: any) => ({
+        ...item,
+        count_category: "daily_cycle_count",
+      })
+    );
+
+    // Merge cycle counts and other counts while avoiding duplicates
+    const countedIds = new Set(cycleItems.map((c: any) => c.ingredient_id).filter(Boolean));
+    const nonDuplicateLogs = logsInShift.filter(
+      (log: any) => !countedIds.has(log.ingredient_id)
+    );
+
+    const mergedCounts = [...cycleItems, ...nonDuplicateLogs];
+
+    return {
+      id: shift.id,
+      worker: shift.character_role || "Ажилтан",
+      start_time: shift.start_time,
+      end_time: shift.end_time || "Идэвхтэй (Хаагдаагүй)",
+      is_active: shift.is_active,
+      pos_z_image_url: shift.pos_z_image_url,
+      start_notes: shift.start_notes,
+      sop_tasks_done: shift.daily_tasks_checklist,
+      inventory_counts: mergedCounts,
+      total_items_counted: mergedCounts.length,
+    };
+  });
+
+  return enrichedShifts;
 }

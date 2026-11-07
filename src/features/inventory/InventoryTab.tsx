@@ -57,21 +57,58 @@ export default function InventoryTab({
       .update({ [column]: finalVal })
       .eq("id", id);
   };
-
-  //GRID ТООЛЛОГО БӨӨНӨӨР ХАДГАЛАХ
+// GRID ТООЛЛОГО БӨӨНӨӨР ХАДГАЛАХ
   const handleBulkSave = async () => {
+    // 1. ХАДГАЛАХААС ӨМНӨХ УХААЛАГ ШАЛГАЛТУУД (SMART GUARDRAILS)
+    for (const id of Object.keys(bulkStock)) {
+      let val = bulkStock[id];
+      if (val === undefined || val.trim() === "") continue;
+
+      let qty = parseFloat(val);
+      const ing = ingredients.find((i) => i.id === id);
+      if (!ing) continue;
+
+      // 🛡️ ХАМГААЛАЛТ 1: Хасах тоог шууд хориглох
+      if (qty < 0) {
+        alert(`❌ Алдаа: [${ing.name}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
+        return; // Үйлдлийг бүрэн зогсоож, setIsSavingBulk-ийг дуудахгүй
+      }
+
+      // 🛡️ ХАМГААЛАЛТ 2: Грамм / Килограмм андуурах алдааг барих
+      if ((ing.unit === "гр" || ing.unit === "мл") && qty > 0 && qty < 10) {
+        const confirmUnit = window.confirm(
+          `⚠️ САНУУЛГА: Та [${ing.name}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
+        );
+        if (confirmUnit) {
+          qty = qty * 1000;
+          bulkStock[id] = qty.toString(); // Санах ойд автоматаар засаж өгнө
+        }
+      }
+
+      // 🛡️ ХАМГААЛАЛТ 3: Хуруу андуурч хэт их тоо бичих (15 гэх гээд 1500 дарвал)
+      const prevStock = parseFloat(ing.current_stock) || 0;
+      if (prevStock > 0 && qty > (prevStock * 3) && (qty - prevStock) > 500) {
+        const confirmVariance = window.confirm(
+          `🛑 АНХААР: [${ing.name}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
+        );
+        if (!confirmVariance) {
+          return; // Үйлдлийг зогсооно
+        }
+      }
+    }
+
+    // 2. ШАЛГАЛТУУДЫГ ДАВСАН БОЛ БААЗ РУУ ХАДГАЛАХ
     setIsSavingBulk(true);
     try {
       const logsToInsert: any[] = [];
       const currentDate = new Date().toISOString();
 
       Object.keys(bulkStock).forEach((id) => {
-        const stockVal = parseFloat(bulkStock[id]) || 0;
-        const originalIng = ingredients.find((i) => i.id === id);
-
-        if (originalIng && parseFloat(originalIng.current_stock) !== stockVal) {
+        const val = bulkStock[id];
+        if (val !== undefined && val.trim() !== "") {
+          const stockVal = parseFloat(val) || 0;
           logsToInsert.push({
-            client_id: activeClient, //
+            client_id: activeClient,
             ingredient_id: id,
             quantity: stockVal,
             type: "count",
@@ -82,17 +119,27 @@ export default function InventoryTab({
         }
       });
 
-      if (logsToInsert.length > 0) {
-        const { error: logError } = await supabase
-          .from("inventory_logs")
-          .insert(logsToInsert);
-        if (logError) throw logError;
+      if (logsToInsert.length === 0) {
+        alert("⚠️ Анхааруулга: Та нэг ч бараан дээр тоо бичээгүй байна.");
+        setIsSavingBulk(false);
+        return;
       }
 
-      alert("Бүх үлдэгдлүүд амжилттай хадгалагдлаа!");
+      const { data: insertedRows, error: logError } = await supabase
+        .from("inventory_logs")
+        .insert(logsToInsert)
+        .select("id");
+
+      if (logError) {
+        throw logError;
+      }
+
+      alert(`✅ Амжилттай! Нийт ${insertedRows?.length || logsToInsert.length} барааны тооллого бааз руу хадгалагдлаа.`);
+      
+      setBulkStock({});
       await fetchDatabaseData(activeClient);
     } catch (e: any) {
-      alert(`Алдаа гарлаа: ${e.message}`);
+      alert(`❌ Алдаа гарлаа: ${e.message}`);
     } finally {
       setIsSavingBulk(false);
     }

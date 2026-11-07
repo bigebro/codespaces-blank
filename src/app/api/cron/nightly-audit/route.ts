@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     // 🏢 2. Бүх идэвхтэй салбаруудыг татах
     const { data: tenants, error: tenantErr } = await supabaseAdmin
-      .from("tenants")
+      .from("tenants")  
       .select("client_id")
       .eq("status", "active");
 
