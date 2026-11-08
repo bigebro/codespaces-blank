@@ -98,10 +98,62 @@ export async function getProfitabilityPackage(
     taxMode: settings?.tax_mode || "auto",
   });
 
+
+  // ⚡ ШИНЭ: 1. E-Barimt-ийн харьцааг бодох (purchases_summary)
+  let ebarimtPurchases = 0;
+  let noEbarimtPurchases = 0;
+  (inventoryLogs || []).forEach((l) => {
+    if (l.type === 'purchase') {
+      const cost = Math.abs(Number(l.total_cost) || 0);
+      if (l.is_ebarimt) ebarimtPurchases += cost;
+      else noEbarimtPurchases += cost;
+    }
+  });
+
+   // ⚡ ШИНЭ: 2. Аль цэс хамгийн сайн зарагдсаныг бодох (menu_performance)
+  const menuSalesMap: Record<string, { qty: number, revenue: number }> = {};
+  (sales || []).forEach((s) => {
+    const name = s.product_name;
+    if (!menuSalesMap[name]) menuSalesMap[name] = { qty: 0, revenue: 0 };
+    menuSalesMap[name].qty += Number(s.quantity_sold) || 0;
+    menuSalesMap[name].revenue += Number(s.total_revenue) || 0;
+  });
+  
+  const menu_performance = Object.keys(menuSalesMap).map(name => ({
+    product_name: name,
+    quantity_sold: menuSalesMap[name].qty,
+    total_revenue: menuSalesMap[name].revenue
+  })).sort((a, b) => b.quantity_sold - a.quantity_sold);
+
   return {
     period: { start, end },
     pnl,
     fixedOpexList: fixedOpex || [],
+       purchases_summary: {
+      with_ebarimt: ebarimtPurchases,
+      without_ebarimt: noEbarimtPurchases,
+      total: ebarimtPurchases + noEbarimtPurchases
+    },
+    menu_performance: menu_performance,
+    // 1. Бүх түүхий эдийн нэгж үнэ болон үлдэгдлийг AI-д харуулах:
+    ingredientPrices: (ingredients || []).map((i) => ({
+      name: i.name,
+      unit: i.unit,
+      unit_price_mnt: Number(i.unit_price) || 0,
+      current_stock: Number(i.current_stock) || 0,
+    })),
+    
+    // 2. Бүх жорын орцын задаргаа болон өртгийг AI-д харуулах:
+    recipeDetails: (recipes || []).map((r) => {
+      const ing = ingMap.get(r.ingredient_id);
+      return {
+        product: r.product_name,
+        ingredient: ing?.name || "Тодорхойгүй",
+        amount: Number(r.amount) || 0,
+        unit: ing?.unit || "гр/мл",
+        cost: (Number(r.amount) || 0) * (Number(ing?.unit_price) || 0),
+      };
+    }),
   };
 }
 
