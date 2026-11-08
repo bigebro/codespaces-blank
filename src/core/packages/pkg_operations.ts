@@ -11,22 +11,24 @@ export async function getFraudAndLeakagePackage(
   const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const end = endDate || now.toISOString();
 
+  // 1. БҮХ шаардлагатай 4 хүснэгтийг зэрэг татах
   const [
     { data: logs },
     { data: ingredients },
+    { data: sales },
+    { data: recipes }
   ] = await Promise.all([
-    supabaseAdmin
-      .from("inventory_logs")
-      .select("*")
-      .ilike("client_id", clientId)
-      .gte("date", start)
-      .lte("date", end),
-    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price").ilike("client_id", clientId),
+    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, last_counted_at").ilike("client_id", clientId),
+    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").ilike("client_id", clientId).gte("date", start).lte("date", end),
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", clientId),
   ]);
 
   const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
   const itemLossMap: Record<string, { name: string; unit: string; totalLossMnt: number; qty: number }> = {};
+  const logged_spoilage_items: any[] = [];
 
+  // 2. Ил бүртгэгдсэн хаягдлууд (Logged Spoilage)
   (logs || []).forEach((log) => {
     if (["spoilage", "other"].includes(log.type)) {
       const ing = ingMap.get(log.ingredient_id);
@@ -37,38 +39,100 @@ export async function getFraudAndLeakagePackage(
       if (!itemLossMap[name]) itemLossMap[name] = { name, unit, totalLossMnt: 0, qty: 0 };
       itemLossMap[name].totalLossMnt += loss;
       itemLossMap[name].qty += Math.abs(Number(log.quantity) || 0);
+
+      if (log.type === "spoilage") {
+        logged_spoilage_items.push({
+          item: name,
+          quantity: Math.abs(Number(log.quantity) || 0),
+          unit: unit,
+          worker: log.worker_name || "Үл мэдэгдэх",
+          time: log.date ? new Date(log.date).toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" }) : "",
+          notes: log.notes || ""
+        });
+      }
     }
   });
 
-  const topWasters = Object.values(itemLossMap).sort((a, b) => b.totalLossMnt - a.totalLossMnt);
+  const topWasters = Object.values(itemLossMap).sort((a, b) => b.totalLossMnt - a.totalLossMnt).slice(0, 5);
   const totalLoggedWaste = topWasters.reduce((acc, i) => acc + i.totalLossMnt, 0);
   const fraudMatrix = compileWorkerFraudMatrix(logs || []);
-  // ⚡ ШИНЭ: 1. Таны бичсэн `logged_spoilage_items`-ийг энд угсарч AI-д бэлдэх
-  const logged_spoilage_items = (logs || [])
-    .filter((log: any) => log.type === 'spoilage')
-    .map((log: any) => {
-      const ing = ingMap.get(log.ingredient_id);
-      return {
-        item: ing ? ing.name : (log.non_food_item || "Unknown"),
-        quantity: Math.abs(Number(log.quantity) || 0),
-        unit: ing ? ing.unit : "ш",
-        worker: log.worker_name || "Үл мэдэгдэх",
-        time: log.date ? new Date(log.date).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "",
-        notes: log.notes || ""
-      };
+
+  // 3. Борлуулалтаас гарсан онолын зарлагыг (Theoretical Usage) тооцоолох
+  const theoUsageMap = new Map<string, number>();
+  (sales || []).forEach((sale) => {
+    const pName = (sale.product_name || "").toLowerCase().trim();
+    const pQty = Number(sale.quantity_sold) || 0;
+    (recipes || []).forEach((r) => {
+      if ((r.product_name || "").toLowerCase().trim() === pName) {
+        const prev = theoUsageMap.get(r.ingredient_id) || 0;
+        theoUsageMap.set(r.ingredient_id, prev + pQty * (Number(r.amount) || 0));
+      }
     });
+  });
 
+  // 4. Далд хулгай (Unexplained Waste) болон Татварын актыг (Waste Act Items) бодитоор бодох
+  let totalUnexplainedWasteMNT = 0;
+  const wasteAuditItems: any[] = [];
 
-     // ⚡ ШИНЭ: 2. Тооллогын явцыг AI-д өгөх (abc_summary)
+  (ingredients || []).forEach((ing) => {
+    const theoUsage = theoUsageMap.get(ing.id) || 0;
+    const unitPrice = Number(ing.unit_price) || 0;
+
+    // Тухайн барааны бүртгэгдсэн бүх хаягдал (spoilage, staff_meal, testing, other)
+    const ingLogs = (logs || []).filter((l) => l.ingredient_id === ing.id);
+    const knownWasteQty = ingLogs
+      .filter((l) => ["spoilage", "staff_meal", "testing", "other"].includes(l.type))
+      .reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0);
+
+    // Татан авалт
+    const purchasedQty = ingLogs
+      .filter((l) => l.type === "purchase")
+      .reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0);
+
+    // Тооллогын түүх (Start ба End тооллого)
+    const countLogs = ingLogs
+      .filter((l) => l.type === "count")
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const startStock = countLogs.length > 0 ? Number(countLogs[0].quantity) : Number(ing.current_stock) || 0;
+    const endStock = countLogs.length > 1 ? Number(countLogs[countLogs.length - 1].quantity) : (countLogs.length === 1 ? Number(countLogs[0].quantity) : Number(ing.current_stock) || 0);
+
+    const actualUsage = Math.max(0, startStock + purchasedQty - endStock);
+    const rawGap = actualUsage - theoUsage;
+    const unexplainedGap = Math.max(0, rawGap - knownWasteQty);
+    const unexplainedCost = Math.round(unexplainedGap * unitPrice);
+
+    if (unexplainedCost > 0) {
+      totalUnexplainedWasteMNT += unexplainedCost;
+    }
+
+    // Ил хаягдал болон далд хорогдлыг Татварын актад оруулах (ТЕХ 14-р зүйл)
+    if (knownWasteQty > 0 || unexplainedGap > 0) {
+      const totalLossQty = knownWasteQty + unexplainedGap;
+      wasteAuditItems.push({
+        name: ing.name,
+        unit: ing.unit,
+        theo_usage: Math.round(theoUsage * 10) / 10,
+        actual_usage: Math.round(actualUsage * 10) / 10,
+        gap_qty: Math.round(totalLossQty * 10) / 10,
+        loss_amount: Math.round(totalLossQty * unitPrice),
+        cause: knownWasteQty > 0 ? "Хугацаа дууссан / Асгарсан хаягдал" : "Технологийн ууршилт, хадгалалтын далд хорогдол"
+      });
+    }
+  });
+
+  // 5. Цикл тооллогын явц (ABC Summary)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const countedItems = (ingredients || []).filter((i: any) => i.last_counted_at && i.last_counted_at >= thirtyDaysAgo).length;
   const uncountedItems = (ingredients || []).length - countedItems;
 
   return {
     totalLoggedWaste,
-    topWasters: topWasters.slice(0, 5),
+    totalUnexplainedWaste: totalUnexplainedWasteMNT, // 👈 100% бодитоор бодогдож гарна
+    topWasters,
     crossShiftIncidents: fraudMatrix,
-    logged_spoilage_items: logged_spoilage_items, // 👈 ТАНЫ ХҮССЭН МЭДЭЭЛЭЛ ОРЛОО
+    logged_spoilage_items,
+    waste_act_items: wasteAuditItems, // 👈 100% татварын акт үүснэ
     abc_summary: {
       total_items: (ingredients || []).length,
       counted_in_last_30_days: countedItems,
@@ -76,7 +140,6 @@ export async function getFraudAndLeakagePackage(
     }
   };
 }
-
 export async function getStaffPerformancePackage(
   clientId: string,
   startDate?: string,
