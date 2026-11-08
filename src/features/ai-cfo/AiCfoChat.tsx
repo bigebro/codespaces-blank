@@ -44,11 +44,8 @@ export default function AiCfoChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 const isScrolledUpRef = useRef(false); 
-  const [showScrollButton, setShowScrollButton] = useState(false); // 👈 Доошлуулах товчийг харуулах эсэх
-const [correctingMsgIndex, setCorrectingMsgIndex] = useState<number | null>(null);
-const [correctionTopic, setCorrectionTopic] = useState("");
-const [correctionFact, setCorrectionFact] = useState("");
-const [isSavingCorrection, setIsSavingCorrection] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false); 
+
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     isScrolledUpRef.current = false;
@@ -238,41 +235,7 @@ const fetchChatHistory = useCallback(async () => {
     }
   };
 
-  const handleSaveCorrection = async () => {
-  if (!correctionFact.trim()) return;
-  setIsSavingCorrection(true);
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || "";
 
-    const res = await fetch("/api/kiosk-ai", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        action: "save_correction",
-        topic: correctionTopic || "Эзний дүрэм",
-        fact: correctionFact.trim(),
-      }),
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      alert("Шинэ дүрэм амжилттай хадгалагдлаа! AI дараагийн асуултад энэ дүрмийг шууд дагана.");
-      setCorrectingMsgIndex(null);
-      setCorrectionTopic("");
-      setCorrectionFact("");
-    } else {
-      alert(`Алдаа: ${data.message}`);
-    }
-  } catch (err: any) {
-    alert(`Сүлжээний алдаа: ${err.message}`);
-  } finally {
-    setIsSavingCorrection(false);
-  }
-};
 
   const renderMessageContent = (fullText: string, messageIndex: number) => {
     // 🛡️ Final safeguard: Double check the full text has no emojis before rendering
@@ -534,60 +497,7 @@ const fetchChatHistory = useCallback(async () => {
                     <span>{(msg.timeTakenMs / 1000).toFixed(2)}s ажилласан</span>
                   </div>
                 )}
-                {/* AI мессежийн цагийн доор байрлана: */}
-<div className="pl-4 pt-1 flex items-center gap-2">
-  <button
-    type="button"
-    onClick={() => {
-      setCorrectingMsgIndex(correctingMsgIndex === i ? null : i);
-      setCorrectionTopic("Үйл ажиллагаа");
-      setCorrectionFact("");
-    }}
-    className="text-[11px] text-zinc-500 hover:text-zinc-300 font-bold transition flex items-center gap-1 cursor-pointer"
-  >
-    <span>Буруу байна уу? (Засвар / Дүрэм хадгалах)</span>
-  </button>
-</div>
-
-{/* Залруулга бичих хөнгөн форм */}
-{correctingMsgIndex === i && (
-  <div className="ml-4 mt-2 p-3 bg-zinc-900 border border-zinc-700 rounded-xl space-y-2 max-w-lg">
-    <p className="text-xs font-bold text-white">Cануулах үнэн зөв дүрмийг оруулна уу:</p>
-    <div className="flex gap-2">
-      <input
-        type="text"
-        placeholder="Сэдэв (жнь: Сүү)"
-        value={correctionTopic}
-        onChange={(e) => setCorrectionTopic(e.target.value)}
-        className="w-1/3 bg-zinc-950 border border-zinc-700 px-2.5 py-1.5 rounded-lg text-xs text-white outline-none"
-      />
-      <input
-        type="text"
-        placeholder="Бодит үнэн"
-        value={correctionFact}
-        onChange={(e) => setCorrectionFact(e.target.value)}
-        className="flex-1 bg-zinc-950 border border-zinc-700 px-2.5 py-1.5 rounded-lg text-xs text-white outline-none"
-      />
-    </div>
-    <div className="flex justify-end gap-2 pt-1">
-      <button
-        type="button"
-        onClick={() => setCorrectingMsgIndex(null)}
-        className="px-2.5 py-1 bg-zinc-800 text-zinc-400 rounded-lg text-xs font-bold cursor-pointer"
-      >
-        Болих
-      </button>
-      <button
-        type="button"
-        disabled={isSavingCorrection || !correctionFact.trim()}
-        onClick={handleSaveCorrection}
-        className="px-3 py-1 bg-white hover:bg-zinc-200 text-zinc-950 rounded-lg text-xs font-black transition cursor-pointer"
-      >
-        {isSavingCorrection ? "Хадгалж байна..." : "✓ Дүрэм болгох"}
-      </button>
-    </div>
-  </div>
-)}
+      
               </div>
             )}
           </div>

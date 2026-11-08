@@ -6,6 +6,7 @@ import { getVitals } from "@/core/packages/pkg_vitals";
 import { extractAndSaveMemoryInBackground } from "@/ai/memory/chat_observer";
 import { AgentContext } from "@/types/agent.types";
 import { supabaseAdmin } from "@/lib/supabaseAdmin"; 
+import { runWeeklyBrief } from "@/core/packages/pkg_weekly_brief";
 function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
   if (!dateStr || typeof dateStr !== "string") return fallbackDate;
   const match = dateStr.match(/^(\d{4})(-\d{2}-\d{2}.*)$/);
@@ -27,11 +28,11 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
 
   const vitals = await getVitals(context.clientId);
 
-  // ⚡ 1. Санах ойноос сүүлийн 8 дүрмийг .ilike-аар аюулгүй татах
+    // 1. Дүрмүүдийг аюулгүй татах:
   const { data: rules } = await supabaseAdmin
     .from("business_memory")
     .select("topic, fact")
-    .ilike("client_id", context.clientId)
+    .ilike("client_id", context.clientId.trim())
     .order("updated_at", { ascending: false })
     .limit(8);
 
@@ -41,17 +42,35 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
     : "";
 
-    // ⚡ ШИНЭ: 7 хоногийн сүүлийн товч тайланг авах:
-  const { data: briefRow } = await supabaseAdmin
-    .from("business_memory")
-    .select("fact, updated_at")
-    .ilike("client_id", context.clientId)
-    .eq("topic", "WEEKLY_BRIEF")
-    .maybeSingle();
+  // 2. 7 хоногийн тайланг татах (try/catch хамгаалалттай тул хэзээ ч чатыг гацааж унагахгүй):
+  let briefBody = "";
+  try {
+    const { data: latestBrief } = await supabaseAdmin
+      .from("weekly_briefs")
+      .select("body, created_at")
+      .ilike("client_id", context.clientId.trim())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      const weeklyBriefText = briefRow
-    ? `\n[LATEST 7-DAY OPERATIONAL BRIEF (${briefRow.updated_at.split("T")[0]})]:\n${briefRow.fact}\n`
+    const isStale = !latestBrief || (Date.now() - new Date(latestBrief.created_at).getTime() > 7 * 24 * 60 * 60 * 1000);
+    briefBody = isStale ? await runWeeklyBrief(context.clientId.trim()) : (latestBrief?.body || "");
+  } catch (err) {
+    console.warn("[WEEKLY BRIEF] skip:", err);
+  }
+
+
+ 
+  const weeklyBriefPromptText = briefBody
+    ? `\n[LAST SAVED WEEK BRIEF (Note: Saved operational snapshot, NOT live numbers)]:\n${briefBody}\n`
     : "";
+
+
+
+
+
+
+    
 
 
   const cfoSystemPrompt = `
@@ -65,8 +84,10 @@ You are the Operlink AI Chief Financial Officer for "${context.clientId}".
 [FINANCIAL VITALS]:
 - MTD Revenue: ${vitals.monthToDateRevenue.toLocaleString()} ₮
 - Est. Net Profit: ${vitals.estimatedNetProfit.toLocaleString()} ₮ (WARNING: Rough 15% margin guess, NOT actual audited profit)
-- Opening balances (NOT live till): Cash: ${vitals.currentCashBalance.toLocaleString()} ₮ | Bank: ${vitals.currentBankBalance.toLocaleString()} ₮
-${weeklyBriefText}
+- Opening balances (NOT live till): Cash: ${vitals.currentCashBalance.toLocaleString()} ₮ | Bank:
+${vitals.currentCashBalance.toLocaleString()} ₮ | Bank: 
+${vitals.currentBankBalance.toLocaleString()} ₮
+${weeklyBriefPromptText}
 ${businessRulesText}
 `.trim();
 

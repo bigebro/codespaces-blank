@@ -50,16 +50,56 @@ export async function searchBusinessMemory(
 }
 
 export async function saveBusinessRule(clientId: string, topic: string, fact: string) {
+   const cleanTopic = topic.trim();
+  const cleanFact = fact.trim();
   const fullContent = `${topic}: ${fact}`;
   const embedding = await createEmbedding(fullContent, TaskType.RETRIEVAL_DOCUMENT);
 
+ // ⚡ maybeSingle-ийг болиулж .limit(1) ашиглана (Алдаа зааж гацахгүй):
+  const { data: existingRows } = await supabaseAdmin
+    .from("business_memory")
+    .select("id")
+    .ilike("client_id", clientId.trim())
+    .ilike("topic", cleanTopic)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
+
+
+
+if (existing) {
+    const { data, error } = await supabaseAdmin
+      .from("business_memory")
+      .update({
+        fact: cleanFact,
+        embedding,
+        embedding_model: "text-embedding-004",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    // Хэрэв хуучин давхардсан мөрүүд байвал арын хогийг цэвэрлэх:
+    await supabaseAdmin
+      .from("business_memory")
+      .delete()
+      .ilike("client_id", clientId.trim())
+      .ilike("topic", cleanTopic)
+      .neq("id", existing.id);
+
+    return { id: data.id, topic: cleanTopic, fact: cleanFact, action: "updated" };
+  }
   const { data, error } = await supabaseAdmin
     .from("business_memory")
     .insert([
       {
-        client_id: clientId,
-        topic: topic.trim(),
-        fact: fact.trim(),
+        client_id: clientId.trim(),
+        topic: cleanTopic,
+        fact: cleanFact,
         embedding,
         embedding_model: "text-embedding-004",
         updated_at: new Date().toISOString(),
@@ -69,7 +109,7 @@ export async function saveBusinessRule(clientId: string, topic: string, fact: st
     .single();
 
   if (error) throw error;
-  return { id: data.id, topic, fact };
+  return { id: data.id, topic: cleanTopic, fact: cleanFact, action: "inserted" };
 }
 
 export interface BusinessLessonInput {

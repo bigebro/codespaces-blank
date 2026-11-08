@@ -423,20 +423,6 @@ ${JSON.stringify(unmatched)}`;
       });
     }
 
-    // POST функц дотор бусад action (categorize, translate гэх мэт)-ийн хажууд нэмнэ:
-if (action === "save_correction") {
-  const { topic, fact } = body;
-  if (!fact || !fact.trim()) {
-    return NextResponse.json({ success: false, message: "Дүрэм хоосон байна." }, { status: 400 });
-  }
-
-  try {
-    const saved = await saveBusinessRule(clientId, topic || "Эзний залруулга", fact.trim());
-    return NextResponse.json({ success: true, rule: saved });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
-  }
-}
 
     let allowedNames: string[] = [];
     let ingredients: any[] | null = null;

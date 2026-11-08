@@ -1,4 +1,5 @@
-// src/ai/memory/chat_observer.ts
+// src/ai/memory/chat_observer.ts файлыг бүхэлд нь үүгээр солино:
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { saveBusinessRule, recordBusinessLesson } from "./memory.service";
 
@@ -16,23 +17,18 @@ const OBSERVER_PROMPT = `
 You are a passive Memory Observer for a restaurant operating system.
 Analyze the latest interaction between the Owner and the AI.
 
-Did the user state a permanent operational fact/rule? Or did they resolve an operational incident/lesson learned from real experience?
-
-Return ONLY a valid JSON object matching this schema:
+RULES:
+1. If the user indicates a previous statement was wrong or provides a correction (e.g., uses words like "буруу", "биш", "үнэндээ", "засах"), extract the corrected standalone truth as "RULE" ONLY if the user explicitly provided the new fact. 
+2. If the user only said "буруу" or complained without providing the corrected fact, return {"type": "NONE"}. NEVER INVENT OR GUESS THE FACT.
+3. If no persistent rule or lesson is present, return {"type": "NONE"}.
+4. Return STRICTLY a JSON object matching this schema:
 {
   "type": "NONE" | "RULE" | "LESSON",
-  "topic": "<category/topic if RULE, e.g. 'Татан авалт', 'Бүртгэл'>",
-  "fact": "<Clear standalone fact/rule in Mongolian if RULE>",
-  "situation": "<Context of the incident if LESSON>",
-  "actionTaken": "<Action taken or decided if LESSON>",
-  "outcome": "<Result or outcome if LESSON>",
-  "lessonLearned": "<Permanent business rule/lesson in Mongolian if LESSON>"
+  "topic": "<short category e.g. 'Сүү', 'Татан авалт', 'Цагийн хуваарь'>",
+  "fact": "<Clear, verified standalone rule in Mongolian>",
+  "situation": "<Context if LESSON>",
+  "lessonLearned": "<Permanent lesson in Mongolian if LESSON>"
 }
-
-Rules:
-- If no persistent knowledge is present, return { "type": "NONE" }.
-- Do not invent facts not explicitly stated or confirmed by the user.
-- Text must be in clean, professional Mongolian.
 `.trim();
 
 export async function extractAndSaveMemoryInBackground(
@@ -42,6 +38,8 @@ export async function extractAndSaveMemoryInBackground(
 ): Promise<void> {
   const apiKey = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
   if (!apiKey || !userMessage.trim()) return;
+
+  const isCorrectionKeyword = /буруу|биш|үнэндээ|засах/i.test(userMessage);
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -59,24 +57,31 @@ export async function extractAndSaveMemoryInBackground(
       contents: [{ role: "user", parts: [{ text: promptPayload }] }],
     });
 
-    const raw = result.response.text().trim();
-    const parsed = JSON.parse(raw) as ObserverExtractionResponse;
+// chat_observer.ts доторх parsed авсны дараах хэсэг:
+    const parsed = JSON.parse(result.response.text().trim()) as ObserverExtractionResponse;
+
+   //  Хэрэв хэрэглэгч засвар хэлсэн бөгөөд дүрэм нь тодорхой байвал AI 'NONE' гэж буцаасан ч заавал хадгална:
+    if (isCorrectionKeyword) {
+      if (userMessage.trim().length < 12) return; //  12 тэмдэгтээс богино "Буруу" гэсэн үгийг хадгалахгүй!
+      if (!parsed.topic || !parsed.fact || parsed.fact.trim().length < 4) return;
+      await saveBusinessRule(clientId, parsed.topic, parsed.fact);
+      return;
+    }
 
     if (parsed.type === "RULE" && parsed.topic && parsed.fact) {
-      console.log(`[CHAT OBSERVER] Captured RULE for ${clientId}: [${parsed.topic}] ${parsed.fact}`);
       await saveBusinessRule(clientId, parsed.topic, parsed.fact);
     } else if (parsed.type === "LESSON" && parsed.situation && parsed.lessonLearned) {
-      console.log(`[CHAT OBSERVER] Captured LESSON for ${clientId}: ${parsed.situation} -> ${parsed.lessonLearned}`);
       await recordBusinessLesson(clientId, {
         situation: parsed.situation,
         actionTaken: parsed.actionTaken || undefined,
         outcome: parsed.outcome || undefined,
         lesson: parsed.lessonLearned,
-        evidenceLogIds: [], // Conversational memory starts with zero attached physical log IDs
+        evidenceLogIds: [],
       });
     }
+
+  
   } catch (err) {
-    // Non-blocking: background memory operations must never interrupt or throw to user threads
     console.warn("[CHAT OBSERVER] Silent background extraction skip:", err);
   }
 }
