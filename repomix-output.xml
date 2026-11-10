@@ -918,64 +918,6 @@ export const KIOSK_SYSTEM_PROMPT = `
 `;
 </file>
 
-<file path="src/ai/tools/domains/finance.tools.ts">
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
-
-export const financeDefs: FunctionDeclaration[] = [
-  {
-    name: "skill_analyze_profitability",
-    description:
-      "TRIGGER THIS WHEN the user asks about: 'цэвэр ашиг' (net profit), 'орлого' (revenue), 'P&L', 'COGS', 'татвар' (tax), 'зардлын бүтэц', 'recipes' or overall business health. Returns the complete financial ladder and recipes.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        startDate: { type: SchemaType.STRING, description: "Start date in YYYY-MM-DD" },
-        endDate: { type: SchemaType.STRING, description: "End date in YYYY-MM-DD" },
-      },
-      required: ["startDate", "endDate"],
-    },
-  },
-  {
-    name: "skill_evaluate_pricing_strategy",
-    description:
-      "TRIGGER THIS WHEN the user asks about: 'маржин' (margins), 'үнэ нэмэх' (price hikes), 'өртөг өссөн' (cost increases), or menu item profitability. Evaluates recipe cost-per-cup vs selling price and margin gaps.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {},
-    },
-  },
-  {
-    name: "skill_reconcile_cashflow",
-    description:
-      "TRIGGER THIS WHEN the user asks about: 'бэлэн мөнгө' (cash), 'касс' (cash drawer), 'данс' (bank balance), 'таталт' (owner draws), or physical cash outflow/inflow reconciliation.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        startDate: { type: SchemaType.STRING, description: "Start date in YYYY-MM-DD" },
-        endDate: { type: SchemaType.STRING, description: "End date in YYYY-MM-DD" },
-      },
-      required: ["startDate", "endDate"],
-    },
-  },
-  {
-    name: "action_propose_price_change",
-    description:
-      "CALL THIS to propose updating a product's menu selling price. Generates an interactive approval proposal card for the owner.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        productName: { type: SchemaType.STRING, description: "Exact menu product name" },
-        currentPrice: { type: SchemaType.NUMBER, description: "Current price in MNT" },
-        proposedPrice: { type: SchemaType.NUMBER, description: "Recommended new price in MNT" },
-        reason: { type: SchemaType.STRING, description: "Forensic/financial reasoning for the change" },
-        marginImpact: { type: SchemaType.STRING, description: "e.g. 'Margin increases from 55% to 78%'" },
-      },
-      required: ["productName", "proposedPrice", "reason"],
-    },
-  },
-];
-</file>
-
 <file path="src/ai/tools/domains/hr.tools.ts">
 import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
 
@@ -1087,61 +1029,6 @@ export const memoryDefs: FunctionDeclaration[] = [
         },
       },
       required: ["situation", "lesson"],
-    },
-  },
-];
-</file>
-
-<file path="src/ai/tools/domains/operations.tools.ts">
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
-
-export const operationsDefs: FunctionDeclaration[] = [
-  {
-    name: "skill_detect_fraud_and_leakage",
-    description:
-      "TRIGGER THIS WHEN the user asks about: 'хаягдал' (waste/spoilage), 'хэн юу асгасан' (spills by worker), 'хулгай' (theft), 'зөрүү' (discrepancies). Audits inventory variances and unlogged losses.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        startDate: { type: SchemaType.STRING, description: "Start date in YYYY-MM-DD" },
-        endDate: { type: SchemaType.STRING, description: "End date in YYYY-MM-DD" },
-      },
-      required: ["startDate", "endDate"],
-    },
-  },
-  {
-    name: "skill_forecast_procurement",
-    description:
-      "TRIGGER THIS WHEN the user asks about: 'юу захиалах' (what to order), 'нөөц дуусч байгаа' (low stock), 'PAR түвшин', or procurement forecasting based on 30-day velocity.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {},
-    },
-  },
-  {
-    name: "skill_review_shift_handovers",
-    description:
-      "TRIGGER THIS WHEN the user asks about: 'ээлж' (shifts), 'Z-тайлан' (Z-reports), 'ээлж хүлээлцэлт', or shift checklist completions.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        limit: { type: SchemaType.INTEGER, description: "Number of recent shifts to inspect (default 5)" },
-      },
-    },
-  },
-  {
-    name: "action_create_staff_task",
-    description:
-      "CALL THIS to propose creating a mandatory operational SOP task for restaurant staff. Generates an approval card for the owner.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        role: { type: SchemaType.STRING, description: "Target role (e.g. 'Бариста', 'Тогооч', 'Бүх ажилтан')" },
-        taskName: { type: SchemaType.STRING, description: "Concise task description" },
-        weight: { type: SchemaType.INTEGER, description: "Priority weight points (1-50)" },
-        reason: { type: SchemaType.STRING, description: "Operational reasoning based on audit findings" },
-      },
-      required: ["role", "taskName", "reason"],
     },
   },
 ];
@@ -6471,88 +6358,6 @@ if (maybeRule) {
 }
 </file>
 
-<file path="src/ai/agents/router.agent.ts">
-// src/ai/agents/router.agent.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { AgentContext } from "@/types/agent.types";
-import { runCfoAgent } from "./cfo.agent";
-import { runCooAgent } from "./coo.agent";
-import { runHrAgent } from "./hr.agent";
-
-interface RouterDecision {
-  route: "CFO" | "COO" | "HR" | "GENERAL";
-}
-
-const ROUTER_PROMPT = `
-You are the Operlink AI Intent Router for a restaurant system.
-Classify the user's message into EXACTLY one of four specialist categories:
-
-1. 'CFO': Questions about revenue, P&L, profit (цэвэр ашиг), margins, cash/bank balance, pricing, or taxes.
-2. 'COO': Questions about waste (хаягдал), missing items (зөрүү), inventory stock, current stock (бодит үлдэгдэл/одоо байгаа үлдэгдэл), procurement orders (захиалга), shifts, or general SOP tasks.
-3. 'HR': Questions about staff hours (ажилласан цаг), payroll (цалин), NDSH (НДШ), worker incidents/damage reports against employees.
-4. 'GENERAL': Greetings, small talk, or ambiguous general business queries.
-
-Return STRICTLY a JSON object:
-{ "route": "CFO" | "COO" | "HR" | "GENERAL" }
-`.trim();
-
-async function classifyIntent(userText: string): Promise<"CFO" | "COO" | "HR" | "GENERAL"> {
-  const apiKey = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
-  if (!apiKey) return "CFO";
-
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3.5-flash-lite",
-      systemInstruction: ROUTER_PROMPT,
-      generationConfig: {
-        temperature: 0.0,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const res = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: userText }] }],
-    });
-
-    const parsed = JSON.parse(res.response.text().trim()) as RouterDecision;
-    if (["CFO", "COO", "HR", "GENERAL"].includes(parsed.route)) {
-      return parsed.route;
-    }
-    return "CFO";
-  } catch (err) {
-    console.warn("Intent router fallback to CFO:", err);
-    return "CFO";
-  }
-}
-
-export async function routeAiRequest(
-  context: AgentContext,
-  payload: { text: string }
-): Promise<ReadableStream> {
-  // 1. Ажилтан Kiosk дээрээс ярьж/бичиж байвал fast parser ажиллана
-  if (context.userRole !== "owner") {
-    throw new Error("Worker Kiosk routing handled by fast transaction parser");
-  }
-
-  // 2. Эзэн асуусан бол хурдан AI-аар асуултыг ангилна (0.15s)
-  const route = await classifyIntent(payload.text);
-  console.log(`[ROUTER] Intent classified as: '${route}' for prompt: "${payload.text}"`);
-
-  // 3. Тохирох тусгай Агент руу шилжүүлнэ
-  switch (route) {
-    case "COO":
-      return await runCooAgent(context, payload.text);
-    case "HR":
-      return await runHrAgent(context, payload.text);
-    case "CFO":
-    case "GENERAL":
-    default:
-      return await runCfoAgent(context, payload.text);
-  }
-}
-</file>
-
 <file path="src/ai/memory/chat_observer.ts">
 // src/ai/memory/chat_observer.ts файлыг бүхэлд нь үүгээр солино:
 
@@ -6694,6 +6499,138 @@ If a price hike or a new staff SOP task is needed, CALL the 'action_propose_pric
 Never expose raw JSON keys (like "top_wasters", "actual_cogs") to the user. Translate everything into readable metrics.
 `;
 }
+</file>
+
+<file path="src/ai/tools/domains/finance.tools.ts">
+import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+
+export const financeDefs: FunctionDeclaration[] = [
+  {
+    name: "skill_analyze_profitability",
+    description:
+      "TRIGGER THIS WHEN the user asks about: 'цэвэр ашиг' (net profit), 'орлого' (revenue), 'P&L', 'COGS', 'татвар' (tax), 'зардлын бүтэц', 'recipes' or overall business health. Returns the complete financial ladder and recipes.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        startDate: { type: SchemaType.STRING, description: "Start date in YYYY-MM-DD" },
+        endDate: { type: SchemaType.STRING, description: "End date in YYYY-MM-DD" },
+      },
+      required: ["startDate", "endDate"],
+    },
+  },
+  {
+    name: "skill_evaluate_pricing_strategy",
+    description:
+      "TRIGGER THIS WHEN the user asks about: 'маржин' (margins), 'үнэ нэмэх' (price hikes), 'өртөг өссөн' (cost increases), or menu item profitability. Evaluates recipe cost-per-cup vs selling price and margin gaps.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {},
+    },
+  },
+  {
+    name: "skill_reconcile_cashflow",
+    description:
+      "TRIGGER THIS WHEN the user asks about: 'бэлэн мөнгө' (cash), 'касс' (cash drawer), 'данс' (bank balance), 'таталт' (owner draws), or physical cash outflow/inflow reconciliation.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        startDate: { type: SchemaType.STRING, description: "Start date in YYYY-MM-DD" },
+        endDate: { type: SchemaType.STRING, description: "End date in YYYY-MM-DD" },
+      },
+      required: ["startDate", "endDate"],
+    },
+  },
+  {
+    name: "action_propose_price_change",
+    description:
+      "CALL THIS to propose updating a product's menu selling price. Generates an interactive approval proposal card for the owner.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        productName: { type: SchemaType.STRING, description: "Exact menu product name" },
+        currentPrice: { type: SchemaType.NUMBER, description: "Current price in MNT" },
+        proposedPrice: { type: SchemaType.NUMBER, description: "Recommended new price in MNT" },
+        reason: { type: SchemaType.STRING, description: "Forensic/financial reasoning for the change" },
+        marginImpact: { type: SchemaType.STRING, description: "e.g. 'Margin increases from 55% to 78%'" },
+      },
+      required: ["productName", "proposedPrice", "reason"],
+    },
+  },
+];
+</file>
+
+<file path="src/ai/tools/domains/operations.tools.ts">
+import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+
+export const operationsDefs: FunctionDeclaration[] = [
+  {
+    name: "skill_detect_fraud_and_leakage",
+    description:
+      "TRIGGER THIS WHEN the user asks about: 'хаягдал' (waste/spoilage), 'хэн юу асгасан' (spills by worker), 'хулгай' (theft), 'зөрүү' (discrepancies). Audits inventory variances and unlogged losses.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        startDate: { type: SchemaType.STRING, description: "Start date in YYYY-MM-DD" },
+        endDate: { type: SchemaType.STRING, description: "End date in YYYY-MM-DD" },
+      },
+      required: ["startDate", "endDate"],
+    },
+  },
+  {
+    name: "skill_forecast_procurement",
+    description:
+      "TRIGGER THIS WHEN the user asks about: 'юу захиалах' (what to order), 'нөөц дуусч байгаа' (low stock), 'PAR түвшин', or procurement forecasting based on 30-day velocity.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {},
+    },
+  },
+  {
+    name: "skill_review_shift_handovers",
+    description:
+      "TRIGGER THIS WHEN the user asks about: 'ээлж' (shifts), 'Z-тайлан' (Z-reports), 'ээлж хүлээлцэлт', or shift checklist completions.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        limit: { type: SchemaType.INTEGER, description: "Number of recent shifts to inspect (default 5)" },
+      },
+    },
+  },
+  {
+    name: "action_create_staff_task",
+    description:
+      "CALL THIS to propose creating a mandatory operational SOP task for restaurant staff. Generates an approval card for the owner.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        role: { type: SchemaType.STRING, description: "Target role (e.g. 'Бариста', 'Тогооч', 'Бүх ажилтан')" },
+        taskName: { type: SchemaType.STRING, description: "Concise task description" },
+        weight: { type: SchemaType.INTEGER, description: "Priority weight points (1-50)" },
+        reason: { type: SchemaType.STRING, description: "Operational reasoning based on audit findings" },
+      },
+      required: ["role", "taskName", "reason"],
+    },
+  },
+{
+  name: "action_get_current_stock",
+  description:
+    "CALL THIS when you need to retrieve the current recorded stock quantities of ingredients for the authenticated business. Returns each ingredient's name, unit of measurement, and current_stock quantity. Use this action when answering questions about how much of an ingredient is currently available, remaining ingredient quantities, or which ingredients are running low. Always use the returned data when reporting stock quantities. Never guess or assume stock levels.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {},
+  },
+},
+
+{
+  name: "action_get_recipes",
+  description:
+    "CALL THIS when you need to retrieve the recorded recipes for the authenticated business. Returns each recipe's product name, ingredient ID, and ingredient amount. Use this action when answering questions about product recipes, which ingredients are used in a product, or how much of each ingredient is required. Always use the returned data when reporting recipe information. Never guess or assume recipe ingredients or quantities.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {},
+  },
+}
+];
 </file>
 
 <file path="src/app/api/analytics/route.ts">
@@ -6902,247 +6839,6 @@ function UpdatePasswordPage() {
 
 export default function Page() {
   return <UpdatePasswordPage />;
-}
-</file>
-
-<file path="src/core/packages/pkg_finance.ts">
-// src/core/packages/pkg_finance.ts
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { calculateDepreciation, calculatePnlLadder } from "@/core/synapses/pnl.synapse";
-import { reconcileCashflow } from "@/core/synapses/cashflow.synapse";
-
-export async function getProfitabilityPackage(
-  clientId: string,
-  startDate?: string,
-  endDate?: string
-) {
-  const now = new Date();
-  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const end = endDate || now.toISOString();
-
-  const [
-    { data: sales },
-    { data: ingredients },
-    { data: recipes },
-    { data: inventoryLogs },
-    { data: fixedOpex },
-    { data: fixedAssets },
-    { data: settings },
-  ] = await Promise.all([
-    supabaseAdmin
-      .from("sales_logs")
-      .select("total_revenue, quantity_sold, product_name, payment_method")
-      .ilike("client_id", clientId)
-      .gte("date", start)
-      .lte("date", end),
-    supabaseAdmin.from("ingredients").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("recipes").select("*").ilike("client_id", clientId),
-    supabaseAdmin
-      .from("inventory_logs")
-      .select("*")
-      .ilike("client_id", clientId)
-      .gte("date", start)
-      .lte("date", end),
-    supabaseAdmin
-      .from("fixed_opex")
-      .select("monthly_cost, category, name")
-      .ilike("client_id", clientId)
-      .eq("is_active", true),
-    supabaseAdmin.from("fixed_assets").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("client_settings").select("*").ilike("client_id", clientId).maybeSingle(),
-  ]);
-
-  const totalRevenue = (sales || []).reduce((acc, s) => acc + (Number(s.total_revenue) || 0), 0);
-  const fixedOpexTotal = (fixedOpex || []).reduce((acc, o) => acc + (Number(o.monthly_cost) || 0), 0);
-
-  // Theoretical recipe cost
-  let totalTheoCogs = 0;
-  const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
-  (sales || []).forEach((sale) => {
-    const matched = (recipes || []).filter(
-      (r) => r.product_name.toLowerCase().trim() === sale.product_name.toLowerCase().trim()
-    );
-    matched.forEach((r) => {
-      const ing = ingMap.get(r.ingredient_id);
-      totalTheoCogs += (sale.quantity_sold || 0) * (r.amount || 0) * (Number(ing?.unit_price) || 0);
-    });
-  });
-
-  let totalLoggedSpoilage = 0;
-  let totalLoggedTesting = 0;
-  let totalLoggedStaffMeal = 0;
-  let totalLoggedOther = 0;
-
-  (inventoryLogs || []).forEach((log) => {
-    const cost = Math.abs(Number(log.total_cost) || 0);
-    if (log.type === "spoilage") totalLoggedSpoilage += cost;
-    else if (log.type === "testing") totalLoggedTesting += cost;
-    else if (log.type === "staff_meal") totalLoggedStaffMeal += cost;
-    else if (log.type === "other") totalLoggedOther += cost;
-  });
-
-  const { totalMonthlyDepreciation } = calculateDepreciation(
-    (fixedAssets || []).map((fa) => ({
-      name: fa.name,
-      initial_cost: fa.initial_cost,
-      useful_months: fa.useful_months,
-      purchase_date: fa.purchase_date,
-    })),
-    new Date(end)
-  );
-
-  const rawActualCogs = totalTheoCogs + totalLoggedSpoilage;
-
-  const pnl = calculatePnlLadder({
-    totalRevenue,
-    rawActualCogs,
-    totalTheoCogs,
-    totalLoggedSpoilage,
-    totalLoggedTesting,
-    totalLoggedStaffMeal,
-    totalLoggedOther,
-    fixedOpexTotal,
-    depreciationTotal: totalMonthlyDepreciation,
-    taxMode: settings?.tax_mode || "auto",
-  });
-
-
-  // ⚡ ШИНЭ: 1. E-Barimt-ийн харьцааг бодох (purchases_summary)
-  let ebarimtPurchases = 0;
-  let noEbarimtPurchases = 0;
-  (inventoryLogs || []).forEach((l) => {
-    if (l.type === 'purchase') {
-      const cost = Math.abs(Number(l.total_cost) || 0);
-      if (l.is_ebarimt) ebarimtPurchases += cost;
-      else noEbarimtPurchases += cost;
-    }
-  });
-
-   // ⚡ ШИНЭ: 2. Аль цэс хамгийн сайн зарагдсаныг бодох (menu_performance)
-  const menuSalesMap: Record<string, { qty: number, revenue: number }> = {};
-  (sales || []).forEach((s) => {
-    const name = s.product_name;
-    if (!menuSalesMap[name]) menuSalesMap[name] = { qty: 0, revenue: 0 };
-    menuSalesMap[name].qty += Number(s.quantity_sold) || 0;
-    menuSalesMap[name].revenue += Number(s.total_revenue) || 0;
-  });
-  
-  const menu_performance = Object.keys(menuSalesMap).map(name => ({
-    product_name: name,
-    quantity_sold: menuSalesMap[name].qty,
-    total_revenue: menuSalesMap[name].revenue
-  })).sort((a, b) => b.quantity_sold - a.quantity_sold);
-
-  return {
-    period: { start, end },
-    pnl,
-    fixedOpexList: fixedOpex || [],
-       purchases_summary: {
-      with_ebarimt: ebarimtPurchases,
-      without_ebarimt: noEbarimtPurchases,
-      total: ebarimtPurchases + noEbarimtPurchases
-    },
-    menu_performance: menu_performance,
-    // 1. Бүх түүхий эдийн нэгж үнэ болон үлдэгдлийг AI-д харуулах:
-    ingredientPrices: (ingredients || []).map((i) => ({
-      name: i.name,
-      unit: i.unit,
-      unit_price_mnt: Number(i.unit_price) || 0,
-      current_stock: Number(i.current_stock) || 0,
-    })),
-    
-    // 2. Бүх жорын орцын задаргаа болон өртгийг AI-д харуулах:
-    recipeDetails: (recipes || []).map((r) => {
-      const ing = ingMap.get(r.ingredient_id);
-      return {
-        product: r.product_name,
-        ingredient: ing?.name || "Тодорхойгүй",
-        amount: Number(r.amount) || 0,
-        unit: ing?.unit || "гр/мл",
-        cost: (Number(r.amount) || 0) * (Number(ing?.unit_price) || 0),
-      };
-    }),
-  };
-}
-
-export async function getCashflowPackage(
-  clientId: string,
-  startDate?: string,
-  endDate?: string
-) {
-  const now = new Date();
-  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const end = endDate || now.toISOString();
-
-  const [
-    { data: sales },
-    { data: logs },
-    { data: settings },
-    { data: fixedAssets },
-    { data: fixedOpex },
-  ] = await Promise.all([
-    supabaseAdmin
-      .from("sales_logs")
-      .select("total_revenue, payment_method")
-      .ilike("client_id", clientId)
-      .gte("date", start)
-      .lte("date", end),
-    supabaseAdmin
-      .from("inventory_logs")
-      .select("*")
-      .ilike("client_id", clientId)
-      .gte("date", start)
-      .lte("date", end),
-    supabaseAdmin.from("client_settings").select("*").ilike("client_id", clientId).maybeSingle(),
-    supabaseAdmin.from("fixed_assets").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("fixed_opex").select("monthly_cost").ilike("client_id", clientId).eq("is_active", true),
-  ]);
-
-  let cashRevenue = 0;
-  let bankRevenue = 0;
-  (sales || []).forEach((s) => {
-    const rev = Number(s.total_revenue) || 0;
-    if (s.payment_method === "cash") cashRevenue += rev;
-    else bankRevenue += rev;
-  });
-
-  let purchasesCashPaid = 0;
-  let purchasesBankPaid = 0;
-  let ownerDraws = 0;
-
-  (logs || []).forEach((l) => {
-    const cost = Math.abs(Number(l.total_cost) || 0);
-    const note = (l.notes || "").toLowerCase();
-    if (note.includes("draw") || note.includes("эзний")) {
-      ownerDraws += cost;
-    } else if (l.type === "purchase") {
-      if (l.payment_method === "cash") purchasesCashPaid += cost;
-      else purchasesBankPaid += cost;
-    }
-  });
-
-  const fixedOpexTotal = (fixedOpex || []).reduce((acc, o) => acc + (Number(o.monthly_cost) || 0), 0);
-  const fixedAssetsPaidBank = (fixedAssets || []).reduce((acc, fa) => {
-    const pDate = new Date(fa.purchase_date || "");
-    if (pDate >= new Date(start) && pDate <= new Date(end)) {
-      return acc + (Number(fa.initial_cost) || 0);
-    }
-    return acc;
-  }, 0);
-
-  const cashflow = reconcileCashflow({
-    initialCash: Number(settings?.initial_cash) || 0,
-    initialBank: Number(settings?.initial_bank) || 0,
-    cashRevenue,
-    bankRevenue,
-    purchasesCashPaid,
-    purchasesBankPaid,
-    adjustedOpex: fixedOpexTotal,
-    ownerDraws,
-    fixedAssetsPaidBank,
-  });
-
-  return cashflow;
 }
 </file>
 
@@ -7381,6 +7077,91 @@ if (maybeRule) {
 }
 </file>
 
+<file path="src/ai/agents/router.agent.ts">
+// src/ai/agents/router.agent.ts
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AgentContext } from "@/types/agent.types";
+import { runCfoAgent } from "./cfo.agent";
+import { runCooAgent } from "./coo.agent";
+import { runHrAgent } from "./hr.agent";
+
+interface RouterDecision {
+  route: "CFO" | "COO" | "HR" | "GENERAL";
+}
+
+const ROUTER_PROMPT = `
+You are the Operlink AI Intent Router for a restaurant system.
+Classify the user's message into EXACTLY one of four specialist categories:
+
+1. 'CFO': Questions about revenue, P&L, profit (цэвэр ашиг), margins, cash/bank balance, pricing, or taxes.
+
+2. 'COO': Questions about waste (хаягдал), missing items (зөрүү), inventory stock, current stock (бодит үлдэгдэл/одоо байгаа үлдэгдэл), procurement orders (захиалга), recipes (хоолны жор), recipe ingredients and quantities, shifts, or general SOP tasks.
+
+3. 'HR': Questions about staff hours (ажилласан цаг), payroll (цалин), NDSH (НДШ), worker incidents/damage reports against employees.
+
+4. 'GENERAL': Greetings, small talk, or ambiguous general business queries.
+
+Return STRICTLY a JSON object:
+{ "route": "CFO" | "COO" | "HR" | "GENERAL" }
+`.trim();
+
+async function classifyIntent(userText: string): Promise<"CFO" | "COO" | "HR" | "GENERAL"> {
+  const apiKey = (process.env.GEMINI_API_KEY || "").replace(/["']/g, "").trim();
+  if (!apiKey) return "CFO";
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3.5-flash-lite",
+      systemInstruction: ROUTER_PROMPT,
+      generationConfig: {
+        temperature: 0.0,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const res = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: userText }] }],
+    });
+
+    const parsed = JSON.parse(res.response.text().trim()) as RouterDecision;
+    if (["CFO", "COO", "HR", "GENERAL"].includes(parsed.route)) {
+      return parsed.route;
+    }
+    return "CFO";
+  } catch (err) {
+    console.warn("Intent router fallback to CFO:", err);
+    return "CFO";
+  }
+}
+
+export async function routeAiRequest(
+  context: AgentContext,
+  payload: { text: string }
+): Promise<ReadableStream> {
+  // 1. Ажилтан Kiosk дээрээс ярьж/бичиж байвал fast parser ажиллана
+  if (context.userRole !== "owner") {
+    throw new Error("Worker Kiosk routing handled by fast transaction parser");
+  }
+
+  // 2. Эзэн асуусан бол хурдан AI-аар асуултыг ангилна (0.15s)
+  const route = await classifyIntent(payload.text);
+  console.log(`[ROUTER] Intent classified as: '${route}' for prompt: "${payload.text}"`);
+
+  // 3. Тохирох тусгай Агент руу шилжүүлнэ
+  switch (route) {
+    case "COO":
+      return await runCooAgent(context, payload.text);
+    case "HR":
+      return await runHrAgent(context, payload.text);
+    case "CFO":
+    case "GENERAL":
+    default:
+      return await runCfoAgent(context, payload.text);
+  }
+}
+</file>
+
 <file path="src/ai/memory/memory.service.ts">
 // src/ai/memory/memory.service.ts
 import { GoogleGenerativeAI, TaskType } from "@google/generative-ai";
@@ -7579,6 +7360,231 @@ export async function recordBusinessLesson(
 }
 </file>
 
+<file path="src/core/packages/pkg_finance.ts">
+// src/core/packages/pkg_finance.ts
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { calculateDepreciation, calculatePnlLadder } from "@/core/synapses/pnl.synapse";
+import { reconcileCashflow } from "@/core/synapses/cashflow.synapse";
+
+export async function getProfitabilityPackage(
+  clientId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const now = new Date();
+  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const end = endDate || now.toISOString();
+
+  const [
+    { data: sales },
+    { data: ingredients },
+    { data: recipes },
+    { data: inventoryLogs },
+    { data: fixedOpex },
+    { data: fixedAssets },
+    { data: settings }, 
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("sales_logs")
+      .select("total_revenue, quantity_sold, product_name, payment_method")
+      .ilike("client_id", clientId)
+      .gte("date", start)
+      .lte("date", end),
+    supabaseAdmin.from("ingredients").select("*").ilike("client_id", clientId),
+    supabaseAdmin.from("recipes").select("*").ilike("client_id", clientId),
+    supabaseAdmin
+      .from("inventory_logs")
+      .select("*")
+      .ilike("client_id", clientId)
+      .gte("date", start)
+      .lte("date", end),
+    supabaseAdmin
+      .from("fixed_opex")
+      .select("monthly_cost, category, name")
+      .ilike("client_id", clientId)
+      .eq("is_active", true),
+    supabaseAdmin.from("fixed_assets").select("*").ilike("client_id", clientId),
+    supabaseAdmin.from("client_settings").select("*").ilike("client_id", clientId).maybeSingle(),
+  ]);
+
+  const totalRevenue = (sales || []).reduce((acc, s) => acc + (Number(s.total_revenue) || 0), 0);
+  const fixedOpexTotal = (fixedOpex || []).reduce((acc, o) => acc + (Number(o.monthly_cost) || 0), 0);
+
+  // Theoretical recipe cost
+  let totalTheoCogs = 0;
+  const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
+  (sales || []).forEach((sale) => {
+    const matched = (recipes || []).filter(
+      (r) => r.product_name.toLowerCase().trim() === sale.product_name.toLowerCase().trim()
+    );
+    matched.forEach((r) => {
+      const ing = ingMap.get(r.ingredient_id);
+      totalTheoCogs += (sale.quantity_sold || 0) * (r.amount || 0) * (Number(ing?.unit_price) || 0);
+    });
+  });
+
+  let totalLoggedSpoilage = 0;
+  let totalLoggedTesting = 0;
+  let totalLoggedStaffMeal = 0;
+  let totalLoggedOther = 0;
+
+  (inventoryLogs || []).forEach((log) => {
+    const cost = Math.abs(Number(log.total_cost) || 0);
+    if (log.type === "spoilage") totalLoggedSpoilage += cost;
+    else if (log.type === "testing") totalLoggedTesting += cost;
+    else if (log.type === "staff_meal") totalLoggedStaffMeal += cost;
+    else if (log.type === "other") totalLoggedOther += cost;
+  });
+
+  const { totalMonthlyDepreciation } = calculateDepreciation(
+    (fixedAssets || []).map((fa) => ({
+      name: fa.name,
+      initial_cost: fa.initial_cost,
+      useful_months: fa.useful_months,
+      purchase_date: fa.purchase_date,
+    })),
+    new Date(end)
+  );
+
+  const rawActualCogs = totalTheoCogs + totalLoggedSpoilage;
+
+  const pnl = calculatePnlLadder({
+    totalRevenue,
+    rawActualCogs,
+    totalTheoCogs,
+    totalLoggedSpoilage,
+    totalLoggedTesting,
+    totalLoggedStaffMeal,
+    totalLoggedOther,
+    fixedOpexTotal,
+    depreciationTotal: totalMonthlyDepreciation,
+    taxMode: settings?.tax_mode || "auto",
+  });
+
+
+  // ⚡ ШИНЭ: 1. E-Barimt-ийн харьцааг бодох (purchases_summary)
+  let ebarimtPurchases = 0;
+  let noEbarimtPurchases = 0;
+  (inventoryLogs || []).forEach((l) => {
+    if (l.type === 'purchase') {
+      const cost = Math.abs(Number(l.total_cost) || 0);
+      if (l.is_ebarimt) ebarimtPurchases += cost;
+      else noEbarimtPurchases += cost;
+    }
+  });
+
+   // ⚡ ШИНЭ: 2. Аль цэс хамгийн сайн зарагдсаныг бодох (menu_performance)
+  const menuSalesMap: Record<string, { qty: number, revenue: number }> = {};
+  (sales || []).forEach((s) => {
+    const name = s.product_name;
+    if (!menuSalesMap[name]) menuSalesMap[name] = { qty: 0, revenue: 0 };
+    menuSalesMap[name].qty += Number(s.quantity_sold) || 0;
+    menuSalesMap[name].revenue += Number(s.total_revenue) || 0;
+  });
+  
+  const menu_performance = Object.keys(menuSalesMap).map(name => ({
+    product_name: name,
+    quantity_sold: menuSalesMap[name].qty,
+    total_revenue: menuSalesMap[name].revenue
+  })).sort((a, b) => b.quantity_sold - a.quantity_sold);
+
+  return {
+    period: { start, end },
+    pnl,
+    fixedOpexList: fixedOpex || [],
+       purchases_summary: {
+      with_ebarimt: ebarimtPurchases,
+      without_ebarimt: noEbarimtPurchases,
+      total: ebarimtPurchases + noEbarimtPurchases
+    },
+    menu_performance: menu_performance,
+
+    
+
+  };
+}
+
+export async function getCashflowPackage(
+  clientId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const now = new Date();
+  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const end = endDate || now.toISOString();
+
+  const [
+    { data: sales },
+    { data: logs },
+    { data: settings },
+    { data: fixedAssets },
+    { data: fixedOpex },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("sales_logs")
+      .select("total_revenue, payment_method")
+      .ilike("client_id", clientId)
+      .gte("date", start)
+      .lte("date", end),
+    supabaseAdmin
+      .from("inventory_logs")
+      .select("*")
+      .ilike("client_id", clientId)
+      .gte("date", start)
+      .lte("date", end),
+    supabaseAdmin.from("client_settings").select("*").ilike("client_id", clientId).maybeSingle(),
+    supabaseAdmin.from("fixed_assets").select("*").ilike("client_id", clientId),
+    supabaseAdmin.from("fixed_opex").select("monthly_cost").ilike("client_id", clientId).eq("is_active", true),
+  ]);
+
+  let cashRevenue = 0;
+  let bankRevenue = 0;
+  (sales || []).forEach((s) => {
+    const rev = Number(s.total_revenue) || 0;
+    if (s.payment_method === "cash") cashRevenue += rev;
+    else bankRevenue += rev;
+  });
+
+  let purchasesCashPaid = 0;
+  let purchasesBankPaid = 0;
+  let ownerDraws = 0;
+
+  (logs || []).forEach((l) => {
+    const cost = Math.abs(Number(l.total_cost) || 0);
+    const note = (l.notes || "").toLowerCase();
+    if (note.includes("draw") || note.includes("эзний")) {
+      ownerDraws += cost;
+    } else if (l.type === "purchase") {
+      if (l.payment_method === "cash") purchasesCashPaid += cost;
+      else purchasesBankPaid += cost;
+    }
+  });
+
+  const fixedOpexTotal = (fixedOpex || []).reduce((acc, o) => acc + (Number(o.monthly_cost) || 0), 0);
+  const fixedAssetsPaidBank = (fixedAssets || []).reduce((acc, fa) => {
+    const pDate = new Date(fa.purchase_date || "");
+    if (pDate >= new Date(start) && pDate <= new Date(end)) {
+      return acc + (Number(fa.initial_cost) || 0);
+    }
+    return acc;
+  }, 0);
+
+  const cashflow = reconcileCashflow({
+    initialCash: Number(settings?.initial_cash) || 0,
+    initialBank: Number(settings?.initial_bank) || 0,
+    cashRevenue,
+    bankRevenue,
+    purchasesCashPaid,
+    purchasesBankPaid,
+    adjustedOpex: fixedOpexTotal,
+    ownerDraws,
+    fixedAssetsPaidBank,
+  });
+
+  return cashflow;
+}
+</file>
+
 <file path="vercel.json">
 {
  "regions": ["hnd1"],
@@ -7593,148 +7599,6 @@ export async function recordBusinessLesson(
     }
     
   ]
-}
-</file>
-
-<file path="src/ai/tools/execution.tools.ts">
-// src/ai/tools/execution.tools.ts
-import { AgentContext } from "@/types/agent.types";
-import { getProfitabilityPackage, getCashflowPackage } from "@/core/packages/pkg_finance";
-import { getPricingStrategyPackage, getProcurementForecastPackage } from "@/core/packages/pkg_inventory";
-import {
-  getFraudAndLeakagePackage,
-  getStaffPerformancePackage,
-  getShiftHandoversPackage,
-} from "@/core/packages/pkg_operations";
-import {
-  searchBusinessMemory,
-  saveBusinessRule,
-  recordBusinessLesson,
-} from "@/ai/memory/memory.service";
-
-export async function executeAiTool(
-  context: AgentContext,
-  toolName: string,
-  args: any
-) {
-  try {
-    switch (toolName) {
-      // 1. Profitability (Finance)
-      case "skill_analyze_profitability": {
-        const data = await getProfitabilityPackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 2. Pricing & Margins (Finance)
-      case "skill_evaluate_pricing_strategy": {
-        const data = await getPricingStrategyPackage(context.clientId);
-        return { success: true, data };
-      }
-
-      // 3. Cashflow (Finance)
-      case "skill_reconcile_cashflow": {
-        const data = await getCashflowPackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 4. Propose Price Change (Actuation / HITL)
-      case "action_propose_price_change": {
-        return {
-          success: true,
-          data: {
-            type: "PROPOSAL",
-            actionType: "UPDATE_MENU_PRICE",
-            status: "pending_human_approval",
-            payload: {
-              productName: args.productName,
-              currentPrice: Number(args.currentPrice) || 0,
-              proposedPrice: Number(args.proposedPrice),
-              reason: args.reason,
-              marginImpact: args.marginImpact || "",
-            },
-          },
-        };
-      }
-
-      // 5. Leakage & Fraud (Operations)
-      case "skill_detect_fraud_and_leakage": {
-        const data = await getFraudAndLeakagePackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 6. Procurement & Stock (Operations)
-      case "skill_forecast_procurement": {
-        const data = await getProcurementForecastPackage(context.clientId);
-        return { success: true, data };
-      }
-
-      // 7. Shift Handovers (Operations)
-      case "skill_review_shift_handovers": {
-        const data = await getShiftHandoversPackage(context.clientId, args.limit || 5);
-        return { success: true, data };
-      }
-
-      // 8. Staff SOP Creation (Actuation / HITL)
-      case "action_create_staff_task": {
-        return {
-          success: true,
-          data: {
-            type: "PROPOSAL",
-            actionType: "CREATE_STAFF_TASK",
-            status: "pending_human_approval",
-            payload: {
-              role: args.role,
-              taskName: args.taskName,
-              weight: Number(args.weight) || 10,
-              reason: args.reason,
-            },
-          },
-        };
-      }
-
-      // 9. Staff Performance & Payroll (HR)
-      case "skill_analyze_staff_performance": {
-        const data = await getStaffPerformancePackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 10. Semantic Vector Memory Search (Shared)
-      case "skill_search_business_memory": {
-        const data = await searchBusinessMemory(context.clientId, args.query, args.matchCount || 5);
-        return { success: true, data };
-      }
-
-      // 11. Save Business Rule (Shared)
-      case "action_save_business_rule": {
-        const data = await saveBusinessRule(context.clientId, args.topic, args.fact);
-        return { success: true, data };
-      }
-
-      // 12. Record Business Lesson (Shared) with optional Evidence Log IDs
-      case "action_record_business_lesson": {
-        const evidenceLogIds = Array.isArray(args.evidenceLogIds)
-          ? args.evidenceLogIds.filter((id: unknown) => typeof id === "string" && id.trim().length > 0)
-          : [];
-
-        const data = await recordBusinessLesson(context.clientId, {
-          situation: args.situation,
-          actionTaken: args.actionTaken,
-          outcome: args.outcome,
-          lesson: args.lesson,
-          prediction: args.prediction,
-          confidence: args.confidence,
-          evidenceLogIds,
-        });
-        return { success: true, data };
-      }
-
-      default:
-        return { success: false, error: `Tool '${toolName}' is not recognized in the switchboard.` };
-    }
-  } catch (err: any) {
-    console.error(`[EXECUTION SWITCHBOARD ERROR] Tool '${toolName}':`, err);
-    return { success: false, error: err.message || "Internal execution error" };
-  }
 }
 </file>
 
@@ -7928,263 +7792,159 @@ html, body {
 }
 </file>
 
-<file path="src/core/packages/pkg_operations.ts">
-// src/core/packages/pkg_operations.ts
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { calculateStaffPayroll, compileWorkerFraudMatrix } from "@/core/synapses/workforce.synapse";
+<file path="src/ai/tools/execution.tools.ts">
+// src/ai/tools/execution.tools.ts
+import { AgentContext } from "@/types/agent.types";
+import { getProfitabilityPackage, getCashflowPackage } from "@/core/packages/pkg_finance";
+import { getPricingStrategyPackage, getProcurementForecastPackage } from "@/core/packages/pkg_inventory";
+import {
+  getFraudAndLeakagePackage,
+  getStaffPerformancePackage,
+  getShiftHandoversPackage,
+  getIngredientStock,
+  getRecipes,
+} from "@/core/packages/pkg_operations";
+import {
+  searchBusinessMemory,
+  saveBusinessRule,
+  recordBusinessLesson,
+} from "@/ai/memory/memory.service";
 
-export async function getFraudAndLeakagePackage(
-  clientId: string,
-  startDate?: string,
-  endDate?: string
+export async function executeAiTool(
+  context: AgentContext,
+  toolName: string,
+  args: any
 ) {
-  const now = new Date();
-  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const end = endDate || now.toISOString();
+  try {
+    switch (toolName) {
+      // 1. Profitability (Finance)
+      case "skill_analyze_profitability": {
+        const data = await getProfitabilityPackage(context.clientId, args.startDate, args.endDate);
+        return { success: true, data };
+      }
 
-  // 1. БҮХ шаардлагатай 4 хүснэгтийг зэрэг татах
-  const [
-    { data: logs },
-    { data: ingredients },
-    { data: sales },
-    { data: recipes }
-  ] = await Promise.all([
-    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
-    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, last_counted_at").ilike("client_id", clientId),
-    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").ilike("client_id", clientId).gte("date", start).lte("date", end),
-    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", clientId),
-  ]);
+      // 2. Pricing & Margins (Finance)
+      case "skill_evaluate_pricing_strategy": {
+        const data = await getPricingStrategyPackage(context.clientId);
+        return { success: true, data };
+      }
 
-  const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
-  const itemLossMap: Record<string, { name: string; unit: string; totalLossMnt: number; qty: number }> = {};
-  const logged_spoilage_items: any[] = [];
+      // 3. Cashflow (Finance)
+      case "skill_reconcile_cashflow": {
+        const data = await getCashflowPackage(context.clientId, args.startDate, args.endDate);
+        return { success: true, data };
+      }
 
-  // 2. Ил бүртгэгдсэн хаягдлууд (Logged Spoilage)
-  (logs || []).forEach((log) => {
-    if (["spoilage", "other"].includes(log.type)) {
-      const ing = ingMap.get(log.ingredient_id);
-      const name = ing ? ing.name : log.non_food_item || "Unknown";
-      const unit = ing ? ing.unit : "ш";
-      const loss = Math.abs(Number(log.total_cost) || 0);
+      // 4. Propose Price Change (Actuation / HITL)
+      case "action_propose_price_change": {
+        return {
+          success: true,
+          data: {
+            type: "PROPOSAL",
+            actionType: "UPDATE_MENU_PRICE",
+            status: "pending_human_approval",
+            payload: {
+              productName: args.productName,
+              currentPrice: Number(args.currentPrice) || 0,
+              proposedPrice: Number(args.proposedPrice),
+              reason: args.reason,
+              marginImpact: args.marginImpact || "",
+            },
+          },
+        };
+      }
 
-      if (!itemLossMap[name]) itemLossMap[name] = { name, unit, totalLossMnt: 0, qty: 0 };
-      itemLossMap[name].totalLossMnt += loss;
-      itemLossMap[name].qty += Math.abs(Number(log.quantity) || 0);
+      // 5. Leakage & Fraud (Operations)
+      case "skill_detect_fraud_and_leakage": {
+        const data = await getFraudAndLeakagePackage(context.clientId, args.startDate, args.endDate);
+        return { success: true, data };
+      }
 
-      if (log.type === "spoilage") {
-        logged_spoilage_items.push({
-          item: name,
-          quantity: Math.abs(Number(log.quantity) || 0),
-          unit: unit,
-          worker: log.worker_name || "Үл мэдэгдэх",
-          time: log.date ? new Date(log.date).toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" }) : "",
-          notes: log.notes || ""
+      // 6. Procurement & Stock (Operations)
+      case "skill_forecast_procurement": {
+        const data = await getProcurementForecastPackage(context.clientId);
+        return { success: true, data };
+      }
+
+      // 7. Shift Handovers (Operations)
+      case "skill_review_shift_handovers": {
+        const data = await getShiftHandoversPackage(context.clientId, args.limit || 5);
+        return { success: true, data };
+      }
+
+      // 8. Staff SOP Creation (Actuation / HITL)
+      case "action_create_staff_task": {
+        return {
+          success: true,
+          data: {
+            type: "PROPOSAL",
+            actionType: "CREATE_STAFF_TASK",
+            status: "pending_human_approval",
+            payload: {
+              role: args.role,
+              taskName: args.taskName,
+              weight: Number(args.weight) || 10,
+              reason: args.reason,
+            },
+          },
+        };
+      }
+
+      // 9. Staff Performance & Payroll (HR)
+      case "skill_analyze_staff_performance": {
+        const data = await getStaffPerformancePackage(context.clientId, args.startDate, args.endDate);
+        return { success: true, data };
+      }
+
+      // 10. Semantic Vector Memory Search (Shared)
+      case "skill_search_business_memory": {
+        const data = await searchBusinessMemory(context.clientId, args.query, args.matchCount || 5);
+        return { success: true, data };
+      }
+
+      // 11. Save Business Rule (Shared)
+      case "action_save_business_rule": {
+        const data = await saveBusinessRule(context.clientId, args.topic, args.fact);
+        return { success: true, data };
+      }
+
+      // 12. Record Business Lesson (Shared) with optional Evidence Log IDs
+      case "action_record_business_lesson": {
+        const evidenceLogIds = Array.isArray(args.evidenceLogIds)
+          ? args.evidenceLogIds.filter((id: unknown) => typeof id === "string" && id.trim().length > 0)
+          : [];
+
+        const data = await recordBusinessLesson(context.clientId, {
+          situation: args.situation,
+          actionTaken: args.actionTaken,
+          outcome: args.outcome,
+          lesson: args.lesson,
+          prediction: args.prediction,
+          confidence: args.confidence,
+          evidenceLogIds,
         });
+        return { success: true, data };
       }
-    }
-  });
 
-  const topWasters = Object.values(itemLossMap).sort((a, b) => b.totalLossMnt - a.totalLossMnt).slice(0, 5);
-  const totalLoggedWaste = topWasters.reduce((acc, i) => acc + i.totalLossMnt, 0);
-  const fraudMatrix = compileWorkerFraudMatrix(logs || []);
-
-  // 3. Борлуулалтаас гарсан онолын зарлагыг (Theoretical Usage) тооцоолох
-  const theoUsageMap = new Map<string, number>();
-  (sales || []).forEach((sale) => {
-    const pName = (sale.product_name || "").toLowerCase().trim();
-    const pQty = Number(sale.quantity_sold) || 0;
-    (recipes || []).forEach((r) => {
-      if ((r.product_name || "").toLowerCase().trim() === pName) {
-        const prev = theoUsageMap.get(r.ingredient_id) || 0;
-        theoUsageMap.set(r.ingredient_id, prev + pQty * (Number(r.amount) || 0));
+       // 13. get current stock
+      case "action_get_current_stock": {
+        const data = await getIngredientStock(context.clientId);
+        return { success: true, data };
       }
-    });
-  });
 
-  // 4. Далд хулгай (Unexplained Waste) болон Татварын актыг (Waste Act Items) бодитоор бодох
-  let totalUnexplainedWasteMNT = 0;
-  const wasteAuditItems: any[] = [];
-
-  (ingredients || []).forEach((ing) => {
-    const theoUsage = theoUsageMap.get(ing.id) || 0;
-    const unitPrice = Number(ing.unit_price) || 0;
-
-    // Тухайн барааны бүртгэгдсэн бүх хаягдал (spoilage, staff_meal, testing, other)
-    const ingLogs = (logs || []).filter((l) => l.ingredient_id === ing.id);
-    const knownWasteQty = ingLogs
-      .filter((l) => ["spoilage", "staff_meal", "testing", "other"].includes(l.type))
-      .reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0);
-
-    // Татан авалт
-    const purchasedQty = ingLogs
-      .filter((l) => l.type === "purchase")
-      .reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0);
-
-    // Тооллогын түүх (Start ба End тооллого)
-    const countLogs = ingLogs
-      .filter((l) => l.type === "count")
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const startStock = countLogs.length > 0 ? Number(countLogs[0].quantity) : Number(ing.current_stock) || 0;
-    const endStock = countLogs.length > 1 ? Number(countLogs[countLogs.length - 1].quantity) : (countLogs.length === 1 ? Number(countLogs[0].quantity) : Number(ing.current_stock) || 0);
-
-    const actualUsage = Math.max(0, startStock + purchasedQty - endStock);
-    const rawGap = actualUsage - theoUsage;
-    const unexplainedGap = Math.max(0, rawGap - knownWasteQty);
-    const unexplainedCost = Math.round(unexplainedGap * unitPrice);
-
-    if (unexplainedCost > 0) {
-      totalUnexplainedWasteMNT += unexplainedCost;
-    }
-
-    // Ил хаягдал болон далд хорогдлыг Татварын актад оруулах (ТЕХ 14-р зүйл)
-    if (knownWasteQty > 0 || unexplainedGap > 0) {
-      const totalLossQty = knownWasteQty + unexplainedGap;
-      wasteAuditItems.push({
-        name: ing.name,
-        unit: ing.unit,
-        theo_usage: Math.round(theoUsage * 10) / 10,
-        actual_usage: Math.round(actualUsage * 10) / 10,
-        gap_qty: Math.round(totalLossQty * 10) / 10,
-        loss_amount: Math.round(totalLossQty * unitPrice),
-        cause: knownWasteQty > 0 ? "Хугацаа дууссан / Асгарсан хаягдал" : "Технологийн ууршилт, хадгалалтын далд хорогдол"
-      });
-    }
-  });
-
-  // 5. Цикл тооллогын явц (ABC Summary)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const countedItems = (ingredients || []).filter((i: any) => i.last_counted_at && i.last_counted_at >= thirtyDaysAgo).length;
-  const uncountedItems = (ingredients || []).length - countedItems;
-
-  return {
-    totalLoggedWaste,
-    totalUnexplainedWaste: totalUnexplainedWasteMNT, // 👈 100% бодитоор бодогдож гарна
-    topWasters,
-    crossShiftIncidents: fraudMatrix,
-    logged_spoilage_items,
-    waste_act_items: wasteAuditItems, // 👈 100% татварын акт үүснэ
-    abc_summary: {
-      total_items: (ingredients || []).length,
-      counted_in_last_30_days: countedItems,
-      uncounted: uncountedItems
-    }
-  };
-}
-export async function getStaffPerformancePackage(
-  clientId: string,
-  startDate?: string,
-  endDate?: string
-) {
-  const now = new Date();
-  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const end = endDate || now.toISOString();
-
-  const [
-    { data: shifts },
-    { data: profiles },
-    { data: logs },
-  ] = await Promise.all([
-    supabaseAdmin
-      .from("shifts")
-      .select("*")
-      .ilike("client_id", clientId)
-      .gte("start_time", start)
-      .lte("start_time", end),
-    supabaseAdmin.from("profiles").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
-  ]);
-
-  const payroll = calculateStaffPayroll(shifts || [], profiles || []);
-  const fraudMatrix = compileWorkerFraudMatrix(logs || []);
-
-  return { payroll, fraudMatrix };
-}
-
-export async function getShiftHandoversPackage(clientId: string, limit = 10) {
-  // 1. Fetch recent shifts
-  const { data: shifts } = await supabaseAdmin
-    .from("shifts")
-    .select("id, character_role, start_time, end_time, is_active, pos_z_image_url, start_notes, closing_variance_score, daily_tasks_checklist, closing_checklist")
-    .ilike("client_id", clientId)
-    .order("start_time", { ascending: false })
-    .limit(limit);
-
-  if (!shifts || shifts.length === 0) return [];
-
-  // 2. Fetch inventory counts for this client
-  const { data: countLogs } = await supabaseAdmin
-    .from("inventory_logs")
-    .select("id, date, ingredient_id, quantity, incident_type, notes, worker_name, ingredients(name, unit)")
-    .ilike("client_id", clientId)
-    .eq("type", "count")
-    .order("date", { ascending: false });
-
-  // 3. Map over shifts and correlate counts
-  const enrichedShifts = shifts.map((shift) => {
-    const shiftStart = new Date(shift.start_time).getTime();
-    const shiftEnd = shift.end_time
-      ? new Date(shift.end_time).getTime()
-      : Date.now();
-
-    // Correlate inventory_logs within shift timeframe + 1 hour buffer
-    const logsInShift = (countLogs || [])
-      .filter((log: any) => {
-        const logTime = new Date(log.date).getTime();
-        return (
-          logTime >= shiftStart - 15 * 60 * 1000 &&
-          logTime <= shiftEnd + 60 * 60 * 1000
-        );
-      })
-      .map((log: any) => ({
-        ingredient_id: log.ingredient_id,
-        name: log.ingredients?.name || log.notes || "Тодорхойгүй бараа",
-        quantity: Math.abs(parseFloat(log.quantity) || 0),
-        unit: log.ingredients?.unit || "ш",
-        count_category: log.incident_type || "random_count",
-        counted_at: log.date,
-      }));
-
-    // Parse existing closing_checklist from shift record
-    let savedChecklist = shift.closing_checklist;
-    if (typeof savedChecklist === "string") {
-      try {
-        savedChecklist = JSON.parse(savedChecklist);
-      } catch (e) {
-        savedChecklist = [];
+      //14. get current reipes 
+          case "action_get_recipes": {
+        const data = await getRecipes(context.clientId);
+        return { success: true, data };
       }
+
+      default:
+        return { success: false, error: `Tool '${toolName}' is not recognized in the switchboard.` };
     }
-
-    const cycleItems = (Array.isArray(savedChecklist) ? savedChecklist : []).map(
-      (item: any) => ({
-        ...item,
-        count_category: "daily_cycle_count",
-      })
-    );
-
-    // Merge cycle counts and other counts while avoiding duplicates
-    const countedIds = new Set(cycleItems.map((c: any) => c.ingredient_id).filter(Boolean));
-    const nonDuplicateLogs = logsInShift.filter(
-      (log: any) => !countedIds.has(log.ingredient_id)
-    );
-
-    const mergedCounts = [...cycleItems, ...nonDuplicateLogs];
-
-    return {
-      id: shift.id,
-      worker: shift.character_role || "Ажилтан",
-      start_time: shift.start_time,
-      end_time: shift.end_time || "Идэвхтэй (Хаагдаагүй)",
-      is_active: shift.is_active,
-      pos_z_image_url: shift.pos_z_image_url,
-      start_notes: shift.start_notes,
-      sop_tasks_done: shift.daily_tasks_checklist,
-      inventory_counts: mergedCounts,
-      total_items_counted: mergedCounts.length,
-    };
-  });
-
-  return enrichedShifts;
+  } catch (err: any) {
+    console.error(`[EXECUTION SWITCHBOARD ERROR] Tool '${toolName}':`, err);
+    return { success: false, error: err.message || "Internal execution error" };
+  }
 }
 </file>
 
@@ -8494,6 +8254,295 @@ export default function SearchableSelect({
       )}
     </div>
   );
+}
+</file>
+
+<file path="src/core/packages/pkg_operations.ts">
+// src/core/packages/pkg_operations.ts
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { calculateStaffPayroll, compileWorkerFraudMatrix } from "@/core/synapses/workforce.synapse";
+
+export async function getFraudAndLeakagePackage(
+  clientId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const now = new Date();
+  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const end = endDate || now.toISOString();
+
+  // 1. БҮХ шаардлагатай 4 хүснэгтийг зэрэг татах
+  const [
+    { data: logs },
+    { data: ingredients },
+    { data: sales },
+    { data: recipes }
+  ] = await Promise.all([
+    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, last_counted_at").ilike("client_id", clientId),
+    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").ilike("client_id", clientId).gte("date", start).lte("date", end),
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", clientId),
+  ]);
+
+  const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
+  const itemLossMap: Record<string, { name: string; unit: string; totalLossMnt: number; qty: number }> = {};
+  const logged_spoilage_items: any[] = [];
+
+  // 2. Ил бүртгэгдсэн хаягдлууд (Logged Spoilage)
+  (logs || []).forEach((log) => {
+    if (["spoilage", "other"].includes(log.type)) {
+      const ing = ingMap.get(log.ingredient_id);
+      const name = ing ? ing.name : log.non_food_item || "Unknown";
+      const unit = ing ? ing.unit : "ш";
+      const loss = Math.abs(Number(log.total_cost) || 0);
+
+      if (!itemLossMap[name]) itemLossMap[name] = { name, unit, totalLossMnt: 0, qty: 0 };
+      itemLossMap[name].totalLossMnt += loss;
+      itemLossMap[name].qty += Math.abs(Number(log.quantity) || 0);
+
+      if (log.type === "spoilage") {
+        logged_spoilage_items.push({
+          item: name,
+          quantity: Math.abs(Number(log.quantity) || 0),
+          unit: unit,
+          worker: log.worker_name || "Үл мэдэгдэх",
+          time: log.date ? new Date(log.date).toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" }) : "",
+          notes: log.notes || ""
+        });
+      }
+    }
+  });
+
+  const topWasters = Object.values(itemLossMap).sort((a, b) => b.totalLossMnt - a.totalLossMnt).slice(0, 5);
+  const totalLoggedWaste = topWasters.reduce((acc, i) => acc + i.totalLossMnt, 0);
+  const fraudMatrix = compileWorkerFraudMatrix(logs || []);
+
+  // 3. Борлуулалтаас гарсан онолын зарлагыг (Theoretical Usage) тооцоолох
+  const theoUsageMap = new Map<string, number>();
+  (sales || []).forEach((sale) => {
+    const pName = (sale.product_name || "").toLowerCase().trim();
+    const pQty = Number(sale.quantity_sold) || 0;
+    (recipes || []).forEach((r) => {
+      if ((r.product_name || "").toLowerCase().trim() === pName) {
+        const prev = theoUsageMap.get(r.ingredient_id) || 0;
+        theoUsageMap.set(r.ingredient_id, prev + pQty * (Number(r.amount) || 0));
+      }
+    });
+  });
+
+  // 4. Далд хулгай (Unexplained Waste) болон Татварын актыг (Waste Act Items) бодитоор бодох
+  let totalUnexplainedWasteMNT = 0;
+  const wasteAuditItems: any[] = [];
+
+  (ingredients || []).forEach((ing) => {
+    const theoUsage = theoUsageMap.get(ing.id) || 0;
+    const unitPrice = Number(ing.unit_price) || 0;
+
+    // Тухайн барааны бүртгэгдсэн бүх хаягдал (spoilage, staff_meal, testing, other)
+    const ingLogs = (logs || []).filter((l) => l.ingredient_id === ing.id);
+    const knownWasteQty = ingLogs
+      .filter((l) => ["spoilage", "staff_meal", "testing", "other"].includes(l.type))
+      .reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0);
+
+    // Татан авалт
+    const purchasedQty = ingLogs
+      .filter((l) => l.type === "purchase")
+      .reduce((sum, l) => sum + Math.abs(Number(l.quantity) || 0), 0);
+
+    // Тооллогын түүх (Start ба End тооллого)
+    const countLogs = ingLogs
+      .filter((l) => l.type === "count")
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const startStock = countLogs.length > 0 ? Number(countLogs[0].quantity) : Number(ing.current_stock) || 0;
+    const endStock = countLogs.length > 1 ? Number(countLogs[countLogs.length - 1].quantity) : (countLogs.length === 1 ? Number(countLogs[0].quantity) : Number(ing.current_stock) || 0);
+
+    const actualUsage = Math.max(0, startStock + purchasedQty - endStock);
+    const rawGap = actualUsage - theoUsage;
+    const unexplainedGap = Math.max(0, rawGap - knownWasteQty);
+    const unexplainedCost = Math.round(unexplainedGap * unitPrice);
+
+    if (unexplainedCost > 0) {
+      totalUnexplainedWasteMNT += unexplainedCost;
+    }
+
+    // Ил хаягдал болон далд хорогдлыг Татварын актад оруулах (ТЕХ 14-р зүйл)
+    if (knownWasteQty > 0 || unexplainedGap > 0) {
+      const totalLossQty = knownWasteQty + unexplainedGap;
+      wasteAuditItems.push({
+        name: ing.name,
+        unit: ing.unit,
+        theo_usage: Math.round(theoUsage * 10) / 10,
+        actual_usage: Math.round(actualUsage * 10) / 10,
+        gap_qty: Math.round(totalLossQty * 10) / 10,
+        loss_amount: Math.round(totalLossQty * unitPrice),
+        cause: knownWasteQty > 0 ? "Хугацаа дууссан / Асгарсан хаягдал" : "Технологийн ууршилт, хадгалалтын далд хорогдол"
+      });
+    }
+  });
+
+  // 5. Цикл тооллогын явц (ABC Summary)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const countedItems = (ingredients || []).filter((i: any) => i.last_counted_at && i.last_counted_at >= thirtyDaysAgo).length;
+  const uncountedItems = (ingredients || []).length - countedItems;
+
+  return {
+    totalLoggedWaste,
+    totalUnexplainedWaste: totalUnexplainedWasteMNT, // 👈 100% бодитоор бодогдож гарна
+    topWasters,
+    crossShiftIncidents: fraudMatrix,
+    logged_spoilage_items,
+    waste_act_items: wasteAuditItems, // 👈 100% татварын акт үүснэ
+    abc_summary: {
+      total_items: (ingredients || []).length,
+      counted_in_last_30_days: countedItems,
+      uncounted: uncountedItems
+    }
+  };
+}
+export async function getStaffPerformancePackage(
+  clientId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const now = new Date();
+  const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const end = endDate || now.toISOString();
+
+  const [
+    { data: shifts },
+    { data: profiles },
+    { data: logs },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("shifts")
+      .select("*")
+      .ilike("client_id", clientId)
+      .gte("start_time", start)
+      .lte("start_time", end),
+    supabaseAdmin.from("profiles").select("*").ilike("client_id", clientId),
+    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
+  ]);
+
+  const payroll = calculateStaffPayroll(shifts || [], profiles || []);
+  const fraudMatrix = compileWorkerFraudMatrix(logs || []);
+
+  return { payroll, fraudMatrix };
+}
+
+export async function getShiftHandoversPackage(clientId: string, limit = 10) {
+  // 1. Fetch recent shifts
+  const { data: shifts } = await supabaseAdmin
+    .from("shifts")
+    .select("id, character_role, start_time, end_time, is_active, pos_z_image_url, start_notes, closing_variance_score, daily_tasks_checklist, closing_checklist")
+    .ilike("client_id", clientId)
+    .order("start_time", { ascending: false })
+    .limit(limit);
+
+  if (!shifts || shifts.length === 0) return [];
+
+  // 2. Fetch inventory counts for this client
+  const { data: countLogs } = await supabaseAdmin
+    .from("inventory_logs")
+    .select("id, date, ingredient_id, quantity, incident_type, notes, worker_name, ingredients(name, unit)")
+    .ilike("client_id", clientId)
+    .eq("type", "count")
+    .order("date", { ascending: false });
+
+  // 3. Map over shifts and correlate counts
+  const enrichedShifts = shifts.map((shift) => {
+    const shiftStart = new Date(shift.start_time).getTime();
+    const shiftEnd = shift.end_time
+      ? new Date(shift.end_time).getTime()
+      : Date.now();
+
+    // Correlate inventory_logs within shift timeframe + 1 hour buffer
+    const logsInShift = (countLogs || [])
+      .filter((log: any) => {
+        const logTime = new Date(log.date).getTime();
+        return (
+          logTime >= shiftStart - 15 * 60 * 1000 &&
+          logTime <= shiftEnd + 60 * 60 * 1000
+        );
+      })
+      .map((log: any) => ({
+        ingredient_id: log.ingredient_id,
+        name: log.ingredients?.name || log.notes || "Тодорхойгүй бараа",
+        quantity: Math.abs(parseFloat(log.quantity) || 0),
+        unit: log.ingredients?.unit || "ш",
+        count_category: log.incident_type || "random_count",
+        counted_at: log.date,
+      }));
+
+    // Parse existing closing_checklist from shift record
+    let savedChecklist = shift.closing_checklist;
+    if (typeof savedChecklist === "string") {
+      try {
+        savedChecklist = JSON.parse(savedChecklist);
+      } catch (e) {
+        savedChecklist = [];
+      }
+    }
+
+    const cycleItems = (Array.isArray(savedChecklist) ? savedChecklist : []).map(
+      (item: any) => ({
+        ...item,
+        count_category: "daily_cycle_count",
+      })
+    );
+
+    // Merge cycle counts and other counts while avoiding duplicates
+    const countedIds = new Set(cycleItems.map((c: any) => c.ingredient_id).filter(Boolean));
+    const nonDuplicateLogs = logsInShift.filter(
+      (log: any) => !countedIds.has(log.ingredient_id)
+    );
+
+    const mergedCounts = [...cycleItems, ...nonDuplicateLogs];
+
+    return {
+      id: shift.id,
+      worker: shift.character_role || "Ажилтан",
+      start_time: shift.start_time,
+      end_time: shift.end_time || "Идэвхтэй (Хаагдаагүй)",
+      is_active: shift.is_active,
+      pos_z_image_url: shift.pos_z_image_url,
+      start_notes: shift.start_notes,
+      sop_tasks_done: shift.daily_tasks_checklist,
+      inventory_counts: mergedCounts,
+      total_items_counted: mergedCounts.length,
+    };
+  });
+
+  return enrichedShifts;
+}
+
+export async function getIngredientStock(clientId: string) {
+  // Зөвхөн ingredients хүснэгтээс шүүж татах
+  const { data: ingredients, error } = await supabaseAdmin
+    .from("ingredients")
+    .select("id, name, unit, unit_price, current_stock, last_counted_at")
+    .ilike("client_id", clientId);
+
+  if (error) {
+    throw new Error(`Failed to fetch ingredient stock: ${error.message}`);
+  }
+
+  return ingredients;
+}
+
+
+
+export async function getRecipes(clientId: string) {
+  const { data: recipes, error } = await supabaseAdmin
+    .from("recipes")
+    .select("product_name, amount, client_id")
+    .eq("client_id", clientId);
+
+  if (error) {
+    throw new Error(`Failed to fetch recipes: ${error.message}`);
+  }
+
+  return recipes;
 }
 </file>
 
