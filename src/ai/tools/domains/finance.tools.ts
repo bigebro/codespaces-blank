@@ -4,7 +4,7 @@ export const financeDefs: FunctionDeclaration[] = [
   {
     name: "skill_analyze_profitability",
     description:
-      "TRIGGER THIS WHEN the user asks about: 'цэвэр ашиг' (net profit), 'орлого' (revenue), 'P&L', 'COGS', 'татвар' (tax), 'зардлын бүтэц', or overall business health. Returns the complete financial ladder.",
+      "TRIGGER THIS WHEN the user asks about: 'цэвэр ашиг' (net profit), 'орлого' (revenue), 'P&L', 'COGS', 'татвар' (tax), 'зардлын бүтэц', 'recipes' or overall business health. Returns the complete financial ladder and recipes.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {

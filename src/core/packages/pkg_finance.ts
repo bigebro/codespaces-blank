@@ -19,7 +19,7 @@ export async function getProfitabilityPackage(
     { data: inventoryLogs },
     { data: fixedOpex },
     { data: fixedAssets },
-    { data: settings },
+    { data: settings }, 
   ] = await Promise.all([
     supabaseAdmin
       .from("sales_logs")
@@ -135,25 +135,9 @@ export async function getProfitabilityPackage(
       total: ebarimtPurchases + noEbarimtPurchases
     },
     menu_performance: menu_performance,
-    // 1. Бүх түүхий эдийн нэгж үнэ болон үлдэгдлийг AI-д харуулах:
-    ingredientPrices: (ingredients || []).map((i) => ({
-      name: i.name,
-      unit: i.unit,
-      unit_price_mnt: Number(i.unit_price) || 0,
-      current_stock: Number(i.current_stock) || 0,
-    })),
+
     
-    // 2. Бүх жорын орцын задаргаа болон өртгийг AI-д харуулах:
-    recipeDetails: (recipes || []).map((r) => {
-      const ing = ingMap.get(r.ingredient_id);
-      return {
-        product: r.product_name,
-        ingredient: ing?.name || "Тодорхойгүй",
-        amount: Number(r.amount) || 0,
-        unit: ing?.unit || "гр/мл",
-        cost: (Number(r.amount) || 0) * (Number(ing?.unit_price) || 0),
-      };
-    }),
+
   };
 }
 

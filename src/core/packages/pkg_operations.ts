@@ -255,3 +255,32 @@ export async function getShiftHandoversPackage(clientId: string, limit = 10) {
 
   return enrichedShifts;
 }
+
+export async function getIngredientStock(clientId: string) {
+  // Зөвхөн ingredients хүснэгтээс шүүж татах
+  const { data: ingredients, error } = await supabaseAdmin
+    .from("ingredients")
+    .select("id, name, unit, unit_price, current_stock, last_counted_at")
+    .ilike("client_id", clientId);
+
+  if (error) {
+    throw new Error(`Failed to fetch ingredient stock: ${error.message}`);
+  }
+
+  return ingredients;
+}
+
+
+
+export async function getRecipes(clientId: string) {
+  const { data: recipes, error } = await supabaseAdmin
+    .from("recipes")
+    .select("product_name, amount, client_id")
+    .eq("client_id", clientId);
+
+  if (error) {
+    throw new Error(`Failed to fetch recipes: ${error.message}`);
+  }
+
+  return recipes;
+}

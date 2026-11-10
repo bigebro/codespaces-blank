@@ -6,6 +6,8 @@ import {
   getFraudAndLeakagePackage,
   getStaffPerformancePackage,
   getShiftHandoversPackage,
+  getIngredientStock,
+  getRecipes,
 } from "@/core/packages/pkg_operations";
 import {
   searchBusinessMemory,
@@ -126,6 +128,18 @@ export async function executeAiTool(
           confidence: args.confidence,
           evidenceLogIds,
         });
+        return { success: true, data };
+      }
+
+       // 13. get current stock
+      case "action_get_current_stock": {
+        const data = await getIngredientStock(context.clientId);
+        return { success: true, data };
+      }
+
+      //14. get current reipes 
+          case "action_get_recipes": {
+        const data = await getRecipes(context.clientId);
         return { success: true, data };
       }
 

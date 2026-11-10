@@ -49,4 +49,23 @@ export const operationsDefs: FunctionDeclaration[] = [
       required: ["role", "taskName", "reason"],
     },
   },
+{
+  name: "action_get_current_stock",
+  description:
+    "CALL THIS when you need to retrieve the current recorded stock quantities of ingredients for the authenticated business. Returns each ingredient's name, unit of measurement, and current_stock quantity. Use this action when answering questions about how much of an ingredient is currently available, remaining ingredient quantities, or which ingredients are running low. Always use the returned data when reporting stock quantities. Never guess or assume stock levels.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {},
+  },
+},
+
+{
+  name: "action_get_recipes",
+  description:
+    "CALL THIS when you need to retrieve the recorded recipes for the authenticated business. Returns each recipe's product name, ingredient ID, and ingredient amount. Use this action when answering questions about product recipes, which ingredients are used in a product, or how much of each ingredient is required. Always use the returned data when reporting recipe information. Never guess or assume recipe ingredients or quantities.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {},
+  },
+}
 ];
