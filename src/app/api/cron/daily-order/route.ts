@@ -1,59 +1,74 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
-import { getAnalyticsData } from '../../../../lib/analytics';
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAnalyticsData } from "@/lib/analytics";
+import { createAlert } from "@/lib/alerts";
+import { getTenantBilling } from "@/lib/subscription";
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
-const CRON_SECRET = process.env.CRON_SECRET;
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-export const dynamic = 'force-dynamic';
+function authorized(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  return request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+async function mapPool<T>(items: T[], size: number, fn: (item: T) => Promise<void>) {
+  for (let i = 0; i < items.length; i += size) {
+    await Promise.all(items.slice(i, i + size).map(fn));
+  }
+}
 
 export async function GET(request: Request) {
-  try {
-    // 🔒 1. Гадны халдлагаас хамгаалах
-    if (CRON_SECRET) {
-      const authHeader = request.headers.get('authorization');
-      if (authHeader !== `Bearer ${CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
-
-    const { data: profiles } = await supabaseAdmin
-      .from('profiles')
-      .select('client_id, telegram_chat_id')
-      .not('telegram_chat_id', 'is', null);
-
-    if (!profiles || profiles.length === 0) {
-      return NextResponse.json({ message: "No active telegram clients found." });
-    }
-
-    for (const profile of profiles) {
-      const chatId = profile.telegram_chat_id;
-      const clientId = profile.client_id;
-
-      // ⚡ HTTP fetch хийхгүйгээр шууд функцээ дуудна (10 дахин хурдан, найдвартай)
-      const analyticsData = await getAnalyticsData(clientId);
-      const lowItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_low && i.suggested_order > 0);
-
-      if (lowItems && lowItems.length > 0) {
-        let alertMessage = `🚨 **ӨГЛӨӨНИЙ САНУУЛГА: АГУУЛАХЫН НӨӨЦ БАГАССАН БАЙНА**\n\nТаны өнөөдрийн үйл ажиллагааг тасалдуулахгүйн тулд дараах бараануудыг яаралтай захиалахыг санал болгож байна:\n\n`;
-        
-        lowItems.forEach((item: any) => {
-          alertMessage += `🛒 **${item.name}**\n - Үлдэгдэл: ${Math.round(item.live_stock * 10) / 10} ${item.unit}\n - Захиалах хэмжээ: ${item.suggested_order} ${item.unit}\n\n`;
-        });
-
-        alertMessage += `*(Дээрх хэмжээг таны сүүлийн 30 хоногийн борлуулалтын хурдад тулгуурлан систем автоматаар бодож гаргав)*`;
-
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: alertMessage, parse_mode: "Markdown" })
-        });
-      }
-    }
-
-    return NextResponse.json({ success: true, message: "Alerts processed successfully" });
-  } catch (error: any) {
-    console.error("Cron Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { data: tenants, error } = await supabaseAdmin
+    .from("tenants")
+    .select("client_id")
+    .eq("status", "active");
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const results: { clientId: string; ok: boolean; error?: string }[] = [];
+
+  await mapPool(tenants || [], 4, async (tenant) => {
+    try {
+      const billing = await getTenantBilling(tenant.client_id);
+      if (billing?.pastDue) {
+        results.push({ clientId: tenant.client_id, ok: true, error: "skipped_past_due" });
+        return;
+      }
+      const analyticsData = await getAnalyticsData(tenant.client_id);
+      const lowItems = analyticsData.all_inventory_data?.filter(
+        (item: { is_low?: boolean; suggested_order?: number }) => item.is_low && (item.suggested_order || 0) > 0,
+      ) || [];
+      if (lowItems.length > 0) {
+        const body = lowItems
+          .slice(0, 12)
+          .map(
+            (item: { name: string; live_stock: number; unit: string; suggested_order: number }) =>
+              `${item.name}: үлдэгдэл ${Math.round(item.live_stock * 10) / 10} ${item.unit}, захиалах ${item.suggested_order} ${item.unit}`,
+          )
+          .join("\n");
+        await createAlert({
+          clientId: tenant.client_id,
+          kind: "low_stock",
+          title: "Өглөөний нөөцийн сануулга",
+          body,
+          status: "info",
+          payload: { count: lowItems.length },
+        });
+      }
+      results.push({ clientId: tenant.client_id, ok: true });
+    } catch (err: unknown) {
+      results.push({
+        clientId: tenant.client_id,
+        ok: false,
+        error: err instanceof Error ? err.message : "failed",
+      });
+    }
+  });
+
+  return NextResponse.json({ success: true, results });
 }

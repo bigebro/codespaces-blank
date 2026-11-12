@@ -1,4 +1,4 @@
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { FunctionDeclaration, SchemaType } from "@/lib/ai/genai";
 
 export const financeDefs: FunctionDeclaration[] = [
   {

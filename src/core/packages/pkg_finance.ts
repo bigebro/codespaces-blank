@@ -24,24 +24,24 @@ export async function getProfitabilityPackage(
     supabaseAdmin
       .from("sales_logs")
       .select("total_revenue, quantity_sold, product_name, payment_method")
-      .ilike("client_id", clientId)
+      .eq("client_id", clientId)
       .gte("date", start)
       .lte("date", end),
-    supabaseAdmin.from("ingredients").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("recipes").select("*").ilike("client_id", clientId),
+    supabaseAdmin.from("ingredients").select("*").eq("client_id", clientId),
+    supabaseAdmin.from("recipes").select("*").eq("client_id", clientId),
     supabaseAdmin
       .from("inventory_logs")
       .select("*")
-      .ilike("client_id", clientId)
+      .eq("client_id", clientId)
       .gte("date", start)
       .lte("date", end),
     supabaseAdmin
       .from("fixed_opex")
       .select("monthly_cost, category, name")
-      .ilike("client_id", clientId)
+      .eq("client_id", clientId)
       .eq("is_active", true),
-    supabaseAdmin.from("fixed_assets").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("client_settings").select("*").ilike("client_id", clientId).maybeSingle(),
+    supabaseAdmin.from("fixed_assets").select("*").eq("client_id", clientId),
+    supabaseAdmin.from("client_settings").select("*").eq("client_id", clientId).maybeSingle(),
   ]);
 
   const totalRevenue = (sales || []).reduce((acc, s) => acc + (Number(s.total_revenue) || 0), 0);
@@ -160,18 +160,18 @@ export async function getCashflowPackage(
     supabaseAdmin
       .from("sales_logs")
       .select("total_revenue, payment_method")
-      .ilike("client_id", clientId)
+      .eq("client_id", clientId)
       .gte("date", start)
       .lte("date", end),
     supabaseAdmin
       .from("inventory_logs")
       .select("*")
-      .ilike("client_id", clientId)
+      .eq("client_id", clientId)
       .gte("date", start)
       .lte("date", end),
-    supabaseAdmin.from("client_settings").select("*").ilike("client_id", clientId).maybeSingle(),
-    supabaseAdmin.from("fixed_assets").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("fixed_opex").select("monthly_cost").ilike("client_id", clientId).eq("is_active", true),
+    supabaseAdmin.from("client_settings").select("*").eq("client_id", clientId).maybeSingle(),
+    supabaseAdmin.from("fixed_assets").select("*").eq("client_id", clientId),
+    supabaseAdmin.from("fixed_opex").select("monthly_cost").eq("client_id", clientId).eq("is_active", true),
   ]);
 
   let cashRevenue = 0;

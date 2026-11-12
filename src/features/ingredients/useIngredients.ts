@@ -13,7 +13,7 @@ export function useIngredients(activeClient: string) {
     const { data } = await supabase
       .from("ingredients")
       .select("*")
-      .ilike("client_id", activeClient)
+      .eq("client_id", activeClient)
       .order("name", { ascending: true });
 
     if (data) setIngredients(data);

@@ -112,8 +112,8 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
-  const [signupRole, setSignupRole] = useState<"owner" | "staff">("owner");
   const [fullName, setFullName] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [fromKiosk, setFromKiosk] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -152,11 +152,13 @@ export default function LoginPage() {
       }
 
       const branchFromUrl = params.get("branch");
-      const roleFromUrl = params.get("role");
-      if (branchFromUrl) {
+      const inviteFromUrl = params.get("invite");
+      if (inviteFromUrl) {
+        setInviteToken(inviteFromUrl);
+        setIsSignUp(true);
+      } else if (branchFromUrl) {
         setCompanyName(branchFromUrl);
         setIsSignUp(true);
-        if (roleFromUrl === "staff") setSignupRole("staff");
       }
     }
   }, []);
@@ -210,14 +212,28 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     try {
       if (isSignUp) {
-        const cleanBranch = companyName.trim();
+        const metadata: Record<string, string> = {};
 
-        // 1. Шинэ бизнес давхардсан эсэхийг шалгах
-        if (signupRole === "owner") {
+        if (inviteToken) {
+          if (!fullName.trim()) {
+            setErrorMsg("Нэрээ оруулна уу.");
+            setLoading(false);
+            return;
+          }
+          metadata.invite_token = inviteToken;
+          metadata.full_name = fullName.trim();
+        } else {
+          const cleanBranch = companyName.trim();
+          if (/[%_]/.test(cleanBranch)) {
+            setErrorMsg("Бизнесийн нэрд % болон _ тэмдэгт оруулах боломжгүй.");
+            setLoading(false);
+            return;
+          }
+
           const { data: existingShop } = await supabase
             .from("tenants")
             .select("client_id")
-            .ilike("client_id", cleanBranch)
+            .eq("client_id", cleanBranch)
             .maybeSingle();
 
           if (existingShop) {
@@ -227,19 +243,18 @@ const handleSubmit = async (e: React.FormEvent) => {
             setLoading(false);
             return;
           }
+
+          metadata.client_id = cleanBranch;
+          metadata.role = "owner";
+          metadata.full_name = fullName.trim();
+          metadata.phone = phoneNumber.trim();
         }
 
-        // 2. Хэрэглэгчийг бүртгэх
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
-            data: {
-              client_id: cleanBranch,
-              role: signupRole === "owner" ? "owner" : "Ажилтан",
-              full_name: fullName.trim(),
-              phone: phoneNumber.trim(),
-            },
+            data: metadata,
           },
         });
 
@@ -317,7 +332,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             {isForgotPassword
               ? "Нууц үг сэргээх"
               : isSignUp
-                ? "Шинэ Бүртгэл Үүсгэх"
+                ? inviteToken
+                  ? "Ажилтны бүртгэл"
+                  : "Шинэ Бүртгэл Үүсгэх"
                 : ""}
           </h2>
         </div>
@@ -353,81 +370,55 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </div>
 
-          {isSignUp && (
+          {isSignUp && inviteToken && (
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-400 font-semibold leading-relaxed">
+                Ажилтны урилгаар бүртгүүлж байна. Салбараа өөрөө сонгох шаардлагагүй.
+              </p>
+              <div>
+                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  Таны нэр
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                />
+              </div>
+            </div>
+          )}
+
+          {isSignUp && !inviteToken && (
             <div className="space-y-4">
               <div>
                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
-                  Би хэн бэ?
+                  Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)
                 </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSignupRole("owner")}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "owner" ? "bg-white text-zinc-950 shadow-md" : "bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:text-white"}`}
-                  >
-                    Бизнес эрхлэгч
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSignupRole("staff")}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${signupRole === "staff" ? "bg-white text-zinc-950 shadow-md" : "bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:text-white"}`}
-                  >
-                    Ажилтан
-                  </button>
-                </div>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) =>
+                    setPhoneNumber(e.target.value.replace(/\D/g, ""))
+                  }
+                  required
+                  maxLength={8}
+                  placeholder=""
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                />
               </div>
-
-              {signupRole === "staff" && (
-                <div>
-                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    Таны нэр
-                  </label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={isSignUp && signupRole === "staff"}
-                    placeholder=""
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
-                  />
-                </div>
-              )}
-              {isSignUp && signupRole === "owner" && (
-                <div>
-                  <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)
-                  </label>
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) =>
-                      setPhoneNumber(e.target.value.replace(/\D/g, ""))
-                    }
-                    required
-                    maxLength={8}
-                    placeholder=""
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
-                  {signupRole === "owner"
-                    ? "Бизнесийн Нэр (Шинээр үүсгэх)"
-                    : "Бизнесийн нэр (Салбар)"}
+                  Бизнесийн Нэр (Шинээр үүсгэх)
                 </label>
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  required={isSignUp}
-                  readOnly={Boolean(companyName && signupRole === "staff")}
-                  placeholder={
-                    signupRole === "owner"
-                      ? ""
-                      : "Байгуллагын нэрийг бичнэ үү"
-                  }
+                  required
+                  placeholder=""
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                 />
               </div>
@@ -495,7 +486,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               : isForgotPassword
                 ? "Сэргээх холбоос илгээх"
                 : isSignUp
-                  ? "Бүртгүүлэх"
+                  ? inviteToken
+                    ? "Урилгаар бүртгүүлэх"
+                    : "Бүртгүүлэх"
                   : "Нэвтрэх"}
           </button>
         </form>

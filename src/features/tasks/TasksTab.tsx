@@ -120,7 +120,7 @@ export default function TasksTab({
                 name="workerPin"
                 required
                 maxLength={4}
-                placeholder="4 оронтой PIN (жнь: 1234)"
+                placeholder="4 оронтой PIN"
                 className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-zinc-700 text-center"
               />
 

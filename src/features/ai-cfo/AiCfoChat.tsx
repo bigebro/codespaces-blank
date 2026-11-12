@@ -67,7 +67,7 @@ const fetchChatHistory = useCallback(async () => {
       const { data, error } = await supabase
         .from("ai_chat_messages")
         .select("id, role, content, created_at")
-        .ilike("client_id", activeClient.trim())
+        .eq("client_id", activeClient.trim())
         .order("created_at", { ascending: false }) // 👈 1. Хамгийн сүүлийн ШИНЭ мессежүүдийг татна
         .limit(40);
 

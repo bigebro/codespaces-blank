@@ -27,23 +27,23 @@ export async function getVitals(clientId: string): Promise<BusinessVitals> {
     supabaseAdmin
       .from("sales_logs")
       .select("total_revenue")
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", clientId.trim())
       .gte("date", startOfMonth),
     supabaseAdmin
       .from("inventory_logs")
       .select("total_cost")
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", clientId.trim())
       .in("type", ["spoilage", "staff_meal", "testing", "other"])
       .gte("date", startOfMonth),
     supabaseAdmin
       .from("client_settings")
       .select("initial_cash, initial_bank")
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", clientId.trim())
       .maybeSingle(),
     supabaseAdmin
       .from("shifts")
       .select("character_role, start_time")
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", clientId.trim())
       .eq("is_active", true)
       .order("start_time", { ascending: false })
       .limit(1)

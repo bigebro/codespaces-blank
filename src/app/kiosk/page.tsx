@@ -44,6 +44,7 @@ import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EN_TO_MN_DICT, STATIC_DICT } from "../../lib/autoReconcile";
+import { SignedImg } from "../../components/shared/SignedImg";
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -281,18 +282,19 @@ async function uploadEvidencePhoto(
 ): Promise<string | null> {
   try {
     const { file: compressedFile } = await compressImageForUpload(file);
-    const fileExt = "jpg";
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("receipts_evidence")
-      .upload(fileName, compressedFile, { cacheControl: "3600", upsert: true });
-
-    if (uploadError) throw uploadError;
-    const { data: publicUrlData } = supabase.storage
-      .from("receipts_evidence")
-      .getPublicUrl(fileName);
-    return publicUrlData.publicUrl;
+    const deviceToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("kiosk_device_token") || ""
+        : "";
+    if (!deviceToken) return null;
+    const form = new FormData();
+    form.append("deviceToken", deviceToken);
+    form.append("folder", folder);
+    form.append("file", compressedFile);
+    const res = await fetch("/api/kiosk/upload", { method: "POST", body: form });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.path) return null;
+    return json.path as string;
   } catch (err) {
     console.error("Storage upload error:", err);
     return null;
@@ -1118,7 +1120,7 @@ function KioskPage() {
       supabase
         .from("learned_translations")
         .select("original_text, translated_text")
-        .ilike("client_id", tenantClientId)
+        .eq("client_id", tenantClientId)
         .then(({ data }) => {
           if (data) {
             const map: Record<string, string> = {};
@@ -1535,7 +1537,7 @@ const handleKioskBulkSave = async () => {
       .select(
         "id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)",
       )
-      .ilike("client_id", client)
+      .eq("client_id", client)
       .gte("date", todayStart.toISOString())
       .eq("worker_name", currentWorkerName) // 👈 АЛТАН ДҮРЭМ: Зөвхөн энэ хүний үйлдлийг л татна!
       .order("date", { ascending: false })
@@ -1676,12 +1678,15 @@ const initKioskContext = async () => {
     if (profiles) setWorkers(profiles);
 
     // 2. 🛡️ Аюулгүй RPC функцээр Логог татах (Яг бидний бэкэндэд хийснээр):
-    const { data: branding } = await supabase.rpc("get_kiosk_branding", {
-      target_client_id: target,
+    const brandingRes = await fetch("/api/kiosk/branding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceToken: localStorage.getItem("kiosk_device_token") || "" }),
     });
+    const branding = await brandingRes.json().catch(() => ({}));
 
-    if (branding?.logo_url) {
-      setClientLogo(branding.logo_url);
+    if (branding?.logoUrl) {
+      setClientLogo(branding.logoUrl);
     } else {
       setClientLogo(null);
     }
@@ -1692,7 +1697,7 @@ const initKioskContext = async () => {
       .select(
         "id, name, unit, current_stock, is_critical, last_counted_at, client_id, is_suspicious_promoted, promoted_until",
       )
-      .ilike("client_id", target)
+      .eq("client_id", target)
       .order("name", { ascending: true });
 
     if (ingData) setIngredients(ingData);
@@ -1700,14 +1705,14 @@ const initKioskContext = async () => {
     const { data: aliasesData } = await supabase
       .from("learned_aliases")
       .select("phrase, ingredient_id")
-      .ilike("client_id", target);
+      .eq("client_id", target);
 
     if (aliasesData) setLearnedAliases(aliasesData);
 
     const { data: recData } = await supabase
       .from("recipes")
       .select("product_name, amount, ingredient_id, ingredients(name, unit)")
-      .ilike("client_id", target);
+      .eq("client_id", target);
 
     if (recData) setRecipesList(recData);
   };
@@ -1716,7 +1721,7 @@ const initKioskContext = async () => {
     const { data: allTasks } = await supabase
       .from("tasks")
       .select("*")
-      .ilike("client_id", tenantId)
+      .eq("client_id", tenantId)
       .eq("is_active", true);
 
     const workerName = worker?.email
@@ -1816,16 +1821,19 @@ const initKioskContext = async () => {
   const handleVerifyPin = async () => {
     if (!selectedWorker) return;
 
-    const { data: isValid, error: pinError } = await supabase.rpc(
-      "verify_kiosk_pin",
-      {
-        target_worker_id: selectedWorker.id,
-        entered_pin: pin,
-      },
-    );
+    const pinRes = await fetch("/api/kiosk/pin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workerId: selectedWorker.id,
+        pin,
+        deviceToken: localStorage.getItem("kiosk_device_token") || "",
+      }),
+    });
+    const pinJson = await pinRes.json().catch(() => ({ valid: false }));
 
-    if (pinError || !isValid) {
-      setMsg("❌ Буруу PIN код!");
+    if (!pinRes.ok || !pinJson.valid) {
+      setMsg(pinJson.message || "❌ Буруу PIN код!");
       setPin("");
       return;
     }
@@ -1880,7 +1888,6 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
           start_notes: handoverNote || "Ээлж хэвийн хүлээн авсан.",
           start_evidence_image: startImgUrl,
           daily_tasks_checklist: tasks,
-          telegram_chat_id: selectedWorker.telegram_chat_id || 0,
         },
       ])
       .select()
@@ -2426,7 +2433,7 @@ const handleCloseShift = async () => {
                     "Одоогийн 4 оронтой PIN-ээ оруулна уу:",
                   );
                   if (!oldPin) return;
-                  if (oldPin !== (selectedWorker.pin_code || "1234")) {
+                  if (!selectedWorker.pin_code || oldPin !== selectedWorker.pin_code) {
                     alert("❌ Одоогийн PIN буруу байна!");
                     return;
                   }
@@ -2488,10 +2495,6 @@ const handleCloseShift = async () => {
               </button>
             </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
-              <p className="text-xs text-zinc-400">
-                💡 Анхдагч PIN: <strong className="text-white">1234</strong>
-              </p>
-
               <button
                 onClick={() => {
                   setStep("select_worker");
@@ -4523,14 +4526,16 @@ const handleCloseShift = async () => {
                             {/* Зүүн тал: Барааны нэр, төрөл, зураг */}
                             <div className="flex items-center gap-2.5 min-w-0">
                               {log.image_url ? (
-                                <img
-                                  src={log.image_url}
+                                <SignedImg
+                                  stored={log.image_url}
                                   alt="receipt"
-                                  onClick={() =>
-                                    setPreviewLogImage(log.image_url)
+                                  deviceToken={
+                                    typeof window === "undefined"
+                                      ? null
+                                      : localStorage.getItem("kiosk_device_token")
                                   }
+                                  onClick={(url) => setPreviewLogImage(url)}
                                   className="h-10 w-10 object-cover rounded-xl border border-zinc-700 cursor-pointer shrink-0 hover:scale-105 transition"
-                                  title="Томруулж харах"
                                 />
                               ) : (
                                 <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-sm shrink-0">

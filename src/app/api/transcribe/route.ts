@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { advancedMongolianVoiceParser } from '../../../lib/gemini';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-
+import { GoogleGenerativeAI } from "@/lib/ai/genai";
+import { MODELS } from "@/lib/ai/models";
+import { resolveTenantFromRequest } from "@/lib/tenant";
+import { subscriptionBlockMessage } from "@/lib/subscription";
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as Blob;
-    const clientId = (formData.get('clientId') as string) || 'SF Coffee';
-    const mimeType = (formData.get('mimeType') as string) || (file.type ? file.type.split(';')[0] : 'audio/webm');
+    const session = await resolveTenantFromRequest(request);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const blocked = await subscriptionBlockMessage(session.clientId);
+    if (blocked) return NextResponse.json({ error: blocked }, { status: 402 });
 
-    if (!file) return NextResponse.json({ error: 'Дуут файл олдсонгүй' }, { status: 400 });
+    const formData = await request.formData();
+    const file = formData.get('file');
+    if (!(file instanceof Blob)) {
+      return NextResponse.json({ error: 'Дуут файл олдсонгүй' }, { status: 400 });
+    }
+    const clientId = session.clientId;
+    const mimeType = ((formData.get('mimeType') as string) || file.type || 'audio/webm').split(';')[0];
 
     const [{ data: ingredients }, { data: learnedAliases }] = await Promise.all([
       supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId),
@@ -28,7 +35,7 @@ export async function POST(request: Request) {
     if (groqKey) {
       try {
         const slangHints = (formData.get('slangHints') as string) || '';
-        const basePrompt = 'SF Coffee: 1 литр сүү, латте, эспрессо, американо, сироп, цөцгий, өндөг, талх, хаягдал, асгасан, авсан, муудсан';
+        const basePrompt = `${clientId}: 1 литр сүү, латте, эспрессо, американо, сироп, цөцгий, өндөг, талх, хаягдал, асгасан, авсан, муудсан`;
         const dynamicPrompt = slangHints ? `${basePrompt}, ${slangHints}` : basePrompt;
 
         const groqData = new FormData();
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
       try {
         const ai = new GoogleGenerativeAI(key);
         const model = ai.getGenerativeModel({
-          model: 'gemini-3.5-flash-lite',
+          model: MODELS.flash,
           generationConfig: {
             temperature: 0.1,
             maxOutputTokens: 100,

@@ -1,4 +1,4 @@
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { FunctionDeclaration, SchemaType } from "@/lib/ai/genai";
 
 export const operationsDefs: FunctionDeclaration[] = [
   {
@@ -15,12 +15,49 @@ export const operationsDefs: FunctionDeclaration[] = [
     },
   },
   {
+    name: "skill_forecast_demand",
+    description:
+      "CALL THIS to predict units sold per product for the next 7 days from weekday patterns and holidays, and convert that into recipe prep quantities.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "skill_menu_matrix",
+    description:
+      "CALL THIS to classify dishes as star, plowhorse, puzzle, or dog using sales popularity and recipe cost margins.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "action_propose_purchase_order",
+    description:
+      "CALL THIS to propose a purchase order from the procurement forecast. The owner approves it on the alerts panel, then sends it to a supplier.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        supplierId: { type: SchemaType.STRING, description: "Optional suppliers.id" },
+        note: { type: SchemaType.STRING, description: "Note for the supplier" },
+      },
+    },
+  },
+  {
     name: "skill_forecast_procurement",
     description:
       "TRIGGER THIS WHEN the user asks about: 'юу захиалах' (what to order), 'нөөц дуусч байгаа' (low stock), 'PAR түвшин', or procurement forecasting based on 30-day velocity.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "action_propose_price_change",
+    description:
+      "CALL THIS after skill_menu_matrix when a plowhorse or dog should change price. The owner approves it on the alerts panel.",
     parameters: {
       type: SchemaType.OBJECT,
-      properties: {},
+      properties: {
+        productName: { type: SchemaType.STRING, description: "Exact menu product name" },
+        currentPrice: { type: SchemaType.NUMBER, description: "Current price in MNT" },
+        proposedPrice: { type: SchemaType.NUMBER, description: "Recommended new price in MNT" },
+        reason: { type: SchemaType.STRING, description: "Why the price should change" },
+        marginImpact: { type: SchemaType.STRING, description: "Margin before and after" },
+      },
+      required: ["productName", "proposedPrice", "reason"],
     },
   },
   {

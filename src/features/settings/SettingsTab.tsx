@@ -19,6 +19,7 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 import { AutoPilotChange } from "@/types/dashboard";
 import RecipeEditor from "../recipes/RecipeEditor";
 import GeneralSettings from "./GeneralSettings";
+import StaffInvitePanel from "./StaffInvitePanel";
 import IngredientsPanel from "../ingredients/IngredientsPanel";
 import ProductsPanel from "../products/ProductsPanel";
 import { useIngredients } from "../ingredients/useIngredients";
@@ -216,6 +217,7 @@ export default function SettingsTab({
   return (
     <>
       <div className="space-y-8">
+        <StaffInvitePanel clientId={activeClient} />
         {/* ========================================================================= */}
         {/* 🎯 МАСТЕР КАТАЛОГ (ЦОНХГҮЙ, ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ)            */}
         {/* ========================================================================= */}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { clientAddress, rateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,14 @@ export async function POST(request: Request) {
     const pairingCode = (body.pairingCode || body.code || "").trim();
     // ⚡ 1. NEW: Extract the device info sent from the tablet
     const deviceInfo = body.deviceInfo || "Үл мэдэгдэх төхөөрөмж";
+    const subject = `${clientAddress(request)}:${String(deviceInfo).slice(0, 80)}`;
+    const gate = await rateLimit("kiosk_pair", subject, false);
+    if (gate.limited) {
+      return NextResponse.json(
+        { success: false, message: "Хэт олон буруу оролдлого. 15 минутын дараа дахин оролдоно уу." },
+        { status: 429 },
+      );
+    }
 
     if (!pairingCode || pairingCode.length < 6) {
       return NextResponse.json(
@@ -32,6 +41,7 @@ export async function POST(request: Request) {
     }
 
     if (!device) {
+      await rateLimit("kiosk_pair", subject, true);
       return NextResponse.json({
           success: false,
           message: "Холболтын код буруу эсвэл 15 минутын хугацаа нь дууссан байна. Дахин код авна уу.",

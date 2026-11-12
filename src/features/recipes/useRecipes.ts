@@ -11,7 +11,7 @@ export function useRecipes(activeClient: string, ingredients: any[]) {
 
   const fetchRecipes = useCallback(async () => {
     if (!activeClient) return;
-    const { data } = await supabase.from("recipes").select("*").ilike("client_id", activeClient);
+    const { data } = await supabase.from("recipes").select("*").eq("client_id", activeClient);
     if (data) setRecipes(data);
   }, [activeClient]);
 
