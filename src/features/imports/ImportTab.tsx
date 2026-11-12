@@ -858,6 +858,7 @@ export default function ImportTab({
       >();
       const latestPriceUpdates = new Map<string, number>();
       const parsedRows: any[] = [];
+      const skipped: string[] = [];
 
       // 1. БҮХ 100+ МӨРИЙГ САНАХ ОЙД 1 МИЛЛИСЕКУНДЭД ЯЛГАЖ АВАХ
       for (let i = 1; i < rows.length; i++) {
@@ -883,13 +884,32 @@ export default function ImportTab({
           continue;
 
         // ₮ болон таслалыг автоматаар цэвэрлэх:
-        const qty =
-          parseFloat((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
-        const totalCost =
-          parseFloat(
-            (cols[costIdx >= 0 ? costIdx : 2] || "0").replace(/[^0-9.-]/g, ""),
-          ) || 0;
-        if (qty <= 0) continue;
+     let qty =
+  parseFloat((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
+let totalCost =
+  parseFloat(
+    (cols[costIdx >= 0 ? costIdx : 2] || "0").replace(/[^0-9.-]/g, ""),
+  ) || 0;
+
+// 2 баганатай мөр: [нэр] [нийт дүн] → 2 дахь нь өртөг
+if (cols.length === 2 && costIdx > qtyIdx) {
+  totalCost = qty;
+  qty = 0;
+}
+
+    // Тоо хэмжээ хоосон/0 → каталогийн үнээр бодно
+    let qtyWasCalculated = false;
+    if (qty <= 0 && totalCost > 0) {
+      const known = ingMap.get(cleanNameForMatch(ingName));
+      const price = Number(known?.unit_price) || 0;
+      if (price <= 0) {
+        skipped.push(ingName);
+        continue;
+      }
+      qty = Math.round((totalCost / price) * 100) / 100;
+      qtyWasCalculated = true;
+    }
+    if (qty <= 0) continue;
 
         const rawDate =
           dateIdx >= 0 && cols[dateIdx] ? cols[dateIdx].trim() : undefined;
@@ -921,10 +941,16 @@ export default function ImportTab({
         }
 
         // Хамгийн сүүлийн үнийг хадгалах
-        if (qty > 0 && totalCost > 0) {
+        if (!qtyWasCalculated && qty > 0 && totalCost > 0) {
           latestPriceUpdates.set(cleanKey, Math.round(totalCost / qty));
         }
       }
+
+      if (skipped.length > 0) {
+  alert(
+    `Тоо хэмжээг бодож чадсангүй (каталогийн үнэ 0 эсвэл шинэ бараа):\n${skipped.join(", ")}`,
+  );
+}
 
       // 2. ХЭРЭВ ШИНЭ БАРААНУУД БАЙВАЛ БААЗ РУУ ГАНЦХАН ХҮСЭЛТЭЭР БӨӨНӨӨР НЬ ОРУУЛАХ
       if (newIngsToCreate.size > 0) {

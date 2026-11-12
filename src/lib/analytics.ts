@@ -223,30 +223,25 @@ export async function getAnalyticsData(
       }
     }
   });
+for (const key in master) {
+  const history = (itemCountsHistory[key] || []).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+  const day = (d: string) => new Date(d).toISOString().split("T")[0];
+  const before = history.filter((h) => day(h.date) < startDay);
+  const inside = history.filter((h) => day(h.date) >= startDay && day(h.date) <= endDay);
 
-  // 🎯 БАРАА ТУС БҮРИЙН START БА END-ИЙГ ДАРААЛЛААР НЬ ОНООХ
-  for (const key in master) {
-    const history = itemCountsHistory[key] || [];
-    // Хуучнаас шинэ рүү цагаар нь эрэмбэлэх
-    history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // START: сарын өмнөх сүүлийн тооллого, байхгүй бол сарын эхний тооллого
+  master[key].start = before.length
+    ? before[before.length - 1].qty
+    : inside.length ? inside[0].qty : 0;
 
-    if (history.length === 0) {
-      master[key].start = 0;
-      master[key].end = master[key].live_stock;
-    } else if (history.length === 1) {
-      // 💡 ГАНЦХАН ТОOЛСОН ҮЕД (Жишээ нь 10.03-ны 897.5г):
-      // Энэ нь START мөн одоогоор END болно (Хэрэглээ = 0, Хасах өртөг үүсэхгүй!)
-      master[key].start = history[0].qty;
-      master[key].end = history[0].qty;
-    } else {
-      // 💡 2 БА ТҮҮНЭЭС ДЭЭШ ТООЛСОН ҮЕД (10.03-нд 10л, 10.04-нд 8.5л):
-      // Хамгийн анхных нь -> START (10л)
-      // Хамгийн сүүлчийнх нь -> END (8.5л)
-      // Хэрэглээ: 10 - 8.5 = 1.5л бодитоор бодогдоно!
-      master[key].start = history[0].qty;
-      master[key].end = history[history.length - 1].qty;
-    }
-  }
+  // END: сар доторх сүүлийн тооллого (эхнийхээс өөр байх ёстой), байхгүй бол start
+  master[key].end =
+    inside.length && (before.length || inside.length > 1)
+      ? inside[inside.length - 1].qty
+      : master[key].start;
+}
 
  
 
