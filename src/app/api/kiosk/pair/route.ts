@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { deviceKey, recordAttempt, tooManyAttempts } from "@/core/auth/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,10 @@ export async function POST(request: Request) {
     const pairingCode = (body.pairingCode || body.code || "").trim();
     // ⚡ 1. NEW: Extract the device info sent from the tablet
     const deviceInfo = body.deviceInfo || "Үл мэдэгдэх төхөөрөмж";
+    const key = deviceKey(request, pairingCode);
+    if (await tooManyAttempts(key, "pair")) {
+      return NextResponse.json({ success: false, message: "15 минутад 5 буруу оролдлого. Түр хүлээнэ үү." }, { status: 429 });
+    }
 
     if (!pairingCode || pairingCode.length < 6) {
       return NextResponse.json(
@@ -32,6 +37,7 @@ export async function POST(request: Request) {
     }
 
     if (!device) {
+      await recordAttempt(key, "pair", false);
       return NextResponse.json({
           success: false,
           message: "Холболтын код буруу эсвэл 15 минутын хугацаа нь дууссан байна. Дахин код авна уу.",
@@ -60,6 +66,7 @@ export async function POST(request: Request) {
       payload: { deviceId: device.id, deviceName: deviceInfo },
     });
     supabaseAdmin.removeChannel(channel);
+    await recordAttempt(key, "pair", true);
 
 
 

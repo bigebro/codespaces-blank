@@ -1,59 +1,47 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
-import { getAnalyticsData } from '../../../../lib/analytics';
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAnalyticsData } from "@/lib/analytics";
+import { rejectMissingCron, exactClientId } from "@/core/auth/tenant";
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN!;
-const CRON_SECRET = process.env.CRON_SECRET;
-
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  try {
-    // 🔒 1. Гадны халдлагаас хамгаалах
-    if (CRON_SECRET) {
-      const authHeader = request.headers.get('authorization');
-      if (authHeader !== `Bearer ${CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
+  const denied = rejectMissingCron(request);
+  if (denied) return denied;
 
-    const { data: profiles } = await supabaseAdmin
-      .from('profiles')
-      .select('client_id, telegram_chat_id')
-      .not('telegram_chat_id', 'is', null);
+  const { data: tenants, error } = await supabaseAdmin
+    .from("tenants")
+    .select("client_id")
+    .eq("status", "active");
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    if (!profiles || profiles.length === 0) {
-      return NextResponse.json({ message: "No active telegram clients found." });
-    }
-
-    for (const profile of profiles) {
-      const chatId = profile.telegram_chat_id;
-      const clientId = profile.client_id;
-
-      // ⚡ HTTP fetch хийхгүйгээр шууд функцээ дуудна (10 дахин хурдан, найдвартай)
-      const analyticsData = await getAnalyticsData(clientId);
-      const lowItems = analyticsData.all_inventory_data?.filter((i: any) => i.is_low && i.suggested_order > 0);
-
-      if (lowItems && lowItems.length > 0) {
-        let alertMessage = `🚨 **ӨГЛӨӨНИЙ САНУУЛГА: АГУУЛАХЫН НӨӨЦ БАГАССАН БАЙНА**\n\nТаны өнөөдрийн үйл ажиллагааг тасалдуулахгүйн тулд дараах бараануудыг яаралтай захиалахыг санал болгож байна:\n\n`;
-        
-        lowItems.forEach((item: any) => {
-          alertMessage += `🛒 **${item.name}**\n - Үлдэгдэл: ${Math.round(item.live_stock * 10) / 10} ${item.unit}\n - Захиалах хэмжээ: ${item.suggested_order} ${item.unit}\n\n`;
+  const results = [];
+  for (let i = 0; i < (tenants || []).length; i += 3) {
+    const batch = (tenants || []).slice(i, i + 3);
+    const settled = await Promise.all(batch.map(async (tenant) => {
+      try {
+        const clientId = exactClientId(tenant.client_id);
+        const analytics = await getAnalyticsData(clientId);
+        const lowItems = (analytics.all_inventory_data || []).filter((item: { is_low?: boolean; suggested_order?: number }) => item.is_low && (item.suggested_order || 0) > 0);
+        if (!lowItems.length) return { clientId, alerts: 0 };
+        await supabaseAdmin.from("alerts").insert({
+          client_id: clientId,
+          kind: "low_stock",
+          title: "Агуулахын нөөц багассан",
+          body: lowItems.map((item: { name: string; live_stock: number; unit: string; suggested_order: number }) =>
+            `${item.name}: үлдэгдэл ${Math.round(item.live_stock * 10) / 10} ${item.unit}, захиалах ${item.suggested_order} ${item.unit}`
+          ).join("\n"),
+          payload: { lines: lowItems.map((item: { name: string; suggested_order: number; unit: string }) => ({ name: item.name, qty: item.suggested_order, unit: item.unit })) },
+          status: "pending",
         });
-
-        alertMessage += `*(Дээрх хэмжээг таны сүүлийн 30 хоногийн борлуулалтын хурдад тулгуурлан систем автоматаар бодож гаргав)*`;
-
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: alertMessage, parse_mode: "Markdown" })
-        });
+        return { clientId, alerts: 1 };
+      } catch (err) {
+        return { clientId: tenant.client_id, error: err instanceof Error ? err.message : "failed" };
       }
-    }
-
-    return NextResponse.json({ success: true, message: "Alerts processed successfully" });
-  } catch (error: any) {
-    console.error("Cron Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    }));
+    results.push(...settled);
   }
+
+  return NextResponse.json({ success: true, results });
 }

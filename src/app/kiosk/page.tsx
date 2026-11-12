@@ -278,21 +278,22 @@ async function compressImageForUpload(
 async function uploadEvidencePhoto(
   file: File,
   folder: string = "logs",
+  clientId?: string,
 ): Promise<string | null> {
   try {
     const { file: compressedFile } = await compressImageForUpload(file);
-    const fileExt = "jpg";
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const safeClient = String(clientId || "shared").replace(/[%_]/g, "").trim() || "shared";
+    const fileName = `${safeClient}/${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("receipts_evidence")
       .upload(fileName, compressedFile, { cacheControl: "3600", upsert: true });
 
     if (uploadError) throw uploadError;
-    const { data: publicUrlData } = supabase.storage
+    const { data: signed } = await supabase.storage
       .from("receipts_evidence")
-      .getPublicUrl(fileName);
-    return publicUrlData.publicUrl;
+      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
+    return signed?.signedUrl || null;
   } catch (err) {
     console.error("Storage upload error:", err);
     return null;
@@ -1816,13 +1817,20 @@ const initKioskContext = async () => {
   const handleVerifyPin = async () => {
     if (!selectedWorker) return;
 
-    const { data: isValid, error: pinError } = await supabase.rpc(
-      "verify_kiosk_pin",
-      {
-        target_worker_id: selectedWorker.id,
-        entered_pin: pin,
-      },
-    );
+    const { data: isValid, error: pinError } = await (async () => {
+      let deviceId = localStorage.getItem("operlink_device");
+      if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem("operlink_device", deviceId);
+      }
+      const res = await fetch("/api/kiosk/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-device-id": deviceId },
+        body: JSON.stringify({ workerId: selectedWorker.id, pin, deviceToken: deviceId }),
+      });
+      const json = await res.json();
+      return { data: json.valid === true, error: json.valid ? null : { message: json.message || "Буруу PIN" } };
+    })();
 
     if (pinError || !isValid) {
       setMsg("❌ Буруу PIN код!");
@@ -1863,7 +1871,7 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
 
     let startImgUrl = null;
     if (handoverFile) {
-      startImgUrl = await uploadEvidencePhoto(handoverFile, "handover_starts");
+      startImgUrl = await uploadEvidencePhoto(handoverFile, "handover_starts", tenantClientId);
     }
 
     const workerName = selectedWorker.email.split("@")[0];
@@ -1880,7 +1888,6 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
           start_notes: handoverNote || "Ээлж хэвийн хүлээн авсан.",
           start_evidence_image: startImgUrl,
           daily_tasks_checklist: tasks,
-          telegram_chat_id: selectedWorker.telegram_chat_id || 0,
         },
       ])
       .select()
@@ -1904,7 +1911,7 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
 
     let damageImgUrl = null;
     if (incidentFile) {
-      damageImgUrl = await uploadEvidencePhoto(incidentFile, "damage_proofs");
+      damageImgUrl = await uploadEvidencePhoto(incidentFile, "damage_proofs", tenantClientId);
     }
 
     const ing = ingredients.find((i) => i.id === incidentItem);
@@ -2032,7 +2039,7 @@ const handleCloseShift = async () => {
     try {
       let posZUrl = null;
       if (fileToUpload) {
-        posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports");
+        posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports", tenantClientId);
       }
 
       const countLogsToInsert: any[] = itemsCounted.map((item) => ({
@@ -3412,6 +3419,7 @@ const handleCloseShift = async () => {
                             uploadedImg = await uploadEvidencePhoto(
                               fileToUpload,
                               "petty_cash",
+                              tenantClientId,
                             );
 
                           const noteText =
@@ -3787,6 +3795,7 @@ const handleCloseShift = async () => {
         uploadedUrl = await uploadEvidencePhoto(
           fileToUpload,
           "purchases_proofs",
+          tenantClientId,
         );
       }
 
@@ -4097,7 +4106,8 @@ const handleCloseShift = async () => {
                         try {
                           const uploadedImgUrl = await uploadEvidencePhoto(
                             reviewData.file,
-                            "receipts_evidence",
+                            "receipts",
+                            tenantClientId,
                           );
 
                           const logsToInsert = reviewData.items.map((it) => {
@@ -4357,6 +4367,7 @@ const handleCloseShift = async () => {
                             uploadedUrl = await uploadEvidencePhoto(
                               fileToUpload,
                               "new_items",
+                              tenantClientId,
                             );
                           }
 
@@ -5215,6 +5226,7 @@ const handleCloseShift = async () => {
                               uploadedUrl = await uploadEvidencePhoto(
                                 fileToUpload,
                                 "purchases_proofs",
+                                tenantClientId,
                               );
                             }
 

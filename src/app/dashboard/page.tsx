@@ -40,6 +40,7 @@ import {
   ChevronDown,
   ChevronUp,
   TerminalSquare,
+  Bell,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -56,6 +57,7 @@ import { AutoPilotChange } from "@/types/dashboard";
 import ImportTab from "@/features/imports/ImportTab";
 import TasksTab from "@/features/tasks/TasksTab";
 import SettingsTab from "@/features/settings/SettingsTab";
+import AlertsPanel from "@/features/alerts/AlertsPanel";
 import AiCfoChat from "@/features/ai-cfo/AiCfoChat";
 import CheckoutModal from "@/components/shared/CheckoutModal";
 
@@ -288,6 +290,7 @@ function Home() {
     | "import"
     | "tasks"
     | "settings"
+    | "alerts"
     | "ai_cfo"
   >("dashboard");
   // 2. Динамик Тохиргооны State-үүд
@@ -1721,7 +1724,7 @@ function Home() {
         const now = new Date();
         const diffTime = end.getTime() - now.getTime();
         const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const isExpired = diffTime <= 0;
+        const isExpired = diffTime <= 0 || tenantData.status === "past_due";
         const isTrial =
           tenantData.status === "trial" || tenantData.plan === "trial";
         const formattedEndDate = `${end.getFullYear()} оны ${end.getMonth() + 1}-р сарын ${end.getDate()}`;
@@ -2439,6 +2442,12 @@ function Home() {
                     Тохиргоо
                   </div>
                   <button
+                    onClick={() => setActiveTab("alerts")}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "alerts" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
+                  >
+                    <Bell className="h-4 w-4" /> Alerts & Approvals
+                  </button>
+                  <button
                     onClick={() => {
                       setActiveTab("tasks");
                       setLoading(true); // Татах хооронд loading харуулна
@@ -2805,6 +2814,10 @@ function Home() {
                     />
                   )}
 
+                  {activeTab === "alerts" && userRole === "owner" && (
+                    <AlertsPanel activeClient={activeClient} />
+                  )}
+
                   {/* 7. TASK & ROLE MANAGEMENT TAB */}
                   {activeTab === "tasks" && userRole === "owner" && (
                     <TasksTab
@@ -2828,7 +2841,8 @@ function Home() {
                     activeTab !== "operations" &&
                     activeTab !== "sales" &&
                     activeTab !== "dashboard" &&
-                    activeTab !== "settings" && (
+                    activeTab !== "settings" &&
+                    activeTab !== "alerts" && (
                       <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-8 mt-8">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-zinc-800">
                           <div>

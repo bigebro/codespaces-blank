@@ -1,3 +1,4 @@
+import { exactClientId } from "@/core/auth/tenant";
 import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 
@@ -61,35 +62,35 @@ export async function getAnalyticsData(
     { data: rawSettings },
   ] = await Promise.all([
     // OPTIMIZATION: Select only needed columns to prevent Vercel Out-Of-Memory (OOM) errors
-    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, is_critical, is_suspicious_promoted, promoted_until, last_counted_at, par_level, lead_time_days, days_of_supply").ilike("client_id", clientId.trim()),
-    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", clientId.trim()),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, is_critical, is_suspicious_promoted, promoted_until, last_counted_at, par_level, lead_time_days, days_of_supply").eq("client_id", exactClientId(clientId.trim())),
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").eq("client_id", exactClientId(clientId.trim())),
     supabaseAdmin
       .from("inventory_logs")
       .select("id, date, type, quantity, total_cost, notes, non_food_item, ingredient_id, worker_name, payment_method, is_ebarimt, image_url, incident_type, reported_against_worker")
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", exactClientId(clientId.trim()))
       .lte("date", finalEndDate)
       .order("date", { ascending: false }),
     supabaseAdmin
       .from("sales_logs")
       .select("date, product_name, quantity_sold, total_revenue, payment_method") // Removed 'created_at', 'id', etc.
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", exactClientId(clientId.trim()))
       .gte("date", finalStartDate)
       .lte("date", finalEndDate),
     supabaseAdmin
       .from("shifts")
       .select("character_role, start_time, end_time, is_active, daily_tasks_checklist, pos_z_image_url, start_evidence_image")
-      .ilike("client_id", clientId.trim())
+      .eq("client_id", exactClientId(clientId.trim()))
       .gte("start_time", finalStartDate)
       .order("start_time", { ascending: false })
       .limit(50),
-    supabaseAdmin.from("products").select("name, selling_price, category").ilike("client_id", clientId.trim()),
+    supabaseAdmin.from("products").select("name, selling_price, category").eq("client_id", exactClientId(clientId.trim())),
     supabaseAdmin
       .from("profiles")
       .select("full_name, email, role, salary_type, base_rate")
-      .ilike("client_id", clientId.trim()),
-    supabaseAdmin.from("fixed_assets").select("name, code, purchase_date, initial_cost, useful_months").ilike("client_id", clientId.trim()),
-    supabaseAdmin.from("fixed_opex").select("name, category, monthly_cost").ilike("client_id", clientId.trim()).eq("is_active", true),
-    supabaseAdmin.from("client_settings").select("initial_cash, initial_bank, tax_mode, category_margins").ilike("client_id", clientId.trim()).maybeSingle(),
+      .eq("client_id", exactClientId(clientId.trim())),
+    supabaseAdmin.from("fixed_assets").select("name, code, purchase_date, initial_cost, useful_months").eq("client_id", exactClientId(clientId.trim())),
+    supabaseAdmin.from("fixed_opex").select("name, category, monthly_cost").eq("client_id", exactClientId(clientId.trim())).eq("is_active", true),
+    supabaseAdmin.from("client_settings").select("initial_cash, initial_bank, tax_mode, category_margins").eq("client_id", exactClientId(clientId.trim())).maybeSingle(),
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {

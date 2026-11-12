@@ -246,10 +246,17 @@ export default function TasksTab({
                           value={w.role || "Ажилтан"}
                           onChange={async (e) => {
                             const updatedRole = e.target.value;
-                            await supabase
-                              .from("profiles")
-                              .update({ role: updatedRole })
-                              .eq("id", w.id);
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const res = await fetch("/api/staff/role", {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${session?.access_token || ""}`,
+                              },
+                              body: JSON.stringify({ profileId: w.id, role: updatedRole }),
+                            });
+                            const json = await res.json();
+                            if (!res.ok) alert(json.error || "Эрх солигдсонгүй");
                             fetchDatabaseData(activeClient);
                           }}
                           className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-sm text-zinc-200 font-bold"

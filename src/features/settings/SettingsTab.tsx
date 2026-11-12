@@ -24,6 +24,7 @@ import ProductsPanel from "../products/ProductsPanel";
 import { useIngredients } from "../ingredients/useIngredients";
 import { useProducts } from "../products/useProducts";
 import { useRecipes } from "../recipes/useRecipes";
+import StaffInvitePanel from "./StaffInvitePanel";
 function cleanString(str: string) {
   return String(str || "")
     .replace(/[\u00a0\s]+/g, " ")
@@ -215,6 +216,7 @@ export default function SettingsTab({
 
   return (
     <>
+      <StaffInvitePanel />
       <div className="space-y-8">
         {/* ========================================================================= */}
         {/* 🎯 МАСТЕР КАТАЛОГ (ЦОНХГҮЙ, ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ)            */}

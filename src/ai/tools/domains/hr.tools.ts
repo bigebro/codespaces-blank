@@ -1,4 +1,4 @@
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { FunctionDeclaration, SchemaType } from "@/ai/geminiClient";
 
 export const hrDefs: FunctionDeclaration[] = [
   {
@@ -27,6 +27,16 @@ export const hrDefs: FunctionDeclaration[] = [
         reason: { type: SchemaType.STRING, description: "HR reasoning" },
       },
       required: ["role", "taskName", "reason"],
+    },
+  },
+  {
+    name: "skill_propose_shift_plan",
+    description: "CALL THIS to propose next week's staff schedule from hourly sales and wage rates, inside a labor-cost target. The owner approves it on the alerts panel.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        laborTargetPct: { type: SchemaType.NUMBER, description: "Labor cost as a percent of sales. Default 25." },
+      },
     },
   },
 ];

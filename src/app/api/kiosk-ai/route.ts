@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
 import { getAnalyticsData } from "../../../lib/analytics";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@/ai/geminiClient";
 import { createClient } from "@supabase/supabase-js";
 import { saveBusinessRule } from "@/ai/memory/memory.service";
 import { routeAiRequest } from "@/ai/agents/router.agent";
 import { AgentContext } from "@/types/agent.types";
+import { getTenantBilling } from "@/core/auth/tenant";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const clientId = profile.client_id;
     const isOwner = profile.role === "owner";
+    const billing = await getTenantBilling(clientId);
    
 
     const workerName = body.workerName || profile.full_name || "Ажилтан";
@@ -408,19 +410,24 @@ ${JSON.stringify(unmatched)}`;
 
     // 1. UNDO
     if (action === "undo" && logId) {
-      const { error } = await supabaseAdmin
+      const { data: row } = await supabaseAdmin
         .from("inventory_logs")
-        .delete()
-        .eq("id", logId);
-      if (error)
-        return NextResponse.json({
-          success: false,
-          message: `❌ Алдаа: ${error.message}`,
-        });
-      return NextResponse.json({
-        success: true,
-        message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
-      });
+        .select("id, client_id, worker_name")
+        .eq("id", logId)
+        .eq("client_id", clientId)
+        .maybeSingle();
+      const owner = profile.role === "owner";
+      const mine = !!row?.worker_name && (row.worker_name === profile.full_name || row.worker_name === workerName);
+      if (!row || (!owner && !mine)) {
+        return NextResponse.json({ success: false, message: "Энэ бүртгэлийг буцаах эрхгүй." }, { status: 403 });
+      }
+      const { error } = await supabaseAdmin.from("inventory_logs").delete().eq("id", logId).eq("client_id", clientId);
+      if (error) return NextResponse.json({ success: false, message: `Алдаа: ${error.message}` });
+      return NextResponse.json({ success: true, message: "Бүртгэл цуцлагдлаа." });
+    }
+
+    if (billing.past) {
+      return NextResponse.json({ success: false, message: "Үйлчилгээний эрх дууссан. Эрхээ сунгасны дараа AI дахин ажиллана." }, { status: 402 });
     }
 
 

@@ -1,4 +1,4 @@
-import { FunctionDeclaration } from "@google/generative-ai";
+import { FunctionDeclaration } from "@/ai/geminiClient";
 import { financeDefs } from "./domains/finance.tools";
 import { operationsDefs } from "./domains/operations.tools";
 import { hrDefs } from "./domains/hr.tools";
@@ -9,7 +9,7 @@ function deduplicateTools(...toolArrays: FunctionDeclaration[][]): FunctionDecla
   const map = new Map<string, FunctionDeclaration>();
   toolArrays.forEach((arr) => {
     arr.forEach((tool) => {
-      if (!map.has(tool.name)) {
+      if (tool.name && !map.has(tool.name)) {
         map.set(tool.name, tool);
       }
     });

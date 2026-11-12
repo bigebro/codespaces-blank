@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { advancedMongolianVoiceParser } from '../../../lib/gemini';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-
+import { GoogleGenerativeAI } from "@/ai/geminiClient";
+import { requireUser, exactClientId } from "@/core/auth/tenant";
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as Blob;
-    const clientId = (formData.get('clientId') as string) || 'SF Coffee';
-    const mimeType = (formData.get('mimeType') as string) || (file.type ? file.type.split(';')[0] : 'audio/webm');
+    const user = await requireUser(request);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const clientId = exactClientId(user.clientId);
 
-    if (!file) return NextResponse.json({ error: 'Дуут файл олдсонгүй' }, { status: 400 });
+    const formData = await request.formData();
+    const fileEntry = formData.get("file");
+    if (!(fileEntry instanceof File) || fileEntry.size === 0) {
+      return NextResponse.json({ error: "Дуут файл олдсонгүй" }, { status: 400 });
+    }
+    const file = fileEntry;
+    const mimeType = file.type ? file.type.split(";")[0] : "audio/webm";
 
     const [{ data: ingredients }, { data: learnedAliases }] = await Promise.all([
       supabaseAdmin.from('ingredients').select('id, name, unit').eq('client_id', clientId),

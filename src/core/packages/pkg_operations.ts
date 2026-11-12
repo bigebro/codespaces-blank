@@ -1,3 +1,4 @@
+import { exactClientId } from "@/core/auth/tenant";
 // src/core/packages/pkg_operations.ts
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { calculateStaffPayroll, compileWorkerFraudMatrix } from "@/core/synapses/workforce.synapse";
@@ -18,10 +19,10 @@ export async function getFraudAndLeakagePackage(
     { data: sales },
     { data: recipes }
   ] = await Promise.all([
-    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
-    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, last_counted_at").ilike("client_id", clientId),
-    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").ilike("client_id", clientId).gte("date", start).lte("date", end),
-    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", clientId),
+    supabaseAdmin.from("inventory_logs").select("*").eq("client_id", exactClientId(clientId)).gte("date", start).lte("date", end),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, last_counted_at").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").eq("client_id", exactClientId(clientId)).gte("date", start).lte("date", end),
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").eq("client_id", exactClientId(clientId)),
   ]);
 
   const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
@@ -157,11 +158,11 @@ export async function getStaffPerformancePackage(
     supabaseAdmin
       .from("shifts")
       .select("*")
-      .ilike("client_id", clientId)
+      .eq("client_id", exactClientId(clientId))
       .gte("start_time", start)
       .lte("start_time", end),
-    supabaseAdmin.from("profiles").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("inventory_logs").select("*").ilike("client_id", clientId).gte("date", start).lte("date", end),
+    supabaseAdmin.from("profiles").select("*").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("inventory_logs").select("*").eq("client_id", exactClientId(clientId)).gte("date", start).lte("date", end),
   ]);
 
   const payroll = calculateStaffPayroll(shifts || [], profiles || []);
@@ -175,7 +176,7 @@ export async function getShiftHandoversPackage(clientId: string, limit = 10) {
   const { data: shifts } = await supabaseAdmin
     .from("shifts")
     .select("id, character_role, start_time, end_time, is_active, pos_z_image_url, start_notes, closing_variance_score, daily_tasks_checklist, closing_checklist")
-    .ilike("client_id", clientId)
+    .eq("client_id", exactClientId(clientId))
     .order("start_time", { ascending: false })
     .limit(limit);
 
@@ -185,7 +186,7 @@ export async function getShiftHandoversPackage(clientId: string, limit = 10) {
   const { data: countLogs } = await supabaseAdmin
     .from("inventory_logs")
     .select("id, date, ingredient_id, quantity, incident_type, notes, worker_name, ingredients(name, unit)")
-    .ilike("client_id", clientId)
+    .eq("client_id", exactClientId(clientId))
     .eq("type", "count")
     .order("date", { ascending: false });
 
@@ -261,7 +262,7 @@ export async function getIngredientStock(clientId: string) {
   const { data, error } = await supabaseAdmin
     .from("ingredients")
     .select("name, unit, unit_price, current_stock")
-    .ilike("client_id", id)
+    .eq("client_id", exactClientId(id))
     .order("name");
   if (error) throw new Error(error.message);
   return (data || []).map((i) => ({
@@ -275,8 +276,8 @@ export async function getIngredientStock(clientId: string) {
 export async function getRecipes(clientId: string) {
   const id = clientId.trim();
   const [{ data: recipes, error }, { data: ingredients, error: ingError }] = await Promise.all([
-    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", id),
-    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price").ilike("client_id", id),
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").eq("client_id", exactClientId(id)),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price").eq("client_id", exactClientId(id)),
   ]);
   if (error) throw new Error(error.message);
   if (ingError) throw new Error(ingError.message);
@@ -300,7 +301,7 @@ export async function getMenu(clientId: string) {
   const { data, error } = await supabaseAdmin
     .from("products")
     .select("name, category, selling_price")
-    .ilike("client_id", clientId.trim())
+    .eq("client_id", exactClientId(clientId.trim()))
     .order("name");
   if (error) throw new Error(error.message);
   return (data || []).map((p) => ({
@@ -318,8 +319,8 @@ export async function getOpeningCounts(clientId: string, asOfDate?: string) {
   const cutoff = new Date(`${day}T00:00:00+08:00`).toISOString();
 
   const [{ data: ingredients, error }, { data: counts, error: countError }] = await Promise.all([
-    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock").ilike("client_id", id).order("name"),
-    supabaseAdmin.from("inventory_logs").select("ingredient_id, quantity, date").ilike("client_id", id).eq("type", "count").lte("date", cutoff).order("date", { ascending: false }),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock").eq("client_id", exactClientId(id)).order("name"),
+    supabaseAdmin.from("inventory_logs").select("ingredient_id, quantity, date").eq("client_id", exactClientId(id)).eq("type", "count").lte("date", cutoff).order("date", { ascending: false }),
   ]);
   if (error) throw new Error(error.message);
   if (countError) throw new Error(countError.message);

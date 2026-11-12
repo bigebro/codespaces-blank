@@ -1,5 +1,5 @@
 // src/ai/tools/domains/memory.tools.ts
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { FunctionDeclaration, SchemaType } from "@/ai/geminiClient";
 
 export const memoryDefs: FunctionDeclaration[] = [
   {
@@ -24,7 +24,7 @@ export const memoryDefs: FunctionDeclaration[] = [
   {
     name: "action_save_business_rule",
     description:
-      "CALL THIS to commit a persistent, permanent rule about the business (e.g. 'Сүү 3 дахь өдөр ирдэг') into vector memory.",
+      "CALL THIS to propose a business rule. It stays pending until the owner approves it. Do not tell the user it is already saved.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -43,7 +43,7 @@ export const memoryDefs: FunctionDeclaration[] = [
   {
     name: "action_record_business_lesson",
     description:
-      "CALL THIS to record a completed business incident, experiment, outcome, and concluding rule learned for future audits. Hard evidence logs can be attached via evidenceLogIds.",
+      "CALL THIS to propose a lesson. Evidence log ids are checked against this business. Nothing is marked verified until the owner approves it.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {

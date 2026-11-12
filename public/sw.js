@@ -7,6 +7,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // PWA суулгах шаардлагыг хангах боловч сүлжээг хэзээ ч таслахгүй хоосон орхино
-self.addEventListener('fetch', (event) => {
-  return; 
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : { title: 'Operlink', body: 'Шинэ санал байна' };
+  event.waitUntil(self.registration.showNotification(data.title || 'Operlink', { body: data.body || '' }));
 });

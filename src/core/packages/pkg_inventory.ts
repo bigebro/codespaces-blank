@@ -1,3 +1,4 @@
+import { exactClientId } from "@/core/auth/tenant";
 // src/core/packages/pkg_inventory.ts
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { evaluateMenuItemEconomics } from "@/core/synapses/menu.synapse";
@@ -14,11 +15,11 @@ export async function getPricingStrategyPackage(clientId: string) {
     { data: sales },
     { data: settings },
   ] = await Promise.all([
-    supabaseAdmin.from("products").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("recipes").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("ingredients").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").ilike("client_id", clientId),
-    supabaseAdmin.from("client_settings").select("category_margins").ilike("client_id", clientId).maybeSingle(),
+    supabaseAdmin.from("products").select("*").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("recipes").select("*").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("ingredients").select("*").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("client_settings").select("category_margins").eq("client_id", exactClientId(clientId)).maybeSingle(),
   ]);
 
   const salesMap: Record<string, number> = {};
@@ -43,12 +44,12 @@ export async function getProcurementForecastPackage(clientId: string) {
     { data: recipes },
     { data: sales },
   ] = await Promise.all([
-    supabaseAdmin.from("ingredients").select("*").ilike("client_id", clientId),
-    supabaseAdmin.from("recipes").select("*").ilike("client_id", clientId),
+    supabaseAdmin.from("ingredients").select("*").eq("client_id", exactClientId(clientId)),
+    supabaseAdmin.from("recipes").select("*").eq("client_id", exactClientId(clientId)),
     supabaseAdmin
       .from("sales_logs")
       .select("product_name, quantity_sold, date")
-      .ilike("client_id", clientId)
+      .eq("client_id", exactClientId(clientId))
       .gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
   ]);
 

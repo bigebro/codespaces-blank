@@ -1,4 +1,3 @@
-// src/ai/tools/execution.tools.ts
 import { AgentContext } from "@/types/agent.types";
 import { getProfitabilityPackage, getCashflowPackage } from "@/core/packages/pkg_finance";
 import { getPricingStrategyPackage, getProcurementForecastPackage } from "@/core/packages/pkg_inventory";
@@ -16,142 +15,116 @@ import {
   saveBusinessRule,
   recordBusinessLesson,
 } from "@/ai/memory/memory.service";
+import { forecastDemand, menuMatrix, proposeShiftPlan } from "@/core/packages/pkg_planning";
+import { TOOL_SCHEMAS } from "@/types/tool.schemas";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { exactClientId } from "@/core/auth/tenant";
 
-export async function executeAiTool(
-  context: AgentContext,
-  toolName: string,
-  args: any
-) {
+async function propose(clientId: string, kind: string, title: string, body: string, payload: Record<string, unknown>, actionType: string) {
+  const { data, error } = await supabaseAdmin.from("alerts").insert({
+    client_id: exactClientId(clientId),
+    kind,
+    title,
+    body,
+    payload,
+    status: "pending",
+  }).select("id").single();
+  if (error) throw error;
+  return {
+    success: true,
+    data: {
+      type: "PROPOSAL",
+      actionType,
+      status: "pending_human_approval",
+      alertId: data.id,
+      payload,
+    },
+  };
+}
+
+export async function executeAiTool(context: AgentContext, toolName: string, args: unknown) {
   try {
+    const schema = TOOL_SCHEMAS[toolName];
+    if (!schema) {
+      return { success: false, error: `Tool '${toolName}' has no schema.` };
+    }
+    const parsed = schema.safeParse(args || {});
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message || "Invalid tool arguments" };
+    }
+    const safe = parsed.data as Record<string, any>;
+
     switch (toolName) {
-      // 1. Profitability (Finance)
-      case "skill_analyze_profitability": {
-        const data = await getProfitabilityPackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 2. Pricing & Margins (Finance)
-      case "skill_evaluate_pricing_strategy": {
-        const data = await getPricingStrategyPackage(context.clientId);
-        return { success: true, data };
-      }
-
-      // 3. Cashflow (Finance)
-      case "skill_reconcile_cashflow": {
-        const data = await getCashflowPackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 4. Propose Price Change (Actuation / HITL)
-      case "action_propose_price_change": {
-        return {
-          success: true,
-          data: {
-            type: "PROPOSAL",
-            actionType: "UPDATE_MENU_PRICE",
-            status: "pending_human_approval",
-            payload: {
-              productName: args.productName,
-              currentPrice: Number(args.currentPrice) || 0,
-              proposedPrice: Number(args.proposedPrice),
-              reason: args.reason,
-              marginImpact: args.marginImpact || "",
-            },
-          },
-        };
-      }
-
-      // 5. Leakage & Fraud (Operations)
-      case "skill_detect_fraud_and_leakage": {
-        const data = await getFraudAndLeakagePackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 6. Procurement & Stock (Operations)
-      case "skill_forecast_procurement": {
-        const data = await getProcurementForecastPackage(context.clientId);
-        return { success: true, data };
-      }
-
-      // 7. Shift Handovers (Operations)
-      case "skill_review_shift_handovers": {
-        const data = await getShiftHandoversPackage(context.clientId, args.limit || 5);
-        return { success: true, data };
-      }
-
-      // 8. Staff SOP Creation (Actuation / HITL)
-      case "action_create_staff_task": {
-        return {
-          success: true,
-          data: {
-            type: "PROPOSAL",
-            actionType: "CREATE_STAFF_TASK",
-            status: "pending_human_approval",
-            payload: {
-              role: args.role,
-              taskName: args.taskName,
-              weight: Number(args.weight) || 10,
-              reason: args.reason,
-            },
-          },
-        };
-      }
-
-      // 9. Staff Performance & Payroll (HR)
-      case "skill_analyze_staff_performance": {
-        const data = await getStaffPerformancePackage(context.clientId, args.startDate, args.endDate);
-        return { success: true, data };
-      }
-
-      // 10. Semantic Vector Memory Search (Shared)
-      case "skill_search_business_memory": {
-        const data = await searchBusinessMemory(context.clientId, args.query, args.matchCount || 5);
-        return { success: true, data };
-      }
-
-      // 11. Save Business Rule (Shared)
-      case "action_save_business_rule": {
-        const data = await saveBusinessRule(context.clientId, args.topic, args.fact);
-        return { success: true, data };
-      }
-
-      // 12. Record Business Lesson (Shared) with optional Evidence Log IDs
-      case "action_record_business_lesson": {
-        const evidenceLogIds = Array.isArray(args.evidenceLogIds)
-          ? args.evidenceLogIds.filter((id: unknown) => typeof id === "string" && id.trim().length > 0)
-          : [];
-
-        const data = await recordBusinessLesson(context.clientId, {
-          situation: args.situation,
-          actionTaken: args.actionTaken,
-          outcome: args.outcome,
-          lesson: args.lesson,
-          prediction: args.prediction,
-          confidence: args.confidence,
-          evidenceLogIds,
-        });
-        return { success: true, data };
-      }
-
-       // 13. get current stock
-      case "action_get_current_stock": {
-        const data = await getIngredientStock(context.clientId);
-        return { success: true, data };
-      }
-
-      case "action_get_recipes": {
-        const data = await getRecipes(context.clientId);
-        return { success: true, data };
-      }
-
-      case "action_get_menu": {
+      case "skill_analyze_profitability":
+        return { success: true, data: await getProfitabilityPackage(context.clientId, safe.startDate, safe.endDate) };
+      case "skill_evaluate_pricing_strategy":
+        return { success: true, data: await getPricingStrategyPackage(context.clientId) };
+      case "skill_reconcile_cashflow":
+        return { success: true, data: await getCashflowPackage(context.clientId, safe.startDate, safe.endDate) };
+      case "action_propose_price_change":
+        return propose(context.clientId, "price_change", safe.productName, safe.reason, {
+          productName: safe.productName,
+          currentPrice: Number(safe.currentPrice) || 0,
+          proposedPrice: Number(safe.proposedPrice),
+          reason: safe.reason,
+          marginImpact: safe.marginImpact || "",
+        }, "UPDATE_MENU_PRICE");
+      case "skill_detect_fraud_and_leakage":
+        return { success: true, data: await getFraudAndLeakagePackage(context.clientId, safe.startDate, safe.endDate) };
+      case "skill_forecast_procurement":
+        return { success: true, data: await getProcurementForecastPackage(context.clientId) };
+      case "skill_review_shift_handovers":
+        return { success: true, data: await getShiftHandoversPackage(context.clientId, safe.limit || 5) };
+      case "action_create_staff_task":
+        return propose(context.clientId, "task", safe.taskName, safe.reason, {
+          role: safe.role,
+          taskName: safe.taskName,
+          weight: Number(safe.weight) || 10,
+          reason: safe.reason,
+        }, "CREATE_STAFF_TASK");
+      case "skill_analyze_staff_performance":
+        return { success: true, data: await getStaffPerformancePackage(context.clientId, safe.startDate, safe.endDate) };
+      case "skill_search_business_memory":
+        return { success: true, data: await searchBusinessMemory(context.clientId, safe.query, safe.matchCount || 5) };
+      case "action_save_business_rule":
+        return { success: true, data: await saveBusinessRule(context.clientId, safe.topic, safe.fact) };
+      case "action_record_business_lesson":
+        return { success: true, data: await recordBusinessLesson(context.clientId, {
+          situation: String(safe.situation),
+          actionTaken: safe.actionTaken,
+          outcome: safe.outcome,
+          lesson: safe.lesson,
+          prediction: safe.prediction,
+          confidence: safe.confidence,
+          evidenceLogIds: safe.evidenceLogIds,
+        }) };
+      case "action_get_current_stock":
+        return { success: true, data: await getIngredientStock(context.clientId) };
+      case "action_get_recipes":
+        return { success: true, data: await getRecipes(context.clientId) };
+      case "action_get_menu":
         return { success: true, data: await getMenu(context.clientId) };
-      }
-
-      case "action_get_opening_counts": {
-        return { success: true, data: await getOpeningCounts(context.clientId, args.asOfDate) };
-      }
-
+      case "action_get_opening_counts":
+        return { success: true, data: await getOpeningCounts(context.clientId, safe.asOfDate) };
+      case "skill_forecast_demand":
+        return { success: true, data: await forecastDemand(context.clientId) };
+      case "skill_menu_matrix":
+        return { success: true, data: await menuMatrix(context.clientId) };
+      case "action_propose_purchase_order":
+        return propose(context.clientId, "purchase_order", safe.supplierName, safe.note || "Purchase order", {
+          supplierName: safe.supplierName,
+          lines: safe.lines,
+          note: safe.note || "",
+        }, "ORDER_STOCK");
+      case "skill_propose_shift_plan":
+        return propose(
+          context.clientId,
+          "shift_plan",
+          "Дараа 7 хоногийн ээлж",
+          "Хөдөлмөрийн зардал",
+          await proposeShiftPlan(context.clientId, safe.laborTargetPct || 25),
+          "SHIFT_PLAN"
+        );
       default:
         return { success: false, error: `Tool '${toolName}' is not recognized in the switchboard.` };
     }

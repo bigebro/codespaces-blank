@@ -211,13 +211,18 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       if (isSignUp) {
         const cleanBranch = companyName.trim();
+        if (cleanBranch.includes("%") || cleanBranch.includes("_")) {
+          setErrorMsg("Бизнесийн нэрт % эсвэл _ тэмдэгт байж болохгүй.");
+          setLoading(false);
+          return;
+        }
 
         // 1. Шинэ бизнес давхардсан эсэхийг шалгах
         if (signupRole === "owner") {
           const { data: existingShop } = await supabase
             .from("tenants")
             .select("client_id")
-            .ilike("client_id", cleanBranch)
+            .eq("client_id", cleanBranch)
             .maybeSingle();
 
           if (existingShop) {

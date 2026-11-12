@@ -1,6 +1,6 @@
 // src/ai/memory/chat_observer.ts файлыг бүхэлд нь үүгээр солино:
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@/ai/geminiClient";
 import { saveBusinessRule, recordBusinessLesson } from "./memory.service";
 
 interface ObserverExtractionResponse {

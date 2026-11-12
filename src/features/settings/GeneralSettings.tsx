@@ -442,11 +442,11 @@ export default function GeneralSettings({
                     if (!e.target.files?.[0]) return;
                     const file = e.target.files[0];
                     const fileExt = file.name.split(".").pop();
-                    const fileName = `logos/${activeClient}_${Date.now()}.${fileExt}`;
+                    const safeClient = String(activeClient || "shared").replace(/[%_]/g, "").trim() || "shared";
+                    const fileName = `${safeClient}/logos/${Date.now()}.${fileExt}`;
 
-                    // 1. Storage руу зургийг хуулах
                     const { error: upErr } = await supabase.storage
-                      .from("receipts_evidence")
+                      .from("brand_assets")
                       .upload(fileName, file, { upsert: true });
 
                     if (upErr) {
@@ -454,12 +454,11 @@ export default function GeneralSettings({
                       return;
                     }
 
-                    // 2. Storage-аас нийтэд харагдах URL (Public URL) авах
-                    const { data: publicUrlData } = supabase.storage
-                      .from("receipts_evidence")
-                      .getPublicUrl(fileName);
+                    const { data: signed } = await supabase.storage
+                      .from("brand_assets")
+                      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
 
-                    const newLogoUrl = publicUrlData.publicUrl;
+                    const newLogoUrl = signed?.signedUrl || "";
 
                     // 3. ⚡ ШУУД БААЗАД ХАДГАЛАХ (Үлдэгдэл товч дарахыг хүлээхгүй!)
                     const { error: dbErr } = await supabase

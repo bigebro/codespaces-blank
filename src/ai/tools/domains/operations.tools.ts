@@ -1,4 +1,4 @@
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { FunctionDeclaration, SchemaType } from "@/ai/geminiClient";
 
 export const operationsDefs: FunctionDeclaration[] = [
   {
@@ -76,6 +76,40 @@ export const operationsDefs: FunctionDeclaration[] = [
     properties: {
       asOfDate: { type: SchemaType.STRING, description: "YYYY-MM-DD. Use the 1st of the month. Omit for the 1st of this month." },
     },
+  },
+},
+{
+  name: "skill_forecast_demand",
+  description: "CALL THIS to predict units per product for the next 7 days from weekday sales, skipping Mongolian holidays, and convert those units into prep quantities through recipes.",
+  parameters: { type: SchemaType.OBJECT, properties: {} },
+},
+{
+  name: "skill_menu_matrix",
+  description: "CALL THIS to classify each dish as star, plowhorse, puzzle, or dog from recipe cost and 30-day sales.",
+  parameters: { type: SchemaType.OBJECT, properties: {} },
+},
+{
+  name: "action_propose_purchase_order",
+  description: "CALL THIS to propose a purchase order. It is not sent until the owner approves it on the alerts panel.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      supplierName: { type: SchemaType.STRING },
+      lines: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            name: { type: SchemaType.STRING },
+            qty: { type: SchemaType.NUMBER },
+            unit: { type: SchemaType.STRING },
+          },
+          required: ["name", "qty"],
+        },
+      },
+      note: { type: SchemaType.STRING },
+    },
+    required: ["supplierName", "lines"],
   },
 },
 ];
