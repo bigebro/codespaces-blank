@@ -5,6 +5,8 @@ import { runHrAgent } from "./hr.agent";
 import { geminiApiKey, getGenAI } from "@/lib/ai/genai";
 import { MODELS } from "@/lib/ai/models";
 import { subscriptionBlockMessage } from "@/lib/subscription";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { recordChatMessage } from "@/ai/memory/thread.manager";
 
 interface RouterDecision {
   route: "CFO" | "COO" | "HR" | "GENERAL";
@@ -27,7 +29,19 @@ const CFO_WORDS = ["орлого", "ашиг", "үнийн", "үнэ", "касс
 const COO_WORDS = ["хаягдал", "нөөц", "жор", "цэс", "захиалга", "бэлтгэл", "хулгай", "stock", "inventory", "waste", "recipe", "menu", "орц", "тооллого", "тоолсон", "count", "үлдэгдэл"];
 const HR_WORDS = ["цалин", "ээлж", "ндш", "ажилтан", "payroll", "shift", "staff", "цагийн"];
 
-const COUNT_WORDS = ["тооллого", "тоолсон", "хаалт", "үлдэгдэл", "count"];
+const COUNT_WORDS = ["тооллого", "тоолсон", "count", "үлдэгдэл"];
+const DEPARTMENT_ONLY: Record<string, RouterDecision["route"]> = {
+  "нөөц": "COO",
+  coo: "COO",
+  inventory: "COO",
+  stock: "COO",
+  "санхүү": "CFO",
+  cfo: "CFO",
+  finance: "CFO",
+  "цалин": "HR",
+  hr: "HR",
+  payroll: "HR",
+};
 
 function wordHits(text: string, words: string[]) {
   return words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
@@ -41,9 +55,13 @@ function routeScores(text: string) {
   };
 }
 
-/** A shift closing count is stock, not payroll, even though it contains "ээлж". */
-function isShiftCloseCount(text: string) {
-  return text.includes("ээлж") && COUNT_WORDS.some((word) => text.includes(word));
+/** Count questions and shift closes stay with the COO even if a payroll word is also present. */
+function forcesCoo(text: string) {
+  return COUNT_WORDS.some((word) => text.includes(word)) || (text.includes("ээлж") && text.includes("хаалт"));
+}
+
+function departmentOnly(text: string): RouterDecision["route"] | null {
+  return DEPARTMENT_ONLY[text.trim().toLowerCase()] || null;
 }
 
 /** Skip a model call when one department is clearly named. */
@@ -53,23 +71,41 @@ function fastRoute(userText: string): RouterDecision["route"] | null {
   if (text.length <= 24 && /^(hi|hello|hey|thanks|сайн уу|сайн байн|баярлалаа)\b/.test(text)) {
     return "GENERAL";
   }
-  if (isShiftCloseCount(text)) return "COO";
+  if (forcesCoo(text)) return "COO";
   const scores = routeScores(text);
   const ranked = (Object.entries(scores) as [RouterDecision["route"], number][]).sort((a, b) => b[1] - a[1]);
   if (ranked[0][1] > 0 && ranked[0][1] > ranked[1][1]) return ranked[0][0];
   return null;
 }
 
-/** Used when the classifier call throws. Prefer a counted tie over a dead end. */
-function keywordFallback(userText: string): RouterDecision["route"] | null {
+/** Classifier failed: most keyword hits, otherwise COO. Never a dead-end error. */
+function keywordFallback(userText: string): RouterDecision["route"] {
   const text = userText.trim().toLowerCase();
-  if (isShiftCloseCount(text)) return "COO";
+  if (forcesCoo(text)) return "COO";
+  const only = departmentOnly(text);
+  if (only) return only;
   const scores = routeScores(text);
   const best = Math.max(scores.CFO, scores.COO, scores.HR);
-  if (best === 0) return null;
+  if (best === 0) return "COO";
   if (scores.COO === best) return "COO";
   if (scores.HR === best) return "HR";
   return "CFO";
+}
+
+async function withPreviousQuestion(clientId: string, text: string) {
+  if (!departmentOnly(text)) return text;
+  const { data } = await supabaseAdmin
+    .from("ai_chat_messages")
+    .select("content")
+    .eq("client_id", clientId)
+    .eq("role", "owner")
+    .order("created_at", { ascending: false })
+    .limit(8);
+  const previous = (data || [])
+    .map((row) => String(row.content || "").trim())
+    .find((content) => content && !departmentOnly(content));
+  if (!previous) return text.trim();
+  return `${previous}\n${text.trim()}`;
 }
 
 function textStream(text: string): ReadableStream {
@@ -154,35 +190,34 @@ export async function routeAiRequest(
   const blocked = await subscriptionBlockMessage(context.clientId);
   if (blocked) return textStream(blocked);
 
+  if (!departmentOnly(payload.text)) {
+    await recordChatMessage(context.clientId, "owner", payload.text);
+  }
+
   let route: RouterDecision["route"] | null = fastRoute(payload.text);
   if (!route) {
     try {
       route = await classifyIntent(payload.text);
     } catch (err) {
       console.error("Intent router failed:", err);
-      route = keywordFallback(payload.text);
-      if (!route) {
-        return textStream("Хүсэлтийг ангилж чадсангүй. Санхүү, нөөц, эсвэл цалингийн аль нь болохыг тодотгоод дахин асууна уу.");
-      }
+      route = null;
     }
+    if (!route) route = keywordFallback(payload.text);
   }
 
-  if (!route) {
-    return textStream("AI чиглүүлэгч хариу өгсөнгүй. Санхүү, нөөц, эсвэл цалин гэдгээ тодотгоод дахин асууна уу.");
-  }
-
+  const agentText = await withPreviousQuestion(context.clientId, payload.text);
   console.log(`[ROUTER] Intent classified as: '${route}'`);
 
   switch (route) {
     case "COO":
-      return runCooAgent(context, payload.text);
+      return runCooAgent(context, agentText);
     case "HR":
-      return runHrAgent(context, payload.text);
+      return runHrAgent(context, agentText);
     case "CFO":
-      return runCfoAgent(context, payload.text);
+      return runCfoAgent(context, agentText);
     case "GENERAL":
-      return runGeneralBranch(payload.text);
+      return runGeneralBranch(agentText);
     default:
-      return textStream("Энэ хүсэлтийг аль агент руу өгөх нь тодорхойгүй байна. Асуултаа тодотгоно уу.");
+      return runCooAgent(context, agentText);
   }
 }
