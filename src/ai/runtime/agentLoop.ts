@@ -116,13 +116,13 @@ export async function runToolAgent(opts: {
         let attemptSent = false;
 
         const readModel = async (thinking: boolean) => {
-          console.log(JSON.stringify(contents).slice(0, 2000));
+          
           attemptSent = false;
           const stream = await ai.models.generateContentStream({
             model: MODELS.flash,
             contents,
             config: {
-              systemInstruction: opts.systemInstruction,
+              systemInstruction: opts.systemInstruction + "\n\nДҮРЭМ: Хэрэглэгчид хэзээ ч хэрэгслийн нэр, функцийн нэр, кодын нэр (жишээ нь skill_..., action_...) бүү дурд. Юу хийж чадахаа энгийн монгол хэлээр тайлбарла.",
               temperature: 0.1,
               ...(thinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
               tools: [{ functionDeclarations: opts.tools }],
@@ -234,7 +234,7 @@ export async function runToolAgent(opts: {
         }
 
         after(() => {
-          const writes = [recordChatMessage(opts.context.clientId, "owner", opts.userMessage)];
+          const writes: Promise<unknown>[] = [];
           if (finalText.trim()) {
             writes.push(recordChatMessage(opts.context.clientId, "ai", finalText));
           }
