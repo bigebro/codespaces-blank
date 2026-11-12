@@ -1,4 +1,5 @@
 import type { FunctionDeclaration } from "@google/genai";
+import { after } from "next/server";
 import { getGenAI } from "@/lib/ai/genai";
 import { MODELS } from "@/lib/ai/models";
 import { executeAiTool } from "@/ai/tools/execution.tools";
@@ -156,8 +157,12 @@ export async function runToolAgent(opts: {
           enqueue(extra);
         }
 
-        recordChatMessage(opts.context.clientId, "owner", opts.userMessage).catch(console.error);
-        recordChatMessage(opts.context.clientId, "ai", finalText).catch(console.error);
+        after(() =>
+          Promise.all([
+            recordChatMessage(opts.context.clientId, "owner", opts.userMessage),
+            recordChatMessage(opts.context.clientId, "ai", finalText),
+          ]).catch(console.error),
+        );
         controller.close();
       } catch (err: unknown) {
         console.error("[agent]", err);
