@@ -52,20 +52,30 @@ export const operationsDefs: FunctionDeclaration[] = [
 {
   name: "action_get_current_stock",
   description:
-    "CALL THIS when you need to retrieve the current recorded stock quantities of ingredients for the authenticated business. Returns each ingredient's name, unit of measurement, and current_stock quantity. Use this action when answering questions about how much of an ingredient is currently available, remaining ingredient quantities, or which ingredients are running low. Always use the returned data when reporting stock quantities. Never guess or assume stock levels.",
-  parameters: {
-    type: SchemaType.OBJECT,
-    properties: {},
-  },
+    "CALL THIS for current ingredient stock. Returns name, unit, unitPrice, and currentStock. Use it for ingredient prices and how much is left. Never guess.",
+  parameters: { type: SchemaType.OBJECT, properties: {} },
 },
-
 {
   name: "action_get_recipes",
   description:
-    "CALL THIS when you need to retrieve the recorded recipes for the authenticated business. Returns each recipe's product name, ingredient ID, and ingredient amount. Use this action when answering questions about product recipes, which ingredients are used in a product, or how much of each ingredient is required. Always use the returned data when reporting recipe information. Never guess or assume recipe ingredients or quantities.",
+    "CALL THIS for recipes. Returns each product with lines of ingredientName, amount, unit, and unitPrice. Never guess a recipe.",
+  parameters: { type: SchemaType.OBJECT, properties: {} },
+},
+{
+  name: "action_get_menu",
+  description:
+    "CALL THIS for the menu: product name, category, and selling price. Never guess menu prices.",
+  parameters: { type: SchemaType.OBJECT, properties: {} },
+},
+{
+  name: "action_get_opening_counts",
+  description:
+    "CALL THIS for the stock count at the start of a month. openingQty is the latest inventory count on or before asOfDate. null means no count exists. currentStock is today, not the opening count.",
   parameters: {
     type: SchemaType.OBJECT,
-    properties: {},
+    properties: {
+      asOfDate: { type: SchemaType.STRING, description: "YYYY-MM-DD. Use the 1st of the month. Omit for the 1st of this month." },
+    },
   },
-}
+},
 ];

@@ -8,6 +8,8 @@ import {
   getShiftHandoversPackage,
   getIngredientStock,
   getRecipes,
+  getMenu,
+  getOpeningCounts,
 } from "@/core/packages/pkg_operations";
 import {
   searchBusinessMemory,
@@ -137,10 +139,17 @@ export async function executeAiTool(
         return { success: true, data };
       }
 
-      //14. get current reipes 
-          case "action_get_recipes": {
+      case "action_get_recipes": {
         const data = await getRecipes(context.clientId);
         return { success: true, data };
+      }
+
+      case "action_get_menu": {
+        return { success: true, data: await getMenu(context.clientId) };
+      }
+
+      case "action_get_opening_counts": {
+        return { success: true, data: await getOpeningCounts(context.clientId, args.asOfDate) };
       }
 
       default:
