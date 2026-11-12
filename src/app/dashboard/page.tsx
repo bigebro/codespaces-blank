@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, startTransition } from "react";
 import { supabase } from "../../lib/supabase";
+import { ubDay, ubDayEndIso, ubDayStartIso } from "../../lib/ubDate";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
 // @ts-ignore
@@ -807,9 +808,12 @@ function Home() {
   const [isKioskLocked, setIsKioskLocked] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem("kiosk_device_locked") === "true") {
-      setIsKioskLocked(true);
-    }
+    fetch("/api/dashboard/lock", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.locked) setIsKioskLocked(true);
+      })
+      .catch(() => {});
   }, []);
   const [unlockPassword, setUnlockPassword] = useState("");
   const [unlockError, setUnlockError] = useState("");
@@ -1289,29 +1293,27 @@ function Home() {
     setUnlockError("");
 
     try {
-      // 1. Одоогийн session-оос эзний жинхэнэ имэйлийг авах
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const ownerEmail = session?.user?.email;
-
-      if (!ownerEmail) {
-        // Хэрэв ямар ч имэйл нэвтрээгүй бол шууд нэвтрэх хуудас руу шилжүүлнэ
-        sessionStorage.removeItem("kiosk_device_locked");
+      const token = session?.access_token;
+      if (!token) {
         router.push("/login");
         return;
       }
 
-      // 2. Эзний нууц үгийг шалгах
-      const { error } = await supabase.auth.signInWithPassword({
-        email: ownerEmail,
-        password: unlockPassword,
+      const res = await fetch("/api/dashboard/lock", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ unlock: true, password: unlockPassword }),
       });
-
-      if (error) {
-        setUnlockError("❌ Эзний нууц үг буруу байна!");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.locked) {
+        setUnlockError(data.message || "Эзний нууц үг буруу байна.");
       } else {
-        sessionStorage.removeItem("kiosk_device_locked");
         setIsKioskLocked(false);
         setUnlockPassword("");
       }
@@ -1324,7 +1326,7 @@ function Home() {
   // 2. Сонгосон огноон дахь бодит төлөвүүдийг тоолох (Status Badges)
   const existingSales = salesLogs.filter((s) => {
     if (!s.date || s.client_id !== activeClient) return false;
-    const d = s.date.split("T")[0];
+    const d = ubDay(s.date);
     return d >= startDate && d <= endDate;
   });
   const existingSalesRevenue = existingSales.reduce(
@@ -1335,7 +1337,7 @@ function Home() {
   const existingPurchases = inventoryLogs.filter((l) => {
     if (!l.date || l.client_id !== activeClient || l.type !== "purchase")
       return false;
-    const d = l.date.split("T")[0];
+    const d = ubDay(l.date);
     return d >= startDate && d <= endDate;
   });
   const existingPurchasesCost = existingPurchases.reduce(
@@ -1350,7 +1352,7 @@ function Home() {
       !["spoilage", "staff_meal", "testing", "other"].includes(l.type)
     )
       return false;
-    const d = l.date.split("T")[0];
+    const d = ubDay(l.date);
     return d >= startDate && d <= endDate;
   }).length;
 
@@ -1510,7 +1512,7 @@ function Home() {
       // ✍️ ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, client_id, pin_code, phone")
+        .select("role, client_id, phone")
         .eq("id", session.user.id)
         .single();
 
@@ -1518,10 +1520,6 @@ function Home() {
         setUserPhone(profile.phone);
       } else if (session.user.user_metadata?.phone) {
         setUserPhone(session.user.user_metadata.phone);
-      }
-
-      if (profile?.pin_code) {
-        setMyPin(profile.pin_code);
       }
 
       const realBranch = (
@@ -1770,7 +1768,7 @@ function Home() {
 
         // 🔒 2. URL дээрээс clientId-г ХАССАН, Header-т токен нэмсэн:
         const res = await fetch(
-          `/api/analytics?startDate=${encodeURIComponent(activeStart)}T00:00:00.000Z&endDate=${encodeURIComponent(activeEnd)}T23:59:59.999Z`,
+          `/api/analytics?startDate=${encodeURIComponent(ubDayStartIso(activeStart))}&endDate=${encodeURIComponent(ubDayEndIso(activeEnd))}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -1964,7 +1962,7 @@ function Home() {
         if (match) targetDay = match[0];
       }
     } else if (fallbackIso) {
-      targetDay = fallbackIso.split("T")[0];
+      targetDay = ubDay(fallbackIso);
     }
 
     // Улаанбаатарын цагийн бүсээр (+08:00) ISO string үүсгэх
@@ -2030,8 +2028,8 @@ function Home() {
           .from("sales_logs")
           .delete()
           .eq("client_id", activeClient)
-          .gte("date", `${startDate}T00:00:00.000Z`)
-          .lte("date", `${endDate}T23:59:59.999Z`);
+          .gte("date", ubDayStartIso(startDate))
+          .lte("date", ubDayEndIso(endDate));
       }
 
       // Борлуулалт оруулах (хэрэв байгаа бол):
@@ -2248,7 +2246,6 @@ function Home() {
               type="button"
               onClick={async () => {
                 await supabase.auth.signOut();
-                sessionStorage.removeItem("kiosk_device_locked");
                 router.push("/login");
               }}
               className="text-sm text-zinc-400 hover:text-zinc-200 transition underline underline-offset-4 font-bold"
@@ -2742,9 +2739,9 @@ function Home() {
                              Миний Kiosk PIN код
                             </p>
                             <p className="text-sm text-zinc-400 mt-0.5">
-                              Гал тогооны дундын таблет дээр нэвтрэх нууц код:
+                              Гал тогооны таблет дээр нэвтрэх нууц код.
                               <span className="ml-2 font-mono font-black text-sm text-zinc-200 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-700">
-                                {myPin || "тохируулаагүй"}
+                                PIN нууцлагдсан
                               </span>
                             </p>
                           </div>
@@ -2769,15 +2766,24 @@ function Home() {
                                   );
                                   return;
                                 }
-                                const { error } = await supabase
-                                  .from("profiles")
-                                  .update({ pin_code: myPin })
-                                  .eq("id", user.id);
-                                if (error) alert(`Алдаа: ${error.message}`);
-                                else
-                                  alert(
-                                    "Таны хувийн PIN код амжилттай солигдлоо! ",
-                                  );
+                                const {
+                                  data: { session },
+                                } = await supabase.auth.getSession();
+                                const res = await fetch("/api/staff/pin", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${session?.access_token || ""}`,
+                                  },
+                                  body: JSON.stringify({ pin: myPin }),
+                                });
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok) {
+                                  alert(data.message || "PIN хадгалж чадсангүй.");
+                                } else {
+                                  setMyPin("");
+                                  alert("PIN нууцлагдсан. Таблет дээр шинэ кодоо ашиглана уу.");
+                                }
                               }}
                               className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-sm transition"
                             >
@@ -2928,7 +2934,7 @@ function Home() {
                             <tbody className="text-sm divide-y divide-slate-800/50">
                               {inventoryLogs.filter((log) => {
                                 const logDate = log.date
-                                  ? log.date.split("T")[0]
+                                  ? ubDay(log.date)
                                   : "";
                                 const dateMatch =
                                   logDate >= startDate && logDate <= endDate;
@@ -2961,7 +2967,7 @@ function Home() {
                                 inventoryLogs
                                   .filter((log) => {
                                     const logDate = log.date
-                                      ? log.date.split("T")[0]
+                                      ? ubDay(log.date)
                                       : "";
                                     const dateMatch =
                                       logDate >= startDate &&

@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const pairingCode = (body.pairingCode || body.code || "").trim();
     // ⚡ 1. NEW: Extract the device info sent from the tablet
     const deviceInfo = body.deviceInfo || "Үл мэдэгдэх төхөөрөмж";
-    const subject = `${clientAddress(request)}:${String(deviceInfo).slice(0, 80)}`;
+    const subject = clientAddress(request);
     const gate = await rateLimit("kiosk_pair", subject, false);
     if (gate.limited) {
       return NextResponse.json(

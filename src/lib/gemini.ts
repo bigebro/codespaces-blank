@@ -554,9 +554,10 @@ export async function parseReceiptImage(
 ) {
   const systemPrompt = `
   You are an expert receipt OCR assistant. Read the provided Mongolian receipt image carefully.
-  Extract every purchased line item into the "purchases" JSON array with ONLY these 4 keys:
+  Extract every purchased line item into the "purchases" JSON array with ONLY these 5 keys:
   - "item_name": (string, exact product name printed on receipt)
-  - "quantity": (number, quantity bought)
+  - "quantity": (number, quantity bought, as printed — do not convert units)
+  - "unit": (string or null, printed unit only: "л", "мл", "кг", "гр", "ш", "ширхэг")
   - "total_cost": (number, total price paid for this line)
   - "is_food": (boolean, true if edible restaurant food/ingredient, false if cleaning/packaging/household supply)
 
@@ -567,12 +568,21 @@ export async function parseReceiptImage(
       {
         "item_name": "Мишээл ХАР ТАЛХ",
         "quantity": 2,
+        "unit": "ш",
         "total_cost": 7800,
+        "is_food": true
+      },
+      {
+        "item_name": "Сүү",
+        "quantity": 1,
+        "unit": "л",
+        "total_cost": 4500,
         "is_food": true
       },
       {
         "item_name": "Гарын саван",
         "quantity": 1,
+        "unit": "ш",
         "total_cost": 2900,
         "is_food": false
       }

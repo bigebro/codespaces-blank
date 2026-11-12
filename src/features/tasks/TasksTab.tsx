@@ -86,13 +86,13 @@ export default function TasksTab({
 
                 setLoading(true);
                 // ДИНАМИК ҮҮРЭГТЭЙ АЖИЛТНЫГ ШУУД БААЗАД ХАДГАЛАХ
+                const workerId = crypto.randomUUID();
                 const { error } = await supabase.from("profiles").insert([
                   {
-                    id: crypto.randomUUID(),
+                    id: workerId,
                     client_id: activeClient,
                     full_name: workerName,
-                    role: workerRole, // 👈 Эзний үүсгэсэн бодит үүрэг орно!
-                    pin_code: workerPin,
+                    role: workerRole,
                     email: null, 
                   },
                 ]);
@@ -100,9 +100,23 @@ export default function TasksTab({
                 if (error) {
                   alert(`Алдаа: ${error.message}`);
                 } else {
-                  alert(
-                    `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`,
-                  );
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const pinRes = await fetch("/api/staff/pin", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${session?.access_token || ""}`,
+                    },
+                    body: JSON.stringify({ workerId, pin: workerPin }),
+                  });
+                  const pinData = await pinRes.json().catch(() => ({}));
+                  if (!pinRes.ok) {
+                    alert(`Ажилтан үүссэн ч PIN хадгалж чадсангүй: ${pinData.message || pinRes.status}`);
+                  } else {
+                    alert(
+                      `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`,
+                    );
+                  }
                   form.reset();
                   fetchDatabaseData(activeClient);
                 }

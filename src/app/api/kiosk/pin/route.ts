@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { rateLimit } from "@/lib/rateLimit";
+import { hashPin, isHashedPin, pinMatches } from "@/lib/pinHash";
+import { signWorkerToken } from "@/lib/kioskAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
 
     const { data: device } = await supabaseAdmin
       .from("kiosk_devices")
-      .select("client_id")
+      .select("id, client_id")
       .eq("device_token", deviceToken)
       .eq("is_active", true)
       .maybeSingle();
@@ -41,17 +43,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ valid: false, message: "Төхөөрөмж таарахгүй байна." }, { status: 403 });
     }
 
-    const { data: rpcValid, error: rpcError } = await supabaseAdmin.rpc("verify_kiosk_pin", {
-      target_worker_id: workerId,
-      entered_pin: pin,
-    });
-    const valid = !rpcError && rpcValid === true;
-
+    const valid = pinMatches(worker.pin_code, pin);
     if (!valid) {
       await rateLimit("kiosk_pin", deviceToken, true);
       return NextResponse.json({ valid: false, message: "Буруу PIN код." }, { status: 401 });
     }
-    return NextResponse.json({ valid: true });
+    if (!isHashedPin(worker.pin_code)) {
+      await supabaseAdmin.from("profiles").update({ pin_code: hashPin(pin) }).eq("id", worker.id);
+    }
+    const workerToken = signWorkerToken({ did: device.id, cid: device.client_id, wid: worker.id });
+    return NextResponse.json({ valid: true, workerToken });
   } catch {
     return NextResponse.json({ valid: false, message: "PIN шалгахад алдаа гарлаа." }, { status: 500 });
   }

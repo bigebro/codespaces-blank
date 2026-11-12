@@ -10,6 +10,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
+import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 
 interface AiCfoChatProps {
   activeClient: string;
@@ -187,8 +188,8 @@ const fetchChatHistory = useCallback(async () => {
           workerName: "Owner",
           text,
           userRole: "owner",
-          startDate: `${startDate}T00:00:00.000Z`,
-          endDate: `${endDate}T23:59:59.999Z`,
+          startDate: ubDayStartIso(startDate),
+          endDate: ubDayEndIso(endDate),
         }),
       });
 

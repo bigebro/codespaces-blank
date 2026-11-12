@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../../lib/supabase";
+import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens } from "../../lib/kioskClient";
 import {
   Coffee,
   CheckCircle,
@@ -586,23 +586,11 @@ function KioskAiChatSection({
 
     // 📶 ОФЛАЙН ГОРИМ ШАЛГАЛТ (Интернэт тасарсан бол LocalStorage-д хадгалах)
     if (!navigator.onLine && !file) {
-      const offlineItem = {
-        client_id: selectedWorker.client_id,
-        notes: `${textToProcess} (Офлайн хадгалав)`,
-        date: new Date().toISOString(),
-        worker_name: activeShift?.character_role || selectedWorker.full_name,
-      };
-      const queue = JSON.parse(
-        localStorage.getItem("kiosk_offline_queue") || "[]",
-      );
-      queue.push(offlineItem);
-      localStorage.setItem("kiosk_offline_queue", JSON.stringify(queue));
-
       setChatHistory((prev) => [
         ...prev,
         {
           sender: "ai",
-          text: "📶 **Интернэт тасарсан байна.** Мэдээллийг төхөөрөмжид түр хадгаллаа. Сүлжээ ормогц бааз руу автоматаар бүртгэгдэнэ.",
+          text: "Интернэт тасарсан тул бүртгэл хадгалагдаагүй. Сүлжээ ормогц дахин илгээнэ үү.",
         },
       ]);
       setIsAiLoading(false);
@@ -660,26 +648,18 @@ function KioskAiChatSection({
         learnedAliases,
       );
       if (localMatch && localMatch.success) {
-        const { data: newLog, error } = await supabase
-          .from("inventory_logs")
-          .insert([
-            {
-              client_id: selectedWorker.client_id,
-              ingredient_id: localMatch.item_id,
-              quantity: localMatch.quantity,
-              type: localMatch.type,
-              notes: localMatch.notes,
-              worker_name:
-                activeShift?.character_role ||
-                selectedWorker.full_name ||
-                "Ажилтан",
-              date: new Date().toISOString(),
-            },
-          ])
-          .select()
-          .single();
-
-        if (!error && newLog) {
+        try {
+          const saved = await kioskSaveLogs([
+              {
+                ingredient_id: localMatch.item_id,
+                quantity: localMatch.quantity,
+                type: localMatch.type,
+                notes: localMatch.notes,
+                input_unit: localMatch.unit,
+              },
+            ],
+          );
+          const newLogId = saved.ids?.[0];
           // 🧠 FEEDBACK LOOP: Clean numbers/units and save the spoken phrase to learned_aliases
           let cleanPhrase = textToProcess.toLowerCase();
 
@@ -709,25 +689,26 @@ function KioskAiChatSection({
           const finalAlias = words.slice(0, 2).join(" "); // Keeps only the item noun
 
           if (finalAlias && finalAlias.length >= 2) {
-            await supabase.from("learned_aliases").upsert(
-              [
-                {
-                  client_id: selectedWorker.client_id,
-                  phrase: finalAlias, // 👈 Saves ONLY clean item word(s)
-                  ingredient_id: localMatch.item_id,
-                },
-              ],
-              { onConflict: "client_id,phrase" },
-            );
+            await kioskOps("alias.upsert", {
+              phrase: finalAlias,
+              ingredient_id: localMatch.item_id,
+            });
           }
 
           setChatHistory((prev) => [
             ...prev,
             {
               sender: "ai",
-              text: `⚡ **Бүртгэгдлээ (Шуурхай 0.01s):**\n• Бараа: **${localMatch.item_name}**\n• Төрөл: \`${localMatch.type}\`\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
-              logId: newLog.id,
+              text: `Бүртгэгдлээ:\n• Бараа: **${localMatch.item_name}**\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
+              logId: newLogId,
             },
+          ]);
+          setIsAiLoading(false);
+          return;
+        } catch (saveErr: any) {
+          setChatHistory((prev) => [
+            ...prev,
+            { sender: "ai", text: `Хадгалж чадсангүй: ${saveErr.message}` },
           ]);
           setIsAiLoading(false);
           return;
@@ -743,22 +724,15 @@ function KioskAiChatSection({
         abortControllerRef.current = new AbortController();
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token || "";
-
+      const tokens = kioskTokens();
       const res = await fetch("/api/kiosk-ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // 👈 НЭМСЭН
+          "x-kiosk-device": tokens.deviceToken,
+          "x-kiosk-worker": tokens.workerToken,
         },
         body: JSON.stringify({
-          workerName:
-            activeShift?.character_role ||
-            selectedWorker.full_name ||
-            "Ажилтан",
           text: textToProcess,
           imageBase64: base64Data,
           imageUrl: uploadedImageUrl,
@@ -802,19 +776,7 @@ function KioskAiChatSection({
     setIsAiLoading(true);
     try {
       // А. Агуулахын лог устгах
-      const { error } = await supabase
-        .from("inventory_logs")
-        .delete()
-        .eq("id", logId);
-      if (error) throw error;
-
-      // Б. ⚡ Хэрэв буруу үг сурсан байвал түүнийг баазаас устгаж "мартах"
-      if (learnedAliasId) {
-        await supabase
-          .from("learned_aliases")
-          .delete()
-          .eq("id", learnedAliasId);
-      }
+      await kioskOps("logs.delete", { id: logId, aliasId: learnedAliasId || null });
 
       const newHistory = [...chatHistory];
       newHistory[index] = {
@@ -1116,21 +1078,16 @@ function KioskPage() {
 
   // 2. Баазад хадгалагдсан орчуулгыг татах
   useEffect(() => {
-    if (tenantClientId) {
-      supabase
-        .from("learned_translations")
-        .select("original_text, translated_text")
-        .eq("client_id", tenantClientId)
-        .then(({ data }) => {
-          if (data) {
-            const map: Record<string, string> = {};
-            data.forEach((row: any) => {
-              map[row.original_text.toLowerCase()] = row.translated_text;
-            });
-            setTranslationsCache(map);
-          }
+    if (!tenantClientId) return;
+    kioskBootstrap()
+      .then((data) => {
+        const map: Record<string, string> = {};
+        (data.translations || []).forEach((row: any) => {
+          if (row.original_text) map[String(row.original_text).toLowerCase()] = row.translated_text;
         });
-    }
+        setTranslationsCache(map);
+      })
+      .catch(() => {});
   }, [tenantClientId]);
 
 
@@ -1164,15 +1121,16 @@ function KioskPage() {
 
     // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
     if (!translationsCache[clean]) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        fetch("/api/kiosk-ai", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token || ""}`, // 👈 Токен дамжуулна
-          },
-          body: JSON.stringify({ action: "translate", text: rawName }),
-        })
+      const tokens = kioskTokens();
+      fetch("/api/kiosk-ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-kiosk-device": tokens.deviceToken,
+          "x-kiosk-worker": tokens.workerToken,
+        },
+        body: JSON.stringify({ action: "translate", text: rawName }),
+      })
           .then((res) => res.json())
           .then((d) => {
             if (d.success && d.translation) {
@@ -1183,7 +1141,6 @@ function KioskPage() {
             }
           })
           .catch(() => {});
-      });
     }
 
     return rawName;
@@ -1308,13 +1265,23 @@ const handleKioskBulkSave = async () => {
         return;
       }
 
-      const { data: insertedData, error } = await supabase
-        .from("inventory_logs")
-        .insert(logsToInsert)
-        .select("id");
-      
-      if (error) {
-        alert(`Алдаа: ${error.message}`);
+      const { data: insertedData, errorMessage } = await (async () => {
+        try {
+          const saved = await kioskOps("logs.insert", { logs: logsToInsert.map((row) => ({
+            ingredient_id: row.ingredient_id,
+            quantity: row.quantity,
+            type: row.type,
+            incident_type: row.incident_type,
+            notes: row.notes,
+          })) });
+          return { data: (saved.ids || []).map((id: string) => ({ id })), errorMessage: "" };
+        } catch (err: any) {
+          return { data: null, errorMessage: err.message };
+        }
+      })();
+
+      if (errorMessage) {
+        alert(`Алдаа: ${errorMessage}`);
       } else {
         alert(`Амжилттай! ${insertedData?.length || logsToInsert.length} барааны тооллого хадгалагдлаа.`);
         setKioskBulkStock({});
@@ -1475,42 +1442,15 @@ const handleKioskBulkSave = async () => {
       quantity: number;
       total_cost: number;
       is_food: boolean;
+      ingredient_id?: string | null;
+      unit?: string | null;
     }>;
     payMethod: "bank" | "cash";
   } | null>(null);
 
   useEffect(() => {
     initKioskContext();
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("kiosk_device_locked", "true");
-    }
-
-    // 📶 ОФЛАЙН ГОРИМ ДЭЭР ХАДГАЛАГДСАН ӨГӨГДЛИЙГ АВТОМАТААР БААЗ РУУ СИНХРОНЧЛОХ
-    const syncOfflineLogs = async () => {
-      const offlineQueue = JSON.parse(
-        localStorage.getItem("kiosk_offline_queue") || "[]",
-      );
-      if (offlineQueue.length === 0 || !navigator.onLine) return;
-
-      try {
-        const { error } = await supabase
-          .from("inventory_logs")
-          .insert(offlineQueue);
-        if (!error) {
-          localStorage.removeItem("kiosk_offline_queue");
-          console.log(
-            "Офлайн үед хадгалсан логууд амжилттай баазад синк хийгдлээ.",
-          );
-        }
-      } catch (err) {
-        console.warn("Sync failed, will retry later:", err);
-      }
-    };
-
-    window.addEventListener("online", syncOfflineLogs);
-    syncOfflineLogs();
-
-    return () => window.removeEventListener("online", syncOfflineLogs);
+    fetch("/api/dashboard/lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1522,28 +1462,13 @@ const handleKioskBulkSave = async () => {
 
     return () => clearTimeout(timer);
   }, [recentToast]);
-  const fetchTodayLogs = async (client: string) => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    // 💡 ТҮГЖЭЭ: Яг одоо нэвтэрч орсон байгаа ажилтны нэрийг авах
-    const currentWorkerName =
-      activeShift?.character_role ||
-      selectedWorker?.full_name ||
-      selectedWorker?.email.split("@")[0];
-
-    const { data } = await supabase
-      .from("inventory_logs")
-      .select(
-        "id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)",
-      )
-      .eq("client_id", client)
-      .gte("date", todayStart.toISOString())
-      .eq("worker_name", currentWorkerName) // 👈 АЛТАН ДҮРЭМ: Зөвхөн энэ хүний үйлдлийг л татна!
-      .order("date", { ascending: false })
-      .limit(30);
-
-    if (data) setTodayLogs(data);
+  const fetchTodayLogs = async () => {
+    try {
+      const data = await kioskBootstrap();
+      if (data.todayLogs) setTodayLogs(data.todayLogs);
+    } catch {
+      setTodayLogs([]);
+    }
   };
 
 // ⚡ DEEP HARDWARE & DEVICE MODEL PROFILER
@@ -1664,66 +1589,41 @@ const initKioskContext = async () => {
     setIsLoadingKiosk(false);
   }
 };
-  const fetchKioskData = async (client: string) => {
-    const target = client.trim();
+  const matchIngredient = (name: string) => {
+    const key = String(name || "").toLowerCase().trim();
+    const alias = learnedAliases.find((row: any) => String(row.phrase || "").toLowerCase() === key);
+    if (alias) return ingredients.find((ing) => ing.id === alias.ingredient_id) || null;
+    return ingredients.find((ing) => String(ing.name || "").toLowerCase().trim() === key) || null;
+  };
 
-    const { data: profiles, error } = await supabase.rpc("get_kiosk_staff", {
-      target_client_id: target,
-    });
-
-    if (error) {
-      console.error("Error loading kiosk staff:", error);
-    }
-
-    if (profiles) setWorkers(profiles);
-
-    // 2. 🛡️ Аюулгүй RPC функцээр Логог татах (Яг бидний бэкэндэд хийснээр):
+  const fetchKioskData = async (_client?: string) => {
     const brandingRes = await fetch("/api/kiosk/branding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deviceToken: localStorage.getItem("kiosk_device_token") || "" }),
     });
     const branding = await brandingRes.json().catch(() => ({}));
+    setClientLogo(branding?.logoUrl || null);
 
-    if (branding?.logoUrl) {
-      setClientLogo(branding.logoUrl);
-    } else {
-      setClientLogo(null);
+    const data = await kioskBootstrap();
+    if (data.staff) setWorkers(data.staff);
+    if (data.ingredients) setIngredients(data.ingredients);
+    if (data.aliases) setLearnedAliases(data.aliases);
+    if (data.recipes) setRecipesList(data.recipes);
+    if (data.todayLogs) setTodayLogs(data.todayLogs);
+    if (data.translations) {
+      const map: Record<string, string> = {};
+      data.translations.forEach((row: any) => {
+        if (row.original_text) map[String(row.original_text).toLowerCase()] = row.translated_text;
+      });
+      setTranslationsCache(map);
     }
-
-    // 3. Түүхий эд, жор татах хэсэг хэвээрээ байна...
-    const { data: ingData } = await supabase
-      .from("ingredients")
-      .select(
-        "id, name, unit, current_stock, is_critical, last_counted_at, client_id, is_suspicious_promoted, promoted_until",
-      )
-      .eq("client_id", target)
-      .order("name", { ascending: true });
-
-    if (ingData) setIngredients(ingData);
-
-    const { data: aliasesData } = await supabase
-      .from("learned_aliases")
-      .select("phrase, ingredient_id")
-      .eq("client_id", target);
-
-    if (aliasesData) setLearnedAliases(aliasesData);
-
-    const { data: recData } = await supabase
-      .from("recipes")
-      .select("product_name, amount, ingredient_id, ingredients(name, unit)")
-      .eq("client_id", target);
-
-    if (recData) setRecipesList(recData);
+    return data;
   };
 
   const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
-    const { data: allTasks } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("client_id", tenantId)
-      .eq("is_active", true);
-
+    const data = await kioskBootstrap();
+    const allTasks = data.tasks || [];
     const workerName = worker?.email
       ? worker.email.split("@")[0]
       : worker?.full_name || "Ажилтан";
@@ -1766,17 +1666,8 @@ const initKioskContext = async () => {
         done: false,
       }));
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const { data: todayShifts } = await supabase
-      .from("shifts")
-      .select("daily_tasks_checklist")
-      .eq("client_id", tenantId)
-      .gte("start_time", todayStart.toISOString());
-
     const completedTasksToday = new Set<string>();
-    (todayShifts || []).forEach((s: any) => {
+    (data.todayShifts || []).forEach((s: any) => {
       let list = s.daily_tasks_checklist;
       if (typeof list === "string") list = JSON.parse(list);
       if (Array.isArray(list)) {
@@ -1787,7 +1678,7 @@ const initKioskContext = async () => {
       }
     });
 
-    return matchedTemplateTasks.map((t) => ({
+    return matchedTemplateTasks.map((t: any) => ({
       ...t,
       done: completedTasksToday.has(t.name.toLowerCase().trim()),
     }));
@@ -1802,10 +1693,9 @@ const initKioskContext = async () => {
       loadLiveTodayTasks(tenantClientId, selectedWorker).then((liveTasks) => {
         setTasks(liveTasks);
         if (activeShift) {
-          supabase
-            .from("shifts")
-            .update({ daily_tasks_checklist: liveTasks })
-            .eq("id", activeShift.id);
+          kioskOps("shift.patch", { id: activeShift.id, daily_tasks_checklist: liveTasks }).catch((err) => {
+            setMsg(err.message || "Даалгавар хадгалагдсангүй.");
+          });
         }
       });
     }
@@ -1837,28 +1727,14 @@ const initKioskContext = async () => {
       setPin("");
       return;
     }
-const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : selectedWorker.full_name;
-    const fullNameRole = `${selectedWorker.role} (${(selectedWorker.full_name || workerName).trim()})`;
-    const [shiftRes, liveTasks] = await Promise.all([
-      supabase
-        .from("shifts")
-        .select("*")
-        .eq("client_id", tenantClientId)
-        .eq("is_active", true)
-        .ilike("character_role", fullNameRole) // 👈 THIS CHECKS THIS WORKER ONLY!
-        .order("start_time", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      loadLiveTodayTasks(tenantClientId, selectedWorker),
-    ]);
-
-
+    if (pinJson.workerToken) localStorage.setItem("kiosk_worker_token", pinJson.workerToken);
+    const session = await kioskBootstrap();
+    const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker);
     setTasks(liveTasks);
-
-    if (!shiftRes.data) {
+    if (!session.activeShift) {
       setStep("shift_handover");
     } else {
-      setActiveShift(shiftRes.data);
+      setActiveShift(session.activeShift);
       setStep("menu");
     }
 
@@ -1874,34 +1750,19 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
       startImgUrl = await uploadEvidencePhoto(handoverFile, "handover_starts");
     }
 
-    const workerName = selectedWorker.email.split("@")[0];
-    const workerDisplayName = (selectedWorker.full_name || workerName).trim();
-    const fullNameRole = `${selectedWorker.role} (${workerDisplayName})`;
-
-    const { data: newShift, error } = await supabase
-      .from("shifts")
-      .insert([
-        {
-          client_id: tenantClientId,
-          character_role: fullNameRole,
-          is_active: true,
-          start_notes: handoverNote || "Ээлж хэвийн хүлээн авсан.",
-          start_evidence_image: startImgUrl,
-          daily_tasks_checklist: tasks,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error || !newShift) {
-      setMsg(`❌ Алдаа: ${error?.message || "Ээлж үүсгэж чадсангүй."}`);
+    try {
+      const saved = await kioskOps("shift.start", {
+        start_notes: handoverNote || "Ээлж хэвийн хүлээн авсан.",
+        start_evidence_image: startImgUrl,
+        daily_tasks_checklist: tasks,
+      });
+      setActiveShift(saved.shift);
       setIsAiLoading(false);
-      return;
+      setStep("menu");
+    } catch (err: any) {
+      setMsg(`❌ Алдаа: ${err.message || "Ээлж үүсгэж чадсангүй."}`);
+      setIsAiLoading(false);
     }
-
-    setActiveShift(newShift);
-    setIsAiLoading(false);
-    setStep("menu");
   };
 
   const handleReportIncident = async (e: React.FormEvent) => {
@@ -1918,21 +1779,27 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
     const qty = parseFloat(incidentQty) || 0;
     const lossCost = ing ? qty * (parseFloat(ing.unit_price) || 0) : 0;
 
-    await supabase.from("inventory_logs").insert([
-      {
-        client_id: tenantClientId,
-        ingredient_id: ing ? ing.id : null,
-        quantity: -Math.abs(qty),
-        total_cost: lossCost,
-        type: "spoilage",
-        incident_type: "previous_shift_damage",
-        reported_against_worker: incidentWorker || "Өмнөх ээлжийн ажилтан",
-        image_url: damageImgUrl,
-        notes: `Өмнөх ээлжийн алдагдал: ${incidentNote || "Шалтгаангүй хаягдал илэрсэн"}`,
-        worker_name: activeShift?.character_role || selectedWorker.full_name,
-        date: new Date().toISOString(),
-      },
-    ]);
+    try {
+      await kioskOps("logs.insert", {
+        logs: [
+          {
+            ingredient_id: ing ? ing.id : null,
+            quantity: -Math.abs(qty),
+            total_cost: lossCost,
+            type: "spoilage",
+            incident_type: "previous_shift_damage",
+            reported_against_worker: incidentWorker || "Өмнөх ээлжийн ажилтан",
+            image_url: damageImgUrl,
+            notes: `Өмнөх ээлжийн алдагдал: ${incidentNote || "Шалтгаангүй хаягдал илэрсэн"}`,
+            is_food: false,
+          },
+        ],
+      });
+    } catch (err: any) {
+      setIsAiLoading(false);
+      alert(err.message || "Бүртгэж чадсангүй.");
+      return;
+    }
 
     setIsAiLoading(false);
     alert("Өмнөх ээлжийн алдагдал менежерийн хяналтад бүртгэгдлээ!");
@@ -1949,10 +1816,11 @@ const workerName = selectedWorker.email ? selectedWorker.email.split("@")[0] : s
     updatedTasks[index].done = true;
     setTasks(updatedTasks);
     if (activeShift) {
-      await supabase
-        .from("shifts")
-        .update({ daily_tasks_checklist: updatedTasks })
-        .eq("id", activeShift.id);
+      try {
+        await kioskOps("shift.patch", { id: activeShift.id, daily_tasks_checklist: updatedTasks });
+      } catch (err: any) {
+        setMsg(err.message || "Даалгавар хадгалагдсангүй.");
+      }
     }
   };
 
@@ -2042,76 +1910,31 @@ const handleCloseShift = async () => {
         posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports");
       }
 
-      const countLogsToInsert: any[] = itemsCounted.map((item) => ({
-        client_id: tenantClientId,
-        ingredient_id: item.id,
-        quantity: parseFloat(itemCounts[item.id]) || 0,
-        type: "count",
-        incident_type: "daily_cycle_count",
-        notes: `[CYCLE] Ээлж хаалтын цикл тооллого: ${item.name}`,
-        worker_name:
-          currentShift?.character_role || selectedWorker?.full_name,
-        date: endTime,
-      }));
-
-      if (cashVal && parseFloat(cashVal) >= 0) {
-        countLogsToInsert.push({
-          client_id: tenantClientId,
-          ingredient_id: null,
-          non_food_item: "Кассын хаалтын үлдэгдэл",
-          quantity: 1,
-          total_cost: parseFloat(cashVal) || 0,
-          type: "count",
-          notes: `Кассын тоолсон бэлэн мөнгө: ${(parseFloat(cashVal) || 0).toLocaleString()}₮`,
-          payment_method: "cash",
-          worker_name:
-            currentShift?.character_role || selectedWorker?.full_name,
-          date: endTime,
-        });
+      const badCount = itemsCounted.find((item) => !Number.isFinite(parseFloat(itemCounts[item.id])));
+      if (badCount) {
+        setMsg(`${badCount.name} дээрх тоо буруу байна.`);
+        setIsAiLoading(false);
+        return;
       }
 
-      const logsPromise = supabase
-        .from("inventory_logs")
-        .insert(countLogsToInsert);
-
-     const closingChecklistSummary = itemsCounted.map((item) => ({
-        ingredient_id: item.id,
-        name: item.name,
-        quantity: parseFloat(itemCounts[item.id]) || 0,
-        unit: item.unit,
-        count_category: "daily_cycle_count",
-        counted_at: endTime,
-      }));
-
-      const shiftPromise = currentShift
-        ? supabase
-            .from("shifts")
-            .update({
-              is_active: false,
-              end_time: endTime,
-              pos_z_image_url: posZUrl,
-                 closing_checklist: closingChecklistSummary, 
-            })
-            .eq("id", currentShift.id)
-        : Promise.resolve();
-
-      const tasksPromise =
-        completedTaskIds.length > 0
-          ? supabase
-              .from("tasks")
-              .update({ is_active: false })
-              .in("id", completedTaskIds)
-          : Promise.resolve();
-
-      // 🚀 Бүгдийг зэрэг гүйцэтгэхийг хүлээх (AWAIT)
-      const results = await Promise.all([logsPromise, shiftPromise, tasksPromise]);
-
-      // Хэрэв аль нэг дээр нь алдаа гарсан бол мэдээлэх
-      for (const res of results) {
-        if (res && typeof res === "object" && "error" in res && res.error) {
-          throw res.error;
-        }
-      }
+      await kioskOps("shift.close", {
+        id: currentShift?.id,
+        pos_z_image_url: posZUrl,
+        cash: parseFloat(cashVal),
+        counts: itemsCounted.map((item) => ({
+          ingredient_id: item.id,
+          name: item.name,
+          quantity: parseFloat(itemCounts[item.id]),
+        })),
+        closing_checklist: itemsCounted.map((item) => ({
+          ingredient_id: item.id,
+          name: item.name,
+          quantity: parseFloat(itemCounts[item.id]) || 0,
+          unit: item.unit,
+          count_category: "daily_cycle_count",
+          counted_at: endTime,
+        })),
+      });
 
       // ⚡ 4. БААЗАД АМЖИЛТТАЙ ХАДГАЛАГДСАНЫ ДАРАА Л ДЭЛГЭЦИЙГ ЦЭВЭРЛЭХ
       setMsg("🌙 Ээлж амжилттай хаагдлаа!");
@@ -2423,77 +2246,9 @@ const handleCloseShift = async () => {
                 OK
               </button>
             </div>
-            {/* 🔐 PIN МАРТСАН ЭСВЭЛ СОЛИХ ТОВЧНУУД */}
-            <div className="flex gap-4 justify-center items-center pt-2">
-              {/* 1. Хуучин PIN-ээ мэдэж байгаа үед өөрөө солих */}
-              <button
-                type="button"
-                onClick={async () => {
-                  const oldPin = prompt(
-                    "Одоогийн 4 оронтой PIN-ээ оруулна уу:",
-                  );
-                  if (!oldPin) return;
-                  if (!selectedWorker.pin_code || oldPin !== selectedWorker.pin_code) {
-                    alert("❌ Одоогийн PIN буруу байна!");
-                    return;
-                  }
-                  const newPin = prompt("Шинэ 4 оронтой PIN оруулна уу:");
-                  if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
-                    alert("❌ Шинэ PIN заавал 4 оронтой тоо байх ёстой!");
-                    return;
-                  }
-                  const { error } = await supabase
-                    .from("profiles")
-                    .update({ pin_code: newPin })
-                    .eq("id", selectedWorker.id);
-                  if (error) alert(error.message);
-                  else {
-                    alert(" Таны PIN код амжилттай солигдлоо!");
-                    fetchKioskData(tenantClientId);
-                  }
-                }}
-                className="text-xs text-zinc-400 hover:text-white underline font-semibold"
-              >
-                PIN солих
-              </button>
-
-              <span className="text-zinc-700">•</span>
-
-              {/* 2. Бүр мартчихсан үед Менежер/Эзнээр сэргээлгэх */}
-              <button
-                type="button"
-                onClick={async () => {
-                  const masterCode = prompt(
-                    "Менежер эсвэл Эзний зөвшөөрлийн Master код (9999) оруулна уу:",
-                  );
-                  if (masterCode !== "9999" && masterCode !== "0000") {
-                    alert("❌ Менежерийн код буруу байна!");
-                    return;
-                  }
-                  const newPin = prompt(
-                    `${selectedWorker.full_name}-д зориулсан шинэ 4 оронтой PIN оруулна уу:`,
-                  );
-                  if (!newPin || newPin.length !== 4 || isNaN(Number(newPin))) {
-                    alert("❌ PIN заавал 4 оронтой тоо байх ёстой!");
-                    return;
-                  }
-                  const { error } = await supabase
-                    .from("profiles")
-                    .update({ pin_code: newPin })
-                    .eq("id", selectedWorker.id);
-                  if (error) alert(error.message);
-                  else {
-                    alert(
-                      ` ${selectedWorker.full_name}-ийн PIN сэргээгдэж шинэчлэгдлээ!`,
-                    );
-                    fetchKioskData(tenantClientId);
-                  }
-                }}
-                className="text-xs text-rose-400/80 hover:text-rose-400 underline font-semibold"
-              >
-                PIN мартсан
-              </button>
-            </div>
+            <p className="text-center text-xs text-zinc-500 pt-2">
+              PIN мартсан бол эзэн самбараас солино.
+            </p>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
               <button
                 onClick={() => {
@@ -2622,12 +2377,13 @@ const handleCloseShift = async () => {
                     onClick={async () => {
                       const idToUndo = recentToast.id;
                       setRecentToast(null);
-                      await supabase
-                        .from("inventory_logs")
-                        .delete()
-                        .eq("id", idToUndo);
-                      await fetchKioskData(tenantClientId);
-                      setMsg("↩️ Бүртгэл цуцлагдлаа.");
+                      try {
+                        await kioskOps("logs.delete", { id: idToUndo });
+                        await fetchKioskData(tenantClientId);
+                        setMsg("Бүртгэл цуцлагдлаа.");
+                      } catch (err: any) {
+                        setMsg(err.message || "Буцааж чадсангүй.");
+                      }
                       setTimeout(() => setMsg(""), 3000);
                     }}
                     className="bg-zinc-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-xs sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
@@ -2667,7 +2423,7 @@ const handleCloseShift = async () => {
                   <button
                     type="button"
                     onClick={() => {
-                      fetchTodayLogs(tenantClientId);
+                      fetchTodayLogs();
                       setShowLogsDrawer(true);
                     }}
                     className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
@@ -2812,16 +2568,13 @@ const handleCloseShift = async () => {
                           await compressImageForUpload(rawFile);
 
                         try {
-                          const {
-                            data: { session },
-                          } = await supabase.auth.getSession();
-                          const token = session?.access_token || "";
-
+                          const tokens = kioskTokens();
                           const res = await fetch("/api/kiosk-ai", {
                             method: "POST",
                             headers: {
                               "Content-Type": "application/json",
-                              Authorization: `Bearer ${token}`, // 👈 НЭМСЭН
+                              "x-kiosk-device": tokens.deviceToken,
+                              "x-kiosk-worker": tokens.workerToken,
                             },
                             body: JSON.stringify({ imageBase64: base64 }),
                           });
@@ -2870,16 +2623,13 @@ const handleCloseShift = async () => {
                             ",",
                           )[1];
                           try {
-                            const {
-                              data: { session },
-                            } = await supabase.auth.getSession();
-                            const token = session?.access_token || "";
-
+                            const tokens = kioskTokens();
                             const res = await fetch("/api/kiosk-ai", {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
-                                Authorization: `Bearer ${token}`, // 👈 НЭМСЭН
+                                "x-kiosk-device": tokens.deviceToken,
+                                "x-kiosk-worker": tokens.workerToken,
                               },
                               body: JSON.stringify({ imageBase64: base64 }),
                             });
@@ -3422,42 +3172,31 @@ const handleCloseShift = async () => {
                               ? `Эзний хувийн таталт (Cash Draw): ${noteToSave || "Бэлнээр авсан"}`
                               : `Жижиг зардал (Petty Cash): ${noteToSave || "Ахуйн хэрэгсэл"}`;
 
-                          const { data: newLog } = await supabase
-                            .from("inventory_logs")
-                            .insert([
-                              {
-                                client_id: tenantClientId,
-                                ingredient_id: null,
-                                non_food_item:
-                                  typeToSave === "owner_draw"
-                                    ? "Эзний таталт"
-                                    : noteToSave || "Ахуйн зардал",
-                                quantity: 1,
-                                total_cost: amount,
-                                type:
-                                  typeToSave === "owner_draw"
-                                    ? "other"
-                                    : "purchase",
-                                payment_method: "cash",
-                                notes: noteText,
-                                image_url: uploadedImg,
-                                worker_name:
-                                  activeShift?.character_role ||
-                                  selectedWorker.full_name,
-                                date: new Date().toISOString(),
-                              },
-                            ])
-                            .select()
-                            .single();
-
-                          if (newLog) {
+                          const saved = await kioskSaveLogs([
+                            {
+                              ingredient_id: null,
+                              non_food_item:
+                                typeToSave === "owner_draw"
+                                  ? "Эзний таталт"
+                                  : noteToSave || "Ахуйн зардал",
+                              quantity: 1,
+                              total_cost: amount,
+                              type: typeToSave === "owner_draw" ? "other" : "purchase",
+                              payment_method: "cash",
+                              notes: noteText,
+                              image_url: uploadedImg,
+                              is_food: false,
+                            },
+                          ]);
+                          const newId = saved.ids?.[0];
+                          if (newId) {
                             setRecentToast({
-                              id: newLog.id,
+                              id: newId,
                               text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
                             });
                           }
-                        } catch (e) {
-                          console.error("Cash out background error:", e);
+                        } catch (e: any) {
+                          alert(e.message || "Кассын бүртгэл хадгалагдсангүй.");
                         }
                       })();
                     }}
@@ -3793,59 +3532,24 @@ const handleCloseShift = async () => {
         );
       }
 
-      // 4. Бааз руу хадгалах бичилт:
-      const { data: newLog, error } = await supabase
-        .from("inventory_logs")
-        .insert([
-          {
-            client_id: tenantClientId,
-            ingredient_id: itemToSave.id,
-            quantity: finalQty,
-            total_cost: costVal,  
-            type: kioskMode,
-            payment_method:
-              kioskMode === "purchase" ? payMethod : "bank",
-            image_url: uploadedUrl,
-            is_ebarimt: false,
-            incident_type: kioskMode === "count" ? "kiosk_count" : null,
-            notes: kioskMode === "count" 
-              ? `Kiosk Тооллого: ${itemToSave.name}` 
-              : `Kiosk 2-Tap (${kioskMode})`,
-            worker_name:
-              activeShift?.character_role ||
-              selectedWorker?.full_name ||
-              "Ажилтан",
-            date: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single();
-
-      // ⚠️ АЛДАА ГАРВАЛ ЧИМЭЭГҮЙ НУУХГҮЙ, ДЭЛГЭЦЭНД ШУУД ХАРУУЛНА:
-      if (error) {
-        alert(`❌ Kiosk хадгалах алдаа: ${error.message}`);
-        return;
-      }
-
-      // ⚡ 5. Татан авалт хийхэд нэгжийн үнийг баазад шууд шинэчлэх (Таны бичсэнээр хэвээрээ):
-      if (
-        kioskMode === "purchase" &&
-        costVal > 0 &&
-        qtyNum > 0
-      ) {
-        const latestUnitPrice = Math.round(
-          costVal / qtyNum,
-        );
-        await supabase
-          .from("ingredients")
-          .update({ unit_price: latestUnitPrice })
-          .eq("id", itemToSave.id);
-      }
-
-      // 6. Амжилттай болсныг дэлгэц дээр харуулах:
-      if (newLog) {
+      const saved = await kioskSaveLogs([
+        {
+          ingredient_id: itemToSave.id,
+          quantity: finalQty,
+          total_cost: costVal,
+          type: kioskMode,
+          payment_method: kioskMode === "purchase" ? payMethod : null,
+          image_url: uploadedUrl,
+          is_ebarimt: false,
+          incident_type: kioskMode === "count" ? "kiosk_count" : null,
+          notes: kioskMode === "count" ? `Kiosk тооллого: ${itemToSave.name}` : `Kiosk (${modeLabel})`,
+          input_unit: itemToSave.unit,
+        },
+      ]);
+      const newId = saved.ids?.[0];
+      if (newId) {
         setRecentToast({
-          id: newLog.id,
+          id: newId,
           text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel})`,
         });
         fetchKioskData(tenantClientId);
@@ -4023,6 +3727,22 @@ const handleCloseShift = async () => {
                           <span className="font-bold text-white block truncate">
                             {item.item_name}
                           </span>
+                          {item.is_food !== false && (
+                            <select
+                              value={item.ingredient_id || matchIngredient(item.item_name)?.id || ""}
+                              onChange={(e) => {
+                                const updated = [...ebarimtReview.items];
+                                updated[idx] = { ...updated[idx], ingredient_id: e.target.value };
+                                setEbarimtReview({ ...ebarimtReview, items: updated });
+                              }}
+                              className="mt-1 w-full bg-zinc-950 border border-zinc-700 rounded px-1 py-1 text-xs text-zinc-200"
+                            >
+                              <option value="">Аль орц вэ?</option>
+                              {ingredients.map((ing) => (
+                                <option key={ing.id} value={ing.id}>{ing.name}</option>
+                              ))}
+                            </select>
+                          )}
                           {/* Нийт үнийг засах input */}
                           <div className="flex items-center gap-1 mt-0.5">
                             <span className="text-xs text-zinc-500">Үнэ:</span>
@@ -4085,8 +3805,14 @@ const handleCloseShift = async () => {
                     disabled={isAiLoading || ebarimtReview.items.length === 0}
                     onClick={() => {
                       const reviewData = ebarimtReview;
+                      const unresolved = reviewData.items.find(
+                        (it) => it.is_food !== false && !(it.ingredient_id || matchIngredient(it.item_name)?.id),
+                      );
+                      if (unresolved) {
+                        alert(`"${unresolved.item_name}" аль орц болохыг сонгоно уу.`);
+                        return;
+                      }
 
-                      // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
                       setEbarimtReview(null);
 
                       // ⚡ 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
@@ -4104,18 +3830,11 @@ const handleCloseShift = async () => {
                           );
 
                           const logsToInsert = reviewData.items.map((it) => {
-                            const isFood = it.is_food !== false; // Default to true unless AI flags it as non-food
+                            const isFood = it.is_food !== false;
                             const matchedIng = isFood
-                              ? ingredients.find(
-                                  (ing) =>
-                                    ing.name.toLowerCase().trim() ===
-                                    it.item_name.toLowerCase().trim(),
-                                )
+                              ? ingredients.find((ing) => ing.id === (it.ingredient_id || matchIngredient(it.item_name)?.id))
                               : null;
                             return {
-                              client_id: tenantClientId,
-                              // If it's FOOD and in catalog -> Inventory Asset (COGS)
-                              // If it's NOT food (soap, paper, gloves) -> OPEX Expense
                               ingredient_id: matchedIng ? matchedIng.id : null,
                               non_food_item: matchedIng ? null : it.item_name,
                               quantity: Math.abs(it.quantity),
@@ -4124,56 +3843,27 @@ const handleCloseShift = async () => {
                               payment_method: reviewData.payMethod,
                               image_url: uploadedImgUrl,
                               is_ebarimt: true,
-                              notes: isFood
-                                ? "🧾 E-Barimt (Хүнс)"
-                                : "🧾 E-Barimt (Хүнсний бус OPEX)",
-                              worker_name:
-                                activeShift?.character_role ||
-                                selectedWorker.full_name,
-                              date: new Date().toISOString(),
+                              is_food: isFood,
+                              input_unit: it.unit || null,
+                              notes: isFood ? "E-Barimt (хүнс)" : "E-Barimt (хүнсний бус)",
                             };
                           });
+                          const aliases = reviewData.items
+                            .filter((it) => it.is_food !== false)
+                            .map((it) => ({
+                              phrase: it.item_name,
+                              ingredient_id: it.ingredient_id || matchIngredient(it.item_name)?.id,
+                            }))
+                            .filter((row) => row.ingredient_id);
 
-                          const { data: insertedData } = await supabase
-                            .from("inventory_logs")
-                            .insert(logsToInsert)
-                            .select("id");
-
-                          // ⚡ Баримтаар орж ирсэн хүнсний түүхий эдүүдийн нэгжийн үнийг каталогид шинэчлэх:
-                          for (const it of reviewData.items) {
-                            if (
-                              it.is_food &&
-                              it.quantity > 0 &&
-                              it.total_cost > 0
-                            ) {
-                              const matchedIng = ingredients.find(
-                                (ing: any) =>
-                                  ing.name.toLowerCase().trim() ===
-                                  it.item_name.toLowerCase().trim(),
-                              );
-                              if (matchedIng) {
-                                const latestUnitPrice = Math.round(
-                                  it.total_cost / it.quantity,
-                                );
-                                await supabase
-                                  .from("ingredients")
-                                  .update({ unit_price: latestUnitPrice })
-                                  .eq("id", matchedIng.id);
-                              }
-                            }
-                          }
-
-                          const insertedIds = (insertedData || []).map(
-                            (d: any) => d.id,
-                          );
+                          const saved = await kioskSaveLogs(logsToInsert, aliases);
                           setRecentToast({
-                            id: insertedIds[0] || "bulk",
-                            text: ` ${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
+                            id: saved.ids?.[0] || "bulk",
+                            text: `${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
                           });
-
                           fetchKioskData(tenantClientId);
-                        } catch (e) {
-                          console.error("E-barimt save error:", e);
+                        } catch (e: any) {
+                          alert(e.message || "E-Barimt хадгалагдсангүй.");
                         }
                       })();
                     }}
@@ -4363,54 +4053,22 @@ const handleCloseShift = async () => {
                             );
                           }
 
-                          const { data: createdIng } = await supabase
-                            .from("ingredients")
-                            .insert([
-                              {
-                                client_id: tenantClientId,
-                                name: nameToSave,
-                                unit: unitToSave,
-                                unit_price: unitPrice,
-                                current_stock: qty,
-                              },
-                            ])
-                            .select()
-                            .single();
-
-                          if (createdIng) {
-                            const { data: newLog } = await supabase
-                              .from("inventory_logs")
-                              .insert([
-                                {
-                                  client_id: tenantClientId,
-                                  ingredient_id: createdIng.id,
-                                  quantity: qty,
-                                  total_cost: cost,
-                                  type: "purchase",
-                                  payment_method: "bank",
-                                  image_url: uploadedUrl,
-                                  is_ebarimt: false,
-                                  notes:
-                                    "Kiosk дээр шинээр үүсгэж орлого авсан",
-                                  worker_name:
-                                    activeShift?.character_role ||
-                                    selectedWorker?.full_name,
-                                  date: new Date().toISOString(),
-                                },
-                              ])
-                              .select()
-                              .single();
-
-                            if (newLog) {
-                              setRecentToast({
-                                id: newLog.id,
-                                text: `Шинэ бараа: ${nameToSave} (${qty} ${unitToSave})`,
-                              });
-                              fetchKioskData(tenantClientId);
-                            }
+                          const saved = await kioskOps("ingredient.create", {
+                            name: nameToSave,
+                            unit: unitToSave,
+                            qty,
+                            cost,
+                            image_url: uploadedUrl,
+                          });
+                          if (saved.logId) {
+                            setRecentToast({
+                              id: saved.logId,
+                              text: `Шинэ бараа: ${nameToSave} (${qty} ${unitToSave})`,
+                            });
+                            fetchKioskData(tenantClientId);
                           }
-                        } catch (err) {
-                          console.error("New item background save error:", err);
+                        } catch (err: any) {
+                          alert(err.message || "Шинэ бараа хадгалагдсангүй.");
                         }
                       })();
                     }}
@@ -4612,11 +4270,13 @@ const handleCloseShift = async () => {
                                 setTodayLogs((prev) =>
                                   prev.filter((l) => l.id !== log.id),
                                 );
-                                await supabase
-                                  .from("inventory_logs")
-                                  .delete()
-                                  .eq("id", log.id);
-                                await fetchKioskData(tenantClientId);
+                                try {
+                                  await kioskOps("logs.delete", { id: log.id });
+                                  await fetchKioskData(tenantClientId);
+                                } catch (err: any) {
+                                  alert(err.message || "Буцааж чадсангүй.");
+                                  fetchKioskData(tenantClientId);
+                                }
                               }}
                               className="bg-zinc-900 hover:bg-rose-500/20 hover:text-rose-300 text-zinc-400 border border-zinc-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
                               title="Бүртгэлийг цуцлах"
@@ -5223,49 +4883,28 @@ const handleCloseShift = async () => {
                               );
                             }
 
-                            const logsToInsert = itemsToProcess.map((it) => ({
-                              client_id: tenantClientId,
-                              ingredient_id: it.ing_id,
-                              quantity: Math.abs(it.qty),
-                              total_cost: it.cost,
-                              type: "purchase",
-                              payment_method: purchasePayMethod,
-                              image_url: uploadedUrl,
-                              is_ebarimt: false,
-                              notes: `🛒 Бөөний сагсаар (Нийт зурагтай)`,
-                              worker_name:
-                                activeShift?.character_role ||
-                                selectedWorker?.full_name,
-                              date: new Date().toISOString(),
-                            }));
-
-                            const { data: insertedData } = await supabase
-                              .from("inventory_logs")
-                              .insert(logsToInsert)
-                              .select("id");
-
-                            // ⚡ Сагсан дахь бүх барааны нэгжийн шинэ үнийг каталогид шинэчлэх:
-                            for (const it of itemsToProcess) {
-                              if (it.cost > 0 && it.qty > 0) {
-                                const latestUnitPrice = Math.round(
-                                  it.cost / it.qty,
-                                );
-                                await supabase
-                                  .from("ingredients")
-                                  .update({ unit_price: latestUnitPrice })
-                                  .eq("id", it.ing_id);
-                              }
-                            }
-
-                            if (insertedData && insertedData.length > 0) {
+                            const saved = await kioskSaveLogs(
+                              itemsToProcess.map((it) => ({
+                                ingredient_id: it.ing_id,
+                                quantity: Math.abs(it.qty),
+                                total_cost: it.cost,
+                                type: "purchase",
+                                payment_method: purchasePayMethod,
+                                image_url: uploadedUrl,
+                                is_ebarimt: false,
+                                input_unit: it.unit,
+                                notes: "Бөөний сагсаар",
+                              })),
+                            );
+                            if (saved.ids?.length) {
                               setRecentToast({
-                                id: insertedData[0].id,
-                                text: ` Сагсан дахь ${itemsToProcess.length} бараа амжилттай бүртгэгдлээ!`,
+                                id: saved.ids[0],
+                                text: `Сагсан дахь ${itemsToProcess.length} бараа бүртгэгдлээ.`,
                               });
                               fetchKioskData(tenantClientId);
                             }
-                          } catch (err) {
-                            console.error("Cart save failed:", err);
+                          } catch (err: any) {
+                            alert(err.message || "Сагс хадгалагдсангүй.");
                           }
                         })();
                       }}

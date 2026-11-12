@@ -2,16 +2,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createEmbedding } from "./memory.service";
 import { MODELS } from "@/lib/ai/models";
-
-interface AuditGroup {
-  workerName: string;
-  ingredientId: string;
-  ingredientName: string;
-  totalCost: number;
-  totalQuantity: number;
-  unit: string;
-  logIds: string[];
-}
+import { calculateMatchScore } from "@/lib/autoReconcile";
 
 export type AuditFinding = {
   title: string;
@@ -47,85 +38,131 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
   const findings: AuditFinding[] = [];
 
   // ============================================================================
-  // ЧИГЛЭЛ 1: АЖИЛТНЫ ХАЯГДАЛ, АСГАРАЛТЫН АУДИТ
+  // ЧИГЛЭЛ 1: ТАЙЛБАРГҮЙ ҮЛДЭГДЛИЙН ЗӨРҮҮ (хаягдал бүртгэснийг буруутгахгүй)
   // ============================================================================
-  const wasteLogs = logs.filter((l) => ["spoilage", "staff_meal", "testing", "other"].includes(l.type));
-  const groupedWaste = new Map<string, AuditGroup>();
+  const [{ data: recipes }, { data: sales }, { data: priorCounts }] = await Promise.all([
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").eq("client_id", clientId),
+    supabaseAdmin.from("sales_logs").select("product_name, quantity_sold").eq("client_id", clientId).gte("date", twentyFourHoursAgo),
+    supabaseAdmin
+      .from("inventory_logs")
+      .select("ingredient_id, quantity, date")
+      .eq("client_id", clientId)
+      .eq("type", "count")
+      .lt("date", twentyFourHoursAgo)
+      .gte("date", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+      .order("date", { ascending: false }),
+  ]);
 
-  wasteLogs.forEach((log) => {
-    const worker = (log.worker_name || "Үл мэдэгдэх").trim();
-    const ingId = log.ingredient_id || "non_food";
-    const groupKey = `${worker}::${ingId}`;
-    const ing = ingMap.get(ingId);
+  const recipeByProduct = new Map<string, { ingredientId: string; amount: number }[]>();
+  for (const recipe of recipes || []) {
+    const key = String(recipe.product_name || "").trim().toLowerCase();
+    if (!key || !recipe.ingredient_id) continue;
+    const rows = recipeByProduct.get(key) || [];
+    rows.push({ ingredientId: recipe.ingredient_id, amount: Number(recipe.amount) || 0 });
+    recipeByProduct.set(key, rows);
+  }
+  const recipeKeys = Array.from(recipeByProduct.keys());
+  const usedByIng = new Map<string, number>();
+  for (const sale of sales || []) {
+    const name = String(sale.product_name || "").trim().toLowerCase();
+    const key = recipeByProduct.has(name)
+      ? name
+      : recipeKeys.find((candidate) => calculateMatchScore(name, candidate) >= 0.8);
+    if (!key) continue;
+    const sold = Number(sale.quantity_sold) || 0;
+    for (const row of recipeByProduct.get(key) || []) {
+      usedByIng.set(row.ingredientId, (usedByIng.get(row.ingredientId) || 0) + sold * row.amount);
+    }
+  }
 
-    const current = groupedWaste.get(groupKey) || {
-      workerName: worker,
-      ingredientId: ingId,
-      ingredientName: ing ? ing.name : "Бусад бараа",
-      totalCost: 0,
-      totalQuantity: 0,
-      unit: ing ? ing.unit : "ш",
-      logIds: [] as string[],
-    };
+  const startByIng = new Map<string, number>();
+  for (const row of priorCounts || []) {
+    if (!row.ingredient_id || startByIng.has(row.ingredient_id)) continue;
+    startByIng.set(row.ingredient_id, Number(row.quantity) || 0);
+  }
 
-    current.totalCost += Math.abs(Number(log.total_cost) || 0);
-    current.totalQuantity += Math.abs(Number(log.quantity) || 0);
-    current.logIds.push(log.id);
+  const endByIng = new Map<string, { qty: number; time: number }>();
+  const purchaseByIng = new Map<string, number>();
+  const wasteByIng = new Map<string, number>();
+  const evidenceByIng = new Map<string, string[]>();
+  for (const log of logs) {
+    if (!log.ingredient_id) continue;
+    const ids = evidenceByIng.get(log.ingredient_id) || [];
+    if (ids.length < 20) ids.push(log.id);
+    evidenceByIng.set(log.ingredient_id, ids);
+    if (log.type === "count") {
+      const time = new Date(log.date).getTime();
+      const prev = endByIng.get(log.ingredient_id);
+      if (!prev || time >= prev.time) endByIng.set(log.ingredient_id, { qty: Number(log.quantity) || 0, time });
+    } else if (log.type === "purchase") {
+      purchaseByIng.set(log.ingredient_id, (purchaseByIng.get(log.ingredient_id) || 0) + Math.abs(Number(log.quantity) || 0));
+    } else if (["spoilage", "staff_meal", "testing", "other"].includes(log.type)) {
+      wasteByIng.set(log.ingredient_id, (wasteByIng.get(log.ingredient_id) || 0) + Math.abs(Number(log.quantity) || 0));
+    }
+  }
 
-    groupedWaste.set(groupKey, current);
-  });
+  for (const [ingredientId, end] of endByIng) {
+    if (!startByIng.has(ingredientId)) continue;
+    const ing = ingMap.get(ingredientId);
+    if (!ing) continue;
+    const start = startByIng.get(ingredientId) || 0;
+    const purchased = purchaseByIng.get(ingredientId) || 0;
+    const loggedOut = wasteByIng.get(ingredientId) || 0;
+    const used = usedByIng.get(ingredientId) || 0;
+    const gap = start + purchased - loggedOut - used - end.qty;
+    const price = Number(ing.unit_price) || 0;
+    const money = Math.abs(gap) * price;
+    if (Math.abs(gap) < 0.01) continue;
+    if (money < 10000 && !(price === 0 && Math.abs(gap) >= 50)) continue;
 
-  for (const group of Array.from(groupedWaste.values())) {
-    const isCostAnomaly = group.totalCost > 10000; // 10,000₮-с дээш алдагдал
-    const isCountAnomaly = group.logIds.length >= 3; // 3 ба түүнээс дээш хаягдал
+    const unit = ing.unit || "ш";
+    const situation = "Тайлбаргүй үлдэгдлийн зөрүү илэрлээ.";
+    const prediction = `${ing.name}: эхлэл ${start} ${unit}, орлого ${purchased}, бүртгэсэн зарлага ${loggedOut}, борлуулалтын онол ${Math.round(used)}, тооллого ${end.qty}. Зөрүү ${Math.round(gap * 100) / 100} ${unit}.`;
+    const lesson = "Хаягдал бүртгэсэн ажилтныг буруутгахгүй. Зөрүүг дараагийн тооллого, орлого, орцоор шалгана.";
 
-    if (isCostAnomaly || isCountAnomaly) {
-      const situation = "Хэвийн бус хаягдлын өсөлт илэрлээ.";
-      const prediction = `${group.workerName} ажилтны ээлжинд ${group.ingredientName} их хэмжээгээр (${group.totalQuantity} ${group.unit}, нийт ${Math.round(group.totalCost).toLocaleString()}₮) хаягдсан байна.`;
-      const lesson = `${group.workerName} ажилтны ${group.ingredientName} хэрэглээ, орцын стандарт болон Kiosk бүртгэлийг шалгах шаардлагатай.`;
+    let embedding: number[] | null = null;
+    try {
+      embedding = await createEmbedding(`${situation}\n${prediction}\n${lesson}`);
+    } catch (e) {}
 
-      let embedding: number[] | null = null;
-      try {
-        embedding = await createEmbedding(`${situation}\n${prediction}\n${lesson}`);
-      } catch (e) {}
+    const { data: exp } = await supabaseAdmin
+      .from("business_experiences")
+      .insert([
+        {
+          client_id: clientId,
+          situation,
+          prediction,
+          action_taken: "Шөнийн аудитор тайлбаргүй зөрүүг бүртгэв. Хаягдлын бүртгэлийг шийтгэсэнгүй.",
+          outcome: "Тооллого, орлого, зарлагын баримт холбогдсон.",
+          lesson,
+          confidence: 0.8,
+          status: "open",
+          evidence_status: "reported",
+          is_test: false,
+          embedding: embedding || null,
+          embedding_model: embedding ? MODELS.embedding : null,
+        },
+      ])
+      .select("id")
+      .single();
 
-      const { data: exp } = await supabaseAdmin
-        .from("business_experiences")
-        .insert([
-          {
-            client_id: clientId,
-            situation,
-            prediction,
-            action_taken: "Шөнийн дата аудитор хаягдлын эрсдэлийг илрүүлж бүртгэв.",
-            outcome: "Хаягдлын баримтууд холбогдсон.",
-            lesson,
-            confidence: isCostAnomaly && isCountAnomaly ? 0.95 : 0.8,
-            status: "open",
-            evidence_status: "reported",
-            is_test: false,
-            embedding: embedding || null,
-            embedding_model: embedding ? MODELS.embedding : null,
-          },
-        ])
-        .select("id")
-        .single();
-
-      if (exp) {
-        anomalyCount++;
-        findings.push({
-          title: `${group.ingredientName} хаягдал`,
-          body: `${group.workerName}: ${group.totalQuantity} ${group.unit}, ${Math.round(group.totalCost).toLocaleString()}₮. ${lesson}`,
-          impact: group.totalCost,
-          evidenceLogIds: group.logIds,
-        });
-        const evidenceRows = group.logIds.map((logId) => ({
+    if (exp) {
+      anomalyCount++;
+      const evidenceLogIds = evidenceByIng.get(ingredientId) || [];
+      findings.push({
+        title: `Тайлбаргүй зөрүү: ${ing.name}`,
+        body: `${prediction} ${lesson}`,
+        impact: Math.round(money),
+        evidenceLogIds,
+      });
+      if (evidenceLogIds.length > 0) {
+        const evidenceRows = evidenceLogIds.map((logId) => ({
           client_id: clientId,
           experience_id: exp.id,
           inventory_log_id: logId,
-          evidence_type: "spoilage_log", // 👈 Төрөл 1: Хаягдлын нотлох баримт
-          note: `Хаягдал: ${group.ingredientName} (${group.workerName})`,
+          evidence_type: "stock_gap",
+          note: `Тайлбаргүй зөрүү: ${ing.name}`,
         }));
-
         await supabaseAdmin.from("business_experience_evidence").insert(evidenceRows);
         evidenceCount += evidenceRows.length;
       }

@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       .from("kiosk_devices")
       .select("client_id")
       .eq("device_token", deviceToken)
+      .eq("is_active", true)
       .maybeSingle();
 
     if (error || !data) {

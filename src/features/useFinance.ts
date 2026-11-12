@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 export function useFinance(clientId: string, startDate: string, endDate: string, enabled: boolean = true) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -17,7 +18,7 @@ export function useFinance(clientId: string, startDate: string, endDate: string,
       const token = session?.access_token || "";
 
       const res = await fetch(
-        `/api/analytics?startDate=${encodeURIComponent(startDate)}T00:00:00.000Z&endDate=${encodeURIComponent(endDate)}T23:59:59.999Z`,
+        `/api/analytics?startDate=${encodeURIComponent(ubDayStartIso(startDate))}&endDate=${encodeURIComponent(ubDayEndIso(endDate))}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",

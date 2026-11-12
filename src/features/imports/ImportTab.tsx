@@ -14,6 +14,7 @@ import {
   Archive,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import {
   autoCategorizeProduct,
   evaluateSaleItem,
@@ -270,8 +271,8 @@ export default function ImportTab({
           .from("sales_logs")
           .delete()
           .eq("client_id", activeClient)
-          .gte("date", `${startDate}T00:00:00.000Z`)
-          .lte("date", `${endDate}T23:59:59.999Z`);
+          .gte("date", ubDayStartIso(startDate))
+          .lte("date", ubDayEndIso(endDate));
       }
 
       // Борлуулалт оруулах (хэрэв байгаа бол):
@@ -1002,8 +1003,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           .delete()
           .eq("client_id", activeClient)
           .eq("type", "purchase")
-          .gte("date", `${startDate}T00:00:00.000Z`)
-          .lte("date", `${endDate}T23:59:59.999Z`);
+          .gte("date", ubDayStartIso(startDate))
+          .lte("date", ubDayEndIso(endDate));
       }
 
       // 4. 100+ МӨРИЙГ ГАНЦХАН СҮЛЖЭЭНИЙ ХҮСЭЛТЭЭР БААЗАД ОРУУЛАХ (0.1 секунд!)
@@ -1536,8 +1537,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           .delete()
           .eq("client_id", activeClient)
           .in("type", ["spoilage", "staff_meal", "testing", "other"])
-          .gte("date", `${startDate}T00:00:00.000Z`)
-          .lte("date", `${endDate}T23:59:59.999Z`);
+          .gte("date", ubDayStartIso(startDate))
+          .lte("date", ubDayEndIso(endDate));
       }
 
       if (logsToInsert.length > 0) {
@@ -1584,8 +1585,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
       const countsToInsert: any[] = [];
       const defaultDate = auditDate
-        ? `${auditDate}T00:00:00.000Z`
-        : `${startDate}T00:00:00.000Z`;
+        ? ubDayStartIso(auditDate)
+        : ubDayStartIso(startDate);
       const cleanType = auditType === "start" ? "start" : "end";
       // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
       const splitRow = (line: string) => {
@@ -1698,8 +1699,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           .delete()
           .eq("client_id", activeClient)
           .eq("type", "count")
-          .gte("date", `${auditDate}T00:00:00.000Z`)
-          .lte("date", `${auditDate}T23:59:59.999Z`);
+          .gte("date", ubDayStartIso(auditDate))
+          .lte("date", ubDayEndIso(auditDate));
       }
 
       if (countsToInsert.length > 0) {

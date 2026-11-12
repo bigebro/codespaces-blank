@@ -8,6 +8,8 @@ import { saveBusinessRule } from "@/ai/memory/memory.service";
 import { routeAiRequest } from "@/ai/agents/router.agent";
 import { subscriptionBlockMessage } from "@/lib/subscription";
 import { AgentContext } from "@/types/agent.types";
+import { requireKioskWorker } from "@/lib/kioskAuth";
+import { convertToIngredientUnit } from "@/lib/units";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -107,51 +109,70 @@ async function callGroqFallback(systemPrompt: string, userText: string) {
 
 export async function POST(request: Request) {
   try {
-    // 🔒 1. Токенийг авах
-    const token = (request.headers.get("authorization") || "")
-      .replace(/^Bearer\s+/i, "")
-      .trim();
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 },
-      );
+    const deviceToken = (request.headers.get("x-kiosk-device") || "").trim();
+    const workerToken = (request.headers.get("x-kiosk-worker") || "").trim();
+
+    let clientId = "";
+    let isOwner = false;
+    let workerName = "Ажилтан";
+    let userId = "";
+
+    if (deviceToken || workerToken) {
+      const worker = await requireKioskWorker(deviceToken, workerToken);
+      if (!worker) {
+        return NextResponse.json(
+          { success: false, message: "Киоск нэвтрэлт хүчингүй." },
+          { status: 401 },
+        );
+      }
+      clientId = worker.clientId;
+      isOwner = false;
+      workerName = worker.workerName;
+      userId = worker.workerId;
+    } else {
+      const token = (request.headers.get("authorization") || "")
+        .replace(/^Bearer\s+/i, "")
+        .trim();
+      if (!token) {
+        return NextResponse.json(
+          { success: false, message: "Unauthorized" },
+          { status: 401 },
+        );
+      }
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !user) {
+        return NextResponse.json(
+          { success: false, message: "Unauthorized" },
+          { status: 401 },
+        );
+      }
+
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("client_id, role, full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.client_id) {
+        return NextResponse.json(
+          { success: false, message: "Forbidden" },
+          { status: 403 },
+        );
+      }
+
+      clientId = profile.client_id;
+      isOwner = profile.role === "owner";
+      workerName = profile.full_name || "Ажилтан";
+      userId = user.id;
     }
 
-    // 🔒 2. createClient үүсгэхгүйгээр шууд supabaseAdmin-аар шалгах (Хамгийн хурдан, цэвэрхэн)
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 },
-      );
-    }
-
-    // 🔒 3. Хэрэглэгчийн жинхэнэ салбар, үүргийг татах
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("client_id, role, full_name")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.client_id) {
-      return NextResponse.json(
-        { success: false, message: "Forbidden" },
-        { status: 403 },
-      );
-    }
-
-    // 🔒 4. Body-г зөвхөн ганц удаа унших
     const body = await request.json();
-    const clientId = profile.client_id;
-    const isOwner = profile.role === "owner";
     const blocked = await subscriptionBlockMessage(clientId);
-   
 
-    const workerName = body.workerName || profile.full_name || "Ажилтан";
     const text = (body.text || body.payloadText || body.input || "").trim();
     const imageBase64 = body.imageBase64 || null;
     const action = body.action || null;
@@ -427,8 +448,8 @@ ${JSON.stringify(unmatched)}`;
       }
       const sameWorker =
         (row.worker_name || "").trim().toLowerCase() ===
-        (profile.full_name || "").trim().toLowerCase();
-      const sameUser = row.created_by && row.created_by === user.id;
+        workerName.trim().toLowerCase();
+      const sameUser = row.created_by && row.created_by === userId;
       if (!isOwner && !sameWorker && !sameUser) {
         return NextResponse.json(
           { success: false, message: "Зөвхөн өөрийн бүртгэлээ цуцлах боломжтой." },
@@ -569,85 +590,44 @@ ${JSON.stringify(unmatched)}`;
         });
       }
 
-      const logsToInsert: any[] = [];
-      let successMsg = "**Татан авалт амжилттай бүртгэгдлээ:**\n\n";
-      const currentDate = new Date().toISOString();
+      const { data: aliases } = await supabaseAdmin
+        .from("learned_aliases")
+        .select("phrase, ingredient_id")
+        .eq("client_id", clientId);
 
-      for (const item of aiAnalysis.purchases) {
-        const isFood = item.is_food !== false;
-        const isEBarimt =
-          item.is_ebarimt !== false && item.image_type !== "Product Photo";
-        const payMethod = item.payment_method || "bank";
-        const notePrefix = isEBarimt
-          ? "E-Barimt"
-          : "Барааны зураг (Баримтгүй)";
-
-        if (isFood) {
-          let targetIngredient = ingredients?.find(
-            (i: any) =>
-              i.name.toLowerCase().trim() ===
-              item.item_name.toLowerCase().trim(),
+      const purchases = aiAnalysis.purchases.map((item: any) => {
+        const printed = String(item.item_name || "").trim();
+        const key = printed.toLowerCase();
+        let matched = (ingredients || []).find(
+          (i: any) => String(i.name || "").toLowerCase().trim() === key,
+        );
+        if (!matched) {
+          const alias = (aliases || []).find(
+            (row) => String(row.phrase || "").toLowerCase().trim() === key,
           );
-
-          // Хэрэв шинэ хүнс бол ingredients-д 0.05с-д шууд бүртгэнэ
-          if (!targetIngredient) {
-            const unitPrice =
-              item.quantity > 0
-                ? Math.round((item.total_cost || 0) / item.quantity)
-                : 0;
-            const { data: newIng } = await supabaseAdmin
-              .from("ingredients")
-              .insert([
-                {
-                  client_id: clientId,
-                  name: item.item_name.trim(),
-                  unit: "ш",
-                  unit_price: unitPrice,
-                  current_stock: 0,
-                },
-              ])
-              .select()
-              .single();
-            if (newIng) targetIngredient = newIng;
+          if (alias) {
+            matched = (ingredients || []).find((i: any) => i.id === alias.ingredient_id);
           }
-
-          if (targetIngredient) {
-            logsToInsert.push({
-              client_id: clientId,
-              ingredient_id: targetIngredient.id,
-              quantity: Math.abs(item.quantity),
-              type: "purchase",
-              total_cost: item.total_cost || 0,
-              notes: `${notePrefix} (Kiosk)`,
-              payment_method: payMethod,
-              is_ebarimt: isEBarimt,
-              worker_name: workerName,
-              date: currentDate,
-            });
-            successMsg += `• 🥐 [Агуулах] ${targetIngredient.name}: ${item.quantity} ${targetIngredient.unit || "ш"} (${(item.total_cost || 0).toLocaleString()}₮)\n`;
-          }
-        } else {
-          // Хүнсний бус OPEX
-          logsToInsert.push({
-            client_id: clientId,
-            ingredient_id: null,
-            non_food_item: item.item_name,
-            quantity: Math.abs(item.quantity),
-            type: "purchase",
-            total_cost: item.total_cost || 0,
-            notes: `${notePrefix} (Хүнсний бус OPEX)`,
-            payment_method: payMethod,
-            is_ebarimt: isEBarimt,
-            worker_name: workerName,
-            date: currentDate,
-          });
-          successMsg += `• 🧼 [OPEX] ${item.item_name}: ${item.quantity} ш (${(item.total_cost || 0).toLocaleString()}₮)\n`;
         }
-      }
+        const printedQty = Math.abs(Number(item.quantity) || 0);
+        const printedUnit = item.unit ? String(item.unit) : null;
+        const isFood = item.is_food !== false;
+        return {
+          item_name: printed,
+          quantity: matched
+            ? convertToIngredientUnit(printedQty, printedUnit, matched.unit || "")
+            : printedQty,
+          total_cost: Number(item.total_cost) || 0,
+          is_food: isFood,
+          unit: matched ? null : printedUnit,
+          ingredient_id: isFood && matched ? matched.id : null,
+          ingredient_name: matched?.name || null,
+        };
+      });
 
       return NextResponse.json({
         success: true,
-        purchases: aiAnalysis.purchases,
+        purchases,
       });
     }
     // 3. ТЕКСТ БИЧИХ ҮЕД
@@ -675,7 +655,7 @@ ${JSON.stringify(unmatched)}`;
           );
           if (ingredient) {
             // 1. Зарлагын лог хадгалах
-            const { data: log } = await supabaseAdmin
+            const { data: log, error: logError } = await supabaseAdmin
               .from("inventory_logs")
               .insert([
                 {
@@ -685,11 +665,18 @@ ${JSON.stringify(unmatched)}`;
                   type: aiAnalysis.type,
                   notes: aiAnalysis.notes || "Instant Log",
                   worker_name: workerName,
+                  created_by: userId,
                   date: new Date().toISOString(),
                 },
               ])
               .select()
               .single();
+            if (logError || !log) {
+              return NextResponse.json({
+                success: false,
+                message: logError?.message || "Бүртгэлийг хадгалж чадсангүй.",
+              });
+            }
 
             // 2. ⚡ ЗӨВХӨН ЦЭВЭР ҮГ СУРАХ (Алдаатай урт өгүүлбэр цээжлэхгүй!)
             let newlyLearnedId: string | null = null;
@@ -785,7 +772,7 @@ ${JSON.stringify(unmatched)}`;
         // 🧠 ХЭРЭВ АСУУЛТ АСУУСАН БОЛ -> CFO AGENT АЖИЛЛАНА
         const agentContext: AgentContext = {
           clientId,
-          userId: user.id,
+          userId,
           userRole: "owner",
           workerName,
           activeStartDate: body.startDate, 

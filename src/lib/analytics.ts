@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
+import { ubDay, ubMonthStartIso } from './ubDate';
 
 function cleanString(str: string) {
   return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
@@ -40,7 +41,7 @@ export async function getAnalyticsData(
   endDate?: string
 ) {
   const now = new Date();
-  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const defaultStart = ubMonthStartIso();
   const defaultEnd = now.toISOString();
 
   const finalStartDate = startDate || defaultStart;
@@ -115,7 +116,7 @@ export async function getAnalyticsData(
   const salesByDay: Record<string, any[]> = {};
   rawSales.forEach((s: any) => {
     if (!s.date) return;
-    const day = new Date(s.date).toISOString().split('T')[0];
+    const day = ubDay(s.date);
     if (!salesByDay[day]) salesByDay[day] = [];
     salesByDay[day].push(s);
   });
@@ -179,8 +180,8 @@ export async function getAnalyticsData(
     };
   });
 
-  const startDay = finalStartDate.split('T')[0];
-  const endDay = finalEndDate.split('T')[0];
+  const startDay = ubDay(finalStartDate);
+  const endDay = ubDay(finalEndDate);
 
 //fixed
 
@@ -192,7 +193,7 @@ export async function getAnalyticsData(
   rawInventoryLogs.forEach((log: any) => {
     const cost = parseFloat(log.total_cost) || 0;
     const qty = parseFloat(log.quantity) || 0; 
-    const logDate = log.date ? log.date.split('T')[0] : '';
+    const logDate = log.date ? ubDay(log.date) : '';
     const noteText = (log.notes || "").toLowerCase();
     const isEbarimt = log.is_ebarimt !== false && !noteText.includes('баримтгүй') && !noteText.includes('зураг');
     const isCashPay = log.payment_method === 'cash' || noteText.includes('бэлэн');
@@ -264,7 +265,7 @@ for (const key in master) {
   const history = (itemCountsHistory[key] || []).sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
-  const day = (d: string) => new Date(d).toISOString().split("T")[0];
+  const day = (d: string) => ubDay(d);
   const before = history.filter((h) => day(h.date) < startDay);
   const inside = history.filter((h) => day(h.date) >= startDay && day(h.date) <= endDay);
   const closing = history.filter((h) => day(h.date) >= endDay);
@@ -341,7 +342,7 @@ for (const key in master) {
     }
   });
 
-  const dayKey = (d: string) => new Date(d).toISOString().split("T")[0];
+  const dayKey = (d: string) => ubDay(d);
   const recipeQty = (productName: string, ingredientName: string) => {
     const cleanPos = cleanString(productName).toLowerCase();
     const productKey = Object.keys(allRecipesMap).find((name) => name.toLowerCase() === cleanPos);
@@ -441,7 +442,7 @@ for (const key in master) {
     if (!ing) return;
     const nameKey = cleanString(ing.name);
     const qty = Math.abs(parseFloat(log.quantity)) || 0;
-    const logDate = log.date ? log.date.split('T')[0] : '';
+    const logDate = log.date ? ubDay(log.date) : '';
 
     if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
     if (logDate < startDay || logDate > endDay) return;
@@ -954,7 +955,7 @@ for (const key in master) {
       //  Ажилтнуудын Kiosk-оор бүртгэсэн бодит хаягдлуудын нэгдсэн жагсаалт:
    // ⚡ Ажилтны нэр (worker) болон ээлжийн тэмдэглэлтэй нь хамт гаргах:
 logged_spoilage_items: (rawInventoryLogs || [])
-  .filter((log: any) => log.type === 'spoilage' && (log.date ? log.date.split('T')[0] >= startDay && log.date.split('T')[0] <= endDay : true))
+  .filter((log: any) => log.type === 'spoilage' && (log.date ? ubDay(log.date) >= startDay && ubDay(log.date) <= endDay : true))
   .map((log: any) => {
     const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
     return {
