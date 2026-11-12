@@ -2,7 +2,6 @@ import { cfoSkills } from "@/ai/tools/skills.network";
 import { getVitals } from "@/core/packages/pkg_vitals";
 import { AgentContext } from "@/types/agent.types";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { runWeeklyBrief } from "@/core/packages/pkg_weekly_brief";
 import { runToolAgent } from "@/ai/runtime/agentLoop";
 
 function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
@@ -19,14 +18,23 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
     ? context.activeStartDate.split("-")[0]
     : String(now.getFullYear());
 
-  const vitals = await getVitals(context.clientId);
-
-  const { data: rules } = await supabaseAdmin
-    .from("business_memory")
-    .select("topic, fact")
-    .eq("client_id", context.clientId.trim())
-    .order("updated_at", { ascending: false })
-    .limit(8);
+  const [vitals, rulesResult, briefResult] = await Promise.all([
+    getVitals(context.clientId),
+    supabaseAdmin
+      .from("business_memory")
+      .select("topic, fact")
+      .eq("client_id", context.clientId.trim())
+      .order("updated_at", { ascending: false })
+      .limit(8),
+    supabaseAdmin
+      .from("weekly_briefs")
+      .select("body")
+      .eq("client_id", context.clientId.trim())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const rules = rulesResult.data;
 
   const businessRulesText = rules && rules.length > 0
     ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" +
@@ -34,20 +42,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
     : "";
 
-  let briefBody = "";
-  try {
-    const { data: latestBrief } = await supabaseAdmin
-      .from("weekly_briefs")
-      .select("body, created_at")
-      .eq("client_id", context.clientId.trim())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const isStale = !latestBrief || (Date.now() - new Date(latestBrief.created_at).getTime() > 7 * 24 * 60 * 60 * 1000);
-    briefBody = isStale ? await runWeeklyBrief(context.clientId.trim()) : (latestBrief?.body || "");
-  } catch (err) {
-    console.warn("[WEEKLY BRIEF] skip:", err);
-  }
+  const briefBody = briefResult.data?.body || "";
 
   const weeklyBriefPromptText = briefBody
     ? `\n[LAST SAVED WEEK BRIEF (Note: Saved operational snapshot, NOT live numbers)]:\n${briefBody}\n`
