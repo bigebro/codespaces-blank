@@ -48,6 +48,37 @@ function absorbModelPart(parts: ModelPart[], part: ModelPart) {
   parts.push(copy);
 }
 
+function messageText(message: { parts?: ModelPart[] }) {
+  return (message.parts || [])
+    .map((part) => (typeof part.text === "string" ? part.text.trim() : ""))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function sanitizeHistory(history: { role?: string; parts?: ModelPart[] }[]) {
+  const cleaned: { role: string; parts: ModelPart[] }[] = [];
+  for (const message of history || []) {
+    const text = messageText(message);
+    if (!text) continue;
+    const role = message.role === "model" ? "model" : "user";
+    const prev = cleaned[cleaned.length - 1];
+    if (prev && prev.role === role && typeof prev.parts[0]?.text === "string") {
+      prev.parts[0].text = `${prev.parts[0].text}\n${text}`;
+      continue;
+    }
+    cleaned.push({ role, parts: [{ text }] });
+  }
+  while (cleaned.length > 0 && cleaned[0].role !== "user") cleaned.shift();
+  return cleaned;
+}
+
+function isInvalidArgument(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err);
+  const status = typeof err === "object" && err && "status" in err ? Number((err as { status?: number }).status) : 0;
+  return status === 400 || message.includes("INVALID_ARGUMENT");
+}
+
 const MAX_STEPS = 5;
 
 export async function runToolAgent(opts: {
@@ -67,23 +98,33 @@ export async function runToolAgent(opts: {
       try {
         const historyPromise = getConversationThread(opts.context.clientId, 6);
         const ai = getGenAI();
-        const history = await historyPromise;
-        const contents: { role: string; parts: ModelPart[] }[] = [
-          ...(history as { role: string; parts: ModelPart[] }[]),
-          { role: "user", parts: [{ text: opts.userMessage }] },
-        ];
+        const history = sanitizeHistory((await historyPromise) as { role?: string; parts?: ModelPart[] }[]);
+        const contents: { role: string; parts: ModelPart[] }[] = [...history];
+        const latest = opts.userMessage.trim();
+        if (latest) {
+          const prev = contents[contents.length - 1];
+          if (prev?.role === "user" && typeof prev.parts[0]?.text === "string") {
+            prev.parts[0].text = `${prev.parts[0].text}\n${latest}`;
+          } else {
+            contents.push({ role: "user", parts: [{ text: latest }] });
+          }
+        }
         const proposalCards: unknown[] = [];
         let finalText = "";
         let streamed = false;
+        let useThinking = true;
+        let attemptSent = false;
 
-        for (let step = 0; step < MAX_STEPS; step++) {
+        const readModel = async (thinking: boolean) => {
+          console.log(JSON.stringify(contents).slice(0, 2000));
+          attemptSent = false;
           const stream = await ai.models.generateContentStream({
             model: MODELS.flash,
             contents,
             config: {
               systemInstruction: opts.systemInstruction,
               temperature: 0.1,
-              thinkingConfig: { thinkingBudget: 0 },
+              ...(thinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
               tools: [{ functionDeclarations: opts.tools }],
             },
           });
@@ -118,6 +159,7 @@ export async function runToolAgent(opts: {
             if (delta && !sawCall) {
               if (!streamed) streamed = true;
               else if (text === delta) enqueue("\n");
+              attemptSent = true;
               enqueue(delta);
             }
           }
@@ -132,6 +174,20 @@ export async function runToolAgent(opts: {
             seen.add(key);
             calls.push({ name: call.name, args: call.args || {} });
           }
+          return { text, modelParts, calls };
+        };
+
+        for (let step = 0; step < MAX_STEPS; step++) {
+          let outcome: Awaited<ReturnType<typeof readModel>> | undefined;
+          try {
+            outcome = await readModel(useThinking);
+          } catch (err) {
+            if (!useThinking || !isInvalidArgument(err) || attemptSent) throw err;
+            console.error("[agent] INVALID_ARGUMENT, removing thinkingConfig");
+            useThinking = false;
+            outcome = await readModel(false);
+          }
+          const { text, modelParts, calls } = outcome;
 
           if (calls.length === 0) {
             finalText = text;
@@ -177,12 +233,13 @@ export async function runToolAgent(opts: {
           enqueue(extra);
         }
 
-        after(() =>
-          Promise.all([
-            recordChatMessage(opts.context.clientId, "owner", opts.userMessage),
-            recordChatMessage(opts.context.clientId, "ai", finalText),
-          ]).catch(console.error),
-        );
+        after(() => {
+          const writes = [recordChatMessage(opts.context.clientId, "owner", opts.userMessage)];
+          if (finalText.trim()) {
+            writes.push(recordChatMessage(opts.context.clientId, "ai", finalText));
+          }
+          return Promise.all(writes).catch(console.error);
+        });
         controller.close();
       } catch (err: unknown) {
         console.error("[agent]", err);
