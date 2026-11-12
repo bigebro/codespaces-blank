@@ -63,7 +63,7 @@ export const operationsDefs: FunctionDeclaration[] = [
   {
     name: "skill_review_shift_handovers",
     description:
-      "TRIGGER THIS WHEN the user asks about: 'ээлж' (shifts), 'Z-тайлан' (Z-reports), 'ээлж хүлээлцэлт', or shift checklist completions.",
+      "TRIGGER THIS WHEN the user asks about a shift closing count: 'ээлж', 'хаалтын тооллого', 'ээлж хүлээлцэлт', 'Z-тайлан', or a named worker's last count. Do not use the live stock tool for this.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {

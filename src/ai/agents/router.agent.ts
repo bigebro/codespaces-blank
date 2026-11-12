@@ -27,8 +27,23 @@ const CFO_WORDS = ["орлого", "ашиг", "үнийн", "үнэ", "касс
 const COO_WORDS = ["хаягдал", "нөөц", "жор", "цэс", "захиалга", "бэлтгэл", "хулгай", "stock", "inventory", "waste", "recipe", "menu", "орц", "тооллого", "тоолсон", "count", "үлдэгдэл"];
 const HR_WORDS = ["цалин", "ээлж", "ндш", "ажилтан", "payroll", "shift", "staff", "цагийн"];
 
+const COUNT_WORDS = ["тооллого", "тоолсон", "хаалт", "үлдэгдэл", "count"];
+
 function wordHits(text: string, words: string[]) {
   return words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
+}
+
+function routeScores(text: string) {
+  return {
+    CFO: wordHits(text, CFO_WORDS),
+    COO: wordHits(text, COO_WORDS),
+    HR: wordHits(text, HR_WORDS),
+  };
+}
+
+/** A shift closing count is stock, not payroll, even though it contains "ээлж". */
+function isShiftCloseCount(text: string) {
+  return text.includes("ээлж") && COUNT_WORDS.some((word) => text.includes(word));
 }
 
 /** Skip a model call when one department is clearly named. */
@@ -38,13 +53,23 @@ function fastRoute(userText: string): RouterDecision["route"] | null {
   if (text.length <= 24 && /^(hi|hello|hey|thanks|сайн уу|сайн байн|баярлалаа)\b/.test(text)) {
     return "GENERAL";
   }
-  const ranked = [
-    ["CFO", wordHits(text, CFO_WORDS)],
-    ["COO", wordHits(text, COO_WORDS)],
-    ["HR", wordHits(text, HR_WORDS)],
-  ].sort((a, b) => Number(b[1]) - Number(a[1])) as [RouterDecision["route"], number][];
+  if (isShiftCloseCount(text)) return "COO";
+  const scores = routeScores(text);
+  const ranked = (Object.entries(scores) as [RouterDecision["route"], number][]).sort((a, b) => b[1] - a[1]);
   if (ranked[0][1] > 0 && ranked[0][1] > ranked[1][1]) return ranked[0][0];
   return null;
+}
+
+/** Used when the classifier call throws. Prefer a counted tie over a dead end. */
+function keywordFallback(userText: string): RouterDecision["route"] | null {
+  const text = userText.trim().toLowerCase();
+  if (isShiftCloseCount(text)) return "COO";
+  const scores = routeScores(text);
+  const best = Math.max(scores.CFO, scores.COO, scores.HR);
+  if (best === 0) return null;
+  if (scores.COO === best) return "COO";
+  if (scores.HR === best) return "HR";
+  return "CFO";
 }
 
 function textStream(text: string): ReadableStream {
@@ -135,7 +160,10 @@ export async function routeAiRequest(
       route = await classifyIntent(payload.text);
     } catch (err) {
       console.error("Intent router failed:", err);
-      return textStream("Хүсэлтийг ангилж чадсангүй. Санхүү, нөөц, эсвэл цалингийн аль нь болохыг тодотгоод дахин асууна уу.");
+      route = keywordFallback(payload.text);
+      if (!route) {
+        return textStream("Хүсэлтийг ангилж чадсангүй. Санхүү, нөөц, эсвэл цалингийн аль нь болохыг тодотгоод дахин асууна уу.");
+      }
     }
   }
 
