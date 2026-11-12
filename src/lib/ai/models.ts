@@ -11,7 +11,7 @@
  * `node scripts/reembed-business-memory.mjs`.
  */
 export const MODELS = {
-  flash: process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash",
+  flash: process.env.GEMINI_FLASH_MODEL || "gemini-3.5-flash-lite",
   embedding: "gemini-embedding-001",
   /** Fallback if `ai_memory_vector_dim()` is not deployed yet. */
   embeddingDim: 768,
