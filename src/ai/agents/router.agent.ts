@@ -24,7 +24,7 @@ Return STRICTLY a JSON object:
 `.trim();
 
 const CFO_WORDS = ["орлого", "ашиг", "үнийн", "үнэ", "касс", "банк", "татвар", "маржин", "мөнгө", "санхүү", "revenue", "profit", "cash", "price", "pricing", "борлуулалт"];
-const COO_WORDS = ["хаягдал", "нөөц", "жор", "цэс", "захиалга", "бэлтгэл", "хулгай", "stock", "inventory", "waste", "recipe", "menu", "орц"];
+const COO_WORDS = ["хаягдал", "нөөц", "жор", "цэс", "захиалга", "бэлтгэл", "хулгай", "stock", "inventory", "waste", "recipe", "menu", "орц", "тооллого", "тоолсон", "count", "үлдэгдэл"];
 const HR_WORDS = ["цалин", "ээлж", "ндш", "ажилтан", "payroll", "shift", "staff", "цагийн"];
 
 function wordHits(text: string, words: string[]) {

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { runNightlyAuditForTenant } from "@/ai/memory/data_auditor";
 import { createAlert } from "@/lib/alerts";
 import { markPastDueTenants, getTenantBilling } from "@/lib/subscription";
+import { runWeeklyBrief } from "@/core/packages/pkg_weekly_brief";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,6 +18,18 @@ async function mapPool<T>(items: T[], size: number, fn: (item: T) => Promise<voi
   for (let i = 0; i < items.length; i += size) {
     await Promise.all(items.slice(i, i + size).map(fn));
   }
+}
+
+async function weeklyBriefDue(clientId: string) {
+  const { data } = await supabaseAdmin
+    .from("weekly_briefs")
+    .select("created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data?.created_at) return true;
+  return Date.now() - new Date(data.created_at).getTime() > 7 * 24 * 60 * 60 * 1000;
 }
 
 export async function GET(request: Request) {
@@ -73,6 +86,13 @@ export async function GET(request: Request) {
         ok: false,
         error: err instanceof Error ? err.message : "failed",
       });
+    }
+    try {
+      if (await weeklyBriefDue(tenant.client_id)) {
+        await runWeeklyBrief(tenant.client_id);
+      }
+    } catch (briefErr) {
+      console.error("[weekly brief]", tenant.client_id, briefErr);
     }
   });
 
