@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     if (!valid) {
       return NextResponse.json({ valid: false, message: "Буруу PIN код." }, { status: 401 });
     }
-    git add .await supabaseAdmin.from("auth_attempts").delete().eq("bucket", "kiosk_pin").eq("subject", pinSubject);
+    await supabaseAdmin.from("auth_attempts").delete().eq("bucket", "kiosk_pin").eq("subject", pinSubject);
     if (!isHashedPin(worker.pin_code)) {
       await supabaseAdmin.from("profiles").update({ pin_code: hashPin(pin) }).eq("id", worker.id);
     }
