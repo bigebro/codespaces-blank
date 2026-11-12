@@ -45,7 +45,7 @@ export async function getAnalyticsData(
 
   const finalStartDate = startDate || defaultStart;
   const finalEndDate = endDate || defaultEnd;
-
+    const afterLimit = new Date(new Date(finalEndDate).getTime() + 45 * 86400000).toISOString();
   // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ
 // Replace the Promise.all at the top of getAnalyticsData with this optimized version:
   const [
@@ -97,13 +97,15 @@ export async function getAnalyticsData(
       .select("date, type, quantity, ingredient_id")
       .eq("client_id", clientId.trim())
       .gt("date", finalEndDate)
+      .lte("date", afterLimit)
       .in("type", ["count", "purchase"])
       .order("date", { ascending: true }),
     supabaseAdmin
       .from("sales_logs")
       .select("date, product_name, quantity_sold")
       .eq("client_id", clientId.trim())
-      .gt("date", finalEndDate),
+      .gt("date", finalEndDate)
+      .lte("date", afterLimit),
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
