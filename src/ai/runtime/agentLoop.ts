@@ -74,6 +74,7 @@ export async function runToolAgent(opts: {
         ];
         const proposalCards: unknown[] = [];
         let finalText = "";
+        let streamed = false;
 
         for (let step = 0; step < MAX_STEPS; step++) {
           const stream = await ai.models.generateContentStream({
@@ -82,27 +83,42 @@ export async function runToolAgent(opts: {
             config: {
               systemInstruction: opts.systemInstruction,
               temperature: 0.1,
+              thinkingConfig: { thinkingBudget: 0 },
               tools: [{ functionDeclarations: opts.tools }],
             },
           });
 
           let text = "";
+          let sawCall = false;
           const modelParts: ModelPart[] = [];
           for await (const chunk of stream) {
             const parts = chunk.candidates?.[0]?.content?.parts || [];
+            let delta = "";
+            let partHadText = false;
             for (const part of parts) {
               absorbModelPart(modelParts, part as ModelPart);
-              if (typeof part.text === "string") text += part.text;
+              if (typeof part.text === "string" && part.text && !part.thought) {
+                delta += part.text;
+                partHadText = true;
+              }
+              if (part.functionCall) sawCall = true;
             }
-            if (!parts.some((part) => typeof part.text === "string" && part.text) && chunk.text) {
+            if (!partHadText && chunk.text) {
               absorbModelPart(modelParts, { text: chunk.text });
-              text += chunk.text;
+              delta += chunk.text;
             }
             for (const call of chunk.functionCalls || []) {
               if (!call.name) continue;
+              sawCall = true;
               absorbModelPart(modelParts, {
                 functionCall: { name: call.name, args: call.args || {} },
               });
+            }
+            if (delta) text += delta;
+            if (delta && !sawCall) {
+              if (!streamed) streamed = true;
+              else if (text === delta) enqueue("\n");
+              enqueue(delta);
             }
           }
 
@@ -119,7 +135,6 @@ export async function runToolAgent(opts: {
 
           if (calls.length === 0) {
             finalText = text;
-            enqueue(text);
             break;
           }
 
@@ -128,10 +143,15 @@ export async function runToolAgent(opts: {
             parts: modelParts,
           });
 
+          const executed = await Promise.all(
+            calls.map(async (call) => {
+              const rawArgs = opts.sanitizeArgs ? opts.sanitizeArgs(call.args) : call.args;
+              const execResult = await executeAiTool(opts.context, call.name, rawArgs);
+              return { call, execResult };
+            }),
+          );
           const responseParts: ModelPart[] = [];
-          for (const call of calls) {
-            const rawArgs = opts.sanitizeArgs ? opts.sanitizeArgs(call.args) : call.args;
-            const execResult = await executeAiTool(opts.context, call.name, rawArgs);
+          for (const { call, execResult } of executed) {
             if (execResult.data?.type === "PROPOSAL") proposalCards.push(execResult.data);
             responseParts.push({
               functionResponse: {

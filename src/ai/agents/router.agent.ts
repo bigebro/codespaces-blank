@@ -2,7 +2,7 @@ import { AgentContext } from "@/types/agent.types";
 import { runCfoAgent } from "./cfo.agent";
 import { runCooAgent } from "./coo.agent";
 import { runHrAgent } from "./hr.agent";
-import { GoogleGenerativeAI, geminiApiKey } from "@/lib/ai/genai";
+import { geminiApiKey, getGenAI } from "@/lib/ai/genai";
 import { MODELS } from "@/lib/ai/models";
 import { subscriptionBlockMessage } from "@/lib/subscription";
 
@@ -23,6 +23,30 @@ Return STRICTLY a JSON object:
 { "route": "CFO" | "COO" | "HR" | "GENERAL" }
 `.trim();
 
+const CFO_WORDS = ["орлого", "ашиг", "үнийн", "үнэ", "касс", "банк", "татвар", "маржин", "мөнгө", "санхүү", "revenue", "profit", "cash", "price", "pricing", "борлуулалт"];
+const COO_WORDS = ["хаягдал", "нөөц", "жор", "цэс", "захиалга", "бэлтгэл", "хулгай", "stock", "inventory", "waste", "recipe", "menu", "орц"];
+const HR_WORDS = ["цалин", "ээлж", "ндш", "ажилтан", "payroll", "shift", "staff", "цагийн"];
+
+function wordHits(text: string, words: string[]) {
+  return words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
+}
+
+/** Skip a model call when one department is clearly named. */
+function fastRoute(userText: string): RouterDecision["route"] | null {
+  const text = userText.trim().toLowerCase();
+  if (!text) return "GENERAL";
+  if (text.length <= 24 && /^(hi|hello|hey|thanks|сайн уу|сайн байн|баярлалаа)\b/.test(text)) {
+    return "GENERAL";
+  }
+  const ranked = [
+    ["CFO", wordHits(text, CFO_WORDS)],
+    ["COO", wordHits(text, COO_WORDS)],
+    ["HR", wordHits(text, HR_WORDS)],
+  ].sort((a, b) => Number(b[1]) - Number(a[1])) as [RouterDecision["route"], number][];
+  if (ranked[0][1] > 0 && ranked[0][1] > ranked[1][1]) return ranked[0][0];
+  return null;
+}
+
 function textStream(text: string): ReadableStream {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -34,43 +58,64 @@ function textStream(text: string): ReadableStream {
 }
 
 async function classifyIntent(userText: string): Promise<RouterDecision["route"] | null> {
-  const apiKey = geminiApiKey();
-  if (!apiKey) return null;
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
+  if (!geminiApiKey()) return null;
+  const ai = getGenAI();
+  const response = await ai.models.generateContent({
     model: MODELS.flash,
-    systemInstruction: ROUTER_PROMPT,
-    generationConfig: { temperature: 0, responseMimeType: "application/json" },
+    contents: userText,
+    config: {
+      systemInstruction: ROUTER_PROMPT,
+      temperature: 0,
+      responseMimeType: "application/json",
+      maxOutputTokens: 32,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   });
-  const res = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: userText }] }],
-  });
-  const parsed = JSON.parse(res.response.text().trim()) as RouterDecision;
+  const parsed = JSON.parse((response.text || "").trim()) as RouterDecision;
   if (["CFO", "COO", "HR", "GENERAL"].includes(parsed.route)) return parsed.route;
   return null;
 }
 
 async function runGeneralBranch(userText: string): Promise<ReadableStream> {
-  const apiKey = geminiApiKey();
-  if (!apiKey) {
+  if (!geminiApiKey()) {
     return textStream("AI тохиргоо дутуу байна. GEMINI_API_KEY шалгана уу.");
   }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: MODELS.flash,
-    systemInstruction: `
+  const ai = getGenAI();
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        const stream = await ai.models.generateContentStream({
+          model: MODELS.flash,
+          contents: userText,
+          config: {
+            systemInstruction: `
 You are Operlink, a restaurant operating assistant. Answer in Mongolian.
 If the user is greeting you, greet them back in one sentence and ask what they want to look at: санхүү, нөөц, эсвэл цалин.
 If the request is unclear, do not guess a department. Ask one clarifying question.
 No emojis.
 `.trim(),
-    generationConfig: { temperature: 0.2 },
+            temperature: 0.2,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        });
+        let wrote = false;
+        for await (const chunk of stream) {
+          if (!chunk.text) continue;
+          wrote = true;
+          controller.enqueue(encoder.encode(chunk.text));
+        }
+        if (!wrote) {
+          controller.enqueue(encoder.encode("Юу гэж туслах вэ: санхүү, нөөц, эсвэл цалин?"));
+        }
+      } catch (err) {
+        console.error("[general]", err);
+        controller.enqueue(encoder.encode("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү."));
+      } finally {
+        controller.close();
+      }
+    },
   });
-  const res = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: userText }] }],
-  });
-  return textStream(res.response.text() || "Юу гэж туслах вэ: санхүү, нөөц, эсвэл цалин?");
 }
 
 export async function routeAiRequest(
@@ -84,12 +129,14 @@ export async function routeAiRequest(
   const blocked = await subscriptionBlockMessage(context.clientId);
   if (blocked) return textStream(blocked);
 
-  let route: RouterDecision["route"] | null = null;
-  try {
-    route = await classifyIntent(payload.text);
-  } catch (err) {
-    console.error("Intent router failed:", err);
-    return textStream("Хүсэлтийг ангилж чадсангүй. Санхүү, нөөц, эсвэл цалингийн аль нь болохыг тодотгоод дахин асууна уу.");
+  let route: RouterDecision["route"] | null = fastRoute(payload.text);
+  if (!route) {
+    try {
+      route = await classifyIntent(payload.text);
+    } catch (err) {
+      console.error("Intent router failed:", err);
+      return textStream("Хүсэлтийг ангилж чадсангүй. Санхүү, нөөц, эсвэл цалингийн аль нь болохыг тодотгоод дахин асууна уу.");
+    }
   }
 
   if (!route) {

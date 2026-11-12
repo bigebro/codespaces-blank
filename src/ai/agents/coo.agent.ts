@@ -18,28 +18,30 @@ export async function runCooAgent(context: AgentContext, userMessage: string): P
     ? context.activeStartDate.split("-")[0]
     : String(now.getFullYear());
 
-  const vitals = await getVitals(context.clientId);
-
-  const { data: rules } = await supabaseAdmin
-    .from("business_memory")
-    .select("topic, fact")
-    .eq("client_id", context.clientId.trim())
-    .order("updated_at", { ascending: false })
-    .limit(8);
+  const [vitals, rulesResult, lessonsResult] = await Promise.all([
+    getVitals(context.clientId),
+    supabaseAdmin
+      .from("business_memory")
+      .select("topic, fact")
+      .eq("client_id", context.clientId.trim())
+      .order("updated_at", { ascending: false })
+      .limit(8),
+    supabaseAdmin
+      .from("business_experiences")
+      .select("situation, lesson")
+      .eq("client_id", context.clientId.trim())
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
+  const rules = rulesResult.data;
+  const openLessons = lessonsResult.data;
 
   const businessRulesText = rules && rules.length > 0
     ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" +
       rules.map((r) => `- ${r.topic}: ${r.fact}`).join("\n") +
       "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
     : "";
-
-  const { data: openLessons } = await supabaseAdmin
-    .from("business_experiences")
-    .select("situation, lesson")
-    .eq("client_id", context.clientId.trim())
-    .eq("status", "open")
-    .order("created_at", { ascending: false })
-    .limit(3);
 
   const openLessonsText = openLessons && openLessons.length > 0
     ? "\n[OPEN DATA LESSONS (From Nightly Audits)]:\n" +
