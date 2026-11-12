@@ -29,7 +29,7 @@ async function weightedPrice(ingredientId: string, addedQty: number, addedCost: 
   const price = Number(ing.unit_price) || 0;
   const stock = Number(ing.current_stock) || 0;
   const before = Math.max(0, stock - addedQty);
-  const next = (before * price + addedCost) / (before + addedQty);
+  const next = price <= 0 || before <= 0 ? addedCost / addedQty : (before * price + addedCost) / (before + addedQty);
   if (!Number.isFinite(next) || next < 0) return;
   if (price > 0 && (next > price * 10 || next < price / 10)) return;
   await supabaseAdmin
@@ -192,6 +192,15 @@ export async function POST(request: Request) {
     if (action === "shift.close") {
       const id = String(body.id || "");
       const counts = Array.isArray(body.counts) ? body.counts : [];
+      const ids = counts.map((c: any) => String(c.ingredient_id || "")).filter(Boolean);
+      if (ids.length !== counts.length) return fail("Бараа дутуу байна.");
+      if (ids.length > 0) {
+        const { data: own } = await supabaseAdmin.from("ingredients").select("id").eq("client_id", worker.clientId).in("id", ids);
+        const ownIds = new Set((own || []).map((r: any) => r.id));
+        if (ids.some((x: string) => !ownIds.has(x))) return fail("Бараа олдсонгүй.", 403);
+      }
+      const { data: openShift } = await supabaseAdmin.from("shifts").select("id").eq("id", id).eq("client_id", worker.clientId).eq("is_active", true).maybeSingle();
+      if (!openShift) return fail("Ээлж аль хэдийн хаагдсан эсвэл олдсонгүй.", 409);
       const logs = [];
       for (const item of counts) {
         const qty = Number(item.quantity);

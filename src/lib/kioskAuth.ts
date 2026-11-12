@@ -13,8 +13,8 @@ export type KioskWorker = {
 };
 
 function secret() {
-  const value = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.CRON_SECRET || "";
-  if (!value) throw new Error("Server secret missing");
+  const value = process.env.KIOSK_TOKEN_SECRET || "";
+  if (!value) throw new Error("KIOSK_TOKEN_SECRET missing");
   return value;
 }
 

@@ -7,9 +7,9 @@ const memoryBuckets = new Map<string, number[]>();
 function memoryHit(key: string, recordFailure: boolean): { limited: boolean; remaining: number } {
   const now = Date.now();
   const prev = (memoryBuckets.get(key) || []).filter((t) => now - t < WINDOW_MS);
-  const limited = prev.length >= MAX_FAILS;
-  if (recordFailure && !limited) prev.push(now);
+  if (recordFailure) prev.push(now);
   memoryBuckets.set(key, prev);
+  const limited = prev.length >= MAX_FAILS;
   return { limited, remaining: Math.max(0, MAX_FAILS - prev.length) };
 }
 
@@ -26,6 +26,11 @@ export async function rateLimit(
   const key = `${bucket}:${subject}`;
   const since = new Date(Date.now() - WINDOW_MS).toISOString();
 
+  if (failed) {
+    const { error: insertError } = await supabaseAdmin.from("auth_attempts").insert({ bucket, subject });
+    if (insertError) return memoryHit(key, true);
+  }
+
   const { count, error } = await supabaseAdmin
     .from("auth_attempts")
     .select("id", { count: "exact", head: true })
@@ -33,15 +38,11 @@ export async function rateLimit(
     .eq("subject", subject)
     .gte("created_at", since);
 
-  if (error) return memoryHit(key, failed);
+  if (error) return memoryHit(key, false);
 
   const used = count || 0;
   if (used >= MAX_FAILS) return { limited: true, remaining: 0 };
-
-  if (failed) {
-    await supabaseAdmin.from("auth_attempts").insert({ bucket, subject });
-  }
-  return { limited: false, remaining: MAX_FAILS - used - (failed ? 1 : 0) };
+  return { limited: false, remaining: Math.max(0, MAX_FAILS - used) };
 }
 
 export function clientAddress(request: Request): string {

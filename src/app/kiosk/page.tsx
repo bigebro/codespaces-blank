@@ -1940,6 +1940,7 @@ const handleCloseShift = async () => {
       setMsg("🌙 Ээлж амжилттай хаагдлаа!");
       setStep("select_worker");
       setSelectedWorker(null);
+      localStorage.removeItem("kiosk_worker_token");
       setActiveShift(null);
       setTasks([]);
       setCounts({});
@@ -2009,6 +2010,7 @@ const handleCloseShift = async () => {
             <button
               onClick={() => {
                 setSelectedWorker(null);
+                localStorage.removeItem("kiosk_worker_token");
                 setStep("select_worker");
                 setMsg("");
               }}
@@ -2345,6 +2347,7 @@ const handleCloseShift = async () => {
                 onClick={() => {
                   setStep("select_worker");
                   setSelectedWorker(null);
+                  localStorage.removeItem("kiosk_worker_token");
                 }}
                 className="text-xs text-zinc-400 hover:text-white font-bold"
               >

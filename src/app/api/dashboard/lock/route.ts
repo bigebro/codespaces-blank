@@ -8,9 +8,9 @@ const COOKIE = "operlink_dash_lock";
 function locked(value: boolean) {
   const res = NextResponse.json({ locked: value });
   if (value) {
-    res.cookies.set(COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 14 });
+    res.cookies.set(COOKIE, "1", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 14 });
   } else {
-    res.cookies.set(COOKIE, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
+    res.cookies.set(COOKIE, "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0 });
   }
   return res;
 }

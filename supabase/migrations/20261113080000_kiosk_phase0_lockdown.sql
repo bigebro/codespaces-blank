@@ -118,6 +118,7 @@ BEGIN
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
   END LOOP;
 END $$;
 

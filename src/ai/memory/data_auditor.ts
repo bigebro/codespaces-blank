@@ -49,7 +49,7 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
       .eq("client_id", clientId)
       .eq("type", "count")
       .lt("date", twentyFourHoursAgo)
-      .gte("date", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+      .gte("date", new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString())
       .order("date", { ascending: false }),
   ]);
 

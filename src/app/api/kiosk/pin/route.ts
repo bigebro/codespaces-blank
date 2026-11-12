@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ valid: false, message: "PIN дутуу байна." }, { status: 400 });
     }
 
-    const gate = await rateLimit("kiosk_pin", deviceToken, false);
+    const pinSubject = `${deviceToken}:${workerId}`;
+    const gate = await rateLimit("kiosk_pin", pinSubject, true);
     if (gate.limited) {
       return NextResponse.json(
         { valid: false, message: "Хэт олон буруу PIN. 15 минутын дараа дахин оролдоно уу." },
@@ -39,13 +40,11 @@ export async function POST(request: Request) {
       .eq("id", workerId)
       .maybeSingle();
     if (!device || !worker || device.client_id !== worker.client_id) {
-      await rateLimit("kiosk_pin", deviceToken, true);
       return NextResponse.json({ valid: false, message: "Төхөөрөмж таарахгүй байна." }, { status: 403 });
     }
 
     const valid = pinMatches(worker.pin_code, pin);
     if (!valid) {
-      await rateLimit("kiosk_pin", deviceToken, true);
       return NextResponse.json({ valid: false, message: "Буруу PIN код." }, { status: 401 });
     }
     if (!isHashedPin(worker.pin_code)) {

@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     if (!worker) return NextResponse.json(base);
 
     const today = ubDayStartIso(ubDay(new Date()));
+    const todayUtc = new Date(today).toISOString();
     const [ingredients, aliases, recipes, tasks, shift, todayLogs] = await Promise.all([
       supabaseAdmin
         .from("ingredients")
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
         .from("shifts")
         .select("id, daily_tasks_checklist, character_role, is_active, start_time")
         .eq("client_id", worker.clientId)
-        .gte("start_time", today),
+        .or(`start_time.gte."${todayUtc}",is_active.eq.true`),
       supabaseAdmin
         .from("inventory_logs")
         .select("id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
