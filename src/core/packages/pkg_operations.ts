@@ -257,30 +257,85 @@ export async function getShiftHandoversPackage(clientId: string, limit = 10) {
 }
 
 export async function getIngredientStock(clientId: string) {
-  // Зөвхөн ingredients хүснэгтээс шүүж татах
-  const { data: ingredients, error } = await supabaseAdmin
+  const id = clientId.trim();
+  const { data, error } = await supabaseAdmin
     .from("ingredients")
-    .select("id, name, unit, unit_price, current_stock, last_counted_at")
-    .ilike("client_id", clientId);
-
-  if (error) {
-    throw new Error(`Failed to fetch ingredient stock: ${error.message}`);
-  }
-
-  return ingredients;
+    .select("name, unit, unit_price, current_stock")
+    .ilike("client_id", id)
+    .order("name");
+  if (error) throw new Error(error.message);
+  return (data || []).map((i) => ({
+    name: i.name,
+    unit: i.unit,
+    unitPrice: Number(i.unit_price) || 0,
+    currentStock: Number(i.current_stock) || 0,
+  }));
 }
 
-
-
 export async function getRecipes(clientId: string) {
-  const { data: recipes, error } = await supabaseAdmin
-    .from("recipes")
-    .select("product_name, amount, client_id")
-    .eq("client_id", clientId);
-
-  if (error) {
-    throw new Error(`Failed to fetch recipes: ${error.message}`);
+  const id = clientId.trim();
+  const [{ data: recipes, error }, { data: ingredients, error: ingError }] = await Promise.all([
+    supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").ilike("client_id", id),
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price").ilike("client_id", id),
+  ]);
+  if (error) throw new Error(error.message);
+  if (ingError) throw new Error(ingError.message);
+  const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
+  const byProduct = new Map<string, { ingredientName: string; amount: number; unit: string; unitPrice: number }[]>();
+  for (const r of recipes || []) {
+    const ing = ingMap.get(r.ingredient_id);
+    const list = byProduct.get(r.product_name) || [];
+    list.push({
+      ingredientName: ing?.name || "Unknown",
+      amount: Number(r.amount) || 0,
+      unit: ing?.unit || "",
+      unitPrice: Number(ing?.unit_price) || 0,
+    });
+    byProduct.set(r.product_name, list);
   }
+  return Array.from(byProduct.entries()).map(([productName, lines]) => ({ productName, lines }));
+}
 
-  return recipes;
+export async function getMenu(clientId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("products")
+    .select("name, category, selling_price")
+    .ilike("client_id", clientId.trim())
+    .order("name");
+  if (error) throw new Error(error.message);
+  return (data || []).map((p) => ({
+    name: p.name,
+    category: p.category,
+    sellingPrice: Number(p.selling_price) || 0,
+  }));
+}
+
+export async function getOpeningCounts(clientId: string, asOfDate?: string) {
+  const id = clientId.trim();
+  const day = asOfDate && /^\d{4}-\d{2}-\d{2}$/.test(asOfDate)
+    ? asOfDate
+    : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar", year: "numeric", month: "2-digit" }).format(new Date()) + "-01";
+  const cutoff = new Date(`${day}T00:00:00+08:00`).toISOString();
+
+  const [{ data: ingredients, error }, { data: counts, error: countError }] = await Promise.all([
+    supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock").ilike("client_id", id).order("name"),
+    supabaseAdmin.from("inventory_logs").select("ingredient_id, quantity, date").ilike("client_id", id).eq("type", "count").lte("date", cutoff).order("date", { ascending: false }),
+  ]);
+  if (error) throw new Error(error.message);
+  if (countError) throw new Error(countError.message);
+
+  const latest = new Map<string, { quantity: number; date: string }>();
+  for (const row of counts || []) {
+    if (row.ingredient_id && !latest.has(row.ingredient_id)) {
+      latest.set(row.ingredient_id, { quantity: Number(row.quantity) || 0, date: row.date });
+    }
+  }
+  return (ingredients || []).map((i) => ({
+    name: i.name,
+    unit: i.unit,
+    unitPrice: Number(i.unit_price) || 0,
+    openingQty: latest.get(i.id)?.quantity ?? null,
+    openingDate: latest.get(i.id)?.date ?? null,
+    currentStock: Number(i.current_stock) || 0,
+  }));
 }

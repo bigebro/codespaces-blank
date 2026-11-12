@@ -52,4 +52,29 @@ export const financeDefs: FunctionDeclaration[] = [
       required: ["productName", "proposedPrice", "reason"],
     },
   },
+  {
+    name: "action_get_current_stock",
+    description: "CALL THIS for current ingredient stock and unit price. Returns name, unit, unitPrice, currentStock. Never guess.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "action_get_recipes",
+    description: "CALL THIS for recipes. Returns each product with ingredientName, amount, unit, and unitPrice. Never guess a recipe.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "action_get_menu",
+    description: "CALL THIS for the menu: product name, category, and selling price. Never guess menu prices.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "action_get_opening_counts",
+    description: "CALL THIS for stock at the start of a month. openingQty null means no count. currentStock is today, not the opening count.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        asOfDate: { type: SchemaType.STRING, description: "YYYY-MM-DD. Use the 1st of the month. Omit for the 1st of this month." },
+      },
+    },
+  },
 ];

@@ -79,6 +79,11 @@ ${openLessonsText}
 2. Recurring small deficits per unit -> Overpouring / grinder calibration error.
 3. 1-2 random units missing -> Unlogged staff meal / dropped item on Kiosk.
 4. Sudden bulk loss (carton/kg) -> Large spill or physical theft.
+
+[CATALOG RULE]:
+If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
+If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.
+openingQty null means no count was logged. Never use currentStock as the opening count.
 `.trim();
 
   const model = genAI.getGenerativeModel({
