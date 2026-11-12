@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, startTransition } from "react";
 import { supabase } from "../../lib/supabase";
+import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
 // @ts-ignore
 import * as XLSX from "xlsx";
@@ -335,6 +336,10 @@ function Home() {
     title: string;
     subtitle?: string;
   } | null>(null);
+  const [signedEvidenceUrl, setSignedEvidenceUrl] = useState("");
+  useEffect(() => {
+    setSignedEvidenceUrl("");
+  }, [selectedImageModal?.url]);
  const [upsellFeature, setUpsellFeature] = useState<string | null>(null);
 
   const [kioskLogoUrl, setKioskLogoUrl] = useState<string | null>(null);
@@ -2739,7 +2744,7 @@ function Home() {
                             <p className="text-sm text-zinc-400 mt-0.5">
                               Гал тогооны дундын таблет дээр нэвтрэх нууц код:
                               <span className="ml-2 font-mono font-black text-sm text-zinc-200 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-700">
-                                {myPin || "1234 (Анхдагч)"}
+                                {myPin || "тохируулаагүй"}
                               </span>
                             </p>
                           </div>
@@ -3190,16 +3195,18 @@ function Home() {
                         </div>
 
                         <div className="flex-1 min-h-0 py-4 flex items-center justify-center overflow-auto">
-                          <img
-                            src={selectedImageModal.url}
+                          <SignedImg
+                            stored={selectedImageModal.url}
                             alt="Evidence Preview"
+                            onSigned={setSignedEvidenceUrl}
                             className="max-h-[65vh] w-auto rounded-2xl object-contain shadow-md border border-zinc-800"
                           />
                         </div>
 
                         <div className="pt-2 border-t border-zinc-800 flex justify-end">
+                          {signedEvidenceUrl && (
                           <a
-                            href={selectedImageModal.url}
+                            href={signedEvidenceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-white hover:bg-zinc-200 text-zinc-950 font-bold px-4 py-2 rounded-xl text-sm transition flex items-center gap-1.5"
@@ -3207,6 +3214,7 @@ function Home() {
                             <span>Эх хувилбараар нээх</span>
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
+                          )}
                         </div>
                       </div>
                     </div>

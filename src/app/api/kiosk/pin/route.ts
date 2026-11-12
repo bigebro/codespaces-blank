@@ -10,12 +10,14 @@ export async function POST(request: Request) {
     const workerId = String(body.workerId || "").trim();
     const pin = String(body.pin || "").trim();
     const deviceToken = String(body.deviceToken || "").trim();
+    if (!deviceToken) {
+      return NextResponse.json({ valid: false, message: "Төхөөрөмжийн токен шаардлагатай." }, { status: 400 });
+    }
     if (!workerId || !pin) {
       return NextResponse.json({ valid: false, message: "PIN дутуу байна." }, { status: 400 });
     }
 
-    const subject = deviceToken || workerId;
-    const gate = await rateLimit("kiosk_pin", subject, false);
+    const gate = await rateLimit("kiosk_pin", deviceToken, false);
     if (gate.limited) {
       return NextResponse.json(
         { valid: false, message: "Хэт олон буруу PIN. 15 минутын дараа дахин оролдоно уу." },
@@ -23,39 +25,34 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: device } = await supabaseAdmin
+      .from("kiosk_devices")
+      .select("client_id")
+      .eq("device_token", deviceToken)
+      .eq("is_active", true)
+      .maybeSingle();
     const { data: worker } = await supabaseAdmin
       .from("profiles")
       .select("id, client_id, pin_code")
       .eq("id", workerId)
       .maybeSingle();
-
-    if (deviceToken) {
-      const { data: device } = await supabaseAdmin
-        .from("kiosk_devices")
-        .select("client_id")
-        .eq("device_token", deviceToken)
-        .maybeSingle();
-      if (!device || !worker || device.client_id !== worker.client_id) {
-        await rateLimit("kiosk_pin", subject, true);
-        return NextResponse.json({ valid: false, message: "Төхөөрөмж таарахгүй байна." }, { status: 403 });
-      }
+    if (!device || !worker || device.client_id !== worker.client_id) {
+      await rateLimit("kiosk_pin", deviceToken, true);
+      return NextResponse.json({ valid: false, message: "Төхөөрөмж таарахгүй байна." }, { status: 403 });
     }
 
-    let valid = false;
     const { data: rpcValid, error: rpcError } = await supabaseAdmin.rpc("verify_kiosk_pin", {
       target_worker_id: workerId,
       entered_pin: pin,
     });
-    if (!rpcError && typeof rpcValid === "boolean") valid = rpcValid;
-    else if (worker?.pin_code && worker.pin_code === pin) valid = true;
+    const valid = !rpcError && rpcValid === true;
 
     if (!valid) {
-      await rateLimit("kiosk_pin", subject, true);
+      await rateLimit("kiosk_pin", deviceToken, true);
       return NextResponse.json({ valid: false, message: "Буруу PIN код." }, { status: 401 });
     }
     return NextResponse.json({ valid: true });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "PIN алдаа";
-    return NextResponse.json({ valid: false, message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ valid: false, message: "PIN шалгахад алдаа гарлаа." }, { status: 500 });
   }
 }

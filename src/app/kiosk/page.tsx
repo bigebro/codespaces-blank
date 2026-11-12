@@ -44,6 +44,7 @@ import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EN_TO_MN_DICT, STATIC_DICT } from "../../lib/autoReconcile";
+import { SignedImg } from "../../components/shared/SignedImg";
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -275,27 +276,25 @@ async function compressImageForUpload(
 // =========================================================================
 // 📸 2. UPLOAD EVIDENCE PHOTO TO SUPABASE STORAGE
 // =========================================================================
-let evidenceClientId = "";
-
 async function uploadEvidencePhoto(
   file: File,
   folder: string = "logs",
 ): Promise<string | null> {
   try {
     const { file: compressedFile } = await compressImageForUpload(file);
-    const fileExt = "jpg";
-    const clientFolder = evidenceClientId || "unscoped";
-    const fileName = `${clientFolder}/${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("receipts_evidence")
-      .upload(fileName, compressedFile, { cacheControl: "3600", upsert: true });
-
-    if (uploadError) throw uploadError;
-    const { data: signed } = await supabase.storage
-      .from("receipts_evidence")
-      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
-    return signed?.signedUrl || null;
+    const deviceToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("kiosk_device_token") || ""
+        : "";
+    if (!deviceToken) return null;
+    const form = new FormData();
+    form.append("deviceToken", deviceToken);
+    form.append("folder", folder);
+    form.append("file", compressedFile);
+    const res = await fetch("/api/kiosk/upload", { method: "POST", body: form });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.path) return null;
+    return json.path as string;
   } catch (err) {
     console.error("Storage upload error:", err);
     return null;
@@ -1083,7 +1082,6 @@ function KioskPage() {
   const [isPairing, setIsPairing] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState(""); 
   const [tenantClientId, setTenantClientId] = useState<string>("");
-  evidenceClientId = tenantClientId;
   const [clientLogo, setClientLogo] = useState<string | null>(null);
   const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [workers, setWorkers] = useState<any[]>([]);
@@ -2435,7 +2433,7 @@ const handleCloseShift = async () => {
                     "Одоогийн 4 оронтой PIN-ээ оруулна уу:",
                   );
                   if (!oldPin) return;
-                  if (oldPin !== (selectedWorker.pin_code || "1234")) {
+                  if (!selectedWorker.pin_code || oldPin !== selectedWorker.pin_code) {
                     alert("❌ Одоогийн PIN буруу байна!");
                     return;
                   }
@@ -2497,10 +2495,6 @@ const handleCloseShift = async () => {
               </button>
             </div>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
-              <p className="text-xs text-zinc-400">
-                💡 Анхдагч PIN: <strong className="text-white">1234</strong>
-              </p>
-
               <button
                 onClick={() => {
                   setStep("select_worker");
@@ -4532,14 +4526,16 @@ const handleCloseShift = async () => {
                             {/* Зүүн тал: Барааны нэр, төрөл, зураг */}
                             <div className="flex items-center gap-2.5 min-w-0">
                               {log.image_url ? (
-                                <img
-                                  src={log.image_url}
+                                <SignedImg
+                                  stored={log.image_url}
                                   alt="receipt"
-                                  onClick={() =>
-                                    setPreviewLogImage(log.image_url)
+                                  deviceToken={
+                                    typeof window === "undefined"
+                                      ? null
+                                      : localStorage.getItem("kiosk_device_token")
                                   }
+                                  onClick={(url) => setPreviewLogImage(url)}
                                   className="h-10 w-10 object-cover rounded-xl border border-zinc-700 cursor-pointer shrink-0 hover:scale-105 transition"
-                                  title="Томруулж харах"
                                 />
                               ) : (
                                 <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-sm shrink-0">

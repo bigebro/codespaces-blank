@@ -78,99 +78,109 @@ export async function decideAlert(opts: {
   userId: string;
   decision: "approve" | "reject";
 }) {
-  const { data: alert, error } = await supabaseAdmin
-    .from("agent_alerts")
-    .select("*")
-    .eq("id", opts.alertId)
-    .eq("client_id", opts.clientId)
-    .maybeSingle();
-  if (error || !alert) throw new Error("Alert not found");
-  if (alert.status !== "pending") return alert;
-
-  if (opts.decision === "reject") {
-    const { data } = await supabaseAdmin
-      .from("agent_alerts")
-      .update({
-        status: "rejected",
-        resolved_at: new Date().toISOString(),
-        resolved_by: opts.userId,
-      })
-      .eq("id", alert.id)
-      .select("*")
-      .single();
-    return data;
-  }
-
-  const payload = (alert.payload || {}) as Record<string, any>;
-  let applied: Record<string, unknown> = {};
-
-  if (alert.kind === "memory_rule") {
-    applied = await saveBusinessRule(opts.clientId, payload.topic, payload.fact);
-  } else if (alert.kind === "memory_lesson") {
-    const evidence = await filterEvidenceLogIds(opts.clientId, payload.evidenceLogIds || []);
-    applied = await recordBusinessLesson(opts.clientId, {
-      situation: payload.situation,
-      actionTaken: payload.actionTaken,
-      outcome: payload.outcome,
-      lesson: payload.lesson,
-      prediction: payload.prediction,
-      confidence: payload.confidence,
-      evidenceLogIds: evidence.verified ? evidence.ids : [],
-    });
-  } else if (alert.kind === "price_change") {
-    const { error: priceErr } = await supabaseAdmin
-      .from("products")
-      .update({ selling_price: Number(payload.proposedPrice) })
-      .eq("client_id", opts.clientId)
-      .eq("name", payload.productName);
-    if (priceErr) throw priceErr;
-    applied = { productName: payload.productName, proposedPrice: payload.proposedPrice };
-  } else if (alert.kind === "purchase_order") {
-    const { data: order, error: orderErr } = await supabaseAdmin
-      .from("purchase_orders")
-      .insert({
-        client_id: opts.clientId,
-        supplier_id: payload.supplierId || null,
-        status: "approved",
-        lines: payload.lines || [],
-        total_cost: payload.totalCost || 0,
-      })
-      .select("id")
-      .single();
-    if (orderErr) throw orderErr;
-    applied = { purchaseOrderId: order.id };
-  } else if (
-    alert.kind === "shift_plan" ||
-    alert.kind === "staff_task" ||
-    alert.kind === "assign_task" ||
-    alert.kind === "finding"
-  ) {
-    const taskName = payload.taskName || alert.title;
-    const { data: task, error: taskErr } = await supabaseAdmin
-      .from("tasks")
-      .insert({
-        client_id: opts.clientId,
-        task_name: taskName,
-        role: payload.role || "Бүх ажилтан",
-        weight: Number(payload.weight) || 10,
-        is_active: true,
-      })
-      .select("id")
-      .single();
-    if (taskErr) throw taskErr;
-    applied = { taskId: task.id };
-  }
-
-  const { data } = await supabaseAdmin
+  const now = new Date().toISOString();
+  const nextStatus = opts.decision === "reject" ? "rejected" : "approved";
+  const { data: locked, error } = await supabaseAdmin
     .from("agent_alerts")
     .update({
-      status: "approved",
-      payload: { ...payload, applied },
-      resolved_at: new Date().toISOString(),
+      status: nextStatus,
+      resolved_at: now,
       resolved_by: opts.userId,
     })
-    .eq("id", alert.id)
+    .eq("id", opts.alertId)
+    .eq("client_id", opts.clientId)
+    .eq("status", "pending")
     .select("*")
-    .single();
-  return data;
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!locked) {
+    const { data: current } = await supabaseAdmin
+      .from("agent_alerts")
+      .select("*")
+      .eq("id", opts.alertId)
+      .eq("client_id", opts.clientId)
+      .maybeSingle();
+    if (!current) throw new Error("Alert not found");
+    return current;
+  }
+  if (opts.decision === "reject") return locked;
+
+  const payload = (locked.payload || {}) as Record<string, any>;
+  let applied: Record<string, unknown> = {};
+
+  try {
+    if (locked.kind === "memory_rule") {
+      applied = await saveBusinessRule(opts.clientId, payload.topic, payload.fact);
+    } else if (locked.kind === "memory_lesson") {
+      const evidence = await filterEvidenceLogIds(opts.clientId, payload.evidenceLogIds || []);
+      applied = await recordBusinessLesson(opts.clientId, {
+        situation: payload.situation,
+        actionTaken: payload.actionTaken,
+        outcome: payload.outcome,
+        lesson: payload.lesson,
+        prediction: payload.prediction,
+        confidence: payload.confidence,
+        evidenceLogIds: evidence.verified ? evidence.ids : [],
+      });
+    } else if (locked.kind === "price_change") {
+      const { error: priceErr } = await supabaseAdmin
+        .from("products")
+        .update({ selling_price: Number(payload.proposedPrice) })
+        .eq("client_id", opts.clientId)
+        .eq("name", payload.productName);
+      if (priceErr) throw priceErr;
+      applied = { productName: payload.productName, proposedPrice: payload.proposedPrice };
+    } else if (locked.kind === "purchase_order") {
+      const { data: order, error: orderErr } = await supabaseAdmin
+        .from("purchase_orders")
+        .insert({
+          client_id: opts.clientId,
+          supplier_id: payload.supplierId || null,
+          status: "approved",
+          lines: payload.lines || [],
+          total_cost: payload.totalCost || 0,
+        })
+        .select("id")
+        .single();
+      if (orderErr) throw orderErr;
+      applied = { purchaseOrderId: order.id };
+    } else if (
+      locked.kind === "shift_plan" ||
+      locked.kind === "staff_task" ||
+      locked.kind === "assign_task" ||
+      locked.kind === "finding"
+    ) {
+      const taskName = payload.taskName || locked.title;
+      const { data: task, error: taskErr } = await supabaseAdmin
+        .from("tasks")
+        .insert({
+          client_id: opts.clientId,
+          task_name: taskName,
+          role: payload.role || "Бүх ажилтан",
+          weight: Number(payload.weight) || 10,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+      if (taskErr) throw taskErr;
+      applied = { taskId: task.id };
+    }
+
+    const { data } = await supabaseAdmin
+      .from("agent_alerts")
+      .update({ payload: { ...payload, applied } })
+      .eq("id", locked.id)
+      .eq("status", "approved")
+      .select("*")
+      .single();
+    return data || locked;
+  } catch (err) {
+    await supabaseAdmin
+      .from("agent_alerts")
+      .update({ status: "pending", resolved_at: null, resolved_by: null })
+      .eq("id", locked.id)
+      .eq("status", "approved");
+    throw err;
+  }
 }

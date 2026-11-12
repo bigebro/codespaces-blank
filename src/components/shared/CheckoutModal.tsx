@@ -134,8 +134,8 @@ export default function CheckoutModal({
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: cycle === "yearly" ? totalAmount : targetConfig.monthly || totalAmount,
-          description: `${plan} 30 хоног`,
+          plan,
+          cycle: cycle === "yearly" ? "yearly" : "monthly",
         }),
       });
       const json = await res.json();
@@ -587,7 +587,11 @@ export default function CheckoutModal({
                     onClick={handleQPay}
                     className="w-full bg-zinc-100 hover:bg-white disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm"
                   >
-                    {loading ? "Нэхэмжлэл үүсгэж байна..." : "QPay-ээр 30 хоног сунгах"}
+                    {loading
+                      ? "Нэхэмжлэл үүсгэж байна..."
+                      : cycle === "yearly"
+                        ? "QPay-ээр 365 хоног сунгах"
+                        : "QPay-ээр 30 хоног сунгах"}
                   </button>
                   <button
                     type="button"

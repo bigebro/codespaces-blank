@@ -2,21 +2,9 @@
 -- Embedding width: text-embedding-004 (retired Jan 2026) stored 768-d vectors.
 -- gemini-embedding-001 is requested at ai_memory_vector_dim() so match_ai_memory
 -- keeps the same column. Re-embed with scripts/reembed-business-memory.mjs.
-
--- Trigger is created AFTER the one-time role normalization below.
--- auth.role() is null during migrations, so the trigger would block that UPDATE.
-
-UPDATE public.profiles
-SET role = CASE
-  WHEN role = 'owner' THEN 'owner'
-  WHEN role IN ('manager', 'admin') THEN 'manager'
-  ELSE 'staff'
-END
-WHERE role IS NULL OR role NOT IN ('owner', 'manager', 'staff');
+-- profiles.role keeps job names such as Бариста and Тогооч. Do not rewrite them.
 
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
-ALTER TABLE public.profiles
-  ADD CONSTRAINT profiles_role_check CHECK (role IN ('owner', 'manager', 'staff'));
 
 CREATE OR REPLACE FUNCTION public.protect_profile_role_and_client()
 RETURNS trigger
@@ -24,8 +12,11 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
-    IF NEW.role IS DISTINCT FROM OLD.role OR NEW.client_id IS DISTINCT FROM OLD.client_id THEN
-      RAISE EXCEPTION 'role and client_id can only be changed by service_role';
+    IF NEW.client_id IS DISTINCT FROM OLD.client_id THEN
+      RAISE EXCEPTION 'client_id can only be changed by service_role';
+    END IF;
+    IF NEW.role IS DISTINCT FROM OLD.role AND NEW.role IN ('owner', 'manager') THEN
+      RAISE EXCEPTION 'role owner or manager can only be set by service_role';
     END IF;
   END IF;
   RETURN NEW;
@@ -77,10 +68,21 @@ BEGIN
   FROM public.staff_invites
   WHERE accepted_at IS NULL
     AND (
-      (email IS NOT NULL AND lower(email) = lower(COALESCE(NEW.email, '')))
-      OR (phone IS NOT NULL AND phone = NULLIF(trim(NEW.raw_user_meta_data->>'phone'), ''))
+      (
+        NULLIF(trim(NEW.raw_user_meta_data->>'invite_token'), '') IS NOT NULL
+        AND token = trim(NEW.raw_user_meta_data->>'invite_token')
+      )
+      OR (
+        email IS NOT NULL
+        AND lower(email) = lower(COALESCE(NEW.email, ''))
+      )
     )
-  ORDER BY created_at DESC
+  ORDER BY
+    CASE
+      WHEN token = NULLIF(trim(NEW.raw_user_meta_data->>'invite_token'), '') THEN 0
+      ELSE 1
+    END,
+    created_at DESC
   LIMIT 1;
 
   IF invite.id IS NOT NULL THEN
@@ -130,6 +132,10 @@ BEGIN
   VALUES (new_client, 0, 0, 'auto')
   ON CONFLICT (client_id) DO NOTHING;
 
+  INSERT INTO public.company_roles (client_id, role_name)
+  VALUES (new_client, 'Бариста'), (new_client, 'Тогооч')
+  ON CONFLICT (client_id, role_name) DO NOTHING;
+
   RETURN NEW;
 END;
 $$;
@@ -140,12 +146,17 @@ CREATE TABLE IF NOT EXISTS public.payments (
   invoice_id text UNIQUE NOT NULL,
   sender_invoice_no text,
   amount numeric NOT NULL,
+  plan text,
+  period_days integer NOT NULL DEFAULT 30,
   status text NOT NULL DEFAULT 'pending',
   qpay_payment_id text,
   applied boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   paid_at timestamptz
 );
+
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS plan text;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS period_days integer NOT NULL DEFAULT 30;
 
 CREATE TABLE IF NOT EXISTS public.agent_alerts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -305,4 +316,31 @@ USING (
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auth_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.verify_kiosk_pin(target_worker_id uuid, entered_pin text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO public
+AS $$
+DECLARE
+  stored text;
+BEGIN
+  IF entered_pin IS NULL OR btrim(entered_pin) = '' THEN
+    RETURN false;
+  END IF;
+
+  SELECT pin_code INTO stored
+  FROM public.profiles
+  WHERE id = target_worker_id;
+
+  IF stored IS NULL OR btrim(stored) = '' THEN
+    RETURN false;
+  END IF;
+
+  RETURN stored = entered_pin;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.verify_kiosk_pin(uuid, text) TO anon, authenticated, service_role;
 

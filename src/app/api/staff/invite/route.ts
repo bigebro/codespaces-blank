@@ -27,22 +27,22 @@ export async function POST(request: Request) {
   }
   const body = await request.json();
   const email = String(body.email || "").trim().toLowerCase();
-  const phone = String(body.phone || "").trim();
   const role = body.role === "manager" ? "manager" : "staff";
-  if (!email && !phone) {
-    return NextResponse.json({ error: "Имэйл эсвэл утас оруулна уу." }, { status: 400 });
+  if (!email) {
+    return NextResponse.json({ error: "Имэйл оруулна уу." }, { status: 400 });
   }
+  const token = randomBytes(16).toString("hex");
   const { data, error } = await supabaseAdmin
     .from("staff_invites")
     .insert({
       client_id: session.clientId,
-      email: email || null,
-      phone: phone || null,
+      email,
+      phone: null,
       role,
-      token: randomBytes(16).toString("hex"),
+      token,
       invited_by: session.userId,
     })
-    .select("id, email, phone, role")
+    .select("id, email, role, token")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ invite: data });

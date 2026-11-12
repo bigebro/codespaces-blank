@@ -22,8 +22,29 @@ const HOLIDAYS = new Set([
   "2027-02-09",
 ]);
 
+const UB_TIMEZONE = "Asia/Ulaanbaatar";
+
+function ubCalendar(input: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: UB_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(input);
+  const read = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(read("weekday"));
+  return {
+    dow: dow < 0 ? 0 : dow,
+    hour: Number(read("hour")) || 0,
+    date: `${read("year")}-${read("month")}-${read("day")}`,
+  };
+}
+
 function isHoliday(date: Date): boolean {
-  const iso = date.toISOString().slice(0, 10);
+  const iso = ubCalendar(date).date;
   const md = iso.slice(5);
   return HOLIDAYS.has(iso) || HOLIDAYS.has(md);
 }
@@ -47,7 +68,7 @@ export async function forecastDemand(clientId: string) {
   for (const row of sales || []) {
     const name = String(row.product_name || "").trim();
     if (!name) continue;
-    const dow = new Date(row.date).getUTCDay();
+    const dow = ubCalendar(new Date(row.date)).dow;
     if (!buckets.has(name)) buckets.set(name, new Map());
     const byDay = buckets.get(name)!;
     const list = byDay.get(dow) || [];
@@ -55,20 +76,17 @@ export async function forecastDemand(clientId: string) {
     byDay.set(dow, list);
   }
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + i + 1);
-    return d;
-  });
+  const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000));
 
   const byProduct = Array.from(buckets.entries()).map(([product, byDay]) => {
     const daily = days.map((date) => {
-      const samples = byDay.get(date.getUTCDay()) || [];
+      const cal = ubCalendar(date);
+      const samples = byDay.get(cal.dow) || [];
       const avg = samples.length
         ? samples.reduce((s, n) => s + n, 0) / samples.length
         : 0;
       const units = Math.max(0, Math.round(avg * (isHoliday(date) ? 1.35 : 1)));
-      return { date: date.toISOString().slice(0, 10), units, holiday: isHoliday(date) };
+      return { date: cal.date, units, holiday: isHoliday(date) };
     });
     return {
       product,
@@ -174,8 +192,7 @@ export async function proposeShiftPlan(clientId: string, laborTarget = 0.28) {
     supabaseAdmin
       .from("profiles")
       .select("id, full_name, role, base_rate, salary_type")
-      .eq("client_id", clientId)
-      .in("role", ["staff", "manager"]),
+      .eq("client_id", clientId),
     supabaseAdmin
       .from("shifts")
       .select("character_role, start_time, end_time")
@@ -186,20 +203,19 @@ export async function proposeShiftPlan(clientId: string, laborTarget = 0.28) {
   const byDow = new Map<number, number[]>();
   const byHour = new Map<number, number>();
   for (const row of sales || []) {
-    const d = new Date(row.date);
-    const list = byDow.get(d.getUTCDay()) || [];
+    const cal = ubCalendar(new Date(row.date));
+    const list = byDow.get(cal.dow) || [];
     list.push(Number(row.total_revenue) || 0);
-    byDow.set(d.getUTCDay(), list);
-    const hour = d.getUTCHours();
-    byHour.set(hour, (byHour.get(hour) || 0) + (Number(row.total_revenue) || 0));
+    byDow.set(cal.dow, list);
+    byHour.set(cal.hour, (byHour.get(cal.hour) || 0) + (Number(row.total_revenue) || 0));
   }
 
   const nextWeek = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + i + 1);
-    const samples = byDow.get(d.getUTCDay()) || [];
+    const d = new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000);
+    const cal = ubCalendar(d);
+    const samples = byDow.get(cal.dow) || [];
     const revenue = samples.length ? samples.reduce((s, n) => s + n, 0) / samples.length : 0;
-    return { date: d.toISOString().slice(0, 10), forecastRevenue: Math.round(revenue) };
+    return { date: cal.date, forecastRevenue: Math.round(revenue) };
   });
   const weekRevenue = nextWeek.reduce((s, d) => s + d.forecastRevenue, 0);
   const laborBudget = Math.round(weekRevenue * laborTarget);
@@ -210,7 +226,9 @@ export async function proposeShiftPlan(clientId: string, laborTarget = 0.28) {
     .map(([hour]) => hour)
     .sort((a, b) => a - b);
 
-  const people = (staff || []).map((p) => ({
+  const people = (staff || [])
+    .filter((p) => p.role !== "owner")
+    .map((p) => ({
     id: p.id,
     name: p.full_name || "Ажилтан",
     role: p.role,

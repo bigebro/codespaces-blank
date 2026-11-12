@@ -76,8 +76,13 @@ export async function checkQPayInvoice(invoiceId: string) {
   const paidRow = rows.find(
     (row: { payment_status?: string }) => row.payment_status === "PAID",
   );
+  const paidAmount = Number(data.paid_amount) || rows.reduce((sum: number, row: { payment_status?: string; payment_amount?: number; amount?: number }) => {
+    if (row.payment_status && row.payment_status !== "PAID") return sum;
+    return sum + (Number(row.payment_amount ?? row.amount) || 0);
+  }, 0);
   return {
-    paid: Boolean(paidRow) || Number(data.count) > 0 && Number(data.paid_amount) > 0,
+    paid: Boolean(paidRow) || paidAmount > 0,
+    paidAmount,
     paymentId: paidRow?.payment_id || null,
     raw: data,
   };

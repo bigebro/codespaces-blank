@@ -18,10 +18,14 @@ async function confirmInvoice(invoiceId: string, clientId: string) {
   }
 
   const check = await checkQPayInvoice(invoiceId);
-  if (!check.paid) {
-    return { status: 200, body: { success: true, status: "pending" } };
+  if (!check.paid || check.paidAmount < Number(payment.amount)) {
+    return {
+      status: 200,
+      body: { success: true, status: "pending", paidAmount: check.paidAmount },
+    };
   }
 
+  const days = Number(payment.period_days) === 365 ? 365 : 30;
   const { data: tenant } = await supabaseAdmin
     .from("tenants")
     .select("subscription_end_date")
@@ -30,7 +34,7 @@ async function confirmInvoice(invoiceId: string, clientId: string) {
   const base = tenant?.subscription_end_date && new Date(tenant.subscription_end_date) > new Date()
     ? new Date(tenant.subscription_end_date)
     : new Date();
-  base.setDate(base.getDate() + 30);
+  base.setDate(base.getDate() + days);
 
   const { data: locked } = await supabaseAdmin
     .from("payments")
@@ -51,7 +55,11 @@ async function confirmInvoice(invoiceId: string, clientId: string) {
 
   await supabaseAdmin
     .from("tenants")
-    .update({ status: "active", subscription_end_date: base.toISOString() })
+    .update({
+      status: "active",
+      plan: payment.plan || undefined,
+      subscription_end_date: base.toISOString(),
+    })
     .eq("client_id", clientId);
 
   return {
