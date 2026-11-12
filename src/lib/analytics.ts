@@ -59,6 +59,8 @@ export async function getAnalyticsData(
     { data: rawFixedAssets },
     { data: rawFixedOpex },
     { data: rawSettings },
+    { data: rawAfterLogs },
+    { data: rawAfterSales },
   ] = await Promise.all([
     // OPTIMIZATION: Select only needed columns to prevent Vercel Out-Of-Memory (OOM) errors
     supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, is_critical, is_suspicious_promoted, promoted_until, last_counted_at, par_level, lead_time_days, days_of_supply").eq("client_id", clientId.trim()),
@@ -90,6 +92,18 @@ export async function getAnalyticsData(
     supabaseAdmin.from("fixed_assets").select("name, code, purchase_date, initial_cost, useful_months").eq("client_id", clientId.trim()),
     supabaseAdmin.from("fixed_opex").select("name, category, monthly_cost").eq("client_id", clientId.trim()).eq("is_active", true),
     supabaseAdmin.from("client_settings").select("initial_cash, initial_bank, tax_mode, category_margins").eq("client_id", clientId.trim()).maybeSingle(),
+    supabaseAdmin
+      .from("inventory_logs")
+      .select("date, type, quantity, ingredient_id")
+      .eq("client_id", clientId.trim())
+      .gt("date", finalEndDate)
+      .in("type", ["count", "purchase"])
+      .order("date", { ascending: true }),
+    supabaseAdmin
+      .from("sales_logs")
+      .select("date, product_name, quantity_sold")
+      .eq("client_id", clientId.trim())
+      .gt("date", finalEndDate),
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
@@ -223,6 +237,27 @@ export async function getAnalyticsData(
       }
     }
   });
+
+  const afterCounts: Record<string, Array<{ date: string; qty: number }>> = {};
+  const afterPurchases: Record<string, Array<{ date: string; qty: number }>> = {};
+  (rawAfterLogs || []).forEach((log: any) => {
+    if (!log.ingredient_id || !log.date) return;
+    const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+    if (!ing) return;
+    const key = cleanString(ing.name);
+    const row = { date: log.date, qty: parseFloat(log.quantity) || 0 };
+    if (log.type === "count") {
+      if (!afterCounts[key]) afterCounts[key] = [];
+      afterCounts[key].push(row);
+    } else if (log.type === "purchase") {
+      if (!afterPurchases[key]) afterPurchases[key] = [];
+      afterPurchases[key].push(row);
+    }
+  });
+  for (const key of Object.keys(afterCounts)) {
+    afterCounts[key].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
+
 for (const key in master) {
   const history = (itemCountsHistory[key] || []).sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -230,17 +265,30 @@ for (const key in master) {
   const day = (d: string) => new Date(d).toISOString().split("T")[0];
   const before = history.filter((h) => day(h.date) < startDay);
   const inside = history.filter((h) => day(h.date) >= startDay && day(h.date) <= endDay);
+  const closing = history.filter((h) => day(h.date) >= endDay);
 
-  // START: сарын өмнөх сүүлийн тооллого, байхгүй бол сарын эхний тооллого
+  // START: last count before the period. A count on the end day is not an opening count.
   master[key].start = before.length
     ? before[before.length - 1].qty
-    : inside.length ? inside[0].qty : 0;
+    : inside.length && day(inside[0].date) < endDay
+      ? inside[0].qty
+      : 0;
 
-  // END: сар доторх сүүлийн тооллого (эхнийхээс өөр байх ёстой), байхгүй бол start
-  master[key].end =
-    inside.length && (before.length || inside.length > 1)
-      ? inside[inside.length - 1].qty
-      : master[key].start;
+  if (closing.length) {
+    master[key].end = closing[closing.length - 1].qty;
+  } else {
+    const later = (afterCounts[key] || [])[0];
+    if (later) {
+      master[key].next_count = later;
+      master[key].end = later.qty;
+    } else if (master[key].purchased > 0) {
+      master[key].incomplete_count = true;
+      master[key].count_status = "тооллого дутуу";
+      master[key].end = master[key].start;
+    } else {
+      master[key].end = master[key].start;
+    }
+  }
 }
 
  
@@ -290,6 +338,38 @@ for (const key in master) {
       master[key].theoretical += (qtySold * parseFloat(r.amount));
     }
   });
+
+  const dayKey = (d: string) => new Date(d).toISOString().split("T")[0];
+  const recipeQty = (productName: string, ingredientName: string) => {
+    const cleanPos = cleanString(productName).toLowerCase();
+    const productKey = Object.keys(allRecipesMap).find((name) => name.toLowerCase() === cleanPos);
+    if (!productKey) return 0;
+    const recipe = allRecipesMap[productKey];
+    const found = Object.keys(recipe).find((name) => cleanString(name) === ingredientName);
+    return found ? recipe[found] : 0;
+  };
+
+  for (const key in master) {
+    const next = master[key].next_count;
+    if (!next) continue;
+    const countDay = dayKey(next.date);
+    let usedAfter = 0;
+    (rawAfterSales || []).forEach((sale: any) => {
+      if (!sale.date) return;
+      const saleDay = dayKey(sale.date);
+      if (saleDay <= endDay || saleDay > countDay) return;
+      usedAfter += (parseInt(sale.quantity_sold) || 0) * recipeQty(sale.product_name, key);
+    });
+    const boughtAfter = (afterPurchases[key] || [])
+      .filter((row) => {
+        const purchaseDay = dayKey(row.date);
+        return purchaseDay > endDay && purchaseDay <= countDay;
+      })
+      .reduce((sum, row) => sum + row.qty, 0);
+    // Next count is lower by what was used after the period, and higher by later purchases.
+    master[key].end = next.qty + usedAfter - boughtAfter;
+    master[key].count_status = "дараагийн тооллого";
+  }
 
   const allKnownProducts = Array.from(new Set([
     ...(rawProducts || []).map((p: any) => cleanString(p.name)),
@@ -414,8 +494,38 @@ for (const key in master) {
     }
 
     const actual = (m.start + m.purchased) - m.end;
-    const safeActual = Math.max(0, actual); // 👈 ХАМГААЛАЛТ: Хэзээ ч 0-ээс доош унахгүй!
-    
+    const safeActual = Math.max(0, actual);
+    const weightedForMoney = weightedPrice || m.unit_price || 0;
+
+    if (m.incomplete_count) {
+      const theoMoney = Math.round(m.theoretical * weightedForMoney) || 0;
+      totalTheoCogs += theoMoney;
+      rawActualCogs += theoMoney;
+      fullInventory.push({
+        id: m.id,
+        name: m.name,
+        par_level: Math.round(activeParLevel * 100) / 100,
+        suggested_order: finalSuggestion,
+        theoretical: Math.round(m.theoretical * 100) / 100 || 0,
+        gap: 0,
+        impact: 0,
+        unit: m.unit,
+        price: weightedForMoney,
+        unit_price: weightedForMoney,
+        is_waste: false,
+        is_under: false,
+        live_stock: m.live_stock,
+        current_stock: m.live_stock,
+        last_counted_at: m.last_counted_at,
+        is_critical: m.is_critical,
+        is_suspicious_promoted: m.is_suspicious_promoted,
+        promoted_until: m.promoted_until,
+        total_spend_value: (m.theoretical > 0 ? m.theoretical : m.live_stock) * weightedForMoney,
+        count_status: "тооллого дутуу",
+      });
+      continue;
+    }
+
     const actualMoney = Math.round(safeActual * weightedPrice) || 0;
     const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
    
@@ -460,7 +570,8 @@ for (const key in master) {
       is_critical: m.is_critical,
       is_suspicious_promoted: m.is_suspicious_promoted,
       promoted_until: m.promoted_until,
-      total_spend_value: totalSpendValue
+      total_spend_value: totalSpendValue,
+      count_status: m.count_status || "",
     });
 
     if (itemLogs.spoilage > 0) {
