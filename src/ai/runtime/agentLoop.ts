@@ -3,7 +3,6 @@ import { getGenAI } from "@/lib/ai/genai";
 import { MODELS } from "@/lib/ai/models";
 import { executeAiTool } from "@/ai/tools/execution.tools";
 import { getConversationThread, recordChatMessage } from "@/ai/memory/thread.manager";
-import { subscriptionBlockMessage } from "@/lib/subscription";
 import { AgentContext } from "@/types/agent.types";
 
 type ModelPart = Record<string, unknown>;
@@ -65,15 +64,9 @@ export async function runToolAgent(opts: {
         if (text) controller.enqueue(encoder.encode(text));
       };
       try {
-        const blocked = await subscriptionBlockMessage(opts.context.clientId);
-        if (blocked) {
-          enqueue(blocked);
-          controller.close();
-          return;
-        }
-
+        const historyPromise = getConversationThread(opts.context.clientId, 6);
         const ai = getGenAI();
-        const history = await getConversationThread(opts.context.clientId, 6);
+        const history = await historyPromise;
         const contents: { role: string; parts: ModelPart[] }[] = [
           ...(history as { role: string; parts: ModelPart[] }[]),
           { role: "user", parts: [{ text: opts.userMessage }] },
@@ -163,8 +156,8 @@ export async function runToolAgent(opts: {
           enqueue(extra);
         }
 
-        await recordChatMessage(opts.context.clientId, "owner", opts.userMessage);
-        await recordChatMessage(opts.context.clientId, "ai", finalText);
+        recordChatMessage(opts.context.clientId, "owner", opts.userMessage).catch(console.error);
+        recordChatMessage(opts.context.clientId, "ai", finalText).catch(console.error);
         controller.close();
       } catch (err: unknown) {
         console.error("[agent]", err);
