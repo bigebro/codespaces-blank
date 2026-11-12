@@ -342,5 +342,6 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.verify_kiosk_pin(uuid, text) TO anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.verify_kiosk_pin(uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_kiosk_pin(uuid, text) TO service_role;
 
