@@ -1,4 +1,4 @@
-import { FunctionDeclaration } from "@google/generative-ai";
+import { FunctionDeclaration } from "@/lib/ai/genai";
 import { financeDefs } from "./domains/finance.tools";
 import { operationsDefs } from "./domains/operations.tools";
 import { hrDefs } from "./domains/hr.tools";

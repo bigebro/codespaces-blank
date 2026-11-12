@@ -1,55 +1,85 @@
-// src/app/api/cron/nightly-audit/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { runNightlyAuditForTenant } from "@/ai/memory/data_auditor";
+import { createAlert } from "@/lib/alerts";
+import { markPastDueTenants, getTenantBilling } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Vercel-ийн 60 секундийн хугацааг зөвшөөрнө
+export const maxDuration = 60;
+
+function authorized(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  return request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+async function mapPool<T>(items: T[], size: number, fn: (item: T) => Promise<void>) {
+  for (let i = 0; i < items.length; i += size) {
+    await Promise.all(items.slice(i, i + size).map(fn));
+  }
+}
 
 export async function GET(request: Request) {
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let pastDueUpdated = 0;
   try {
-    // 🔒 1. Vercel Cron-ийг гадны халдлагаас хамгаалах
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    pastDueUpdated = await markPastDueTenants();
+  } catch (err) {
+    console.error("past_due update failed:", err);
+  }
 
-    // 🏢 2. Бүх идэвхтэй салбаруудыг татах
-    const { data: tenants, error: tenantErr } = await supabaseAdmin
-      .from("tenants")  
-      .select("client_id")
-      .eq("status", "active");
+  const { data: tenants, error: tenantErr } = await supabaseAdmin
+    .from("tenants")
+    .select("client_id")
+    .neq("status", "past_due");
 
-    if (tenantErr || !tenants) {
-      return NextResponse.json(
-        { error: tenantErr?.message || "No active tenants found" },
-        { status: 500 }
-      );
-    }
+  if (tenantErr || !tenants) {
+    return NextResponse.json({ error: tenantErr?.message || "No tenants" }, { status: 500 });
+  }
 
-    // 🔍 3. Салбар бүр дээр шөнийн 3 чиглэлийн аудитыг ажиллуулж, нотлох баримтуудыг холбох
-    const results = [];
-    for (const tenant of tenants) {
+  const results: { clientId: string; ok: boolean; anomalies?: number; error?: string }[] = [];
+
+  await mapPool(tenants, 3, async (tenant) => {
+    try {
+      const billing = await getTenantBilling(tenant.client_id);
+      if (billing?.pastDue) {
+        results.push({ clientId: tenant.client_id, ok: true, error: "skipped_past_due" });
+        return;
+      }
       const stats = await runNightlyAuditForTenant(tenant.client_id);
+      for (const finding of stats.findings) {
+        await createAlert({
+          clientId: tenant.client_id,
+          kind: "finding",
+          title: finding.title,
+          body: finding.body,
+          evidence: finding.evidenceLogIds,
+          payload: {
+            impact: finding.impact,
+            evidenceLogIds: finding.evidenceLogIds,
+            taskName: `Шалгах: ${finding.title}`,
+            role: "Бүх ажилтан",
+            reason: finding.body,
+          },
+        });
+      }
+      results.push({ clientId: tenant.client_id, ok: true, anomalies: stats.anomalies });
+    } catch (err: unknown) {
       results.push({
         clientId: tenant.client_id,
-        anomaliesDetected: stats.anomalies,
-        evidenceLinked: stats.evidence,
+        ok: false,
+        error: err instanceof Error ? err.message : "failed",
       });
     }
+  });
 
-    return NextResponse.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      auditedTenantsCount: tenants.length,
-      results,
-    });
-  } catch (err: any) {
-    console.error("Nightly audit cron execution failed:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    pastDueUpdated,
+    auditedTenantsCount: results.filter((r) => r.ok).length,
+    results,
+  });
 }

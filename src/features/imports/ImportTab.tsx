@@ -1128,7 +1128,7 @@ export default function ImportTab({
       const { data: currentIngs } = await supabase
         .from("ingredients")
         .select("id, name")
-        .ilike("client_id", activeClient.trim());
+        .eq("client_id", activeClient.trim());
 
       const ingMap = new Map<string, string>();
       currentIngs?.forEach((i) => {

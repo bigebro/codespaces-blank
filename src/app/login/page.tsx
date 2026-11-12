@@ -211,13 +211,18 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       if (isSignUp) {
         const cleanBranch = companyName.trim();
+        if (signupRole === "owner" && /[%_]/.test(cleanBranch)) {
+          setErrorMsg("Бизнесийн нэрд % болон _ тэмдэгт оруулах боломжгүй.");
+          setLoading(false);
+          return;
+        }
 
         // 1. Шинэ бизнес давхардсан эсэхийг шалгах
         if (signupRole === "owner") {
           const { data: existingShop } = await supabase
             .from("tenants")
             .select("client_id")
-            .ilike("client_id", cleanBranch)
+            .eq("client_id", cleanBranch)
             .maybeSingle();
 
           if (existingShop) {
@@ -236,7 +241,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           options: {
             data: {
               client_id: cleanBranch,
-              role: signupRole === "owner" ? "owner" : "Ажилтан",
+              role: signupRole === "owner" ? "owner" : "staff",
               full_name: fullName.trim(),
               phone: phoneNumber.trim(),
             },

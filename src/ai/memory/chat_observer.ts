@@ -1,7 +1,8 @@
 // src/ai/memory/chat_observer.ts файлыг бүхэлд нь үүгээр солино:
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { saveBusinessRule, recordBusinessLesson } from "./memory.service";
+import { GoogleGenerativeAI } from "@/lib/ai/genai";
+import { MODELS } from "@/lib/ai/models";
+import { createAlert } from "@/lib/alerts";
 
 interface ObserverExtractionResponse {
   type: "NONE" | "RULE" | "LESSON";
@@ -44,7 +45,7 @@ export async function extractAndSaveMemoryInBackground(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-3.5-flash-lite",
+      model: MODELS.flash,
       systemInstruction: OBSERVER_PROMPT,
       generationConfig: {
         temperature: 0.1,
@@ -64,19 +65,37 @@ export async function extractAndSaveMemoryInBackground(
     if (isCorrectionKeyword) {
       if (userMessage.trim().length < 12) return; //  12 тэмдэгтээс богино "Буруу" гэсэн үгийг хадгалахгүй!
       if (!parsed.topic || !parsed.fact || parsed.fact.trim().length < 4) return;
-      await saveBusinessRule(clientId, parsed.topic, parsed.fact);
+      await createAlert({
+        clientId,
+        kind: "memory_rule",
+        title: `Дүрэм: ${parsed.topic}`,
+        body: parsed.fact,
+        payload: { topic: parsed.topic, fact: parsed.fact },
+      });
       return;
     }
 
     if (parsed.type === "RULE" && parsed.topic && parsed.fact) {
-      await saveBusinessRule(clientId, parsed.topic, parsed.fact);
+      await createAlert({
+        clientId,
+        kind: "memory_rule",
+        title: `Дүрэм: ${parsed.topic}`,
+        body: parsed.fact,
+        payload: { topic: parsed.topic, fact: parsed.fact },
+      });
     } else if (parsed.type === "LESSON" && parsed.situation && parsed.lessonLearned) {
-      await recordBusinessLesson(clientId, {
-        situation: parsed.situation,
-        actionTaken: parsed.actionTaken || undefined,
-        outcome: parsed.outcome || undefined,
-        lesson: parsed.lessonLearned,
-        evidenceLogIds: [],
+      await createAlert({
+        clientId,
+        kind: "memory_lesson",
+        title: "Сургамж батлах",
+        body: parsed.lessonLearned,
+        payload: {
+          situation: parsed.situation,
+          actionTaken: parsed.actionTaken,
+          outcome: parsed.outcome,
+          lesson: parsed.lessonLearned,
+          evidenceLogIds: [],
+        },
       });
     }
 

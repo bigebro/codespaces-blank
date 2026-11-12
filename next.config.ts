@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     "react-markdown",
     "remark-gfm",
     "xlsx",
-    "@google/generative-ai",
+    "@google/genai",
   ],
   compiler: {
     // Хуучин Safari хөтчүүдийн танихгүй RegExp, Lookbehind-ийг хуучин хэлбэр рүү хөрвүүлнэ

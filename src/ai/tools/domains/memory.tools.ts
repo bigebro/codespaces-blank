@@ -1,5 +1,5 @@
 // src/ai/tools/domains/memory.tools.ts
-import { FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { FunctionDeclaration, SchemaType } from "@/lib/ai/genai";
 
 export const memoryDefs: FunctionDeclaration[] = [
   {

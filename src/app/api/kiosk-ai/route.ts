@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
 import { getAnalyticsData } from "../../../lib/analytics";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@/lib/ai/genai";
 import { createClient } from "@supabase/supabase-js";
 import { saveBusinessRule } from "@/ai/memory/memory.service";
 import { routeAiRequest } from "@/ai/agents/router.agent";
+import { subscriptionBlockMessage } from "@/lib/subscription";
 import { AgentContext } from "@/types/agent.types";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const clientId = profile.client_id;
     const isOwner = profile.role === "owner";
+    const blocked = await subscriptionBlockMessage(clientId);
    
 
     const workerName = body.workerName || profile.full_name || "Ажилтан";
@@ -154,6 +156,10 @@ export async function POST(request: Request) {
     const imageBase64 = body.imageBase64 || null;
     const action = body.action || null;
     const logId = body.logId || null;
+
+    if (blocked && action !== "undo") {
+      return NextResponse.json({ success: false, message: blocked }, { status: 402 });
+    }
 
     // src/app/api/kiosk-ai/route.ts доторх categorize хэсэг:
     if (action === "categorize" && body.names && Array.isArray(body.names)) {
@@ -408,10 +414,32 @@ ${JSON.stringify(unmatched)}`;
 
     // 1. UNDO
     if (action === "undo" && logId) {
+      const { data: row, error: rowError } = await supabaseAdmin
+        .from("inventory_logs")
+        .select("id, client_id, worker_name, created_by")
+        .eq("id", logId)
+        .maybeSingle();
+      if (rowError || !row || row.client_id !== clientId) {
+        return NextResponse.json(
+          { success: false, message: "Энэ бүртгэл танай салбарынх биш байна." },
+          { status: 403 },
+        );
+      }
+      const sameWorker =
+        (row.worker_name || "").trim().toLowerCase() ===
+        (profile.full_name || "").trim().toLowerCase();
+      const sameUser = row.created_by && row.created_by === user.id;
+      if (!isOwner && !sameWorker && !sameUser) {
+        return NextResponse.json(
+          { success: false, message: "Зөвхөн өөрийн бүртгэлээ цуцлах боломжтой." },
+          { status: 403 },
+        );
+      }
       const { error } = await supabaseAdmin
         .from("inventory_logs")
         .delete()
-        .eq("id", logId);
+        .eq("id", logId)
+        .eq("client_id", clientId);
       if (error)
         return NextResponse.json({
           success: false,
@@ -421,6 +449,10 @@ ${JSON.stringify(unmatched)}`;
         success: true,
         message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
       });
+    }
+
+    if (blocked && action !== "undo") {
+      return NextResponse.json({ success: false, message: blocked }, { status: 402 });
     }
 
 

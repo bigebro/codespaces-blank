@@ -13,7 +13,7 @@ export function useProducts(activeClient: string) {
     const { data } = await supabase
       .from("products")
       .select("*")
-      .ilike("client_id", activeClient);
+      .eq("client_id", activeClient);
 
     if (data) setProductsList(data);
     setLoadingProducts(false);

@@ -94,7 +94,7 @@ export default function MasterAdminPage() {
     const { data: tenant } = await supabaseMaster
       .from("tenants")
       .select("subscription_end_date, plan, status, feature_flags")
-      .ilike("client_id", req.client_id.trim())
+      .eq("client_id", req.client_id.trim())
       .maybeSingle();
 
   const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
@@ -125,7 +125,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
         subscription_end_date: baseDate.toISOString(),
         feature_flags: newFlags,
       })
-      .ilike("client_id", req.client_id.trim());
+      .eq("client_id", req.client_id.trim());
 
     if (tenantErr) {
       alert("❌ Байгууллагын эрх сунгахад алдаа гарлаа: " + tenantErr.message);

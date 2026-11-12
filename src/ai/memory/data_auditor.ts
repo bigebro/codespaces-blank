@@ -1,6 +1,7 @@
 // src/ai/memory/data_auditor.ts
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createEmbedding } from "./memory.service";
+import { MODELS } from "@/lib/ai/models";
 
 interface AuditGroup {
   workerName: string;
@@ -12,7 +13,14 @@ interface AuditGroup {
   logIds: string[];
 }
 
-export async function runNightlyAuditForTenant(clientId: string): Promise<{ anomalies: number; evidence: number }> {
+export type AuditFinding = {
+  title: string;
+  body: string;
+  impact: number;
+  evidenceLogIds: string[];
+};
+
+export async function runNightlyAuditForTenant(clientId: string): Promise<{ anomalies: number; evidence: number; findings: AuditFinding[] }> {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   // Өнгөрсөн 24 цагийн БҮХ төрлийн гүйлгээ (Хаягдал, Зөрчил, Татан авалт)-г татах
@@ -23,19 +31,20 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
     supabaseAdmin
       .from("inventory_logs")
       .select("id, worker_name, ingredient_id, quantity, total_cost, type, incident_type, reported_against_worker, notes, date")
-      .ilike("client_id", clientId)
+      .eq("client_id", clientId)
       .gte("date", twentyFourHoursAgo),
     supabaseAdmin
       .from("ingredients")
       .select("id, name, unit, unit_price")
-      .ilike("client_id", clientId),
+      .eq("client_id", clientId),
   ]);
 
-  if (!logs || logs.length === 0) return { anomalies: 0, evidence: 0 };
+  if (!logs || logs.length === 0) return { anomalies: 0, evidence: 0, findings: [] };
 
   const ingMap = new Map((ingredients || []).map((i) => [i.id, i]));
   let anomalyCount = 0;
   let evidenceCount = 0;
+  const findings: AuditFinding[] = [];
 
   // ============================================================================
   // ЧИГЛЭЛ 1: АЖИЛТНЫ ХАЯГДАЛ, АСГАРАЛТЫН АУДИТ
@@ -95,7 +104,7 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
             evidence_status: "reported",
             is_test: false,
             embedding: embedding || null,
-            embedding_model: embedding ? "text-embedding-004" : null,
+            embedding_model: embedding ? MODELS.embedding : null,
           },
         ])
         .select("id")
@@ -103,6 +112,12 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
 
       if (exp) {
         anomalyCount++;
+        findings.push({
+          title: `${group.ingredientName} хаягдал`,
+          body: `${group.workerName}: ${group.totalQuantity} ${group.unit}, ${Math.round(group.totalCost).toLocaleString()}₮. ${lesson}`,
+          impact: group.totalCost,
+          evidenceLogIds: group.logIds,
+        });
         const evidenceRows = group.logIds.map((logId) => ({
           client_id: clientId,
           experience_id: exp.id,
@@ -151,7 +166,7 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
           evidence_status: "reported",
           is_test: false,
           embedding: embedding || null,
-          embedding_model: embedding ? "text-embedding-004" : null,
+          embedding_model: embedding ? MODELS.embedding : null,
         },
       ])
       .select("id")
@@ -159,6 +174,12 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
 
     if (exp) {
       anomalyCount++;
+      findings.push({
+        title: `Ээлжийн зөрчил: ${itemName}`,
+        body: prediction,
+        impact: Math.abs(Number(inc.total_cost) || 0),
+        evidenceLogIds: [inc.id],
+      });
       await supabaseAdmin.from("business_experience_evidence").insert([
         {
           client_id: clientId,
@@ -210,7 +231,7 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
             evidence_status: "verified",
             is_test: false,
             embedding: embedding || null,
-            embedding_model: embedding ? "text-embedding-004" : null,
+            embedding_model: embedding ? MODELS.embedding : null,
           },
         ])
         .select("id")
@@ -218,6 +239,12 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
 
       if (exp) {
         anomalyCount++;
+        findings.push({
+          title: `${ing.name} үнэ +${hikePct}%`,
+          body: prediction,
+          impact: Math.abs(boughtUnitPrice - oldUnitPrice) * Number(pur.quantity),
+          evidenceLogIds: [pur.id],
+        });
         await supabaseAdmin.from("business_experience_evidence").insert([
           {
             client_id: clientId,
@@ -232,5 +259,6 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
     }
   }
 
-  return { anomalies: anomalyCount, evidence: evidenceCount };
+  findings.sort((a, b) => b.impact - a.impact);
+  return { anomalies: anomalyCount, evidence: evidenceCount, findings: findings.slice(0, 3) };
 }

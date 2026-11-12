@@ -98,7 +98,7 @@ export default function GeneralSettings({
     const { data } = await supabase
       .from("kiosk_devices")
       .select("id, device_name, is_active, last_seen_at, created_at, pairing_code")
-      .ilike("client_id", activeClient.trim())
+      .eq("client_id", activeClient.trim())
       .order("created_at", { ascending: false });
     if (data) setKioskDevices(data);
   }, [activeClient]);
@@ -210,16 +210,16 @@ export default function GeneralSettings({
         supabase
           .from("fixed_assets")
           .select("*")
-          .ilike("client_id", activeClient),
+          .eq("client_id", activeClient),
         supabase
           .from("fixed_opex")
           .select("*")
-          .ilike("client_id", activeClient)
+          .eq("client_id", activeClient)
           .eq("is_active", true),
         supabase
           .from("client_settings")
           .select("*")
-          .ilike("client_id", activeClient)
+          .eq("client_id", activeClient)
           .maybeSingle(),
       ]);
 
@@ -229,7 +229,14 @@ export default function GeneralSettings({
       setInitialCash(settData.initial_cash?.toString() || "0");
       setInitialBank(settData.initial_bank?.toString() || "0");
       setTaxMode(settData.tax_mode || "auto");
-      setKioskLogoUrl(settData.logo_url || null);
+      if (settData.logo_url && !String(settData.logo_url).startsWith("http")) {
+        const { data: signed } = await supabase.storage
+          .from("brand_assets")
+          .createSignedUrl(settData.logo_url, 60 * 60);
+        setKioskLogoUrl(signed?.signedUrl || null);
+      } else {
+        setKioskLogoUrl(settData.logo_url || null);
+      }
 
       // 🎯 Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
       if (
@@ -442,11 +449,10 @@ export default function GeneralSettings({
                     if (!e.target.files?.[0]) return;
                     const file = e.target.files[0];
                     const fileExt = file.name.split(".").pop();
-                    const fileName = `logos/${activeClient}_${Date.now()}.${fileExt}`;
+                    const fileName = `${activeClient}/logos/${Date.now()}.${fileExt}`;
 
-                    // 1. Storage руу зургийг хуулах
                     const { error: upErr } = await supabase.storage
-                      .from("receipts_evidence")
+                      .from("brand_assets")
                       .upload(fileName, file, { upsert: true });
 
                     if (upErr) {
@@ -454,18 +460,15 @@ export default function GeneralSettings({
                       return;
                     }
 
-                    // 2. Storage-аас нийтэд харагдах URL (Public URL) авах
-                    const { data: publicUrlData } = supabase.storage
-                      .from("receipts_evidence")
-                      .getPublicUrl(fileName);
+                    const { data: signed } = await supabase.storage
+                      .from("brand_assets")
+                      .createSignedUrl(fileName, 60 * 60 * 24 * 7);
 
-                    const newLogoUrl = publicUrlData.publicUrl;
-
-                    // 3. ⚡ ШУУД БААЗАД ХАДГАЛАХ (Үлдэгдэл товч дарахыг хүлээхгүй!)
+                    const newLogoUrl = signed?.signedUrl || "";
                     const { error: dbErr } = await supabase
                       .from("client_settings")
                       .update({
-                        logo_url: newLogoUrl,
+                        logo_url: fileName,
                         updated_at: new Date().toISOString(),
                       })
                       .eq("client_id", activeClient);
@@ -502,7 +505,6 @@ export default function GeneralSettings({
                 initial_cash: parseFloat(initialCash) || 0,
                 initial_bank: parseFloat(initialBank) || 0,
                 tax_mode: taxMode,
-                logo_url: kioskLogoUrl,
                 updated_at: new Date().toISOString(),
               });
               if (error) alert(`Алдаа: ${error.message}`);

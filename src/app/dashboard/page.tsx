@@ -56,6 +56,7 @@ import { AutoPilotChange } from "@/types/dashboard";
 import ImportTab from "@/features/imports/ImportTab";
 import TasksTab from "@/features/tasks/TasksTab";
 import SettingsTab from "@/features/settings/SettingsTab";
+import AlertsPanel from "@/features/alerts/AlertsPanel";
 import AiCfoChat from "@/features/ai-cfo/AiCfoChat";
 import CheckoutModal from "@/components/shared/CheckoutModal";
 
@@ -289,6 +290,7 @@ function Home() {
     | "tasks"
     | "settings"
     | "ai_cfo"
+    | "alerts"
   >("dashboard");
   // 2. Динамик Тохиргооны State-үүд
   const [fixedAssets, setFixedAssets] = useState<any[]>([]);
@@ -1597,32 +1599,32 @@ function Home() {
         supabase
           .from("ingredients")
           .select("*")
-          .ilike("client_id", targetClient)
+          .eq("client_id", targetClient)
           .order("name", { ascending: true }),
-        supabase.from("recipes").select("*").ilike("client_id", targetClient),
+        supabase.from("recipes").select("*").eq("client_id", targetClient),
         supabase
           .from("inventory_logs")
           .select("*")
-          .ilike("client_id", targetClient),
+          .eq("client_id", targetClient),
         supabase
           .from("sales_logs")
           .select("*")
-          .ilike("client_id", targetClient),
+          .eq("client_id", targetClient),
         supabase
           .from("profiles")
           .select("*")
-          .ilike("client_id", targetClient)
+          .eq("client_id", targetClient)
           .neq("role", "owner"),
         supabase
           .from("client_settings")
           .select("*")
-          .ilike("client_id", targetClient)
+          .eq("client_id", targetClient)
           .maybeSingle(),
-        supabase.from("products").select("*").ilike("client_id", targetClient),
+        supabase.from("products").select("*").eq("client_id", targetClient),
         supabase
           .from("learned_menus")
           .select("*")
-          .ilike("client_id", targetClient),
+          .eq("client_id", targetClient),
       ]);
 
       if (ingData) setIngredients(ingData);
@@ -1665,33 +1667,33 @@ function Home() {
           { data: lcData },
           { data: transData },
         ] = await Promise.all([
-          supabase.from("tasks").select("*").ilike("client_id", targetClient),
+          supabase.from("tasks").select("*").eq("client_id", targetClient),
           supabase
             .from("shifts")
             .select("*")
-            .ilike("client_id", targetClient)
+            .eq("client_id", targetClient)
             .order("start_time", { ascending: false }),
           supabase
             .from("company_roles")
             .select("*")
-            .ilike("client_id", targetClient),
+            .eq("client_id", targetClient),
           supabase
             .from("fixed_assets")
             .select("*")
-            .ilike("client_id", targetClient),
+            .eq("client_id", targetClient),
           supabase
             .from("fixed_opex")
             .select("*")
-            .ilike("client_id", targetClient)
+            .eq("client_id", targetClient)
             .eq("is_active", true),
           supabase
             .from("learned_categories")
             .select("*")
-            .ilike("client_id", targetClient),
+            .eq("client_id", targetClient),
           supabase
             .from("learned_translations")
             .select("*")
-            .ilike("client_id", targetClient),
+            .eq("client_id", targetClient),
         ]);
         if (taskData) setTasks(taskData);
         if (shiftData) setShifts(shiftData);
@@ -1713,7 +1715,7 @@ function Home() {
       const { data: tenantData } = await supabase
         .from("tenants")
         .select("status, plan, subscription_end_date, feature_flags")
-        .ilike("client_id", targetClient)
+        .eq("client_id", targetClient)
         .maybeSingle();
 
       if (tenantData && tenantData.subscription_end_date) {
@@ -2353,6 +2355,12 @@ function Home() {
                     <LayoutDashboard className="h-4 w-4" /> Санхүүгийн Самбар
                   </button>
                   <button
+                    onClick={() => setActiveTab("alerts")}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "alerts" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
+                  >
+                    Мэдэгдэл ба баталгаа
+                  </button>
+                  <button
                     onClick={() => {
                       startTransition(() => {
                         setActiveTab("ai_cfo");
@@ -2652,6 +2660,14 @@ function Home() {
                   {/* 1. САНХҮҮГИЙН ХЯНАЛТ (COGS ALIGNMENT & LIVE FEED БҮХИЙ ШИНЭ ИНТЕРФЕЙС)      */}
                   {/* ========================================================================= */}
                   {activeTab === "dashboard" && userRole === "owner" && (
+                    <>
+                      {tenantInfo && tenantInfo.daysLeft <= 3 && (
+                        <div className="mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                          {tenantInfo.daysLeft < 0
+                            ? "Багцын хугацаа дууссан. AI болон автомат ажил зогсоно. Эрхээ сунгана уу."
+                            : `Багц ${tenantInfo.daysLeft} хоногийн дараа дуусна. Эрхээ сунгана уу.`}
+                        </div>
+                      )}
                     <FinanceTab
                       isLive={isLive}
                       activeClient={activeClient}
@@ -2674,7 +2690,10 @@ function Home() {
                        setShowCheckoutModal={setShowCheckoutModal}
                        setUpsellFeature = {setUpsellFeature}
                     />
+                    </>
                   )}
+
+                  {activeTab === "alerts" && userRole === "owner" && <AlertsPanel />}
               
          {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
 

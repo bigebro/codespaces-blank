@@ -16,12 +16,12 @@ export async function runWeeklyBrief(rawClientId: string): Promise<string> {
     { data: activeShift },
     { data: ingredients },
   ] = await Promise.all([
-    supabaseAdmin.from("sales_logs").select("total_revenue").ilike("client_id", clientId).gte("date", sevenDaysAgo),
-    supabaseAdmin.from("sales_logs").select("total_revenue").ilike("client_id", clientId).gte("date", fourteenDaysAgo).lt("date", sevenDaysAgo),
-    supabaseAdmin.from("inventory_logs").select("total_cost, ingredient_id").ilike("client_id", clientId).in("type", ["spoilage", "other", "testing", "staff_meal"]).gte("date", sevenDaysAgo),
-    supabaseAdmin.from("inventory_logs").select("total_cost").ilike("client_id", clientId).in("type", ["spoilage", "other", "testing", "staff_meal"]).gte("date", fourteenDaysAgo).lt("date", sevenDaysAgo),
-    supabaseAdmin.from("shifts").select("character_role").ilike("client_id", clientId).eq("is_active", true).limit(1).maybeSingle(),
-    supabaseAdmin.from("ingredients").select("id, name").ilike("client_id", clientId),
+    supabaseAdmin.from("sales_logs").select("total_revenue").eq("client_id", clientId).gte("date", sevenDaysAgo),
+    supabaseAdmin.from("sales_logs").select("total_revenue").eq("client_id", clientId).gte("date", fourteenDaysAgo).lt("date", sevenDaysAgo),
+    supabaseAdmin.from("inventory_logs").select("total_cost, ingredient_id").eq("client_id", clientId).in("type", ["spoilage", "other", "testing", "staff_meal"]).gte("date", sevenDaysAgo),
+    supabaseAdmin.from("inventory_logs").select("total_cost").eq("client_id", clientId).in("type", ["spoilage", "other", "testing", "staff_meal"]).gte("date", fourteenDaysAgo).lt("date", sevenDaysAgo),
+    supabaseAdmin.from("shifts").select("character_role").eq("client_id", clientId).eq("is_active", true).limit(1).maybeSingle(),
+    supabaseAdmin.from("ingredients").select("id, name").eq("client_id", clientId),
   ]);
 
   const currRev = (currSales || []).reduce((sum, s) => sum + (Number(s.total_revenue) || 0), 0);
@@ -50,7 +50,7 @@ export async function runWeeklyBrief(rawClientId: string): Promise<string> {
 
   const weekStart = sevenDaysAgo.split("T")[0];
 
-  await supabaseAdmin.from("weekly_briefs").delete().ilike("client_id", clientId);
+  await supabaseAdmin.from("weekly_briefs").delete().eq("client_id", clientId);
   await supabaseAdmin.from("weekly_briefs").insert([{
     client_id: clientId,
     week_start: weekStart,

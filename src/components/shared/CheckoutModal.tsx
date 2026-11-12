@@ -42,6 +42,7 @@ export default function CheckoutModal({
   const [ndaAccepted, setNdaAccepted] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState<any | null>(null);
   const [daysRemaining, setDaysRemaining] = useState<number>(0);
+  const [qpay, setQpay] = useState<{ invoice_id: string; qr_image?: string } | null>(null);
   // 1. Одоогийн идэвхтэй багц болон Pending хүсэлт байгаа эсэхийг баталгаажуулах
   useEffect(() => {
     if (isOpen && clientId) {
@@ -53,12 +54,12 @@ export default function CheckoutModal({
         supabase
           .from("tenants")
           .select("plan, subscription_end_date")
-          .ilike("client_id", clientId.trim())
+          .eq("client_id", clientId.trim())
           .maybeSingle(),
         supabase
           .from("payment_requests")
           .select("*")
-          .ilike("client_id", clientId.trim())
+          .eq("client_id", clientId.trim())
           .eq("status", "pending")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -120,6 +121,46 @@ export default function CheckoutModal({
   };
 
   // Төлбөр илгээх (Starter & Pro)
+  const handleQPay = async () => {
+    if (!ndaAccepted) {
+      alert("Та үйлчилгээний нууцлалын нөхцөлийг зөвшөөрнө үү.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token || "";
+      const res = await fetch("/api/qpay", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: cycle === "yearly" ? totalAmount : targetConfig.monthly || totalAmount,
+          description: `${plan} 30 хоног`,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "QPay нэхэмжлэл үүссэнгүй");
+      setQpay({ invoice_id: json.invoice_id, qr_image: json.qr_image });
+      const started = Date.now();
+      const timer = setInterval(async () => {
+        const check = await fetch("/api/qpay/confirm", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_id: json.invoice_id }),
+        });
+        const paid = await check.json();
+        if (paid.status === "paid" || Date.now() - started > 3 * 60 * 1000) {
+          clearInterval(timer);
+          if (paid.status === "paid") setIsSubmitted(true);
+        }
+      }, 4000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "QPay алдаа");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirmTransfer = async () => {
     if (!ndaAccepted) {
       alert("Та үйлчилгээний нууцлалын нөхцөлийг зөвшөөрнө үү.");
@@ -532,14 +573,31 @@ export default function CheckoutModal({
                     : " УУЛЗАЛТ ТОВЛОХ ХҮСЭЛТ ИЛГЭЭХ"}
                 </button>
               ) : (
-                <button
-                  type="button"
-                  disabled={loading || !ndaAccepted}
-                  onClick={handleConfirmTransfer}
-                  className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {loading ? "Илгээж байна..." : " БИ ШИЛЖҮҮЛСЭН (Шалгуулах)"}
-                </button>
+                <div className="space-y-2">
+                  {qpay?.qr_image && (
+                    <img
+                      alt="QPay QR"
+                      src={qpay.qr_image.startsWith("data:") ? qpay.qr_image : `data:image/png;base64,${qpay.qr_image}`}
+                      className="mx-auto h-40 w-40 rounded-xl bg-white p-2"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    disabled={loading || !ndaAccepted}
+                    onClick={handleQPay}
+                    className="w-full bg-zinc-100 hover:bg-white disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm"
+                  >
+                    {loading ? "Нэхэмжлэл үүсгэж байна..." : "QPay-ээр 30 хоног сунгах"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={loading || !ndaAccepted}
+                    onClick={handleConfirmTransfer}
+                    className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {loading ? "Илгээж байна..." : " БИ ШИЛЖҮҮЛСЭН (Шалгуулах)"}
+                  </button>
+                </div>
               )}
             </div>
           </>
