@@ -234,6 +234,7 @@ export default function DataGradePanel({
                   type="button"
                   className="mt-2 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl"
                   onClick={() => {
+                    if (!window.confirm("Нөгөө мөрийг устгах уу?")) return;
                     const drop = row.id === pairFor.duplicate?.a.id ? pairFor.duplicate?.b.id : pairFor.duplicate?.a.id;
                     run(pairFor.ingredient_id, { action: "delete_log", logId: drop });
                   }}

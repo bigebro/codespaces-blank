@@ -1821,7 +1821,8 @@ const initKioskContext = async () => {
     const ids: string[] = task.ingredient_ids || [];
     if (ids.length === 0) return;
     const logs = ids.map((id) => {
-      const qty = Number(countDraft[`${task.id}:${id}`]);
+    const raw = String(countDraft[`${task.id}:${id}`] ?? "").trim();
+    const qty = raw === "" ? NaN : Number(raw);
       if (!Number.isFinite(qty) || qty < 0) throw new Error("Тоо дутуу эсвэл буруу байна.");
       const ing = ingredients.find((row) => row.id === id);
       return {

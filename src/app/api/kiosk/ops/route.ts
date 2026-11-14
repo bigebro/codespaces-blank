@@ -61,7 +61,9 @@ export async function POST(request: Request) {
 
     const action = String(body.action || "");
     const nowIso = new Date().toISOString();
-    const { data: openShiftRow } = await supabaseAdmin
+    const needsShift = action === "logs.insert" || action === "ingredient.create";
+    const { data: openShiftRow } = needsShift
+  ? await supabaseAdmin
       .from("shifts")
       .select("id")
       .eq("client_id", worker.clientId)
@@ -69,7 +71,8 @@ export async function POST(request: Request) {
       .eq("character_role", worker.workerName)
       .order("start_time", { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()
+  : { data: null };
     const shiftId = openShiftRow?.id || null;
 
     if (action === "logs.insert") {
