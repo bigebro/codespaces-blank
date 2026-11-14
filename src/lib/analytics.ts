@@ -2,6 +2,99 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { ubDay, ubMonthStartIso } from './ubDate';
 
+function addCalendarDays(day: string, days: number) {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10);
+}
+
+async function fetchPaged(
+  build: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: { message: string } | null }>,
+) {
+  const rows: any[] = [];
+  for (let offset = 0; offset < 20000; offset += 1000) {
+    const { data, error } = await build(offset, offset + 999);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  return { data: rows };
+}
+
+function duplicatePurchase(rows: Array<{ id: string; qty: number; cost: number; date: string; notes: string }>) {
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const apart = Math.abs(new Date(rows[i].date).getTime() - new Date(rows[j].date).getTime());
+      if (Math.abs(rows[i].qty - rows[j].qty) < 0.001 && apart <= 3 * 86400000) {
+        return { a: rows[i], b: rows[j] };
+      }
+    }
+  }
+  return null;
+}
+
+function gradeIngredient(item: any, endDay: string, price: number) {
+  const inPeriod = item.in_period_log || item.purchased !== 0 || item.theoretical > 0 || (item.purchase_value || 0) > 0;
+  if (!inPeriod) return null;
+  const reasons: string[] = [];
+  if (!item.has_start) reasons.push("Эхний тооллого алга");
+  if (!item.has_end) reasons.push("Эцсийн тооллого алга");
+  if (item.future_log_id) reasons.push("Ирээдүйн огноотой бүртгэл");
+  if (item.no_price) reasons.push("Үнэгүй худалдан авалт");
+  const duplicate = duplicatePurchase(item.purchases || []);
+  if (duplicate) reasons.push("Давхардсан орлого байж болзошгүй");
+  const lateEnd = Boolean(item.has_end && item.end_count_date && ubDay(item.end_count_date) > addCalendarDays(endDay, 7));
+  if (lateEnd) reasons.push("Эцсийн тооллого хугацаа дууссанаас 7 хоногоос хойш хийгдсэн");
+
+  let actualQty: number | null = null;
+  let gapQty: number | null = null;
+  let far = false;
+  if (item.has_start && item.has_end) {
+    actualQty = Number(item.start) + Number(item.purchased) - Number(item.end);
+    gapQty = actualQty - Number(item.theoretical);
+    const scale = Math.max(Math.abs(Number(item.theoretical)), Math.abs(actualQty));
+    if (scale > 0.5 && Math.abs(gapQty) / scale > 0.3) {
+      far = true;
+      reasons.push("Тооллого хүлээгдэж байснаас 30%-иас их зөрсөн");
+    }
+  }
+
+  let status: "Verified" | "Check" | "Missing" = "Verified";
+  if (!item.has_start || !item.has_end) status = "Missing";
+  else if (reasons.length > 0) status = "Check";
+
+  let action: "count" | "price" | "duplicate" | "date" | null = null;
+  if (status !== "Verified") {
+    if (!item.has_start || !item.has_end) action = "count";
+    else if (item.future_log_id) action = "date";
+    else if (item.no_price) action = "price";
+    else if (duplicate) action = "duplicate";
+    else action = "count";
+  }
+
+  const actualMoney = actualQty == null ? 0 : actualQty * price;
+  const theoMoney = Number(item.theoretical) * price;
+  return {
+    ingredient_id: item.id,
+    name: item.name,
+    unit: item.unit,
+    status,
+    reasons,
+    action,
+    purchase_value: Number(item.purchase_value) || 0,
+    actual_qty: actualQty,
+    theoretical_qty: Number(item.theoretical) || 0,
+    gap_qty: gapQty,
+    gap_money: actualQty == null ? null : actualMoney - theoMoney,
+    actual_money: actualMoney,
+    theo_money: theoMoney,
+    price_log_id: item.price_log_id || null,
+    future_log_id: item.future_log_id || null,
+    duplicate,
+    far,
+  };
+}
+
 function cleanString(str: string) {
   return String(str || "").replace(/[\u00a0\s]+/g, " ").trim();
 }
@@ -66,18 +159,26 @@ export async function getAnalyticsData(
     // OPTIMIZATION: Select only needed columns to prevent Vercel Out-Of-Memory (OOM) errors
     supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, is_critical, is_suspicious_promoted, promoted_until, last_counted_at, par_level, lead_time_days, days_of_supply").eq("client_id", clientId.trim()),
     supabaseAdmin.from("recipes").select("product_name, ingredient_id, amount").eq("client_id", clientId.trim()),
-    supabaseAdmin
-      .from("inventory_logs")
-      .select("id, date, type, quantity, total_cost, notes, non_food_item, ingredient_id, worker_name, payment_method, is_ebarimt, image_url, incident_type, reported_against_worker")
-      .eq("client_id", clientId.trim())
-      .lte("date", finalEndDate)
-      .order("date", { ascending: false }),
-    supabaseAdmin
-      .from("sales_logs")
-      .select("date, product_name, quantity_sold, total_revenue, payment_method") // Removed 'created_at', 'id', etc.
-      .eq("client_id", clientId.trim())
-      .gte("date", finalStartDate)
-      .lte("date", finalEndDate),
+    fetchPaged((from, to) =>
+      supabaseAdmin
+        .from("inventory_logs")
+        .select("id, date, type, quantity, total_cost, notes, non_food_item, ingredient_id, worker_name, payment_method, is_ebarimt, image_url, incident_type, reported_against_worker")
+        .eq("client_id", clientId.trim())
+        .gte("date", new Date(new Date(finalStartDate).getTime() - 180 * 86400000).toISOString())
+        .lte("date", finalEndDate)
+        .order("date", { ascending: true })
+        .range(from, to),
+    ),
+    fetchPaged((from, to) =>
+      supabaseAdmin
+        .from("sales_logs")
+        .select("date, product_name, quantity_sold, total_revenue, payment_method")
+        .eq("client_id", clientId.trim())
+        .gte("date", finalStartDate)
+        .lte("date", finalEndDate)
+        .order("date", { ascending: true })
+        .range(from, to),
+    ),
     supabaseAdmin
       .from("shifts")
       .select("character_role, start_time, end_time, is_active, daily_tasks_checklist, pos_z_image_url, start_evidence_image")
@@ -93,20 +194,27 @@ export async function getAnalyticsData(
     supabaseAdmin.from("fixed_assets").select("name, code, purchase_date, initial_cost, useful_months").eq("client_id", clientId.trim()),
     supabaseAdmin.from("fixed_opex").select("name, category, monthly_cost").eq("client_id", clientId.trim()).eq("is_active", true),
     supabaseAdmin.from("client_settings").select("initial_cash, initial_bank, tax_mode, category_margins").eq("client_id", clientId.trim()).maybeSingle(),
-    supabaseAdmin
-      .from("inventory_logs")
-      .select("date, type, quantity, ingredient_id")
-      .eq("client_id", clientId.trim())
-      .gt("date", finalEndDate)
-      .lte("date", afterLimit)
-      .in("type", ["count", "purchase"])
-      .order("date", { ascending: true }),
-    supabaseAdmin
-      .from("sales_logs")
-      .select("date, product_name, quantity_sold")
-      .eq("client_id", clientId.trim())
-      .gt("date", finalEndDate)
-      .lte("date", afterLimit),
+    fetchPaged((from, to) =>
+      supabaseAdmin
+        .from("inventory_logs")
+        .select("date, type, quantity, ingredient_id")
+        .eq("client_id", clientId.trim())
+        .gt("date", finalEndDate)
+        .lte("date", afterLimit)
+        .in("type", ["count", "purchase"])
+        .order("date", { ascending: true })
+        .range(from, to),
+    ),
+    fetchPaged((from, to) =>
+      supabaseAdmin
+        .from("sales_logs")
+        .select("date, product_name, quantity_sold")
+        .eq("client_id", clientId.trim())
+        .gt("date", finalEndDate)
+        .lte("date", afterLimit)
+        .order("date", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
@@ -176,7 +284,16 @@ export async function getAnalyticsData(
       unit: ing.unit,
       par_level: parseFloat(ing.par_level) || 0,
       lead_time_days: parseInt(ing.lead_time_days) || 1,
-      days_of_supply: parseInt(ing.days_of_supply) || 3
+      days_of_supply: parseInt(ing.days_of_supply) || 3,
+      has_start: false,
+      has_end: false,
+      purchase_value: 0,
+      purchases: [],
+      future_log_id: null,
+      price_log_id: null,
+      no_price: false,
+      in_period_log: false,
+      end_count_date: null,
     };
   });
 
@@ -194,6 +311,16 @@ export async function getAnalyticsData(
     const cost = parseFloat(log.total_cost) || 0;
     const qty = parseFloat(log.quantity) || 0; 
     const logDate = log.date ? ubDay(log.date) : '';
+    if (log.ingredient_id && logDate >= startDay && logDate <= endDay) {
+      const touched = rawIngredients.find((i: any) => i.id === log.ingredient_id);
+      const touchedKey = touched ? cleanString(touched.name) : "";
+      if (touchedKey && master[touchedKey]) {
+        master[touchedKey].in_period_log = true;
+        if (log.date && new Date(log.date).getTime() > Date.now() + 5 * 60 * 1000) {
+          master[touchedKey].future_log_id = log.id;
+        }
+      }
+    }
     const noteText = (log.notes || "").toLowerCase();
     const isEbarimt = log.is_ebarimt !== false && !noteText.includes('баримтгүй') && !noteText.includes('зураг');
     const isCashPay = log.payment_method === 'cash' || noteText.includes('бэлэн');
@@ -223,7 +350,22 @@ export async function getAnalyticsData(
 
       if (logDate >= startDay && logDate <= endDay) {
         const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
-        if (ing) master[cleanString(ing.name)].purchased += qty;
+        if (ing) {
+          const key = cleanString(ing.name);
+          master[key].purchased += qty;
+          master[key].purchase_value += cost;
+          master[key].purchases.push({
+            id: log.id,
+            qty: Math.abs(qty),
+            cost,
+            date: log.date,
+            notes: log.notes || "",
+          });
+          if (!(cost > 0) && qty !== 0) {
+            master[key].no_price = true;
+            if (!master[key].price_log_id) master[key].price_log_id = log.id;
+          }
+        }
       }
     }
 
@@ -262,35 +404,30 @@ export async function getAnalyticsData(
   }
 
 for (const key in master) {
-  const history = (itemCountsHistory[key] || []).sort(
+  const history = (itemCountsHistory[key] || []).concat(afterCounts[key] || []).sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
   const day = (d: string) => ubDay(d);
-  const before = history.filter((h) => day(h.date) < startDay);
-  const inside = history.filter((h) => day(h.date) >= startDay && day(h.date) <= endDay);
-  const closing = history.filter((h) => day(h.date) >= endDay);
+  const startCounts = history.filter((h) => day(h.date) <= startDay);
+  const endCounts = history.filter((h) => day(h.date) >= endDay && new Date(h.date).getTime() <= new Date(afterLimit).getTime());
 
-  // START: last count before the period. A count on the end day is not an opening count.
-  master[key].start = before.length
-    ? before[before.length - 1].qty
-    : inside.length && day(inside[0].date) < endDay
-      ? inside[0].qty
-      : 0;
-
-  if (closing.length) {
-    master[key].end = closing[closing.length - 1].qty;
+  if (startCounts.length) {
+    master[key].start = startCounts[startCounts.length - 1].qty;
+    master[key].has_start = true;
   } else {
-    const later = (afterCounts[key] || [])[0];
-    if (later) {
-      master[key].next_count = later;
-      master[key].end = later.qty;
-    } else if (master[key].purchased > 0) {
-      master[key].incomplete_count = true;
-      master[key].count_status = "тооллого дутуу";
-      master[key].end = master[key].start;
-    } else {
-      master[key].end = master[key].start;
-    }
+    master[key].start = null;
+    master[key].has_start = false;
+  }
+
+  if (endCounts.length) {
+    const first = endCounts[0];
+    master[key].end = first.qty;
+    master[key].has_end = true;
+    master[key].end_count_date = first.date;
+    if (day(first.date) > endDay) master[key].next_count = first;
+  } else {
+    master[key].end = null;
+    master[key].has_end = false;
   }
 }
 
@@ -458,6 +595,7 @@ for (const key in master) {
   });
 
   const fullInventory: any[] = [];
+  const grades: any[] = [];
   const wasteAuditItems: any[] = [];
 
   for (const key in master) {
@@ -491,26 +629,25 @@ for (const key in master) {
       totalPurchaseCost += parseFloat(p.total_cost) || 0;
     });
 
-    const totalAvailableQty = m.start + m.purchased;
+    const startQty = m.has_start ? Number(m.start) : 0;
+    const totalAvailableQty = startQty + m.purchased;
     if (totalAvailableQty > 0 && totalPurchaseCost > 0) {
-      weightedPrice = ((m.start * m.unit_price) + totalPurchaseCost) / totalAvailableQty;
+      weightedPrice = ((startQty * m.unit_price) + totalPurchaseCost) / totalAvailableQty;
     }
 
-    const actual = (m.start + m.purchased) - m.end;
-    const safeActual = Math.max(0, actual);
     const weightedForMoney = weightedPrice || m.unit_price || 0;
+    const grade = gradeIngredient(m, endDay, weightedForMoney);
+    if (!grade) continue;
+    grades.push(grade);
 
-    if (m.incomplete_count) {
-      const theoMoney = Math.round(m.theoretical * weightedForMoney) || 0;
-      totalTheoCogs += theoMoney;
-      rawActualCogs += theoMoney;
+    if (grade.status === "Missing") {
       fullInventory.push({
         id: m.id,
         name: m.name,
         par_level: Math.round(activeParLevel * 100) / 100,
         suggested_order: finalSuggestion,
         theoretical: Math.round(m.theoretical * 100) / 100 || 0,
-        gap: 0,
+        gap: null,
         impact: 0,
         unit: m.unit,
         price: weightedForMoney,
@@ -523,26 +660,30 @@ for (const key in master) {
         is_critical: m.is_critical,
         is_suspicious_promoted: m.is_suspicious_promoted,
         promoted_until: m.promoted_until,
-        total_spend_value: (m.theoretical > 0 ? m.theoretical : m.live_stock) * weightedForMoney,
-        count_status: "тооллого дутуу",
+        total_spend_value: grade.purchase_value,
+        count_status: "Дутуу",
+        grade: grade.status,
+        reasons: grade.reasons,
       });
       continue;
     }
 
-    const actualMoney = Math.round(safeActual * weightedPrice) || 0;
-    const theoMoney = Math.round(m.theoretical * weightedPrice) || 0;
-   
-    rawActualCogs += actualMoney;
-    totalTheoCogs += theoMoney;
+    const actual = Number(m.start) + m.purchased - Number(m.end);
+    const safeActual = actual;
+    const actualMoney = Math.round(grade.actual_money) || 0;
+    const theoMoney = Math.round(grade.theo_money) || 0;
 
-    const rawGap = actual - m.theoretical;
-    const impact = Math.round(rawGap * weightedPrice) || 0;
-
-    if (impact > 1) totalWasteLoss += impact;
-    else if (impact < -1) totalSurplusSavings += Math.abs(impact);
+    if (grade.status === "Verified") {
+      rawActualCogs += actualMoney;
+      totalTheoCogs += theoMoney;
+      if ((grade.gap_money || 0) > 1) totalWasteLoss += grade.gap_money || 0;
+      else if ((grade.gap_money || 0) < -1) totalSurplusSavings += Math.abs(grade.gap_money || 0);
+    }
 
     if (m.start === 0 && m.purchased === 0 && m.end === 0 && m.theoretical === 0) continue;
 
+    const rawGap = actual - m.theoretical;
+    const impact = Math.round(rawGap * weightedForMoney) || 0;
     const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
     const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
     const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
@@ -560,13 +701,13 @@ for (const key in master) {
       par_level: Math.round(activeParLevel * 100) / 100, 
       suggested_order: finalSuggestion,
       theoretical: Math.round(m.theoretical * 100) / 100 || 0,
-      gap: Math.abs(Math.round(unexplainedGap * 100) / 100) || 0,
-      impact: Math.abs(unexplainedImpact) || 0,
+      gap: Math.round(rawGap * 100) / 100 || 0,
+      impact: impact || 0,
       unit: m.unit,
       price: weightedPrice || m.unit_price || 0,
       unit_price: weightedPrice || m.unit_price || 0,
-      is_waste: unexplainedGap > 0.1,
-      is_under: rawGap < -0.1,
+      is_waste: grade.status === "Verified" && rawGap > 0.1,
+      is_under: grade.status === "Verified" && rawGap < -0.1,
       live_stock: m.live_stock,
       current_stock: m.live_stock,
       last_counted_at: m.last_counted_at,
@@ -574,7 +715,9 @@ for (const key in master) {
       is_suspicious_promoted: m.is_suspicious_promoted,
       promoted_until: m.promoted_until,
       total_spend_value: totalSpendValue,
-      count_status: m.count_status || "",
+      count_status: grade.status === "Verified" ? "Баталгаажсан" : "Шалгах",
+      grade: grade.status,
+      reasons: grade.reasons,
     });
 
     if (itemLogs.spoilage > 0) {
@@ -744,8 +887,24 @@ for (const key in master) {
   const netRevenue = Math.round(totalRevenue / 1.1); 
   const estimatedVat10Pct = totalRevenue - netRevenue; 
   
-  const adjustedCogs = (rawActualCogs - totalLoggedTesting - totalLoggedStaffMeal - totalLoggedOther) || 0;
-  const adjustedOpex = (dynamicOpexTotal + totalLoggedTesting + totalLoggedStaffMeal + totalLoggedOther + totalMonthlyDepreciation) || 0;
+  const verifiedRows = grades.filter((row) => row.status === "Verified");
+  const verifiedActual = verifiedRows.reduce((sum, row) => sum + (Number(row.actual_money) || 0), 0);
+  const verifiedTheo = verifiedRows.reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
+  const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+  const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+  const dataTrust = {
+    verified: verifiedRows.length,
+    total: grades.length,
+    purchase_pct: purchaseAll > 0
+      ? Math.round((purchaseVerified / purchaseAll) * 100)
+      : (grades.length ? Math.round((verifiedRows.length / grades.length) * 100) : 0),
+  };
+  const fixList = grades
+    .filter((row) => row.status !== "Verified")
+    .sort((a, b) => (b.purchase_value || 0) - (a.purchase_value || 0));
+
+  const adjustedCogs = verifiedActual;
+  const adjustedOpex = (dynamicOpexTotal + totalMonthlyDepreciation) || 0;
   
   const finalEbit = (netRevenue - adjustedCogs - adjustedOpex) || 0; 
   const simplifiedTax1Pct = Math.round(netRevenue * 0.01);
@@ -848,14 +1007,9 @@ for (const key in master) {
   // ===========================================================================
   // 🧠 УХААЛАГ ӨРТӨГ & МЕНЮТЭЙ 100% ЯГ ТААРДАГ ЖОРГҮЙ ЦЭСИЙН ТООЛОЛТ (ЯГ 7)
   // ===========================================================================
-  const hasMassCount = rawActualCogs > 0;
-  
-  const effectiveActualCogs = hasMassCount 
-    ? adjustedCogs 
-    : (totalTheoCogs + totalLoggedSpoilage);
-
+  const effectiveActualCogs = verifiedActual;
   const effectiveNetRevenue = netRevenue;
-  const effectiveGrossProfit = Math.max(0, effectiveNetRevenue - effectiveActualCogs);
+  const effectiveGrossProfit = effectiveNetRevenue - effectiveActualCogs;
   const effectiveEbit = effectiveNetRevenue - effectiveActualCogs - adjustedOpex;
   const effectiveNetProfit = Math.round(effectiveEbit - activeTaxAmount);
 
@@ -896,8 +1050,10 @@ for (const key in master) {
       revenue: totalRevenue,
       net_revenue: netRevenue,
       actual_cogs: effectiveActualCogs,
-      theo_cogs: totalTheoCogs,
-      is_theoretical_mode: !hasMassCount,
+      theo_cogs: verifiedTheo,
+      verified_gap: verifiedActual - verifiedTheo,
+      data_trust: dataTrust,
+      is_theoretical_mode: false,
       has_unmapped_recipes: unmappedCount > 0,
       unmapped_recipes_count: unmappedCount, // 👈 Яг таны меню дээрх 7 гарна!
       gross_margin: effectiveNetRevenue > 0 ? ((effectiveGrossProfit / effectiveNetRevenue) * 100).toFixed(2) + "%" : "0%",
@@ -977,6 +1133,10 @@ logged_spoilage_items: (rawInventoryLogs || [])
     all_timeline_logs: timelineLogs,
     recent_shifts: formattedShifts,
     recent_worker_logs: timelineLogs.slice(0, 40),
+    grades,
+    fix_list: fixList,
+    data_trust: dataTrust,
+    verified_gap: verifiedActual - verifiedTheo,
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
     total_logged_spoilage: totalLoggedSpoilage || 0,
@@ -984,6 +1144,6 @@ logged_spoilage_items: (rawInventoryLogs || [])
     total_logged_staff_meal: totalLoggedStaffMeal || 0,
     total_logged_other: totalLoggedOther || 0,
     total_surplus_savings: totalSurplusSavings || 0,
-    efficiency: rawActualCogs > 0 ? ((totalTheoCogs / rawActualCogs) * 100).toFixed(2) + "%" : "0%"
+    efficiency: verifiedActual !== 0 ? ((verifiedTheo / verifiedActual) * 100).toFixed(2) + "%" : "0%"
   };
 }

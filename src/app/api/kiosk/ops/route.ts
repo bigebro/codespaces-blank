@@ -61,6 +61,16 @@ export async function POST(request: Request) {
 
     const action = String(body.action || "");
     const nowIso = new Date().toISOString();
+    const { data: openShiftRow } = await supabaseAdmin
+      .from("shifts")
+      .select("id")
+      .eq("client_id", worker.clientId)
+      .eq("is_active", true)
+      .eq("character_role", worker.workerName)
+      .order("start_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const shiftId = openShiftRow?.id || null;
 
     if (action === "logs.insert") {
       const rows = Array.isArray(body.logs) ? body.logs : [];
@@ -113,6 +123,8 @@ export async function POST(request: Request) {
           notes: String(row.notes || "").slice(0, 500),
           worker_name: worker.workerName,
           created_by: worker.workerId,
+          staff_id: worker.workerId,
+          shift_id: shiftId,
           date: when.toISOString(),
         });
       }
@@ -214,6 +226,8 @@ export async function POST(request: Request) {
           notes: `[CYCLE] Ээлж хаалтын цикл тооллого: ${item.name || ""}`.slice(0, 500),
           worker_name: worker.workerName,
           created_by: worker.workerId,
+          staff_id: worker.workerId,
+          shift_id: id,
           date: nowIso,
         });
       }
@@ -230,6 +244,8 @@ export async function POST(request: Request) {
           notes: `Кассын тоолсон бэлэн мөнгө: ${cash}`,
           worker_name: worker.workerName,
           created_by: worker.workerId,
+          staff_id: worker.workerId,
+          shift_id: id,
           date: nowIso,
         });
       }
@@ -284,6 +300,8 @@ export async function POST(request: Request) {
             notes: "Kiosk дээр шинээр үүсгэж орлого авсан",
             worker_name: worker.workerName,
             created_by: worker.workerId,
+            staff_id: worker.workerId,
+            shift_id: shiftId,
             date: nowIso,
           },
         ])
@@ -311,6 +329,25 @@ export async function POST(request: Request) {
         .single();
       if (error) return fail(error.message, 500);
       return NextResponse.json({ ok: true, id: data?.id });
+    }
+
+    if (action === "task.complete") {
+      const taskId = String(body.id || "");
+      const { data: task } = await supabaseAdmin
+        .from("tasks")
+        .select("id, task_type, client_id")
+        .eq("id", taskId)
+        .maybeSingle();
+      if (!task || task.client_id !== worker.clientId) return fail("Даалгавар олдсонгүй.");
+      if (task.task_type === "count") {
+        const { error } = await supabaseAdmin
+          .from("tasks")
+          .update({ is_active: false })
+          .eq("id", taskId)
+          .eq("client_id", worker.clientId);
+        if (error) return fail(error.message, 500);
+      }
+      return NextResponse.json({ ok: true });
     }
 
     return fail("Үйлдэл танигдаагүй.");
