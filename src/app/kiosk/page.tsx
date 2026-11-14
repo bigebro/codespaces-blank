@@ -1621,8 +1621,8 @@ const initKioskContext = async () => {
     return data;
   };
 
-  const loadLiveTodayTasks = async (tenantId: string, worker: any) => {
-    const data = await kioskBootstrap();
+ const loadLiveTodayTasks = async (tenantId: string, worker: any, pre?: any) => {
+    const data = pre || (await kioskBootstrap());
     const allTasks = data.tasks || [];
     const workerName = worker?.email
       ? worker.email.split("@")[0]
@@ -1728,8 +1728,12 @@ const initKioskContext = async () => {
       return;
     }
     if (pinJson.workerToken) localStorage.setItem("kiosk_worker_token", pinJson.workerToken);
-    const session = await kioskBootstrap();
-    const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker);
+        const session = await kioskBootstrap();
+    if (session.ingredients) setIngredients(session.ingredients);
+    if (session.aliases) setLearnedAliases(session.aliases);
+    if (session.recipes) setRecipesList(session.recipes);
+    if (session.todayLogs) setTodayLogs(session.todayLogs);
+    const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker, session);
     setTasks(liveTasks);
     if (!session.activeShift) {
       setStep("shift_handover");

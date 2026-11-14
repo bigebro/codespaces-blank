@@ -7,6 +7,10 @@ export function parseStoredObject(
 ): { bucket: StorageBucket; path: string } | { external: true } | null {
   const value = (stored || "").trim();
   if (!value) return null;
+    if (!/^https?:\/\//i.test(value)) {
+    const plain = value.split("?")[0].replace(/^\/+/, "");
+    return !plain || plain.includes("..") ? null : { bucket: fallbackBucket, path: plain };
+  }
 
   for (const bucket of BUCKETS) {
     const marker = `/${bucket}/`;
