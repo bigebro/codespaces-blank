@@ -11,18 +11,11 @@ export async function POST(request: Request) {
     const device = await requireKioskDevice(body.deviceToken);
     if (!device) return NextResponse.json({ ok: false, message: "Төхөөрөмж идэвхгүй." }, { status: 401 });
 
-    const { data: translations } = await supabaseAdmin
-      .from("learned_translations")
-      .select("original_text, translated_text")
-      .eq("client_id", device.clientId);
-
-    const { data: staff } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, role, email, client_id")
-      .eq("client_id", device.clientId)
-      .order("full_name", { ascending: true });
-
-    const worker = body.workerToken ? await requireKioskWorker(body.deviceToken, body.workerToken) : null;
+    const [{ data: translations }, { data: staff }, worker] = await Promise.all([
+      supabaseAdmin.from("learned_translations").select("original_text, translated_text").eq("client_id", device.clientId),
+      supabaseAdmin.from("profiles").select("id, full_name, role, email, client_id").eq("client_id", device.clientId).order("full_name", { ascending: true }),
+      body.workerToken ? requireKioskWorker(body.deviceToken, body.workerToken, device) : Promise.resolve(null),
+    ]);
     const base = {
       ok: true,
       clientId: device.clientId,

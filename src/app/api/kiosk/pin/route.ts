@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     }
 
     const pinSubject = `${deviceToken}:${workerId}`;
-    const gate = await rateLimit("kiosk_pin", pinSubject, true);
+    const gate = await rateLimit("kiosk_pin", pinSubject, false);
     if (gate.limited) {
       return NextResponse.json(
         { valid: false, message: "Хэт олон буруу PIN. 15 минутын дараа дахин оролдоно уу." },
@@ -38,9 +38,10 @@ export async function POST(request: Request) {
 
     const valid = pinMatches(worker.pin_code, pin);
     if (!valid) {
+            await rateLimit("kiosk_pin", pinSubject, true);
       return NextResponse.json({ valid: false, message: "Буруу PIN код." }, { status: 401 });
     }
- void await supabaseAdmin.from("auth_attempts").delete().eq("bucket", "kiosk_pin").eq("subject", pinSubject);
+     if (gate.remaining < 5) await supabaseAdmin.from("auth_attempts").delete().eq("bucket", "kiosk_pin").eq("subject", pinSubject);
     if (!isHashedPin(worker.pin_code)) {
       await supabaseAdmin.from("profiles").update({ pin_code: hashPin(pin) }).eq("id", worker.id);
     }

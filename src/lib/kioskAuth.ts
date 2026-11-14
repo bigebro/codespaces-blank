@@ -55,8 +55,8 @@ export async function requireKioskDevice(deviceToken: string) {
   return { deviceId: data.id as string, clientId: data.client_id as string };
 }
 
-export async function requireKioskWorker(deviceToken: string, workerToken: string): Promise<KioskWorker | null> {
-  const device = await requireKioskDevice(deviceToken);
+export async function requireKioskWorker(deviceToken: string, workerToken: string, knownDevice?: { deviceId: string; clientId: string } | null): Promise<KioskWorker | null> {
+  const device = knownDevice ?? (await requireKioskDevice(deviceToken));
   const claims = readWorkerToken(workerToken);
   if (!device || !claims || claims.did !== device.deviceId || claims.cid !== device.clientId) return null;
   const { data: profile } = await supabaseAdmin
