@@ -15,6 +15,7 @@ import {
 // 2. САНГУУД:
 import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
+import DataGradePanel from "./DataGradePanel";
 
 // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
 function cleanString(str: string) {
@@ -456,9 +457,13 @@ export default function FinanceTab({
                 </p>
               )}
               <span className="text-xs text-zinc-400 mt-2 block">
-                {liveAnalytics?.financial_ladder?.is_theoretical_mode
-                  ? "Тооллого хийгдээгүй тул жороор бодов"
-                  : `Онолын өртөг: ${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮`}
+                Онолын өртөг, зөвхөн баталгаажсан бараа:{" "}
+                {Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮
+              </span>
+              <span className="text-xs text-zinc-300 mt-1 block">
+                {liveAnalytics?.data_trust
+                  ? `${liveAnalytics.data_trust.total} бараанаас ${liveAnalytics.data_trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${liveAnalytics.data_trust.purchase_pct}%)`
+                  : "Баталгаажсан барааны бодит өртөг"}
               </span>
             </div>
 
@@ -514,6 +519,10 @@ export default function FinanceTab({
             </div>
           </div>
         )}
+        <DataGradePanel
+          liveAnalytics={liveAnalytics}
+          onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
+        />
         {/* ========================================================================= */}
         {/* БҮС 3: ДЭЛГЭРЭНГҮЙ ДҮН ШИНЖИЛГЭЭ (P&L LADDER + LIVE FEED БҮТЭЦ)             */}
         {/* ========================================================================= */}

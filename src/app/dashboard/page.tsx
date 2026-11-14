@@ -1605,10 +1605,25 @@ function Home() {
           .eq("client_id", targetClient)
           .order("name", { ascending: true }),
         supabase.from("recipes").select("*").eq("client_id", targetClient),
-        supabase
-          .from("inventory_logs")
-          .select("*")
-          .eq("client_id", targetClient),
+        (async () => {
+          const fromIso = ubDayStartIso(String(start || startDate).slice(0, 10));
+          const toIso = ubDayEndIso(String(end || endDate).slice(0, 10));
+          const rows: any[] = [];
+          for (let offset = 0; offset < 8000; offset += 1000) {
+            const { data, error } = await supabase
+              .from("inventory_logs")
+              .select("*")
+              .eq("client_id", targetClient)
+              .gte("date", fromIso)
+              .lte("date", toIso)
+              .order("date", { ascending: false })
+              .range(offset, offset + 999);
+            if (error || !data || data.length === 0) break;
+            rows.push(...data);
+            if (data.length < 1000) break;
+          }
+          return { data: rows };
+        })(),
         supabase
           .from("sales_logs")
           .select("*")
@@ -1635,6 +1650,15 @@ function Home() {
         setRecipes(recData);
       }
       if (logData) setInventoryLogs(logData);
+      const shiftFrom = new Date(new Date(ubDayStartIso(String(start || startDate).slice(0, 10))).getTime() - 45 * 86400000).toISOString();
+      const { data: periodShifts } = await supabase
+        .from("shifts")
+        .select("id, character_role, start_time, end_time, is_active")
+        .eq("client_id", targetClient)
+        .gte("start_time", shiftFrom)
+        .order("start_time", { ascending: false })
+        .limit(1000);
+      if (periodShifts) setShifts(periodShifts);
       if (saleData) setSalesLogs(saleData);
       if (staffData) setWorkersList(staffData);
       if (settData) {
@@ -3027,7 +3051,15 @@ function Home() {
                                         </td>
                                         {/* АЖИЛТАН БАГАНА */}
                                         <td className="py-3 px-2 text-zinc-300 font-medium">
-                                          {log.worker_name || "Үл мэдэгдэх"}
+                                          <div>{workersList.find((w) => w.id === log.staff_id)?.full_name || log.worker_name || "Үл мэдэгдэх"}</div>
+                                          <div className="text-xs text-zinc-500">
+                                            {(() => {
+                                              const shift = shifts.find((s) => s.id === log.shift_id);
+                                              return shift
+                                                ? `${shift.character_role || "Ээлж"} · ${ubDay(shift.start_time)}`
+                                                : "Ээлж бүртгэгдээгүй";
+                                            })()}
+                                          </div>
                                         </td>
                                         <td className="py-3 px-2 font-bold text-zinc-200">
                                           {name}

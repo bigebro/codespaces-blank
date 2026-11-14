@@ -1171,6 +1171,7 @@ function KioskPage() {
 
   // Tasks & Shift Close States
   const [tasks, setTasks] = useState<any[]>([]);
+  const [countDraft, setCountDraft] = useState<Record<string, string>>({});
   const [inventoryToCount, setInventoryToCount] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [posZFile, setPosZFile] = useState<File | null>(null);
@@ -1664,6 +1665,8 @@ const initKioskContext = async () => {
         name: t.task_name,
         weight: t.weight || 10,
         done: false,
+        task_type: t.task_type || "checklist",
+        ingredient_ids: Array.isArray(t.ingredient_ids) ? t.ingredient_ids : [],
       }));
 
     const completedTasksToday = new Set<string>();
@@ -1812,6 +1815,33 @@ const initKioskContext = async () => {
     setIncidentNote("");
     setIncidentFile(null);
     setStep("menu");
+  };
+
+  const saveCountTask = async (task: any) => {
+    const ids: string[] = task.ingredient_ids || [];
+    if (ids.length === 0) return;
+    const logs = ids.map((id) => {
+      const qty = Number(countDraft[`${task.id}:${id}`]);
+      if (!Number.isFinite(qty) || qty < 0) throw new Error("Тоо дутуу эсвэл буруу байна.");
+      const ing = ingredients.find((row) => row.id === id);
+      return {
+        ingredient_id: id,
+        quantity: qty,
+        type: "count",
+        notes: `Тоолох даалгавар: ${ing?.name || ""}`.slice(0, 180),
+      };
+    });
+    setIsAiLoading(true);
+    try {
+      await kioskSaveLogs(logs);
+      await kioskOps("task.complete", { id: task.id });
+      setTasks((prev) => prev.map((row) => (row.id === task.id ? { ...row, done: true } : row)));
+      setMsg("Тооллого хадгалагдлаа.");
+    } catch (err: any) {
+      setMsg(err.message || "Тооллого хадгалагдсангүй.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const completeTask = async (index: number) => {
@@ -4345,8 +4375,39 @@ const handleCloseShift = async () => {
             ) : (
               <div className="space-y-2 py-2 flex-1 overflow-y-auto overscroll-contain pr-1">
                 {tasks.map((t, idx) => (
+                  t.task_type === "count" ? (
+                    <div key={t.id || idx} className="w-full p-3.5 rounded-xl border border-zinc-800 bg-zinc-950 text-white">
+                      <p className="font-bold text-sm">{t.name}</p>
+                      <div className="mt-2 space-y-2">
+                        {(t.ingredient_ids || []).map((id: string) => {
+                          const ing = ingredients.find((row) => row.id === id);
+                          return (
+                            <label key={id} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="text-zinc-300">{ing?.name || "Бараа"}</span>
+                              <input
+                                type="number"
+                                min="0"
+                                disabled={t.done}
+                                value={countDraft[`${t.id}:${id}`] || ""}
+                                onChange={(e) => setCountDraft((prev) => ({ ...prev, [`${t.id}:${id}`]: e.target.value }))}
+                                className="w-28 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-white"
+                              />
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={t.done || isAiLoading}
+                        onClick={() => saveCountTask(t)}
+                        className="mt-3 w-full bg-white text-zinc-950 font-bold text-xs py-2 rounded-xl disabled:opacity-40"
+                      >
+                        {t.done ? "Хадгалсан" : "Тооллогыг хадгалах"}
+                      </button>
+                    </div>
+                  ) : (
                   <button
-                    key={idx}
+                    key={t.id || idx}
                     disabled={t.done}
                     onClick={() => completeTask(idx)}
                     className={`w-full p-3.5 rounded-xl flex items-center justify-between border transition active:scale-95 ${
@@ -4371,6 +4432,7 @@ const handleCloseShift = async () => {
                       </span>
                     )}
                   </button>
+                  )
                 ))}
               </div>
             )}
