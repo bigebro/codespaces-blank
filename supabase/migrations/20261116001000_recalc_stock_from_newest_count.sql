@@ -112,8 +112,8 @@ CREATE TRIGGER trg_update_stock
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    GRANT ALL ON FUNCTION public.recalc_ingredient_stock(uuid) TO anon, authenticated, service_role;
-    GRANT ALL ON FUNCTION public.update_ingredient_stock() TO anon, authenticated, service_role;
+    REVOKE ALL ON FUNCTION public.recalc_ingredient_stock(uuid) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.recalc_ingredient_stock(uuid) TO authenticated, service_role;
   END IF;
 END $$;
 
