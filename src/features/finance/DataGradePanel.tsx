@@ -290,7 +290,7 @@ export default function DataGradePanel({
                   </span>
                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).join(". ")}</p>
+                     <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).filter((r) => !(row.measured_from && r.startsWith("Хэмжсэн:"))).join(". ")}</p>
                 {row.measured_from && (
                   <p className="text-xs text-amber-200/90 mt-1">
                     Хэмжсэн: {monthDay(row.measured_from)} – {monthDay(row.measured_until || row.measured_from)}
