@@ -28,3 +28,12 @@ export function ubDayStartIso(day: string) {
 export function ubDayEndIso(day: string) {
   return `${day}T23:59:59.999+08:00`;
 }
+
+export function defaultAuditDate(now = new Date()) {
+  return ubDay(now);
+}
+
+export function importFallbackIso(startDate: string, endDate: string, today: string) {
+  const fallbackDay = !endDate ? startDate : endDate <= today ? endDate : today < startDate ? startDate : today;
+  return `${fallbackDay}T12:00:00.000Z`;
+}

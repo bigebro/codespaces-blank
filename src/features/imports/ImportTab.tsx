@@ -14,7 +14,8 @@ import {
   Archive,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { ubDay, ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+import { defaultAuditDate, importFallbackIso, ubDay, ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+import { inventoryImportMessage, parseInventoryCountPaste } from "@/lib/inventoryPaste";
 import {
   autoCategorizeProduct,
   evaluateSaleItem,
@@ -80,7 +81,7 @@ export default function ImportTab({
   const [overwriteAudit, setOverwriteAudit] = useState(false);
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false);
   const [overwriteKitchen, setOverwriteKitchen] = useState(false);
-    const [auditDate, setAuditDate] = useState(() => ubDay(new Date()));
+    const [auditDate, setAuditDate] = useState(() => defaultAuditDate());
   const [auditType, setAuditType] = useState<"start" | "end">("start");
   const [activeSampleModal, setActiveSampleModal] = useState<string | null>(
     null,
@@ -197,7 +198,7 @@ export default function ImportTab({
       hour12: false,
     }).format(now);
 
-    let targetDay = getLocalDateStr(now);
+    let parsedDay: string | null = null;
 
     if (rawDate) {
       let cleaned = rawDate
@@ -210,14 +211,16 @@ export default function ImportTab({
         !cleaned.toLowerCase().includes("огноо")
       ) {
         const match = cleaned.match(/\d{4}-\d{2}-\d{2}/);
-        if (match) targetDay = match[0];
+        if (match) parsedDay = match[0];
       }
-    } else if (fallbackIso) {
-      targetDay = fallbackIso.split("T")[0];
+    }
+    if (!parsedDay) {
+      if (fallbackIso) return fallbackIso;
+      parsedDay = getLocalDateStr(now);
     }
 
     // Улаанбаатарын цагийн бүсээр (+08:00) ISO string үүсгэх
-    return new Date(`${targetDay}T${timeParts}+08:00`).toISOString();
+    return new Date(`${parsedDay}T${timeParts}+08:00`).toISOString();
   };
   const cleanHeader = (str: string) =>
     (str || "")
@@ -434,8 +437,7 @@ export default function ImportTab({
       }
 
       const todayUb = ubDay(new Date());
-      const fallbackDay = !endDate ? startDate : endDate <= todayUb ? endDate : todayUb < startDate ? startDate : todayUb;
-      const activeMonthFallback = `${fallbackDay}T12:00:00.000Z`;
+      const activeMonthFallback = importFallbackIso(startDate, endDate, todayUb);
       const salesToInsert: any[] = [];
 
       for (let i = 1; i < rows.length; i++) {
@@ -850,8 +852,7 @@ export default function ImportTab({
         "bags",
       ];
       const todayUb = ubDay(new Date());
-      const fallbackDay = !endDate ? startDate : endDate <= todayUb ? endDate : todayUb < startDate ? startDate : todayUb;
-      const activeMonthFallback = `${fallbackDay}T12:00:00.000Z`;
+      const activeMonthFallback = importFallbackIso(startDate, endDate, todayUb);
 
       const newIngsToCreate = new Map<
         string,
@@ -1432,8 +1433,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
       const logsToInsert: any[] = [];
       // 💡 Огноо байхгүй бол тухайн сонгосон сарын (9-р сарын) огноог авах:
          const todayUb = ubDay(new Date());
-      const fallbackDay = !endDate ? startDate : endDate <= todayUb ? endDate : todayUb < startDate ? startDate : todayUb;
-      const activeMonthFallback = `${fallbackDay}T12:00:00.000Z`;
+      const activeMonthFallback = importFallbackIso(startDate, endDate, todayUb);
 
       const ingMap = new Map();
       ingredients
@@ -1571,8 +1571,14 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
     setLoading(true);
     try {
-      const rows = inventoryPasteText.trim().split("\n");
-      if (rows.length < 1) return;
+      const parsed = parseInventoryCountPaste(inventoryPasteText);
+      if (!parsed.ok) {
+        alert(
+          `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${parsed.badRow}"`,
+        );
+        setLoading(false);
+        return;
+      }
 
       const ingMap = new Map();
       ingredients
@@ -1583,114 +1589,31 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           if (i.name.toLowerCase().includes("beans")) ingMap.set("кофе", i);
         });
 
-         const countsToInsert: any[] = []; const unmatched: string[] = [];
+      const countsToInsert: any[] = [];
+      const unmatched: string[] = [];
       const defaultDate = auditDate
         ? ubDayStartIso(auditDate)
         : ubDayStartIso(startDate);
       const cleanType = auditType === "start" ? "start" : "end";
-      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
-      const splitRow = (line: string) => {
-        const trimmed = line.trim();
-        if (trimmed.includes("\t"))
-          return trimmed.split("\t").map((c) => c.trim());
-        if (/\s{2,}/.test(trimmed))
-          return trimmed.split(/\s{2,}/).map((c) => c.trim());
-        return [trimmed];
-      };
+      const currentActor =
+        user?.user_metadata?.full_name ||
+        user?.email?.split("@")[0] ||
+        "Менежер";
 
-      // 🧠 1. SMART HEADER ШАЛГАХ (Баганын дараалал хамаарахгүй)
-      const headerCols = splitRow(rows[0]).map(cleanHeader);
-      let nameIdx = headerCols.findIndex(
-        (c) =>
-          c.includes("бараа") ||
-          c.includes("item") ||
-          c.includes("нэр") ||
-          c.includes("ингредиент") ||
-          c.includes("product"),
-      );
-      let qtyIdx = headerCols.findIndex(
-        (c) =>
-          c.includes("тоо") ||
-          c.includes("хэмжээ") ||
-          c.includes("qty") ||
-          c.includes("count") ||
-          c.includes("үлдэгдэл") ||
-          c.includes("amount"),
-      );
-      let dateIdx = headerCols.findIndex(
-        (c) => c.includes("огноо") || c.includes("date") || c.includes("өдөр"),
-      );
-
-      const hasSmartHeader = nameIdx !== -1 && qtyIdx !== -1;
-      const startRowIdx = hasSmartHeader ? 1 : 0; // Толгой мөртэй бол 1-ээс эхэлнэ
-
-      for (let r = startRowIdx; r < rows.length; r++) {
-        const row = rows[r].trim();
-        if (!row) continue;
-        const cols = splitRow(row).map((c) => c.trim());
-
-        // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
-        if (cols.length < 2) {
-          alert(
-            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
-          );
-          setLoading(false);
-          return;
-        }
-
-        let itemName = "";
-        let qty = 0;
-        let rowDate = defaultDate;
-
-        if (hasSmartHeader) {
-          // Толгой мөрөөр нь олох (Бараа эхэнд байна уу, Тоо эхэнд байна уу хамаагүй!)
-          itemName = cleanCell(cols[nameIdx] || "");
-          qty = parseFloat((cols[qtyIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
-          if (
-            dateIdx !== -1 &&
-            cols[dateIdx] &&
-            /\d{4}[./-]\d{2}/.test(cols[dateIdx])
-          ) {
-            rowDate = parseSafeDate(cols[dateIdx], defaultDate);
-          }
-        } else {
-          // Толгой мөргүй үед: Автоматаар тоо ба текстийг нь ялгах!
-          // Хэрэв эхний баганад тоо (10000), хоёр дахь баганад нэр (Milk) байвал байрыг нь солино:
-          const col0IsNum = !isNaN(Number(cols[0]?.replace(/[^0-9.-]/g, "")));
-          const col1IsText = isNaN(Number(cols[1]));
-
-          if (cols.length >= 2 && col0IsNum && col1IsText) {
-            qty = parseFloat(cols[0].replace(/[^0-9.-]/g, "")) || 0;
-            itemName = cleanCell(cols[1]);
-          } else if (cols.length >= 2) {
-            itemName = cleanCell(cols[0]);
-            qty = parseFloat(cols[1].replace(/[^0-9.-]/g, "")) || 0;
-          }
-
-          if (cols[2] && /\d{4}[./-]\d{2}/.test(cols[2])) {
-            rowDate = parseSafeDate(cols[2], defaultDate);
-          }
-        }
-
-        if (!itemName || isNaN(qty)) continue;
-
-        const currentActor =
-          user?.user_metadata?.full_name ||
-          user?.email?.split("@")[0] ||
-          "Менежер";
-
-        const matchedIng = ingMap.get(cleanNameForMatch(itemName));
+      for (const row of parsed.rows) {
+        const rowDate = row.explicitDate ? parseSafeDate(row.explicitDate, defaultDate) : defaultDate;
+        const matchedIng = ingMap.get(cleanNameForMatch(row.itemName));
         if (matchedIng) {
           countsToInsert.push({
             client_id: activeClient,
             ingredient_id: matchedIng.id,
-            quantity: qty,
+            quantity: row.qty,
             type: "count",
             notes: `Бөөнөөр Тоолсон Үлдэгдэл (${cleanType})`,
             worker_name: `${currentActor} (Dashboard)`,
             date: rowDate,
           });
-        } else unmatched.push(itemName);
+        } else unmatched.push(row.itemName);
       }
 
       if (overwriteAudit) {
@@ -1714,9 +1637,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
       setInventoryPasteText("");
       setOverwriteAudit(false);
       await fetchDatabaseData(activeClient);
-      alert(
-            ` Амжилттай! Нийт ${countsToInsert.length} барааны тооллого (${auditDate}) хадгалагдлаа.${unmatched.length ? `\nОлдоогүй бараа (хадгалагдаагүй): ${unmatched.join(", ")}` : ""}`,
-      );
+      alert(inventoryImportMessage(countsToInsert.length, auditDate, unmatched));
       setTimeout(() => setInventoryImportSuccess(false), 4000);
     } catch (err: any) {
       alert(`Алдаа: ${err.message}`);
