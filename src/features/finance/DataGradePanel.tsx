@@ -13,6 +13,9 @@ type Grade = {
   action: "count" | "price" | "duplicate" | "date" | null;
   purchase_value: number;
   gap_money: number | null;
+  actual_money?: number;
+  measured_from?: string | null;
+  measured_until?: string | null;
   price_log_id?: string | null;
   future_log_id?: string | null;
   duplicate?: { a: LogRow; b: LogRow } | null;
@@ -38,6 +41,11 @@ const ACTION: Record<Exclude<Grade["action"], null>, string> = {
   duplicate: "Шалгах",
   date: "Огноо засах",
 };
+
+function monthDay(day: string) {
+  const iso = /^\d{4}-\d{2}-\d{2}/.test(day) ? day.slice(0, 10) : ubDay(day);
+  return iso.slice(5);
+}
 
 function money(value: number) {
   const rounded = Math.round(value);
@@ -139,9 +147,18 @@ export default function DataGradePanel({
                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
                 </div>
                 <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).join(". ")}</p>
+                {row.measured_from && (
+                  <p className="text-xs text-amber-200/90 mt-1">
+                    Хэмжсэн: {monthDay(row.measured_from)} – {monthDay(row.measured_until || row.measured_from)}
+                  </p>
+                )}
                 <p className="text-xs text-zinc-500 mt-1">
                   Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮
-                  {row.gap_money == null ? ". Өртөгт оруулаагүй." : `. Зөрүү ${money(row.gap_money)}.`}
+                  {row.measured_from
+                    ? `. Хэмжсэн хугацааны бодит өртөг ${Math.round(row.actual_money || 0).toLocaleString()}₮.`
+                    : row.gap_money == null
+                      ? ". Өртөгт оруулаагүй."
+                      : `. Зөрүү ${money(row.gap_money)}.`}
                 </p>
               </div>
               {row.action && (

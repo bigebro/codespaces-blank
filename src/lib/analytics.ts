@@ -33,12 +33,120 @@ function duplicatePurchase(rows: Array<{ id: string; qty: number; cost: number; 
   return null;
 }
 
-function gradeIngredient(item: any, endDay: string, price: number) {
-  const inPeriod = item.in_period_log || item.purchased !== 0 || item.theoretical > 0 || (item.purchase_value || 0) > 0;
+function monthDay(day: string) {
+  const iso = /^\d{4}-\d{2}-\d{2}/.test(day) ? day.slice(0, 10) : ubDay(day);
+  return iso.slice(5);
+}
+
+function qtyBetween(rows: Array<{ qty: number; date: string }> | undefined, from: string, to: string) {
+  if (!from || !to) return 0;
+  const start = new Date(from).getTime();
+  const end = new Date(to).getTime();
+  return (rows || []).reduce((sum, row) => {
+    if (!row?.date) return sum;
+    const at = new Date(row.date).getTime();
+    if (at > start && at <= end) return sum + (Number(row.qty) || 0);
+    return sum;
+  }, 0);
+}
+
+type CountSnap = { date: string; qty: number; id?: string };
+
+export function selectCountBounds(history: CountSnap[], startDay: string, endDay: string, afterLimit: string) {
+  const limit = new Date(afterLimit).getTime();
+  const at = (date: string) => new Date(date).getTime();
+  const day = (date: string) => ubDay(date);
+  const counts = (history || [])
+    .filter((row) => row?.date && at(row.date) <= limit)
+    .slice()
+    .sort((a, b) => at(a.date) - at(b.date));
+
+  const laterEnd = (start: CountSnap) => {
+    const startMs = at(start.date);
+    return counts.find((row) => row !== start && at(row.date) > startMs && day(row.date) >= endDay) || null;
+  };
+
+  const startPool = counts.filter((row) => day(row.date) <= startDay);
+  for (let i = startPool.length - 1; i >= 0; i--) {
+    const end = laterEnd(startPool[i]);
+    if (end) return { mode: "full" as const, start: startPool[i], end };
+  }
+
+  if (startPool.length === 0) {
+    const inside = counts.filter((row) => day(row.date) > startDay && day(row.date) <= endDay);
+    for (const candidate of inside) {
+      const end = laterEnd(candidate);
+      if (end) return { mode: "partial" as const, start: candidate, end };
+    }
+    const closing = counts.find((row) => day(row.date) >= endDay) || null;
+    return { mode: "missing" as const, start: null, end: closing };
+  }
+
+  return { mode: "missing" as const, start: startPool[startPool.length - 1], end: null };
+}
+
+export function applyCountPick(item: any, history: CountSnap[], startDay: string, endDay: string, afterLimit: string) {
+  const day = (date: string) => ubDay(date);
+  const picked = selectCountBounds(history, startDay, endDay, afterLimit);
+  item.partial = false;
+  item.measured_from = null;
+  item.measured_until = null;
+  item.start_count_date = null;
+  item.end_count_qty = null;
+  item.next_count = null;
+
+  if (picked.mode === "full" && picked.start && picked.end) {
+    item.start = picked.start.qty;
+    item.has_start = true;
+    item.start_count_date = picked.start.date;
+    item.end = picked.end.qty;
+    item.has_end = true;
+    item.end_count_date = picked.end.date;
+    if (day(picked.end.date) > endDay) item.next_count = picked.end;
+  } else if (picked.mode === "partial" && picked.start && picked.end) {
+    item.start = picked.start.qty;
+    item.has_start = false;
+    item.partial = true;
+    item.measured_from = day(picked.start.date);
+    item.measured_until = day(picked.end.date);
+    item.start_count_date = picked.start.date;
+    item.end = picked.end.qty;
+    item.end_count_qty = picked.end.qty;
+    item.has_end = true;
+    item.end_count_date = picked.end.date;
+  } else if (picked.start) {
+    item.start = picked.start.qty;
+    item.has_start = true;
+    item.start_count_date = picked.start.date;
+    item.end = null;
+    item.has_end = false;
+  } else if (picked.end) {
+    item.start = null;
+    item.has_start = false;
+    item.end = picked.end.qty;
+    item.has_end = true;
+    item.end_count_date = picked.end.date;
+    if (day(picked.end.date) > endDay) item.next_count = picked.end;
+  } else {
+    item.start = null;
+    item.has_start = false;
+    item.end = null;
+    item.has_end = false;
+  }
+  return item;
+}
+
+export function gradeIngredient(item: any, startDay: string, endDay: string, price: number) {
+  const inPeriod = item.in_period_log || item.purchased !== 0 || item.theoretical > 0 || (item.purchase_value || 0) > 0 || (item.has_start && item.has_end) || item.partial;
   if (!inPeriod) return null;
+  const partial = Boolean(item.partial && item.measured_from && item.has_end);
   const reasons: string[] = [];
-  if (!item.has_start) reasons.push("Эхний тооллого алга");
-  if (!item.has_end) reasons.push("Эцсийн тооллого алга");
+  if (partial) {
+    reasons.push(`Хэмжсэн: ${monthDay(item.measured_from)} – ${monthDay(item.measured_until || item.end_count_date)}`);
+  } else {
+    if (!item.has_start) reasons.push(`${startDay}-нд эсвэл түүнээс өмнө тооллого алга`);
+    if (!item.has_end) reasons.push(`${endDay}-нд эсвэл түүнээс хойш тооллого алга`);
+  }
   if (item.future_log_id) reasons.push("Ирээдүйн огноотой бүртгэл");
   if (item.no_price) reasons.push("Үнэгүй худалдан авалт");
   const duplicate = duplicatePurchase(item.purchases || []);
@@ -49,7 +157,11 @@ function gradeIngredient(item: any, endDay: string, price: number) {
   let actualQty: number | null = null;
   let gapQty: number | null = null;
   let far = false;
-  if (item.has_start && item.has_end) {
+  if (partial) {
+    const bought = qtyBetween(item.purchases, item.start_count_date, item.end_count_date)
+      + qtyBetween(item.purchases_after, item.start_count_date, item.end_count_date);
+    actualQty = Number(item.start) + bought - Number(item.end_count_qty ?? item.end);
+  } else if (item.has_start && item.has_end) {
     actualQty = Number(item.start) + Number(item.purchased) - Number(item.end);
     gapQty = actualQty - Number(item.theoretical);
     const scale = Math.max(Math.abs(Number(item.theoretical)), Math.abs(actualQty));
@@ -60,13 +172,14 @@ function gradeIngredient(item: any, endDay: string, price: number) {
   }
 
   let status: "Verified" | "Check" | "Missing" = "Verified";
-  if (!item.has_start || !item.has_end) status = "Missing";
+  if (partial) status = "Check";
+  else if (!item.has_start || !item.has_end) status = "Missing";
   else if (reasons.length > 0) status = "Check";
 
   let action: "count" | "price" | "duplicate" | "date" | null = null;
-  if (status !== "Verified") {
-    if (!item.has_start || !item.has_end) action = "count";
-    else if (item.future_log_id) action = "date";
+  if (status === "Missing") action = "count";
+  else if (status !== "Verified") {
+    if (item.future_log_id) action = "date";
     else if (item.no_price) action = "price";
     else if (duplicate) action = "duplicate";
     else action = "count";
@@ -85,13 +198,16 @@ function gradeIngredient(item: any, endDay: string, price: number) {
     actual_qty: actualQty,
     theoretical_qty: Number(item.theoretical) || 0,
     gap_qty: gapQty,
-    gap_money: actualQty == null ? null : actualMoney - theoMoney,
+    gap_money: actualQty == null || partial ? null : actualMoney - theoMoney,
     actual_money: actualMoney,
     theo_money: theoMoney,
     price_log_id: item.price_log_id || null,
     future_log_id: item.future_log_id || null,
     duplicate,
     far,
+    partial,
+    measured_from: partial ? item.measured_from : null,
+    measured_until: partial ? (item.measured_until || null) : null,
   };
 }
 
@@ -289,11 +405,14 @@ export async function getAnalyticsData(
       has_end: false,
       purchase_value: 0,
       purchases: [],
+      purchases_after: [],
       future_log_id: null,
       price_log_id: null,
       no_price: false,
       in_period_log: false,
       end_count_date: null,
+      partial: false,
+      measured_from: null,
     };
   });
 
@@ -407,28 +526,8 @@ for (const key in master) {
   const history = (itemCountsHistory[key] || []).concat(afterCounts[key] || []).sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
-  const day = (d: string) => ubDay(d);
-  const startCounts = history.filter((h) => day(h.date) <= startDay);
-  const endCounts = history.filter((h) => day(h.date) >= endDay && new Date(h.date).getTime() <= new Date(afterLimit).getTime());
-
-  if (startCounts.length) {
-    master[key].start = startCounts[startCounts.length - 1].qty;
-    master[key].has_start = true;
-  } else {
-    master[key].start = null;
-    master[key].has_start = false;
-  }
-
-  if (endCounts.length) {
-    const first = endCounts[0];
-    master[key].end = first.qty;
-    master[key].has_end = true;
-    master[key].end_count_date = first.date;
-    if (day(first.date) > endDay) master[key].next_count = first;
-  } else {
-    master[key].end = null;
-    master[key].has_end = false;
-  }
+  master[key].purchases_after = afterPurchases[key] || [];
+  applyCountPick(master[key], history, startDay, endDay, afterLimit);
 }
 
  
@@ -636,7 +735,7 @@ for (const key in master) {
     }
 
     const weightedForMoney = weightedPrice || m.unit_price || 0;
-    const grade = gradeIngredient(m, endDay, weightedForMoney);
+    const grade = gradeIngredient(m, startDay, endDay, weightedForMoney);
     if (!grade) continue;
     grades.push(grade);
 
@@ -668,7 +767,7 @@ for (const key in master) {
       continue;
     }
 
-    const actual = Number(m.start) + m.purchased - Number(m.end);
+    const actual = m.partial ? Number(grade.actual_qty) : Number(m.start) + m.purchased - Number(m.end);
     const safeActual = actual;
     const actualMoney = Math.round(grade.actual_money) || 0;
     const theoMoney = Math.round(grade.theo_money) || 0;
@@ -680,9 +779,9 @@ for (const key in master) {
       else if ((grade.gap_money || 0) < -1) totalSurplusSavings += Math.abs(grade.gap_money || 0);
     }
 
-    if (m.start === 0 && m.purchased === 0 && m.end === 0 && m.theoretical === 0) continue;
+    if (!m.partial && m.start === 0 && m.purchased === 0 && m.end === 0 && m.theoretical === 0) continue;
 
-    const rawGap = actual - m.theoretical;
+    const rawGap = m.partial ? 0 : actual - m.theoretical;
     const impact = Math.round(rawGap * weightedForMoney) || 0;
     const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
     const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
@@ -701,8 +800,8 @@ for (const key in master) {
       par_level: Math.round(activeParLevel * 100) / 100, 
       suggested_order: finalSuggestion,
       theoretical: Math.round(m.theoretical * 100) / 100 || 0,
-      gap: Math.round(rawGap * 100) / 100 || 0,
-      impact: impact || 0,
+      gap: m.partial ? null : Math.round(rawGap * 100) / 100 || 0,
+      impact: m.partial ? 0 : impact || 0,
       unit: m.unit,
       price: weightedPrice || m.unit_price || 0,
       unit_price: weightedPrice || m.unit_price || 0,
