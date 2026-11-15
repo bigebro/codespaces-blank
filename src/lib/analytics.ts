@@ -44,7 +44,7 @@ function gradeIngredient(item: any, endDay: string, price: number) {
   const duplicate = duplicatePurchase(item.purchases || []);
   if (duplicate) reasons.push("Давхардсан орлого байж болзошгүй");
   const lateEnd = Boolean(item.has_end && item.end_count_date && ubDay(item.end_count_date) > addCalendarDays(endDay, 7));
-  if (lateEnd) reasons.push("Эцсийн тооллого хугацаа дууссанаас 7 хоногоос хойш хийгдсэн");
+  if (lateEnd) reasons.push("Эцсийн тооллого хугацаа дууссанаас хойш 7 хоног өнгөрсний дараа хийгдсэн");
 
   let actualQty: number | null = null;
   let gapQty: number | null = null;

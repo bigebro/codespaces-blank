@@ -59,6 +59,7 @@ export default function DataGradePanel({
   const rows: Grade[] = liveAnalytics?.fix_list || [];
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [priceFor, setPriceFor] = useState<Grade | null>(null);
   const [price, setPrice] = useState("");
   const [dateFor, setDateFor] = useState<Grade | null>(null);
@@ -87,6 +88,7 @@ export default function DataGradePanel({
     setBusy(key);
     try {
       await callFix(body);
+      if (body.action === "count_task") setNotice("Тоолох даалгавар киоск руу илгээгдлээ.");
       setPriceFor(null);
       setDateFor(null);
       setPairFor(null);
@@ -122,6 +124,7 @@ export default function DataGradePanel({
         </div>
       </div>
       {error && <p className="text-sm text-rose-300">{error}</p>}
+      {notice && <p className="text-sm text-emerald-300">{notice}</p>}
       <div className="space-y-2">
         {rows.length === 0 ? (
           <p className="text-sm text-zinc-400">Засах зүйл алга. Бүх идэвхтэй бараа баталгаажсан.</p>
