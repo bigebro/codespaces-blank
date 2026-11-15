@@ -989,11 +989,20 @@ for (const key in master) {
   const verifiedRows = grades.filter((row) => row.status === "Verified");
   const verifiedActual = verifiedRows.reduce((sum, row) => sum + (Number(row.actual_money) || 0), 0);
   const verifiedTheo = verifiedRows.reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
+  const missingCount = grades.filter((row) => row.status === "Missing").length;
+  const checkCount = grades.filter((row) => row.status === "Check").length;
+  const unverifiedTheo = grades
+    .filter((row) => row.status !== "Verified")
+    .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
   const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
   const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
   const dataTrust = {
     verified: verifiedRows.length,
     total: grades.length,
+    missing: missingCount,
+    check: checkCount,
+    remaining: missingCount + checkCount,
+    unverified_theo: unverifiedTheo,
     purchase_pct: purchaseAll > 0
       ? Math.round((purchaseVerified / purchaseAll) * 100)
       : (grades.length ? Math.round((verifiedRows.length / grades.length) * 100) : 0),
@@ -1150,6 +1159,7 @@ for (const key in master) {
       net_revenue: netRevenue,
       actual_cogs: effectiveActualCogs,
       theo_cogs: verifiedTheo,
+      unverified_theo: unverifiedTheo,
       verified_gap: verifiedActual - verifiedTheo,
       data_trust: dataTrust,
       is_theoretical_mode: false,

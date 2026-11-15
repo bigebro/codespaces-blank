@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
+import { COMPLETE_PERIOD, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
 
 type Grade = {
   ingredient_id: string;
@@ -56,15 +57,20 @@ function money(value: number) {
 export default function DataGradePanel({
   liveAnalytics,
   onChanged,
+  variant = "full",
 }: {
   liveAnalytics: any;
   onChanged: () => Promise<void> | void;
+  variant?: "full" | "actions";
 }) {
   const trust = liveAnalytics?.data_trust || liveAnalytics?.financial_ladder?.data_trust;
   const gap = Number(liveAnalytics?.verified_gap ?? liveAnalytics?.financial_ladder?.verified_gap ?? 0);
   const actual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
   const theo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
   const rows: Grade[] = liveAnalytics?.fix_list || [];
+  const losses = Number(liveAnalytics?.total_waste_loss || 0);
+  const surpluses = Number(liveAnalytics?.total_surplus_savings || 0);
+  const topRows = topFixActions(rows, 3);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -73,8 +79,6 @@ export default function DataGradePanel({
   const [dateFor, setDateFor] = useState<Grade | null>(null);
   const [date, setDate] = useState("");
   const [pairFor, setPairFor] = useState<Grade | null>(null);
-
-  if (!trust) return null;
 
   async function callFix(body: Record<string, unknown>) {
     setError("");
@@ -107,6 +111,137 @@ export default function DataGradePanel({
     }
   }
 
+  if (!trust && variant === "full") return null;
+
+  const actionButton = (row: Grade) => row.action ? (
+    <button
+      type="button"
+      disabled={busy === row.ingredient_id}
+      onClick={() => {
+        if (row.action === "count") {
+          run(row.ingredient_id, { action: "count_task", ingredientIds: [row.ingredient_id] });
+        } else if (row.action === "price") {
+          setPriceFor(row);
+          setPrice("");
+        } else if (row.action === "date") {
+          setDateFor(row);
+          setDate(ubDay(new Date()));
+        } else if (row.action === "duplicate") {
+          setPairFor(row);
+        }
+      }}
+      className="shrink-0 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl disabled:opacity-50"
+    >
+      {busy === row.ingredient_id ? "Хадгалж байна" : ACTION[row.action]}
+    </button>
+  ) : null;
+
+  const dialogs = (
+    <>
+      {priceFor && (
+        <form
+          className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!priceFor.price_log_id) {
+              setError("Үнэгүй орлогын мөр олдсонгүй.");
+              return;
+            }
+            run(priceFor.ingredient_id, { action: "set_price", logId: priceFor.price_log_id, totalCost: Number(price) });
+          }}
+        >
+          <p className="text-sm font-bold text-white">{priceFor.name}: нийт үнэ</p>
+          <input
+            type="number"
+            min="0"
+            required
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white"
+          />
+          <div className="flex gap-2">
+            <button type="submit" className="bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl">Хадгалах</button>
+            <button type="button" onClick={() => setPriceFor(null)} className="text-zinc-300 text-xs px-3 py-2">Болих</button>
+          </div>
+        </form>
+      )}
+      {dateFor && (
+        <form
+          className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!dateFor.future_log_id) return;
+            run(dateFor.ingredient_id, { action: "set_date", logId: dateFor.future_log_id, date });
+          }}
+        >
+          <p className="text-sm font-bold text-white">{dateFor.name}: огноо засах</p>
+          <input
+            type="date"
+            required
+            value={date}
+            max={ubDay(new Date())}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white"
+          />
+          <div className="flex gap-2">
+            <button type="submit" className="bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl">Хадгалах</button>
+            <button type="button" onClick={() => setDateFor(null)} className="text-zinc-300 text-xs px-3 py-2">Болих</button>
+          </div>
+        </form>
+      )}
+      {pairFor?.duplicate && (
+        <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-bold text-white">{pairFor.name}: аль мөрийг үлдээх вэ</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[pairFor.duplicate.a, pairFor.duplicate.b].map((row) => (
+              <div key={row.id} className="border border-zinc-800 rounded-xl p-3 text-sm text-zinc-200">
+                <p>{ubDay(row.date)}</p>
+                <p>{row.qty} {pairFor.unit} / {Math.round(row.cost || 0).toLocaleString()}₮</p>
+                <p className="text-zinc-500 text-xs">{row.notes || "Тайлбаргүй"}</p>
+                <button
+                  type="button"
+                  className="mt-2 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl"
+                  onClick={() => {
+                    if (!window.confirm("Нөгөө мөрийг устгах уу?")) return;
+                    const drop = row.id === pairFor.duplicate?.a.id ? pairFor.duplicate?.b.id : pairFor.duplicate?.a.id;
+                    run(pairFor.ingredient_id, { action: "delete_log", logId: drop });
+                  }}
+                >
+                  Үүнийг үлдээх
+                </button>
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={() => setPairFor(null)} className="text-zinc-300 text-xs">Болих</button>
+        </div>
+      )}
+    </>
+  );
+
+  if (variant === "actions") {
+    return (
+      <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
+        <h3 className="text-base font-black text-white">Эхлээд хийх 3 ажил</h3>
+        {topRows.length === 0 ? (
+          <p className="text-sm text-zinc-300">{COMPLETE_PERIOD}</p>
+        ) : (
+          topRows.map((row) => (
+            <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-zinc-100">{row.name}</p>
+                <p className="text-xs text-zinc-400 mt-1">{unlockLine(row.purchase_value)}</p>
+              </div>
+              {actionButton(row)}
+            </div>
+          ))
+        )}
+        {error && <p className="text-sm text-rose-300">{error}</p>}
+        {notice && <p className="text-sm text-emerald-300">{notice}</p>}
+        {dialogs}
+      </section>
+    );
+  }
+
   return (
     <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
       <div>
@@ -115,7 +250,7 @@ export default function DataGradePanel({
           {trust.total} бараанаас {trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн {trust.purchase_pct}%)
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
         <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">
           <p className="text-zinc-400">Бодит өртөг, баталгаажсан</p>
           <p className="text-lg font-black text-white font-mono">{Math.round(actual).toLocaleString()}₮</p>
@@ -124,11 +259,20 @@ export default function DataGradePanel({
           <p className="text-zinc-400">Онолын өртөг, адил бараа</p>
           <p className="text-lg font-black text-white font-mono">{Math.round(theo).toLocaleString()}₮</p>
         </div>
-        <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">
-          <p className="text-zinc-400">Зөрүү (бодит - онол)</p>
+        <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800 sm:col-span-1">
+          <p className="text-zinc-400">Цэвэр зөрүү</p>
           <p className={`text-lg font-black font-mono ${gap < 0 ? "text-emerald-300" : gap > 0 ? "text-rose-300" : "text-white"}`}>
             {money(gap)}
           </p>
+        </div>
+        <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">
+          <p className="text-zinc-400">Алдагдал</p>
+          <p className="text-lg font-black text-rose-300 font-mono">{Math.round(losses).toLocaleString()}₮</p>
+        </div>
+        <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">
+          <p className="text-zinc-400">Илүүдэл</p>
+          <p className="text-lg font-black text-amber-200 font-mono">{Math.round(surpluses).toLocaleString()}₮</p>
+          <p className="text-xs text-zinc-400 mt-1">{SURPLUS_NOTE}</p>
         </div>
       </div>
       {error && <p className="text-sm text-rose-300">{error}</p>}
@@ -160,113 +304,15 @@ export default function DataGradePanel({
                       ? ". Өртөгт оруулаагүй."
                       : `. Зөрүү ${money(row.gap_money)}.`}
                 </p>
+                <p className="text-xs text-zinc-300 mt-1">{unlockLine(row.purchase_value)}</p>
               </div>
-              {row.action && (
-                <button
-                  type="button"
-                  disabled={busy === row.ingredient_id}
-                  onClick={() => {
-                    if (row.action === "count") {
-                      run(row.ingredient_id, { action: "count_task", ingredientIds: [row.ingredient_id] });
-                    } else if (row.action === "price") {
-                      setPriceFor(row);
-                      setPrice("");
-                    } else if (row.action === "date") {
-                      setDateFor(row);
-                      setDate(ubDay(new Date()));
-                    } else if (row.action === "duplicate") {
-                      setPairFor(row);
-                    }
-                  }}
-                  className="shrink-0 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl disabled:opacity-50"
-                >
-                  {busy === row.ingredient_id ? "Хадгалж байна" : ACTION[row.action]}
-                </button>
-              )}
+              {actionButton(row)}
             </div>
           ))
         )}
       </div>
 
-      {priceFor && (
-        <form
-          className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!priceFor.price_log_id) {
-              setError("Үнэгүй орлогын мөр олдсонгүй.");
-              return;
-            }
-            run(priceFor.ingredient_id, { action: "set_price", logId: priceFor.price_log_id, totalCost: Number(price) });
-          }}
-        >
-          <p className="text-sm font-bold text-white">{priceFor.name}: нийт үнэ</p>
-          <input
-            type="number"
-            min="0"
-            required
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white"
-          />
-          <div className="flex gap-2">
-            <button type="submit" className="bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl">Хадгалах</button>
-            <button type="button" onClick={() => setPriceFor(null)} className="text-zinc-300 text-xs px-3 py-2">Болих</button>
-          </div>
-        </form>
-      )}
-
-      {dateFor && (
-        <form
-          className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!dateFor.future_log_id) return;
-            run(dateFor.ingredient_id, { action: "set_date", logId: dateFor.future_log_id, date });
-          }}
-        >
-          <p className="text-sm font-bold text-white">{dateFor.name}: огноо засах</p>
-          <input
-            type="date"
-            required
-            value={date}
-            max={ubDay(new Date())}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white"
-          />
-          <div className="flex gap-2">
-            <button type="submit" className="bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl">Хадгалах</button>
-            <button type="button" onClick={() => setDateFor(null)} className="text-zinc-300 text-xs px-3 py-2">Болих</button>
-          </div>
-        </form>
-      )}
-
-      {pairFor?.duplicate && (
-        <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3">
-          <p className="text-sm font-bold text-white">{pairFor.name}: аль мөрийг үлдээх вэ</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[pairFor.duplicate.a, pairFor.duplicate.b].map((row) => (
-              <div key={row.id} className="border border-zinc-800 rounded-xl p-3 text-sm text-zinc-200">
-                <p>{ubDay(row.date)}</p>
-                <p>{row.qty} {pairFor.unit} / {Math.round(row.cost || 0).toLocaleString()}₮</p>
-                <p className="text-zinc-500 text-xs">{row.notes || "Тайлбаргүй"}</p>
-                <button
-                  type="button"
-                  className="mt-2 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl"
-                  onClick={() => {
-                    if (!window.confirm("Нөгөө мөрийг устгах уу?")) return;
-                    const drop = row.id === pairFor.duplicate?.a.id ? pairFor.duplicate?.b.id : pairFor.duplicate?.a.id;
-                    run(pairFor.ingredient_id, { action: "delete_log", logId: drop });
-                  }}
-                >
-                  Үүнийг үлдээх
-                </button>
-              </div>
-            ))}
-          </div>
-          <button type="button" onClick={() => setPairFor(null)} className="text-zinc-300 text-xs">Болих</button>
-        </div>
-      )}
+      {dialogs}
     </section>
   );
 }
