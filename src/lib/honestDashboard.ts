@@ -60,7 +60,8 @@ export function impossibleReasons(actual: number, theoretical: number, grossMarg
 }
 
 export function unlockLine(purchaseValue: number) {
-  return `Энэ тооллого ${Math.round(Number(purchaseValue) || 0).toLocaleString()}₮-ийн өртгийг баталгаажуулна`;
+  return `Энэ засвар ${Math.round(Number(purchaseValue) || 0).toLocaleString()}₮-ийн өртгийг баталгаажуулна`;
+  
 }
 
 export function topFixActions<T extends GradeLike>(rows: T[], limit = 3) {

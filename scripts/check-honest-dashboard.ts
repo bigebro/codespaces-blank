@@ -38,8 +38,8 @@ assert.equal(actions.length, 3);
 assert.equal(actions[0].name, "Гурил");
 assert.equal(actions[0].purchase_value, 100);
 assert.deepEqual(actions.map((row) => row.purchase_value), [100, 50, 50]);
-assert.equal(unlockLine(100), `Энэ тооллого ${Math.round(100).toLocaleString()}₮-ийн өртгийг баталгаажуулна`);
-assert.match(unlockLine(100), /^Энэ тооллого \d+₮-ийн өртгийг баталгаажуулна$/);
+assert.equal(unlockLine(100), `Энэ засвар ${Math.round(100).toLocaleString()}₮-ийн өртгийг баталгаажуулна`);
+assert.match(unlockLine(100), /^Энэ засвар \d+₮-ийн өртгийг баталгаажуулна$/);
 
 const low = impossibleReasons(40, 90, 72);
 assert.equal(low.length, 1);
