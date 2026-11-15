@@ -22,12 +22,18 @@ export async function kioskOps(action: string, payload: Record<string, unknown> 
   return data as Record<string, any>;
 }
 
+let confirmDuplicate: (message: string) => Promise<boolean> = async () => false;
+
+export function setKioskConfirm(fn: (message: string) => Promise<boolean>) {
+  confirmDuplicate = fn;
+}
+
 export async function kioskSaveLogs(logs: Record<string, unknown>[], aliases: Record<string, unknown>[] = []) {
   try {
     return await kioskOps("logs.insert", { logs, aliases });
   } catch (error) {
     const err = error as Error & { status?: number; data?: { code?: string } };
-    if (err.status === 409 && err.data?.code === "duplicate" && window.confirm(`${err.message}\n\nДавхардаж хадгалах уу?`)) {
+    if (err.status === 409 && err.data?.code === "duplicate" && await confirmDuplicate(`${err.message}\n\nДавхардаж хадгалах уу?`)) {
       return kioskOps("logs.insert", { logs, aliases, confirmDuplicate: true });
     }
     throw error;

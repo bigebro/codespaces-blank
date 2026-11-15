@@ -16,6 +16,7 @@ import {
 import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
 import DataGradePanel from "./DataGradePanel";
+import UnexplainedGaps from "./UnexplainedGaps";
 import TruthMeter from "./TruthMeter";
 import { IMPOSSIBLE_TITLE, impossibleReasons, parsePct, summarizeTrust } from "@/lib/honestDashboard";
 
@@ -561,6 +562,7 @@ export default function FinanceTab({
           liveAnalytics={liveAnalytics}
           onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
         />
+        <UnexplainedGaps rows={liveAnalytics?.unexplained_gaps} />
         {/* ========================================================================= */}
         {/* БҮС 3: ДЭЛГЭРЭНГҮЙ ДҮН ШИНЖИЛГЭЭ (P&L LADDER + LIVE FEED БҮТЭЦ)             */}
         {/* ========================================================================= */}

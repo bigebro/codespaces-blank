@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireKioskWorker } from "@/lib/kioskAuth";
+import { buildCyclePlan } from "@/lib/cyclePlan";
+import { buildCountLog } from "@/lib/shiftCycle";
 import { convertToIngredientUnit } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
 
     const action = String(body.action || "");
     const nowIso = new Date().toISOString();
-    const needsShift = action === "logs.insert" || action === "ingredient.create";
+    const needsShift = action === "logs.insert" || action === "ingredient.create" || action === "cycle.plan";
     const { data: openShiftRow } = needsShift
   ? await supabaseAdmin
       .from("shifts")
@@ -207,10 +209,14 @@ export async function POST(request: Request) {
     if (action === "shift.close") {
       const id = String(body.id || "");
       const counts = Array.isArray(body.counts) ? body.counts : [];
-      const ids = counts.map((c: any) => String(c.ingredient_id || "")).filter(Boolean);
-      if (ids.length !== counts.length) return fail("Бараа дутуу байна.");
+      const extraIds = [
+        ...(Array.isArray(body.waste) ? body.waste : []),
+        ...(Array.isArray(body.unexplained) ? body.unexplained : []),
+      ].map((row: any) => String(row.ingredientId || row.ingredient_id || "")).filter(Boolean);
+      const ids = [...counts.map((c: any) => String(c.ingredient_id || "")).filter(Boolean), ...extraIds];
+      if (counts.some((c: any) => !c.ingredient_id)) return fail("Бараа дутуу байна.");
       if (ids.length > 0) {
-        const { data: own } = await supabaseAdmin.from("ingredients").select("id").eq("client_id", worker.clientId).in("id", ids);
+        const { data: own } = await supabaseAdmin.from("ingredients").select("id").eq("client_id", worker.clientId).in("id", [...new Set(ids)]);
         const ownIds = new Set((own || []).map((r: any) => r.id));
         if (ids.some((x: string) => !ownIds.has(x))) return fail("Бараа олдсонгүй.", 403);
       }
@@ -220,13 +226,50 @@ export async function POST(request: Request) {
       for (const item of counts) {
         const qty = Number(item.quantity);
         if (!Number.isFinite(qty) || qty < 0) return fail("Хаалтын тоо буруу байна.");
+        logs.push(buildCountLog({
+          clientId: worker.clientId,
+          ingredientId: item.ingredient_id,
+          quantity: qty,
+          now: nowIso,
+          workerName: worker.workerName,
+          workerId: worker.workerId,
+          shiftId: id,
+          incidentType: "daily_cycle_count",
+          notes: `Ээлж хаалтын тооллого: ${item.name || ""}`,
+        }));
+      }
+      for (const item of Array.isArray(body.waste) ? body.waste : []) {
+        const type = String(item.type || "");
+        if (!["spoilage", "testing", "staff_meal", "other"].includes(type)) return fail("Хаягдлын төрөл буруу.");
+        const qty = Number(item.quantity);
+        if (!Number.isFinite(qty) || qty < 0) return fail("Хаягдлын тоо буруу.");
+        if (qty === 0) continue;
         logs.push({
           client_id: worker.clientId,
-          ingredient_id: item.ingredient_id,
+          ingredient_id: item.ingredientId || item.ingredient_id,
+          quantity: -Math.abs(qty),
+          type,
+          incident_type: "shift_waste",
+          notes: String(item.reason || "Хаягдал").slice(0, 500),
+          worker_name: worker.workerName,
+          created_by: worker.workerId,
+          staff_id: worker.workerId,
+          shift_id: id,
+          date: nowIso,
+        });
+      }
+      for (const item of Array.isArray(body.unexplained) ? body.unexplained : []) {
+        const qty = Number(item.quantity);
+        if (!Number.isFinite(qty) || qty === 0) continue;
+        const cost = item.money == null ? null : Number(item.money);
+        logs.push({
+          client_id: worker.clientId,
+          ingredient_id: item.ingredientId || item.ingredient_id,
           quantity: qty,
-          type: "count",
-          incident_type: "daily_cycle_count",
-          notes: `[CYCLE] Ээлж хаалтын цикл тооллого: ${item.name || ""}`.slice(0, 500),
+          total_cost: cost != null && Number.isFinite(cost) ? cost : null,
+          type: "other",
+          incident_type: "unexplained_gap",
+          notes: "Тайлбаргүй зөрүү",
           worker_name: worker.workerName,
           created_by: worker.workerId,
           staff_id: worker.workerId,
@@ -252,8 +295,10 @@ export async function POST(request: Request) {
           date: nowIso,
         });
       }
-      const { error: logError } = await supabaseAdmin.from("inventory_logs").insert(logs);
-      if (logError) return fail(logError.message, 500);
+      if (logs.length) {
+        const { error: logError } = await supabaseAdmin.from("inventory_logs").insert(logs);
+        if (logError) return fail(logError.message, 500);
+      }
       const { error: shiftError } = await supabaseAdmin
         .from("shifts")
         .update({
@@ -351,6 +396,11 @@ export async function POST(request: Request) {
         if (error) return fail(error.message, 500);
       }
       return NextResponse.json({ ok: true });
+    }
+
+    if (action === "cycle.plan") {
+      const plan = await buildCyclePlan(worker.clientId, body.activeShiftId || shiftId);
+      return NextResponse.json({ ok: true, ...plan });
     }
 
     return fail("Үйлдэл танигдаагүй.");

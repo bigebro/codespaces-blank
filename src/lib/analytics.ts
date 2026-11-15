@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { ubDay, ubMonthStartIso } from './ubDate';
+import { displayUnit } from './shiftCycle';
 
 function addCalendarDays(day: string, days: number) {
   const [year, month, date] = day.split("-").map(Number);
@@ -278,7 +279,7 @@ export async function getAnalyticsData(
     fetchPaged((from, to) =>
       supabaseAdmin
         .from("inventory_logs")
-        .select("id, date, type, quantity, total_cost, notes, non_food_item, ingredient_id, worker_name, payment_method, is_ebarimt, image_url, incident_type, reported_against_worker")
+        .select("id, date, created_at, type, quantity, total_cost, notes, non_food_item, ingredient_id, worker_name, staff_id, shift_id, payment_method, is_ebarimt, image_url, incident_type, reported_against_worker")
         .eq("client_id", clientId.trim())
         .gte("date", new Date(new Date(finalStartDate).getTime() - 180 * 86400000).toISOString())
         .lte("date", finalEndDate)
@@ -297,7 +298,7 @@ export async function getAnalyticsData(
     ),
     supabaseAdmin
       .from("shifts")
-      .select("character_role, start_time, end_time, is_active, daily_tasks_checklist, pos_z_image_url, start_evidence_image")
+      .select("id, character_role, start_time, end_time, is_active, daily_tasks_checklist, pos_z_image_url, start_evidence_image")
       .eq("client_id", clientId.trim())
       .gte("start_time", finalStartDate)
       .order("start_time", { ascending: false })
@@ -1153,6 +1154,36 @@ for (const key in master) {
     return !hasRecipe; // Жоргүй (Орц угсрах товчтой) цэсүүдийг тоолно!
   }).length;
 
+  const unexplainedGaps = (rawInventoryLogs || [])
+    .filter((log: any) => log.incident_type === "unexplained_gap" && log.date && ubDay(log.date) >= startDay && ubDay(log.date) <= endDay)
+    .map((log: any) => {
+      const ing = (rawIngredients || []).find((row: any) => row.id === log.ingredient_id);
+      const shift = (rawShifts || []).find((row: any) => row.id === log.shift_id);
+      const cost = Number(log.total_cost);
+      const money = Number.isFinite(cost) && cost > 0 ? Math.round(cost) : null;
+      const stamp = (value: string) => new Date(value).toLocaleString("mn-MN", {
+        timeZone: "Asia/Ulaanbaatar",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      let shiftLabel = log.date ? `Тоолсон цаг ${stamp(log.date)}` : "Ээлж алга";
+      if (shift?.start_time) {
+        const start = stamp(shift.start_time);
+        shiftLabel = shift.end_time ? `${start} – ${stamp(shift.end_time)}` : start;
+      }
+      return {
+        id: log.id,
+        name: ing?.name || "Бараа",
+        unit: displayUnit(ing?.unit || ""),
+        qty: Number(log.quantity) || 0,
+        money,
+        staff: log.worker_name || "Ажилтан алга",
+        shift: shiftLabel,
+      };
+    });
+
   return {
     financial_ladder: {
       revenue: totalRevenue,
@@ -1245,6 +1276,7 @@ logged_spoilage_items: (rawInventoryLogs || [])
     grades,
     fix_list: fixList,
     data_trust: dataTrust,
+    unexplained_gaps: unexplainedGaps,
     verified_gap: verifiedActual - verifiedTheo,
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,

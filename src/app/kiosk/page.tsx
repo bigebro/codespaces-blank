@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens, kioskTrust } from "../../lib/kioskClient";
+import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+import CycleCount, { type CycleResult } from "../../features/kiosk/CycleCount";
+import { displayUnit, logTypeLabel, streakText, type CycleItem } from "../../lib/shiftCycle";
 import TruthMeter from "../../features/finance/TruthMeter";
 import {
   Coffee,
@@ -46,6 +48,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EN_TO_MN_DICT, STATIC_DICT } from "../../lib/autoReconcile";
 import { SignedImg } from "../../components/shared/SignedImg";
+
+let pushNote: (text: string) => void = () => {};
+let pushAsk: (text: string) => Promise<boolean> = async () => false;
+function notify(text: string) {
+  pushNote(text);
+}
+function confirmUi(text: string) {
+  return pushAsk(text);
+}
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
@@ -412,7 +423,7 @@ function KioskAiChatSection({
       abortControllerRef.current = new AbortController();
 
       if (!navigator.mediaDevices?.getUserMedia) {
-        alert(
+        notify(
           "iPad/iOS дээр дуу бичихийн тулд заавал HTTPS эсвэл localhost байх шаардлагатай.",
         );
         return;
@@ -505,7 +516,7 @@ function KioskAiChatSection({
               ...prev,
               {
                 sender: "ai",
-                text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+                text: `Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
               },
             ]);
           }
@@ -519,7 +530,7 @@ function KioskAiChatSection({
       } catch (err: any) {
         setIsListening(false);
         setIsAiLoading(false);
-        alert("Микрофоны зөвшөөрөл өгнө үү: " + err.message);
+        notify("Микрофоны зөвшөөрөл өгнө үү: " + err.message);
       }
       return;
     }
@@ -529,7 +540,7 @@ function KioskAiChatSection({
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Энэ хөтөч дээр дуу таних боломжгүй байна.");
+      notify("Энэ хөтөч дээр дуу таних боломжгүй байна.");
       return;
     }
 
@@ -638,7 +649,7 @@ function KioskAiChatSection({
 
       if (!base64Data) {
         setIsAiLoading(false);
-        alert("Зургийг боловсруулж чадсангүй. Дахин дарна уу.");
+        notify("Зургийг боловсруулж чадсангүй. Дахин дарна уу.");
         return;
       }
     } else {
@@ -786,7 +797,7 @@ function KioskAiChatSection({
       };
       setChatHistory(newHistory);
     } catch (err) {
-      alert("Буцаах үйлдэл амжилтгүй.");
+      notify("Буцаах үйлдэл амжилтгүй.");
     } finally {
       setIsAiLoading(false);
     }
@@ -1039,6 +1050,7 @@ function KioskPage() {
     | "tasks"
     | "incident_report"
     | "close_shift"
+    | "opening_recount"
   >("pairing");
 // 🔐 ХОЛБОЛТЫН СТЭЙТ (PAIRING)
   const [pairingCodeInput, setPairingCodeInput] = useState("");
@@ -1046,6 +1058,26 @@ function KioskPage() {
   const [recipeSearch, setRecipeSearch] = useState(""); 
   const [tenantClientId, setTenantClientId] = useState<string>("");
   const [trustMeter, setTrustMeter] = useState<{ pct: number; missing: number; check: number } | null>(null);
+  const [countStreak, setCountStreak] = useState<number | null>(null);
+  const [closeItems, setCloseItems] = useState<CycleItem[]>([]);
+  const [openingItems, setOpeningItems] = useState<CycleItem[]>([]);
+  const [cycleResult, setCycleResult] = useState<CycleResult | null>(null);
+  const [noteText, setNoteText] = useState<string | null>(null);
+  const confirmRef = useRef<(value: boolean) => void>(() => {});
+  const [askText, setAskText] = useState<string | null>(null);
+  useEffect(() => {
+    pushNote = (text) => setNoteText(text);
+    pushAsk = (text) =>
+      new Promise<boolean>((resolve) => {
+        confirmRef.current = resolve;
+        setAskText(text);
+      });
+    setKioskConfirm((message) => confirmUi(message));
+    return () => {
+      pushNote = () => {};
+      pushAsk = async () => false;
+    };
+  }, []);
   const [clientLogo, setClientLogo] = useState<string | null>(null);
   const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [workers, setWorkers] = useState<any[]>([]);
@@ -1103,6 +1135,16 @@ function KioskPage() {
           missing: Number(data.missing) || 0,
           check: Number(data.check) || 0,
         });
+      })
+      .catch(() => {});
+    kioskOps("cycle.plan")
+      .then((plan) => {
+        if (cancelled) return;
+        setCountStreak(Number(plan.streak) || 0);
+        if (plan.opening?.items?.length) {
+          setOpeningItems(plan.opening.items);
+          setStep("opening_recount");
+        }
       })
       .catch(() => {});
     return () => {
@@ -1192,7 +1234,6 @@ function KioskPage() {
   // Tasks & Shift Close States
   const [tasks, setTasks] = useState<any[]>([]);
   const [countDraft, setCountDraft] = useState<Record<string, string>>({});
-  const [inventoryToCount, setInventoryToCount] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [posZFile, setPosZFile] = useState<File | null>(null);
   // ⚡ ШИНЭ: Kiosk 2-Tap Горим & Numpad State-үүд
@@ -1230,14 +1271,14 @@ const handleKioskBulkSave = async () => {
 
         // Хамгаалалт 1: Хасах тоог шууд хориглох
         if (qty < 0) {
-          alert(`Алдаа: [${tName(ing.name)}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
+          notify(`Алдаа: [${tName(ing.name)}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
           setIsAiLoading(false);
           return;
         }
 
         // Хамгаалалт 2: Грамм / Килограмм андуурах алдааг барих (Жишээ нь 2 кг-ийг 2 гр гэж бичвэл)
         if ((ing.unit === "гр" || ing.unit === "мл") && qty > 0 && qty < 10) {
-          const confirmUnit = window.confirm(
+          const confirmUnit = await confirmUi(
             `САНУУЛГА: Та [${tName(ing.name)}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
           );
           if (confirmUnit) {
@@ -1249,7 +1290,7 @@ const handleKioskBulkSave = async () => {
         // Хамгаалалт 3: Хуруу андуурч хэт их тоо бичих (15 гэх гэж байгаад 1500 гээд дарчихвал)
         const prevStock = parseFloat(ing.current_stock) || 0;
         if (prevStock > 0 && qty > (prevStock * 3) && (qty - prevStock) > 500) {
-          const confirmVariance = window.confirm(
+          const confirmVariance = await confirmUi(
             `АНХААР: [${tName(ing.name)}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
           );
           if (!confirmVariance) {
@@ -1281,7 +1322,7 @@ const handleKioskBulkSave = async () => {
       });
 
       if (logsToInsert.length === 0) {
-        alert("Та тоолох барааны тоо хэмжээг оруулна уу.");
+        notify("Та тоолох барааны тоо хэмжээг оруулна уу.");
         setIsAiLoading(false);
         return;
       }
@@ -1302,14 +1343,14 @@ const handleKioskBulkSave = async () => {
       })();
 
       if (errorMessage) {
-        alert(`Алдаа: ${errorMessage}`);
+        notify(`Алдаа: ${errorMessage}`);
       } else {
-        alert(`Амжилттай! ${insertedData?.length || logsToInsert.length} барааны тооллого хадгалагдлаа.`);
+        notify(`Амжилттай! ${insertedData?.length || logsToInsert.length} барааны тооллого хадгалагдлаа.`);
         setKioskBulkStock({});
         await fetchKioskData(tenantClientId);
       }
     } catch (e: any) {
-      alert(`Алдаа гарлаа: ${e.message}`);
+      notify(`Алдаа гарлаа: ${e.message}`);
     } finally {
       setIsAiLoading(false);
     }
@@ -1755,7 +1796,7 @@ const initKioskContext = async () => {
     const pinJson = await pinRes.json().catch(() => ({ valid: false }));
 
     if (!pinRes.ok || !pinJson.valid) {
-      setMsg(pinJson.message || "❌ Буруу PIN код!");
+      setMsg(pinJson.message || "Буруу PIN код!");
       setPin("");
       return;
     }
@@ -1794,9 +1835,20 @@ const initKioskContext = async () => {
       });
       setActiveShift(saved.shift);
       setIsAiLoading(false);
-      setStep("menu");
+      try {
+        const plan = await kioskOps("cycle.plan", { activeShiftId: saved.shift?.id });
+        setCountStreak(Number(plan.streak) || 0);
+        if (plan.opening?.items?.length) {
+          setOpeningItems(plan.opening.items);
+          setStep("opening_recount");
+        } else {
+          setStep("menu");
+        }
+      } catch {
+        setStep("menu");
+      }
     } catch (err: any) {
-      setMsg(`❌ Алдаа: ${err.message || "Ээлж үүсгэж чадсангүй."}`);
+      setMsg(`Алдаа: ${err.message || "Ээлж үүсгэж чадсангүй."}`);
       setIsAiLoading(false);
     }
   };
@@ -1833,12 +1885,12 @@ const initKioskContext = async () => {
       });
     } catch (err: any) {
       setIsAiLoading(false);
-      alert(err.message || "Бүртгэж чадсангүй.");
+      notify(err.message || "Бүртгэж чадсангүй.");
       return;
     }
 
     setIsAiLoading(false);
-    alert("Өмнөх ээлжийн алдагдал менежерийн хяналтад бүртгэгдлээ!");
+    notify("Өмнөх ээлжийн алдагдал менежерийн хяналтад бүртгэгдлээ!");
     setIncidentItem("");
     setIncidentQty("");
     setIncidentNote("");
@@ -1888,54 +1940,71 @@ const initKioskContext = async () => {
     }
   };
 
-  const loadInventoryToCount = () => {
+  const openCloseShift = async () => {
     setMsg("");
-    const twelveHoursAgo = new Date(
-      Date.now() - 12 * 60 * 60 * 1000,
-    ).toISOString();
+    try {
+      const plan = await kioskOps("cycle.plan", { activeShiftId: activeShift?.id || null });
+      const items = plan.closeItems || [];
+      if (items.length === 0) {
+        setMsg("Тоолох бараа алга.");
+        return;
+      }
+      setCloseItems(items);
+      setCycleResult(null);
+      setCountStreak(Number(plan.streak) || 0);
+      setCounts({});
+      setActualCashDrawer("");
+      setPosZFile(null);
+      setStep("close_shift");
+    } catch (err: any) {
+      setMsg(err.message || "Тооллогын жагсаалт гарсангүй.");
+    }
+  };
 
-    // 1. А-Class (Чухал) бараанууд түрүүлж орно
-    const criticalItems = ingredients.filter(
-      (i) =>
-        i.is_critical &&
-        (!i.last_counted_at || i.last_counted_at < twelveHoursAgo),
-    );
-
-    // 2. Үлдсэн 5 суудлыг хамгийн удаан тоологдоогүй бараануудаар нөхнө
-    const remainingSlots = Math.max(0, 5 - criticalItems.length);
-    const cycleItems = ingredients
-      .filter(
-        (i) =>
-          !i.is_critical &&
-          (!i.last_counted_at || i.last_counted_at < twelveHoursAgo),
-      )
-      .sort(
-        (a, b) =>
-          new Date(a.last_counted_at || "2000-01-01").getTime() -
-          new Date(b.last_counted_at || "2000-01-01").getTime(),
-      )
-      .slice(0, remainingSlots);
-
-    // ⚡ Аналитик дуудаж хүлээхгүй шууд дэлгэцийг нээнэ!
-    setInventoryToCount([...criticalItems, ...cycleItems]);
-    setCounts({});
-    setActualCashDrawer("");
-    setPosZFile(null);
-    setStep("close_shift");
+  const saveOpeningCount = async (result: CycleResult) => {
+    setIsAiLoading(true);
+    setMsg("");
+    try {
+      const logs = [
+        ...result.counts.map((item) => ({
+          ingredient_id: item.ingredientId,
+          quantity: item.quantity,
+          type: "count",
+          incident_type: "opening_recount",
+          notes: `Ээлж нээх тооллого: ${item.name}`,
+        })),
+        ...result.waste.map((item) => ({
+          ingredient_id: item.ingredientId,
+          quantity: -Math.abs(item.qty),
+          type: item.type,
+          incident_type: "shift_waste",
+          notes: item.reason,
+        })),
+        ...result.unexplained.map((item) => ({
+          ingredient_id: item.ingredientId,
+          quantity: item.qty,
+          total_cost: item.money,
+          type: "other",
+          incident_type: "unexplained_gap",
+          notes: "Тайлбаргүй зөрүү",
+        })),
+      ];
+      if (logs.length) await kioskSaveLogs(logs);
+      setOpeningItems([]);
+      setStep("menu");
+      setMsg("Нээлтийн тооллого хадгалагдлаа.");
+    } catch (err: any) {
+      setMsg(err.message || "Нээлтийн тооллого хадгалагдсангүй.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   // ⚡ 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
 
 const handleCloseShift = async () => {
-    // 1. ШАЛГАЛТУУД (Дутуу зүйл байвал шууд анхааруулна) - 100% ORIGINAL
-    const uncountedItems = inventoryToCount.filter(
-      (i) =>
-        counts[i.id] === undefined || counts[i.id].toString().trim() === "",
-    );
-    if (uncountedItems.length > 0) {
-      setMsg(
-        `Тооллого дутуу байна: ${uncountedItems.map((i) => i.name).join(", ")}`,
-      );
+    if (!cycleResult || cycleResult.counts.length === 0) {
+      setMsg("Эхлээд тооллогоо дуусгана уу.");
       return;
     }
 
@@ -1953,61 +2022,51 @@ const handleCloseShift = async () => {
       return;
     }
 
-    // ⚡ 2. ӨГӨГДЛҮҮДИЙГ БЭЛТГЭХ - 100% ORIGINAL
     const endTime = new Date().toISOString();
     const fileToUpload = posZFile;
     const cashVal = actualCashDrawer;
     const currentShift = activeShift;
-    const itemsCounted = [...inventoryToCount];
-    const itemCounts = { ...counts };
-    const completedTaskIds = tasks
-      .filter((t: any) => t.done && t.id)
-      .map((t: any) => t.id);
+    const counted = cycleResult;
 
     setIsAiLoading(true);
     setMsg("");
 
-    // ⚡ 3. ЗУРАГ ХУУЛАХ БА БААЗАД ХАДГАЛАХ
     try {
       let posZUrl = null;
       if (fileToUpload) {
         posZUrl = await uploadEvidencePhoto(fileToUpload, "pos_z_reports");
       }
 
-      const badCount = itemsCounted.find((item) => !Number.isFinite(parseFloat(itemCounts[item.id])));
-      if (badCount) {
-        setMsg(`${badCount.name} дээрх тоо буруу байна.`);
-        setIsAiLoading(false);
-        return;
-      }
-
       await kioskOps("shift.close", {
         id: currentShift?.id,
         pos_z_image_url: posZUrl,
         cash: parseFloat(cashVal),
-        counts: itemsCounted.map((item) => ({
-          ingredient_id: item.id,
+        counts: counted.counts.map((item) => ({
+          ingredient_id: item.ingredientId,
           name: item.name,
-          quantity: parseFloat(itemCounts[item.id]),
+          quantity: item.quantity,
         })),
-        closing_checklist: itemsCounted.map((item) => ({
-          ingredient_id: item.id,
+        waste: counted.waste,
+        unexplained: counted.unexplained,
+        closing_checklist: counted.counts.map((item) => ({
+          ingredient_id: item.ingredientId,
           name: item.name,
-          quantity: parseFloat(itemCounts[item.id]) || 0,
+          quantity: item.quantity,
           unit: item.unit,
           count_category: "daily_cycle_count",
           counted_at: endTime,
         })),
       });
 
-      // ⚡ 4. БААЗАД АМЖИЛТТАЙ ХАДГАЛАГДСАНЫ ДАРАА Л ДЭЛГЭЦИЙГ ЦЭВЭРЛЭХ
-      setMsg("🌙 Ээлж амжилттай хаагдлаа!");
+      setMsg("Ээлж хаагдлаа.");
       setStep("select_worker");
       setSelectedWorker(null);
       localStorage.removeItem("kiosk_worker_token");
       setActiveShift(null);
       setTasks([]);
       setCounts({});
+      setCycleResult(null);
+      setCloseItems([]);
       setPosZFile(null);
       setActualCashDrawer("");
 
@@ -2061,7 +2120,7 @@ const handleCloseShift = async () => {
             onClick={() => setLang(lang === "mn" ? "en" : "mn")}
             className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 px-2.5 py-1.5 rounded-xl text-xs font-black uppercase transition active:scale-95 cursor-pointer shadow-sm"
           >
-            {lang === "mn" ? "🇲🇳 MN" : "🇺🇸 EN"}
+            {lang === "mn" ? "MN" : "EN"}
           </button>
           <Link
             href="/login?from=kiosk"
@@ -2514,6 +2573,14 @@ const handleCloseShift = async () => {
 
                   <button
                     type="button"
+                    onClick={() => setStep("incident_report")}
+                    className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-sm"
+                  >
+                    Алдагдал
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setStep("ai_chat")}
                     className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
@@ -2525,6 +2592,9 @@ const handleCloseShift = async () => {
 
               {trustMeter && (
                 <TruthMeter pct={trustMeter.pct} missing={trustMeter.missing} check={trustMeter.check} />
+              )}
+              {countStreak != null && (
+                <p className="text-sm font-bold text-zinc-200 px-1">{streakText(countStreak)}</p>
               )}
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
@@ -2660,11 +2730,11 @@ const handleCloseShift = async () => {
                               payMethod: "bank",
                             });
                           } else {
-                            alert(data.message || "Баримтыг уншиж чадсангүй.");
+                            notify(data.message || "Баримтыг уншиж чадсангүй.");
                           }
                         } catch (err) {
                           setIsScanningReceipt(false);
-                          alert("Сүлжээний алдаа гарлаа.");
+                          notify("Сүлжээний алдаа гарлаа.");
                         }
                       }
                     }}
@@ -2715,13 +2785,13 @@ const handleCloseShift = async () => {
                                 payMethod: "bank",
                               });
                             } else {
-                              alert(
+                              notify(
                                 data.message || "Баримтыг уншиж чадсангүй.",
                               );
                             }
                           } catch (err) {
                             setIsScanningReceipt(false);
-                            alert("Холболтын алдаа гарлаа.");
+                            notify("Холболтын алдаа гарлаа.");
                           }
                         };
                         reader.readAsDataURL(file);
@@ -2912,7 +2982,7 @@ const handleCloseShift = async () => {
 
               <button
                 type="button"
-                onClick={loadInventoryToCount}
+                onClick={openCloseShift}
                 className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-800 text-zinc-200 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <ListOrdered className="h-4 w-4" />
@@ -3225,7 +3295,7 @@ const handleCloseShift = async () => {
                       // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
                       setRecentToast({
                         id: "temp-" + Date.now(),
-                        text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
+                        text: `Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
                       });
 
                       // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
@@ -3263,11 +3333,11 @@ const handleCloseShift = async () => {
                           if (newId) {
                             setRecentToast({
                               id: newId,
-                              text: `💵 Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
+                              text: `Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
                             });
                           }
                         } catch (e: any) {
-                          alert(e.message || "Кассын бүртгэл хадгалагдсангүй.");
+                          notify(e.message || "Кассын бүртгэл хадгалагдсангүй.");
                         }
                       })();
                     }}
@@ -3309,12 +3379,12 @@ const handleCloseShift = async () => {
                         }`}
                       >
                         {kioskMode === "spoilage"
-                          ? "🗑️ Хаягдал бүртгэх"
+                          ? "Хаягдал бүртгэх"
                           : kioskMode === "staff_meal"
-                            ? "🍽️ Ажилтны хоолонд"
+                            ? "Ажилтны хоол"
                             : kioskMode === "testing"
-                              ? "🧪 Туршилт / Тохируулга"
-                              : "📦 Орлого авах"}
+                              ? "Туршилт"
+                              : "Орлого авах"}
                       </span>
                       <h3 className="text-base font-black text-white mt-1">
                         {quickItemModal.name}
@@ -3626,7 +3696,7 @@ const handleCloseShift = async () => {
         fetchKioskData(tenantClientId);
       }
     } catch (err: any) {
-      alert(`❌ Серверийн алдаа: ${err.message || err}`);
+      notify(`Серверийн алдаа: ${err.message || err}`);
       console.error("Background save failed:", err);
     }
   })();
@@ -3765,7 +3835,7 @@ const handleCloseShift = async () => {
                           : "bg-zinc-950 text-zinc-400"
                       }`}
                     >
-                      💵 Кассын бэлнээр
+                      Кассын бэлнээр
                     </button>
                   </div>
 
@@ -3880,7 +3950,7 @@ const handleCloseShift = async () => {
                         (it) => it.is_food !== false && !(it.ingredient_id || matchIngredient(it.item_name)?.id),
                       );
                       if (unresolved) {
-                        alert(`"${unresolved.item_name}" аль орц болохыг сонгоно уу.`);
+                        notify(`"${unresolved.item_name}" аль орц болохыг сонгоно уу.`);
                         return;
                       }
 
@@ -3934,7 +4004,7 @@ const handleCloseShift = async () => {
                           });
                           fetchKioskData(tenantClientId);
                         } catch (e: any) {
-                          alert(e.message || "E-Barimt хадгалагдсангүй.");
+                          notify(e.message || "E-Barimt хадгалагдсангүй.");
                         }
                       })();
                     }}
@@ -4139,7 +4209,7 @@ const handleCloseShift = async () => {
                             fetchKioskData(tenantClientId);
                           }
                         } catch (err: any) {
-                          alert(err.message || "Шинэ бараа хадгалагдсангүй.");
+                          notify(err.message || "Шинэ бараа хадгалагдсангүй.");
                         }
                       })();
                     }}
@@ -4237,7 +4307,8 @@ const handleCloseShift = async () => {
                           log.ingredients?.name ||
                           log.non_food_item ||
                           "Тодорхойгүй";
-                        const unit = log.ingredients?.unit || "ш";
+                        const unit = displayUnit(log.ingredients?.unit || "ш");
+                        const typeLabel = log.non_food_item?.includes("Касс") ? "Касс" : logTypeLabel(log.type);
                         const cost = parseFloat(log.total_cost) || 0;
                         const qty = Math.abs(parseFloat(log.quantity) || 0);
                         const timeStr = log.date
@@ -4267,16 +4338,8 @@ const handleCloseShift = async () => {
                                   className="h-10 w-10 object-cover rounded-xl border border-zinc-700 cursor-pointer shrink-0 hover:scale-105 transition"
                                 />
                               ) : (
-                                <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-sm shrink-0">
-                                  {isPurchase
-                                    ? "📦"
-                                    : isSpoilage
-                                      ? "🗑️"
-                                      : isStaffMeal
-                                        ? "🍽️"
-                                        : isTesting
-                                          ? "🧪"
-                                          : "💵"}
+                                <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] font-black text-zinc-300 shrink-0 text-center leading-tight px-1">
+                                  {typeLabel}
                                 </div>
                               )}
 
@@ -4296,15 +4359,7 @@ const handleCloseShift = async () => {
                                             : "bg-zinc-800/60 text-zinc-300 border border-zinc-800/20"
                                     }`}
                                   >
-                                    {isPurchase
-                                      ? "Орлого"
-                                      : isSpoilage
-                                        ? "Хаягдал"
-                                        : isStaffMeal
-                                          ? "Хоол"
-                                          : isTesting
-                                            ? "Туршилт"
-                                            : "Зардал"}
+                                    {typeLabel}
                                   </span>
                                 </div>
 
@@ -4333,7 +4388,7 @@ const handleCloseShift = async () => {
                               type="button"
                               onClick={async () => {
                                 if (
-                                  !confirm(
+                                  !await confirmUi(
                                     `"${itemName}" бүртгэлийг устгаж буцаах уу?`,
                                   )
                                 )
@@ -4345,7 +4400,7 @@ const handleCloseShift = async () => {
                                   await kioskOps("logs.delete", { id: log.id });
                                   await fetchKioskData(tenantClientId);
                                 } catch (err: any) {
-                                  alert(err.message || "Буцааж чадсангүй.");
+                                  notify(err.message || "Буцааж чадсангүй.");
                                   fetchKioskData(tenantClientId);
                                 }
                               }}
@@ -4557,7 +4612,7 @@ const handleCloseShift = async () => {
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">
-                  4. Нотлох зураг авах (Evidence Photo)
+                  4. Нотлох зураг
                 </label>
                 <input
                   type="file"
@@ -4616,185 +4671,79 @@ const handleCloseShift = async () => {
         )}
         {/* 8. CLOSE SHIFT & POS Z-REPORT */}
         {step === "close_shift" && (
-          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden">
-            <div className="shrink-0 mb-2">
-              <h2 className="text-lg sm:text-xl font-black text-zinc-200 mb-0.5 flex items-center gap-2">
-                <ListOrdered className="h-5 w-5" /> Ээлжийн Тооллого & Z-Тайлан
-              </h2>
-              <p className="text-xs text-zinc-400">
-                Хөргөгч/лангуун дахь үлдэгдлийг тоолж, Z-тайлангийн зураг
-                оруулна уу.
-              </p>
-            </div>
-
-            <div className="space-y-2 py-1 flex-1 overflow-y-auto overscroll-contain pr-1">
-              {/* 🔄 САРЫН ЦИКЛИЙН ЯВЦ (KIOSK ДЭЭР АЖИЛТАНД ХАРАГДАХ) */}
-              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 mb-2 flex items-center justify-between text-xs font-mono">
-                <span className="text-zinc-400 font-sans">
-                  Энэ сарын циклийн гүйцэтгэл:
-                </span>
-                <span className="text-zinc-200 font-bold flex items-center gap-1.5">
-                  <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
-                  <span>
-                    {
-                      ingredients.filter(
-                        (i) =>
-                          i.last_counted_at &&
-                          new Date(i.last_counted_at) >=
-                            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-                      ).length
-                    }{" "}
-                    / {ingredients.length} бараа
-                  </span>
-                </span>
-              </div>
-              {/* POS Z-REPORT UPLOAD */}
-              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mb-2">
-                <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
-                  <Receipt className="h-3.5 w-3.5 text-zinc-400" />
-                  ПОС-ын Z-Тайлангийн зураг (End-of-day Z-Report)
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  id="pos-z-camera"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) setPosZFile(e.target.files[0]);
-                  }}
-                />
-                <label
-                  htmlFor="pos-z-camera"
-                  className="w-full bg-zinc-900 border border-zinc-700 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-xs font-bold text-zinc-200 hover:border-zinc-700 transition"
-                >
-                  <Camera className="h-4 w-4" />
-                  <span>
-                    {posZFile
-                      ? ` ${posZFile.name.substring(0, 20)}...`
-                      : "Z-Тайлангийн зураг дарах"}
-                  </span>
-                </label>
-              </div>
-
-              {/* 💵 ШИНЭ: КАССЫН БЭЛЭН МӨНГӨНИЙ БОДИТ ТООЛЛОГО */}
-              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mb-2">
-                <p className="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
-                  <Banknote className="h-3.5 w-3.5 text-zinc-400" />
-                  Кассанд байгаа бэлэн мөнгө (Тоолсон дүн)
-                </p>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={actualCashDrawer}
-                    onChange={(e) => setActualCashDrawer(e.target.value)}
-                    placeholder="Кассын шүүгээнд яг хэдэн төгрөг байна вэ? (Байхгүй бол 0)"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-200 font-mono font-black outline-none focus:border-zinc-700"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-500">
-                    ₮
-                  </span>
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col overflow-hidden">
+            {!cycleResult ? (
+              <CycleCount
+                items={closeItems}
+                title="Ээлж хаах тооллого"
+                onCancel={() => setStep("menu")}
+                onDone={(result) => setCycleResult(result)}
+              />
+            ) : (
+              <>
+                <div className="shrink-0 mb-2">
+                  <h2 className="text-lg font-black text-zinc-200">Z-тайлан ба касс</h2>
+                  <p className="text-xs text-zinc-400">Тооллого дууссан. Зураг ба бэлэн мөнгийг оруулна уу.</p>
                 </div>
-              </div>
-
-              {/* PARETO 80/20 CYCLE COUNT ITEMS */}
-              {inventoryToCount.map((item) => {
-                const stock = parseFloat(
-                  item.current_stock ?? item.live_stock ?? 0,
-                );
-                const par = parseFloat(item.par_level ?? 0);
-                const isUrgent = par > 0 && stock <= par;
-
-                return (
-                  <div
-                    key={item.id}
-                    className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex justify-between items-center gap-3"
-                  >
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="font-bold text-sm text-white">
-                          {item.name}
-                        </p>
-
-                        {/* 🏷️ ПАЙЗНУУД */}
-                        {isUrgent ? (
-                          <span className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded font-black ">
-                            🚨 Яаралтай (Нөөц бага)
-                          </span>
-                        ) : item.todayUsage > 0 ? (
-                          <span className="text-xs bg-zinc-800 text-zinc-200 border border-zinc-800 px-1.5 py-0.5 rounded font-black">
-                            ⚡ Өдрийн эргэлт (
-                            {Math.round(item.moneyMoved || 0).toLocaleString()}
-                            ₮)
-                          </span>
-                        ) : (
-                          <span className="text-xs bg-zinc-900 text-zinc-300 border border-zinc-800 px-2 py-0.5 rounded-md font-medium inline-flex items-center gap-1">
-                            <RotateCcw className="h-2.5 w-2.5 text-zinc-400" />
-                            <span>Сар бүрийн цикл</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        Тоолох нэгж:{" "}
-                        <strong className="text-zinc-300 font-bold">
-                          {item.unit}
-                        </strong>
-                      </p>
-                    </div>
-
+                <div className="space-y-2 py-1 flex-1 overflow-y-auto pr-1">
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                    <p className="text-xs font-bold text-white mb-1.5">ПОС-ын Z-тайлангийн зураг</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      id="pos-z-camera"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) setPosZFile(e.target.files[0]);
+                      }}
+                    />
+                    <label
+                      htmlFor="pos-z-camera"
+                      className="w-full bg-zinc-900 border border-zinc-700 p-3 rounded-xl flex items-center justify-center cursor-pointer text-sm font-bold text-zinc-200"
+                    >
+                      {posZFile ? posZFile.name.slice(0, 24) : "Z-тайлангийн зураг дарах"}
+                    </label>
+                  </div>
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                    <p className="text-xs font-bold text-white mb-1.5">Кассанд байгаа бэлэн мөнгө</p>
                     <input
                       type="number"
-                      step="any"
-                      required
-                      placeholder="Тоо..."
-                      value={
-                        counts[item.id] !== undefined ? counts[item.id] : ""
-                      }
-                      onChange={(e) =>
-                        setCounts({ ...counts, [item.id]: e.target.value })
-                      }
-                      className="w-24 h-10 bg-zinc-900 px-3 rounded-xl text-center text-white border border-zinc-700 font-bold text-base focus:border-zinc-700 outline-none"
+                      value={actualCashDrawer}
+                      onChange={(e) => setActualCashDrawer(e.target.value)}
+                      placeholder="Байхгүй бол 0"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-3 text-sm text-zinc-200 font-mono font-black outline-none"
                     />
                   </div>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-2.5 mt-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setStep("menu")}
-                className="flex-1 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold py-3 rounded-xl text-xs transition active:scale-95"
-              >
-                Буцах
-              </button>
-
-              {/* 🔒 ЗӨВХӨН ЭНЭ ТОВЧ ДЭЭР Z-ТАЙЛАН БА КАССЫН БЭЛЭН МӨНГӨНИЙ ШАЛГАЛТ НЭМЭГДСЭН: */}
-              <button
-                type="button"
-                onClick={handleCloseShift}
-                disabled={
-                  isAiLoading ||
-                  inventoryToCount.some(
-                    (i) =>
-                      counts[i.id] === undefined ||
-                      counts[i.id].toString().trim() === "",
-                  ) ||
-                  !posZFile || // 👈 Z-Тайлангийн зураггүй бол цоожтой
-                  actualCashDrawer.trim() === "" // 👈 Кассын мөнгө хоосон бол цоожтой (0 байвал зөвшөөрнө)
-                }
-                className="flex-1 bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 font-black py-3 rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
-              >
-                {isAiLoading
-                  ? "Хааж байна..."
-                  : !posZFile
-                    ? "Z-ТАЙЛАНГИЙН ЗУРАГ ДАРНА УУ"
-                    : actualCashDrawer.trim() === ""
-                      ? "💵 КАССЫН МӨНГӨӨ БИЧНЭ ҮҮ"
-                      : "Хаах & Илгээх"}
-              </button>
-            </div>
+                </div>
+                <div className="flex gap-2.5 mt-2.5 shrink-0">
+                  <button type="button" onClick={() => setCycleResult(null)} className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-300 font-bold py-3 rounded-xl text-xs">
+                    Тооллого руу буцах
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseShift}
+                    disabled={isAiLoading || !posZFile || actualCashDrawer.trim() === ""}
+                    className="flex-1 bg-white text-zinc-950 font-black py-3 rounded-xl text-xs disabled:opacity-40"
+                  >
+                    {isAiLoading ? "Хааж байна..." : "Хаах"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {step === "opening_recount" && (
+          <div className="w-full h-full bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-zinc-800 shadow-xl flex flex-col overflow-hidden">
+            <CycleCount
+              items={openingItems}
+              title="Нээлтийн тооллого"
+              showNight
+              allowCancel={false}
+              openerName={selectedWorker ? `${selectedWorker.role || "Ажилтан"} (${selectedWorker.full_name || selectedWorker.email?.split("@")[0] || "Ажилтан"})` : ""}
+              onCancel={() => setStep("menu")}
+              onDone={saveOpeningCount}
+            />
           </div>
         )}
         {/* ========================================================================= */}
@@ -5007,7 +4956,7 @@ const handleCloseShift = async () => {
                               fetchKioskData(tenantClientId);
                             }
                           } catch (err: any) {
-                            alert(err.message || "Сагс хадгалагдсангүй.");
+                            notify(err.message || "Сагс хадгалагдсангүй.");
                           }
                         })();
                       }}
@@ -5031,6 +4980,45 @@ const handleCloseShift = async () => {
               </>
             )}
       </main>
+      {noteText && (
+        <div className="fixed inset-0 z-[80] bg-black/80 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-md space-y-4">
+            <p className="text-sm text-zinc-100 whitespace-pre-wrap">{noteText}</p>
+            <button type="button" onClick={() => setNoteText(null)} className="w-full h-12 rounded-2xl bg-white text-zinc-950 font-black">
+              Ойлголоо
+            </button>
+          </div>
+        </div>
+      )}
+      {askText && (
+        <div className="fixed inset-0 z-[80] bg-black/80 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-md space-y-4">
+            <p className="text-sm text-zinc-100 whitespace-pre-wrap">{askText}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAskText(null);
+                  confirmRef.current(false);
+                }}
+                className="h-12 rounded-2xl border border-zinc-700 text-zinc-200 font-bold"
+              >
+                Үгүй
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAskText(null);
+                  confirmRef.current(true);
+                }}
+                className="h-12 rounded-2xl bg-white text-zinc-950 font-black"
+              >
+                Тийм
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
