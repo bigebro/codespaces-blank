@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens } from "../../lib/kioskClient";
+import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens, kioskTrust } from "../../lib/kioskClient";
+import TruthMeter from "../../features/finance/TruthMeter";
 import {
   Coffee,
   CheckCircle,
@@ -1044,6 +1045,7 @@ function KioskPage() {
   const [isPairing, setIsPairing] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState(""); 
   const [tenantClientId, setTenantClientId] = useState<string>("");
+  const [trustMeter, setTrustMeter] = useState<{ pct: number; missing: number; check: number } | null>(null);
   const [clientLogo, setClientLogo] = useState<string | null>(null);
   const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [workers, setWorkers] = useState<any[]>([]);
@@ -1089,6 +1091,24 @@ function KioskPage() {
       })
       .catch(() => {});
   }, [tenantClientId]);
+
+  useEffect(() => {
+    if (!tenantClientId || step !== "menu") return;
+    let cancelled = false;
+    kioskTrust()
+      .then((data) => {
+        if (cancelled) return;
+        setTrustMeter({
+          pct: Number(data.purchase_pct) || 0,
+          missing: Number(data.missing) || 0,
+          check: Number(data.check) || 0,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantClientId, step]);
 
 
 
@@ -1619,6 +1639,15 @@ const initKioskContext = async () => {
       });
       setTranslationsCache(map);
     }
+    kioskTrust()
+      .then((data) => {
+        setTrustMeter({
+          pct: Number(data.purchase_pct) || 0,
+          missing: Number(data.missing) || 0,
+          check: Number(data.check) || 0,
+        });
+      })
+      .catch(() => {});
     return data;
   };
 
@@ -2493,6 +2522,10 @@ const handleCloseShift = async () => {
                   </button>
                 </div>
               </div>
+
+              {trustMeter && (
+                <TruthMeter pct={trustMeter.pct} missing={trustMeter.missing} check={trustMeter.check} />
+              )}
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
               <div className="grid grid-cols-5 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">

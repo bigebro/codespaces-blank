@@ -16,6 +16,8 @@ import {
 import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
 import DataGradePanel from "./DataGradePanel";
+import TruthMeter from "./TruthMeter";
+import { IMPOSSIBLE_TITLE, impossibleReasons, parsePct, summarizeTrust } from "@/lib/honestDashboard";
 
 // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
 function cleanString(str: string) {
@@ -91,9 +93,33 @@ export default function FinanceTab({
     Record<string, number>
   >({});
 
+  const trustSummary = summarizeTrust({
+    grades: liveAnalytics?.grades,
+    data_trust: liveAnalytics?.data_trust,
+  });
+  const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
+  const verifiedTheo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
+  const unverifiedTheo = Number(
+    liveAnalytics?.financial_ladder?.unverified_theo ?? trustSummary.unverified_theo,
+  );
+  const impossible = liveAnalytics
+    ? impossibleReasons(
+        verifiedActual,
+        verifiedTheo,
+        parsePct(liveAnalytics?.financial_ladder?.gross_margin),
+      )
+    : [];
+
   return (
     <>
       <div className="space-y-6">
+        {liveAnalytics && (
+          <TruthMeter
+            pct={trustSummary.purchase_pct}
+            missing={trustSummary.missing}
+            check={trustSummary.check}
+          />
+        )}
         {/* 💳 ТӨЛБӨРИЙН САНУУЛГА / БАНКНЫ ДАНСНЫ БАННЕР */}
         {tenantInfo?.isExpired && (
           <div className="bg-gradient-to-r from-amber-500/20 via-zinc-900 to-zinc-900 border-2 border-amber-500/50 p-5 rounded-2xl shadow-2xl ">
@@ -465,6 +491,10 @@ export default function FinanceTab({
                   ? `${liveAnalytics.data_trust.total} бараанаас ${liveAnalytics.data_trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${liveAnalytics.data_trust.purchase_pct}%)`
                   : "Баталгаажсан барааны бодит өртөг"}
               </span>
+              <span className="text-xs text-amber-200 mt-1 block">
+                Дутуу, шалгах барааны онолын өртөг: {Math.round(unverifiedTheo).toLocaleString()}₮
+              </span>
+              <span className="text-xs text-zinc-400 mt-1 block">{trustSummary.estimate}</span>
             </div>
 
             {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
@@ -519,6 +549,14 @@ export default function FinanceTab({
             </div>
           </div>
         )}
+        {impossible.length > 0 && (
+          <div className="bg-rose-950/50 border border-rose-500/50 rounded-2xl p-4">
+            <p className="text-sm font-black text-rose-200">{IMPOSSIBLE_TITLE}</p>
+            {impossible.map((reason) => (
+              <p key={reason} className="text-sm text-rose-100 mt-1">{reason}</p>
+            ))}
+          </div>
+        )}
         <DataGradePanel
           liveAnalytics={liveAnalytics}
           onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
@@ -569,6 +607,18 @@ export default function FinanceTab({
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.actual_cogs || 0).toLocaleString()} ₮`
                     : "-"}
+                </span>
+              </div>
+
+              <div className="flex justify-between pt-3">
+                <div>
+                  <span className="text-zinc-400 block">
+                    Дутуу, шалгах барааны онолын өртөг
+                  </span>
+                  <span className="text-xs text-zinc-500">{trustSummary.estimate}</span>
+                </div>
+                <span className="font-bold text-amber-200 font-mono">
+                  {Math.round(unverifiedTheo).toLocaleString()} ₮
                 </span>
               </div>
 
@@ -995,6 +1045,13 @@ export default function FinanceTab({
               </div>
             );
           })()}
+        {liveAnalytics && (
+          <DataGradePanel
+            variant="actions"
+            liveAnalytics={liveAnalytics}
+            onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
+          />
+        )}
       </div>
     </>
   );

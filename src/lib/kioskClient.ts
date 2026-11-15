@@ -46,3 +46,16 @@ export async function kioskBootstrap() {
   }
   return data as Record<string, any>;
 }
+
+export async function kioskTrust() {
+  const res = await fetch("/api/kiosk/trust", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deviceToken: kioskTokens().deviceToken }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || "Итгэлийн тоо татаж чадсангүй.");
+  }
+  return data as { ok: true; purchase_pct: number; missing: number; check: number };
+}
