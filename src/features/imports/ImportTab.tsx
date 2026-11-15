@@ -14,7 +14,7 @@ import {
   Archive,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+import { ubDay, ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import {
   autoCategorizeProduct,
   evaluateSaleItem,
@@ -80,7 +80,7 @@ export default function ImportTab({
   const [overwriteAudit, setOverwriteAudit] = useState(false);
   const [kitchenImportSuccess, setKitchenImportSuccess] = useState(false);
   const [overwriteKitchen, setOverwriteKitchen] = useState(false);
-  const [auditDate, setAuditDate] = useState("2026-09-01");
+    const [auditDate, setAuditDate] = useState(() => ubDay(new Date()));
   const [auditType, setAuditType] = useState<"start" | "end">("start");
   const [activeSampleModal, setActiveSampleModal] = useState<string | null>(
     null,
@@ -433,9 +433,9 @@ export default function ImportTab({
         return;
       }
 
-      const activeMonthFallback = endDate
-        ? `${endDate}T12:00:00.000Z`
-        : `${startDate}T12:00:00.000Z`;
+      const todayUb = ubDay(new Date());
+      const fallbackDay = !endDate ? startDate : endDate <= todayUb ? endDate : todayUb < startDate ? startDate : todayUb;
+      const activeMonthFallback = `${fallbackDay}T12:00:00.000Z`;
       const salesToInsert: any[] = [];
 
       for (let i = 1; i < rows.length; i++) {
@@ -849,9 +849,9 @@ export default function ImportTab({
         "cup",
         "bags",
       ];
-      const activeMonthFallback = endDate
-        ? `${endDate}T12:00:00.000Z`
-        : `${startDate}T12:00:00.000Z`;
+      const todayUb = ubDay(new Date());
+      const fallbackDay = !endDate ? startDate : endDate <= todayUb ? endDate : todayUb < startDate ? startDate : todayUb;
+      const activeMonthFallback = `${fallbackDay}T12:00:00.000Z`;
 
       const newIngsToCreate = new Map<
         string,
@@ -1431,9 +1431,9 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
       const logsToInsert: any[] = [];
       // 💡 Огноо байхгүй бол тухайн сонгосон сарын (9-р сарын) огноог авах:
-      const activeMonthFallback = endDate
-        ? `${endDate}T12:00:00.000Z`
-        : `${startDate}T12:00:00.000Z`;
+         const todayUb = ubDay(new Date());
+      const fallbackDay = !endDate ? startDate : endDate <= todayUb ? endDate : todayUb < startDate ? startDate : todayUb;
+      const activeMonthFallback = `${fallbackDay}T12:00:00.000Z`;
 
       const ingMap = new Map();
       ingredients
@@ -1583,7 +1583,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           if (i.name.toLowerCase().includes("beans")) ingMap.set("кофе", i);
         });
 
-      const countsToInsert: any[] = [];
+         const countsToInsert: any[] = []; const unmatched: string[] = [];
       const defaultDate = auditDate
         ? ubDayStartIso(auditDate)
         : ubDayStartIso(startDate);
@@ -1690,7 +1690,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             worker_name: `${currentActor} (Dashboard)`,
             date: rowDate,
           });
-        }
+        } else unmatched.push(itemName);
       }
 
       if (overwriteAudit) {
@@ -1715,7 +1715,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
       setOverwriteAudit(false);
       await fetchDatabaseData(activeClient);
       alert(
-        ` Амжилттай! Нийт ${countsToInsert.length} барааны тооллого (${cleanType}: ${auditDate}) хадгалагдлаа.`,
+            ` Амжилттай! Нийт ${countsToInsert.length} барааны тооллого (${auditDate}) хадгалагдлаа.${unmatched.length ? `\nОлдоогүй бараа (хадгалагдаагүй): ${unmatched.join(", ")}` : ""}`,
       );
       setTimeout(() => setInventoryImportSuccess(false), 4000);
     } catch (err: any) {
