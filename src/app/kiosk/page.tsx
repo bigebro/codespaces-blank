@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
 import CycleCount, { type CycleResult } from "../../features/kiosk/CycleCount";
-import { displayUnit, logTypeLabel, streakText, type CycleItem } from "../../lib/shiftCycle";
+import { displayUnit, logTypeLabel, releaseSaveLock, streakText, takeSaveLock, type CycleItem } from "../../lib/shiftCycle";
 import TruthMeter from "../../features/finance/TruthMeter";
 import {
   Coffee,
@@ -1064,6 +1064,8 @@ function KioskPage() {
   const [cycleResult, setCycleResult] = useState<CycleResult | null>(null);
   const [noteText, setNoteText] = useState<string | null>(null);
   const confirmRef = useRef<(value: boolean) => void>(() => {});
+  const openingSaveRef = useRef(false);
+  const closeSaveRef = useRef(false);
   const [askText, setAskText] = useState<string | null>(null);
   useEffect(() => {
     pushNote = (text) => setNoteText(text);
@@ -1078,6 +1080,10 @@ function KioskPage() {
       pushAsk = async () => false;
     };
   }, []);
+  useEffect(() => {
+    if (step !== "opening_recount") openingSaveRef.current = false;
+    if (step !== "close_shift") closeSaveRef.current = false;
+  }, [step]);
   const [clientLogo, setClientLogo] = useState<string | null>(null);
   const [isLoadingKiosk, setIsLoadingKiosk] = useState<boolean>(true);
   const [workers, setWorkers] = useState<any[]>([]);
@@ -1962,6 +1968,7 @@ const initKioskContext = async () => {
   };
 
   const saveOpeningCount = async (result: CycleResult) => {
+    if (!takeSaveLock(openingSaveRef)) return;
     setIsAiLoading(true);
     setMsg("");
     try {
@@ -1997,8 +2004,10 @@ const initKioskContext = async () => {
       setOpeningItems([]);
       setStep("menu");
       setMsg("Нээлтийн тооллого хадгалагдлаа.");
-    } catch (err: any) {
-      setMsg(err.message || "Нээлтийн тооллого хадгалагдсангүй.");
+    } catch {
+      releaseSaveLock(openingSaveRef);
+      setMsg("Нээлтийн тооллого хадгалагдсангүй.");
+      throw new Error("Нээлтийн тооллого хадгалагдсангүй.");
     } finally {
       setIsAiLoading(false);
     }
@@ -2025,6 +2034,8 @@ const handleCloseShift = async () => {
       setMsg("Кассын бэлэн мөнгийг бичнэ үү (Байхгүй бол 0)!");
       return;
     }
+
+    if (!takeSaveLock(closeSaveRef)) return;
 
     const endTime = new Date().toISOString();
     const fileToUpload = posZFile;
@@ -2077,6 +2088,7 @@ const handleCloseShift = async () => {
       await fetchKioskData(tenantClientId);
     } catch (e: any) {
       console.error("Close shift error:", e);
+      releaseSaveLock(closeSaveRef);
       setMsg(`Хадгалахад алдаа гарлаа: ${e?.message || "Сүлжээ шалгана уу"}`);
     } finally {
       setIsAiLoading(false);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireKioskWorker } from "@/lib/kioskAuth";
 import { buildCyclePlan } from "@/lib/cyclePlan";
-import { buildCountLog } from "@/lib/shiftCycle";
+import { buildCountLog, openingInsertDecision } from "@/lib/shiftCycle";
 import { convertToIngredientUnit } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +81,21 @@ export async function POST(request: Request) {
       const rows = Array.isArray(body.logs) ? body.logs : [];
       if (rows.length === 0) return fail("Хадгалах мөр алга.");
       if (rows.length > 80) return fail("Нэг дор хэт олон мөр байна.");
+      if (shiftId && rows.some((row: { incident_type?: string | null }) => row.incident_type === "opening_recount")) {
+        const { data: existingOpening, error: existingError } = await supabaseAdmin
+          .from("inventory_logs")
+          .select("id")
+          .eq("client_id", worker.clientId)
+          .eq("shift_id", shiftId)
+          .eq("incident_type", "opening_recount")
+          .limit(1);
+        if (existingError) return fail(existingError.message, 500);
+        const decision = openingInsertDecision({
+          rows,
+          existingOpening: (existingOpening || []).length > 0,
+        });
+        if (!decision.write) return NextResponse.json({ ok: true, ids: decision.ids });
+      }
       const prepared = [];
       for (const row of rows) {
         const type = String(row.type || "");

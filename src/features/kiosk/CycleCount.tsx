@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import CountPad from "@/features/kiosk/CountPad";
 import {
   displayUnit,
   nightDifference,
   reviewEnteredCount,
   splitWaste,
+  takeSaveLock,
+  releaseSaveLock,
   UNEXPLAINED_LABEL,
   WASTE_QUESTION,
   WASTE_REASONS,
@@ -47,6 +49,8 @@ export default function CycleCount({
   const [waste, setWaste] = useState<CycleWaste[]>([]);
   const [unexplained, setUnexplained] = useState<CycleUnexplained[]>([]);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const item = items[index];
   if (!item) {
@@ -82,7 +86,9 @@ export default function CycleCount({
   }
 
   function finish(nextCounts: Record<string, number>, nextWaste: CycleWaste[], nextGaps: CycleUnexplained[]) {
-    onDone({
+    if (!takeSaveLock(savingRef)) return;
+    setSaving(true);
+    Promise.resolve(onDone({
       counts: items.map((row) => ({
         ingredientId: row.id,
         name: row.name,
@@ -91,6 +97,9 @@ export default function CycleCount({
       })),
       waste: nextWaste,
       unexplained: nextGaps,
+    })).catch(() => {
+      releaseSaveLock(savingRef);
+      setSaving(false);
     });
   }
 
@@ -252,10 +261,11 @@ export default function CycleCount({
           })}
           <button
             type="button"
+            disabled={saving}
             onClick={() => finish(counts, waste, unexplained)}
-            className="h-14 w-full rounded-2xl bg-white text-zinc-950 font-black"
+            className="h-14 w-full rounded-2xl bg-white text-zinc-950 font-black disabled:opacity-40"
           >
-            Хадгалах
+            {saving ? "Хадгалж байна..." : "Хадгалах"}
           </button>
           {unexplained.length > 0 ? (
             <p className="text-xs text-zinc-400">{UNEXPLAINED_LABEL}: {unexplained.length}</p>
