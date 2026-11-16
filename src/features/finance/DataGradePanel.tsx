@@ -73,7 +73,7 @@ export default function DataGradePanel({
   const topRows = topFixActions(rows, 3);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(""); const [sent, setSent] = useState<string[]>([]);
   const [priceFor, setPriceFor] = useState<Grade | null>(null);
   const [price, setPrice] = useState("");
   const [dateFor, setDateFor] = useState<Grade | null>(null);
@@ -91,16 +91,16 @@ export default function DataGradePanel({
       },
       body: JSON.stringify(body),
     });
-    const json = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => ({}));
     if (!res.ok || json.ok === false) throw new Error(json.message || "Засвар хадгалагдсангүй.");
-    await onChanged();
+    void onChanged();
   }
 
   async function run(key: string, body: Record<string, unknown>) {
     setBusy(key);
     try {
       await callFix(body);
-      if (body.action === "count_task") setNotice("Тоолох даалгавар киоск руу илгээгдлээ.");
+      if (body.action === "count_task") { setNotice("Тоолох даалгавар киоск руу илгээгдлээ."); setSent((s) => [...s, ...((body.ingredientIds as string[]) || [])]); }
       setPriceFor(null);
       setDateFor(null);
       setPairFor(null);
@@ -116,7 +116,7 @@ export default function DataGradePanel({
   const actionButton = (row: Grade) => row.action ? (
     <button
       type="button"
-      disabled={busy === row.ingredient_id}
+      disabled={busy === row.ingredient_id || (row.action === "count" && sent.includes(row.ingredient_id))}
       onClick={() => {
         if (row.action === "count") {
           run(row.ingredient_id, { action: "count_task", ingredientIds: [row.ingredient_id] });
@@ -132,7 +132,7 @@ export default function DataGradePanel({
       }}
       className="shrink-0 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl disabled:opacity-50"
     >
-      {busy === row.ingredient_id ? "Хадгалж байна" : ACTION[row.action]}
+   {busy === row.ingredient_id ? "Хадгалж байна" : row.action === "count" && sent.includes(row.ingredient_id) ? "Илгээсэн" : ACTION[row.action]}
     </button>
   ) : null;
 
