@@ -173,6 +173,9 @@ export function reviewEnteredCount(item: CycleItem, qty: number, alreadyRecounte
   if (alreadyRecounted && gap.needsRecount && gap.gapQty < 0) {
     return { needsRecount: false, needsWaste: false, unexplainedQty: gap.gapQty, gapQty: gap.gapQty, money: gap.money };
   }
+  if (gap.money == null && Math.abs(gap.gapQty) > gap.threshold) {
+    return { needsRecount: false, needsWaste: false, unexplainedQty: gap.gapQty, gapQty: gap.gapQty, money: null };
+  }
   return { needsRecount: false, needsWaste: false, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
 }
 

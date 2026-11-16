@@ -431,7 +431,7 @@ export async function getAnalyticsData(
     const cost = parseFloat(log.total_cost) || 0;
     const qty = parseFloat(log.quantity) || 0; 
     const logDate = log.date ? ubDay(log.date) : '';
-    if (log.ingredient_id && logDate >= startDay && logDate <= endDay) {
+       if (log.ingredient_id && log.type !== "count" && logDate >= startDay && logDate <= endDay) {
       const touched = rawIngredients.find((i: any) => i.id === log.ingredient_id);
       const touchedKey = touched ? cleanString(touched.name) : "";
       if (touchedKey && master[touchedKey]) {

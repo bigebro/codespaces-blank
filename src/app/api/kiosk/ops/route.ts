@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       for (const row of rows) {
         const type = String(row.type || "");
         if (!LOG_TYPES.has(type)) return fail("Буруу бүртгэлийн төрөл.");
-        const when = row.date ? new Date(row.date) : new Date();
+        const when = row.date ? new Date(row.date) : new Date(nowIso);
         if (Number.isNaN(when.getTime()) || when.getTime() > Date.now() + 5 * 60 * 1000) {
           return fail("Ирээдүйн огноо зөвшөөрөгдөхгүй.");
         }

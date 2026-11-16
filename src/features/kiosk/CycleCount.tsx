@@ -172,6 +172,7 @@ export default function CycleCount({
             onChange={setValue}
             hint={recounting ? "Дахин тоолно уу" : "Ойролцоогоор 2 минут"}
           />
+          {item.unitPrice == null ? <p className="text-sm text-zinc-400">Үнэ алга</p> : null}
           {error ? <p className="text-sm text-rose-300">{error}</p> : null}
           <button type="button" onClick={submitCount} className="h-14 rounded-2xl bg-white text-zinc-950 font-black">
             {index + 1 === items.length ? "Дуусгах" : "Дараах"}

@@ -1965,6 +1965,7 @@ const initKioskContext = async () => {
     setIsAiLoading(true);
     setMsg("");
     try {
+           const countedAt = new Date().toISOString();
       const logs = [
         ...result.counts.map((item) => ({
           ingredient_id: item.ingredientId,
@@ -1972,6 +1973,7 @@ const initKioskContext = async () => {
           type: "count",
           incident_type: "opening_recount",
           notes: `Ээлж нээх тооллого: ${item.name}`,
+          date: countedAt,
         })),
         ...result.waste.map((item) => ({
           ingredient_id: item.ingredientId,
@@ -1979,6 +1981,7 @@ const initKioskContext = async () => {
           type: item.type,
           incident_type: "shift_waste",
           notes: item.reason,
+          date: countedAt,
         })),
         ...result.unexplained.map((item) => ({
           ingredient_id: item.ingredientId,
@@ -1987,6 +1990,7 @@ const initKioskContext = async () => {
           type: "other",
           incident_type: "unexplained_gap",
           notes: "Тайлбаргүй зөрүү",
+          date: countedAt,
         })),
       ];
       if (logs.length) await kioskSaveLogs(logs);
