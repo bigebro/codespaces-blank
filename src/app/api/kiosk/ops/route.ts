@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireKioskWorker } from "@/lib/kioskAuth";
 import { buildCyclePlan } from "@/lib/cyclePlan";
+import { loadKioskPhase4 } from "@/lib/phase4Load";
 import { buildCountLog, openingInsertDecision } from "@/lib/shiftCycle";
 import { convertToIngredientUnit } from "@/lib/units";
 
@@ -416,6 +417,11 @@ export async function POST(request: Request) {
     if (action === "cycle.plan") {
       const plan = await buildCyclePlan(worker.clientId, body.activeShiftId || shiftId);
       return NextResponse.json({ ok: true, ...plan });
+    }
+
+    if (action === "phase4.home") {
+      const home = await loadKioskPhase4(worker.clientId, worker.workerId);
+      return NextResponse.json({ ok: true, ...home });
     }
 
     return fail("Үйлдэл танигдаагүй.");

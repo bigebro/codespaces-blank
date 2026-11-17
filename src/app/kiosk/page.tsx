@@ -1,6 +1,9 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+import OwnScore from "../../features/kiosk/OwnScore";
+import CupCheck from "../../features/finance/CupCheck";
+import TeamGoalBar from "../../features/finance/TeamGoalBar";
 import CycleCount, { type CycleResult } from "../../features/kiosk/CycleCount";
 import { displayUnit, logTypeLabel, releaseSaveLock, streakText, takeSaveLock, type CycleItem } from "../../lib/shiftCycle";
 import TruthMeter from "../../features/finance/TruthMeter";
@@ -1059,6 +1062,7 @@ function KioskPage() {
   const [tenantClientId, setTenantClientId] = useState<string>("");
   const [trustMeter, setTrustMeter] = useState<{ pct: number; missing: number; check: number } | null>(null);
   const [countStreak, setCountStreak] = useState<number | null>(null);
+  const [phase4Home, setPhase4Home] = useState<any>(null);
   const [closeItems, setCloseItems] = useState<CycleItem[]>([]);
   const [openingItems, setOpeningItems] = useState<CycleItem[]>([]);
   const [cycleResult, setCycleResult] = useState<CycleResult | null>(null);
@@ -1151,6 +1155,11 @@ function KioskPage() {
           setOpeningItems(plan.opening.items);
           setStep("opening_recount");
         }
+      })
+      .catch(() => {});
+    kioskOps("phase4.home")
+      .then((home) => {
+        if (!cancelled) setPhase4Home(home);
       })
       .catch(() => {});
     return () => {
@@ -2612,6 +2621,12 @@ const handleCloseShift = async () => {
               {countStreak != null && (
                 <p className="text-sm font-bold text-zinc-200 px-1">{streakText(countStreak)}</p>
               )}
+              {phase4Home ? (
+                <p className="text-xs text-zinc-400 px-1">Багийн хамгийн урт: {phase4Home.teamLongest} ээлж</p>
+              ) : null}
+              {phase4Home?.team ? <TeamGoalBar team={phase4Home.team} /> : null}
+              {phase4Home?.cup?.enabled ? <CupCheck data={phase4Home.cup} /> : null}
+              {phase4Home?.me ? <OwnScore me={phase4Home.me} /> : null}
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
               <div className="grid grid-cols-5 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">

@@ -17,6 +17,8 @@ import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
 import DataGradePanel from "./DataGradePanel";
 import UnexplainedGaps from "./UnexplainedGaps";
+import CupCheck from "./CupCheck";
+import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
 import { IMPOSSIBLE_TITLE, impossibleReasons, parsePct, summarizeTrust } from "@/lib/honestDashboard";
 
@@ -87,6 +89,7 @@ export default function FinanceTab({
   setUpsellFeature,
 }: FinanceTabProps) {
   // 5. ДОТООД ХАЙЛТ БА ҮНИЙН ТӨЛӨВҮҮД (Эндээсээ ажиллана):
+  const [financeView, setFinanceView] = useState<"report" | "team">("report");
   const [spikeSearch, setSpikeSearch] = useState("");
   const [isSpikesExpanded, setIsSpikesExpanded] = useState(false);
   const [marginSearch, setMarginSearch] = useState("");
@@ -121,6 +124,26 @@ export default function FinanceTab({
             check={trustSummary.check}
           />
         )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFinanceView("report")}
+            className={`px-3 py-2 rounded-xl text-xs font-bold ${financeView === "report" ? "bg-white text-zinc-950" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+          >
+            Тайлан
+          </button>
+          <button
+            type="button"
+            onClick={() => setFinanceView("team")}
+            className={`px-3 py-2 rounded-xl text-xs font-bold ${financeView === "team" ? "bg-white text-zinc-950" : "bg-zinc-900 text-zinc-300 border border-zinc-800"}`}
+          >
+            Баг
+          </button>
+        </div>
+        {financeView === "team" ? (
+          <TeamBoard scorecard={liveAnalytics?.scorecard} team={liveAnalytics?.team_goal} />
+        ) : (
+        <>
         {/* 💳 ТӨЛБӨРИЙН САНУУЛГА / БАНКНЫ ДАНСНЫ БАННЕР */}
         {tenantInfo?.isExpired && (
           <div className="bg-gradient-to-r from-amber-500/20 via-zinc-900 to-zinc-900 border-2 border-amber-500/50 p-5 rounded-2xl shadow-2xl ">
@@ -563,6 +586,7 @@ export default function FinanceTab({
           onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
         />
         <UnexplainedGaps rows={liveAnalytics?.unexplained_gaps} />
+        <CupCheck data={liveAnalytics?.cup_check} />
         {/* ========================================================================= */}
         {/* БҮС 3: ДЭЛГЭРЭНГҮЙ ДҮН ШИНЖИЛГЭЭ (P&L LADDER + LIVE FEED БҮТЭЦ)             */}
         {/* ========================================================================= */}
@@ -1053,6 +1077,8 @@ export default function FinanceTab({
             liveAnalytics={liveAnalytics}
             onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
           />
+        )}
+        </>
         )}
       </div>
     </>
