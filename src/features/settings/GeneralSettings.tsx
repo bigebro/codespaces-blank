@@ -15,6 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import Phase4Settings from "./Phase4Settings";
 
 const UNIVERSAL_CATEGORIES = [
   {
@@ -279,6 +280,7 @@ export default function GeneralSettings({
 
   return (
     <div className="space-y-8">
+      <Phase4Settings activeClient={activeClient} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
      <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-xl">
         {/* Header */}

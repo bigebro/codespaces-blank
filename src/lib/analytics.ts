@@ -2,6 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { ubDay, ubMonthStartIso } from './ubDate';
 import { displayUnit } from './shiftCycle';
+import { assemblePhase4 } from './phase4';
 
 function addCalendarDays(day: string, days: number) {
   const [year, month, date] = day.split("-").map(Number);
@@ -272,6 +273,7 @@ export async function getAnalyticsData(
     { data: rawSettings },
     { data: rawAfterLogs },
     { data: rawAfterSales },
+    { data: phase4Shifts },
   ] = await Promise.all([
     // OPTIMIZATION: Select only needed columns to prevent Vercel Out-Of-Memory (OOM) errors
     supabaseAdmin.from("ingredients").select("id, name, unit, unit_price, current_stock, is_critical, is_suspicious_promoted, promoted_until, last_counted_at, par_level, lead_time_days, days_of_supply").eq("client_id", clientId.trim()),
@@ -306,11 +308,11 @@ export async function getAnalyticsData(
     supabaseAdmin.from("products").select("name, selling_price, category").eq("client_id", clientId.trim()),
     supabaseAdmin
       .from("profiles")
-      .select("full_name, email, role, salary_type, base_rate")
+      .select("id, full_name, email, role, salary_type, base_rate")
       .eq("client_id", clientId.trim()),
     supabaseAdmin.from("fixed_assets").select("name, code, purchase_date, initial_cost, useful_months").eq("client_id", clientId.trim()),
     supabaseAdmin.from("fixed_opex").select("name, category, monthly_cost").eq("client_id", clientId.trim()).eq("is_active", true),
-    supabaseAdmin.from("client_settings").select("initial_cash, initial_bank, tax_mode, category_margins").eq("client_id", clientId.trim()).maybeSingle(),
+    supabaseAdmin.from("client_settings").select("initial_cash, initial_bank, tax_mode, category_margins, cup_check_enabled, cup_ingredient_ids, team_goal").eq("client_id", clientId.trim()).maybeSingle(),
     fetchPaged((from, to) =>
       supabaseAdmin
         .from("inventory_logs")
@@ -332,6 +334,13 @@ export async function getAnalyticsData(
         .order("date", { ascending: true })
         .range(from, to),
     ),
+    supabaseAdmin
+      .from("shifts")
+      .select("id, start_time, end_time, is_active, character_role")
+      .eq("client_id", clientId.trim())
+      .gte("start_time", new Date(new Date(finalEndDate).getTime() - 90 * 86400000).toISOString())
+      .order("start_time", { ascending: false })
+      .limit(400),
   ]);
 
   if (!rawIngredients || !rawRecipes || !rawInventoryLogs || !rawSales) {
@@ -1175,6 +1184,9 @@ for (const key in master) {
       }
       return {
         id: log.id,
+        ingredientId: log.ingredient_id || null,
+        staffId: log.staff_id || null,
+        at: log.date,
         name: ing?.name || "Бараа",
         unit: displayUnit(ing?.unit || ""),
         qty: Number(log.quantity) || 0,
@@ -1183,6 +1195,20 @@ for (const key in master) {
         shift: shiftLabel,
       };
     });
+
+  const phase4 = assemblePhase4({
+    settings: rawSettings,
+    ingredients: rawIngredients || [],
+    recipes: rawRecipes || [],
+    logs: rawInventoryLogs || [],
+    sales: [...(rawSales || []), ...(rawAfterSales || [])],
+    shifts: phase4Shifts || [],
+    profiles: rawProfiles || [],
+    gaps: unexplainedGaps,
+    endDay,
+    today: ubDay(new Date()),
+    salesCoverFrom: finalStartDate,
+  });
 
   return {
     financial_ladder: {
@@ -1276,7 +1302,10 @@ logged_spoilage_items: (rawInventoryLogs || [])
     grades,
     fix_list: fixList,
     data_trust: dataTrust,
-    unexplained_gaps: unexplainedGaps,
+    unexplained_gaps: phase4.gaps,
+    cup_check: phase4.cup,
+    scorecard: phase4.scorecard,
+    team_goal: phase4.team,
     verified_gap: verifiedActual - verifiedTheo,
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
