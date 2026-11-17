@@ -18,6 +18,13 @@ export function trustTone(pct: number): "red" | "yellow" | "green" {
   return "green";
 }
 
+// Өнгө нь статусаар: Дутуу байвал улаан, Шалгах байвал шар, бүгд баталгаажсан үед л ногоон.
+export function statusTone(missing: number, check: number, total: number): "red" | "yellow" | "green" {
+  if (missing > 0) return "red";
+  if (check > 0 || total === 0) return "yellow";
+  return "green";
+}
+
 export function parsePct(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = parseFloat(String(value ?? "").replace("%", ""));
@@ -37,19 +44,24 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: { pur
       : (grades.length ? Math.round((verified.length / grades.length) * 100) : 0)
   );
   const remaining = grades.filter((row) => row.status !== "Verified" && row.fixable !== false).length;
+  // Тоогоор: баталгаажсан бараа / нийт бараа. 100% зөвхөн бүгд баталгаажсан үед (floor).
+  const verified_pct = grades.length ? Math.floor((verified.length / grades.length) * 100) : 0;
   const unverified_theo = grades
     .filter((row) => row.status !== "Verified")
     .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
   return {
     purchase_pct,
+    verified_pct,
+    verified: verified.length,
+    total: grades.length,
     missing,
     check,
     remaining,
     unverified_theo,
-    tone: trustTone(purchase_pct),
-    meter: `Үнэн зөв байдал: ${purchase_pct}%`,
+    tone: statusTone(missing, check, grades.length),
+    meter: `Үнэн зөв байдал: ${verified_pct}%`,
     counts: `${missing} бараа дутуу, ${check} бараа шалгах`,
-    estimate: `Тооцоолсон, ${purchase_pct}% баталгаажсан, ${remaining} ажил үлдсэн`,
+    estimate: `Тооцоолсон, ${grades.length} бараанаас ${verified.length} баталгаажсан, ${remaining} ажил үлдсэн`,
   };
 }
 

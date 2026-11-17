@@ -1,6 +1,6 @@
 "use client";
 
-import { trustTone } from "@/lib/honestDashboard";
+import { statusTone } from "@/lib/honestDashboard";
 
 const FILL = {
   red: "bg-rose-500",
@@ -16,14 +16,16 @@ const TEXT = {
 
 export default function TruthMeter({
   pct,
+  tone: toneProp,
   missing,
   check,
 }: {
   pct: number;
+  tone?: "red" | "yellow" | "green";
   missing: number;
   check: number;
 }) {
-  const tone = trustTone(pct);
+  const tone = toneProp ?? statusTone(missing, check, 1);
   const width = Math.max(0, Math.min(100, pct));
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">

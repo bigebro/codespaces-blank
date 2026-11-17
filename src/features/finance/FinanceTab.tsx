@@ -117,6 +117,9 @@ export default function FinanceTab({
     fetchDatabaseData(activeClient, target, target);
   };
 
+  // Сар эсвэл өнгөрсөн 7 хоног харж байхад Өдөр/7 хоног дарвал тэр хугацааны сүүлийн өдрөөс эхэлнэ.
+  const anchorDay = endDate && endDate < todayUb ? endDate : todayUb;
+
   const goWeek = (monday: string) => {
     const start = monday > mondayOf(todayUb) ? mondayOf(todayUb) : monday;
     const sunday = addDaysStr(start, 6);
@@ -159,7 +162,8 @@ export default function FinanceTab({
       <div className="space-y-6">
         {liveAnalytics && (
           <TruthMeter
-            pct={trustSummary.purchase_pct}
+            pct={trustSummary.verified_pct}
+            tone={trustSummary.tone}
             missing={trustSummary.missing}
             check={trustSummary.check}
           />
@@ -355,6 +359,20 @@ export default function FinanceTab({
 
               const isHealthy = score >= 95;
               const isWarning = score >= 88 && score < 95;
+              const verifiedCount = Number(
+                liveAnalytics.data_trust?.verified ?? liveAnalytics.financial_ladder?.verified_count ?? 0,
+              );
+
+              if (verifiedCount === 0) {
+                return (
+                  <div className="px-4 py-2 rounded-xl border flex items-center gap-2.5 shadow-md bg-zinc-800/60 border-zinc-700 text-zinc-300">
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-zinc-500 shrink-0" />
+                    <span className="text-xs font-black tracking-wide">
+                      Хэмжих боломжгүй • Баталгаажсан бараа алга
+                    </span>
+                  </div>
+                );
+              }
 
               return (
                 <div
@@ -428,7 +446,7 @@ export default function FinanceTab({
             ) : (
               <button
                 type="button"
-                onClick={() => goDay(todayUb)}
+                onClick={() => goDay(anchorDay)}
                 className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
               >
                 Өдөр
@@ -462,7 +480,7 @@ export default function FinanceTab({
             ) : (
               <button
                 type="button"
-                onClick={() => goWeek(mondayOf(todayUb))}
+                onClick={() => goWeek(mondayOf(anchorDay))}
                 className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
               >
                 7 хоног
@@ -570,17 +588,27 @@ export default function FinanceTab({
                 <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
                   Өртөг (Food Cost)
                 </p>
-                <span
-                  className={`text-[10px] font-black px-2 py-0.5 rounded border ${
-                    liveAnalytics?.financial_ladder?.is_theoretical_mode
+                {(() => {
+                  const verified = Number(liveAnalytics?.data_trust?.verified ?? 0);
+                  const total = Number(liveAnalytics?.data_trust?.total ?? 0);
+                  const label =
+                    verified === 0
+                      ? "Жорын онолоор"
+                      : verified < total
+                        ? "Хэсэгчлэн тооллогоор"
+                        : "Бодит тооллогоор";
+                  const tone =
+                    verified === 0
                       ? "bg-zinc-800/60 text-zinc-300 border-zinc-700"
-                      : "bg-zinc-800/60 text-zinc-200 border-zinc-800"
-                  }`}
-                >
-                  {liveAnalytics?.financial_ladder?.is_theoretical_mode
-                    ? "Жорын онолоор"
-                    : "Бодит тооллогоор"}
-                </span>
+                      : verified < total
+                        ? "bg-amber-500/10 text-amber-200 border-amber-500/30"
+                        : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30";
+                  return (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${tone}`}>
+                      {label}
+                    </span>
+                  );
+                })()}
               </div>
               {loading || !liveAnalytics ? (
                 <div className="h-8 w-32 bg-zinc-800  rounded-xl my-1" />
