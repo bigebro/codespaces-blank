@@ -76,6 +76,9 @@ export function unlockLine(purchaseValue: number, theoMoney = 0) {
   if (!(Number(purchaseValue) > 0) && Number(theoMoney) > 0) {
     return `Худалдан авалт алга. Борлуулалтад ${Math.round(Number(theoMoney)).toLocaleString()}₮-ийн орц зарцуулсан, түүнийг баталгаажуулна`;
   }
+  if (!(Number(purchaseValue) > 0)) {
+    return "Худалдан авалт алга. Энэ мөр үнэ баталгаажуулах ажил биш.";
+  }
   return `Энэ засвар ${Math.round(Number(purchaseValue) || 0).toLocaleString()}₮-ийн өртгийг баталгаажуулна`;
   
 }

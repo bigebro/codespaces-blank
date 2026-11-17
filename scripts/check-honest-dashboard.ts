@@ -21,12 +21,12 @@ const grades = [
 
 const summary = summarizeTrust({ grades });
 assert.equal(summary.purchase_pct, 80);
-assert.equal(summary.meter, "Үнэн зөв байдал: 80%");
+assert.equal(summary.meter, "Үнэн зөв байдал: 40%");
 assert.equal(summary.counts, "2 бараа дутуу, 1 бараа шалгах");
 assert.equal(summary.missing, 2);
 assert.equal(summary.check, 1);
-assert.equal(summary.estimate, "Тооцоолсон, 80% баталгаажсан, 3 ажил үлдсэн");
-assert.equal(summary.tone, "yellow");
+assert.equal(summary.estimate, "Тооцоолсон, 5 бараанаас 2 баталгаажсан, 3 ажил үлдсэн");
+assert.equal(summary.tone, "red");
 assert.equal(summary.unverified_theo, 38);
 
 const fromTrust = summarizeTrust({ grades, data_trust: { purchase_pct: summary.purchase_pct } });
@@ -55,7 +55,7 @@ assert.equal(impossibleReasons(90, 40, 80.01).length, 1);
 
 assert.equal(topFixActions([{ status: "Verified", purchase_value: 10 }]).length, 0);
 assert.equal(COMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн");
-assert.equal(SURPLUS_NOTE, "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй");
+assert.equal(SURPLUS_NOTE, "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна");
 
 assert.equal(trustTone(49), "red");
 assert.equal(trustTone(50), "yellow");
