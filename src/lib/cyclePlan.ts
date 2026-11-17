@@ -133,9 +133,10 @@ export async function buildCyclePlan(clientId: string, activeShiftId?: string | 
   const lastCloseId = closeShifts[0]?.[0] || null;
   const lastCloseRows = counts.filter((row) => row.shift_id && row.shift_id === lastCloseId && isCloseCount(row));
   const openingIds = [...new Set(lastCloseRows.map((row) => row.ingredient_id).filter(Boolean))];
-  const alreadyOpened = activeShiftId
-    ? counts.some((row) => row.shift_id === activeShiftId && row.incident_type === "opening_recount")
-    : false;
+   const lastCloseAt = closeShifts[0]?.[1].at || 0;
+  const alreadyOpened = counts.some(
+    (row) => row.incident_type === "opening_recount" && new Date(row.date).getTime() > lastCloseAt,
+  );
 
   const focusIds = [...new Set([...pickedIds, ...(alreadyOpened ? [] : openingIds)])];
   const baselines = focusIds.map((id) => {

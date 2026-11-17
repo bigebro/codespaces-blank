@@ -2615,18 +2615,32 @@ const handleCloseShift = async () => {
                 </div>
               </div>
 
+                            <details className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl px-3 py-2">
+                <summary className="text-sm font-bold text-zinc-200 cursor-pointer">
+                  {`Үнэн зөв ${trustMeter?.pct ?? 0}% · Баг ${countStreak ?? 0} ээлж`}
+                </summary>
+                <div className="max-h-[35vh] overflow-y-auto space-y-3 pr-1 mt-2">
               {trustMeter && (
                 <TruthMeter pct={trustMeter.pct} missing={trustMeter.missing} check={trustMeter.check} />
               )}
               {countStreak != null && (
-                <p className="text-sm font-bold text-zinc-200 px-1">{streakText(countStreak)}</p>
+                <p className="text-sm font-bold text-zinc-200 px-1">{"Баг: " + streakText(countStreak)}</p>
               )}
               {phase4Home ? (
                 <p className="text-xs text-zinc-400 px-1">Багийн хамгийн урт: {phase4Home.teamLongest} ээлж</p>
               ) : null}
               {phase4Home?.team ? <TeamGoalBar team={phase4Home.team} /> : null}
               {phase4Home?.cup?.enabled ? <CupCheck data={phase4Home.cup} /> : null}
-              {phase4Home?.me ? <OwnScore me={phase4Home.me} /> : null}
+                            {phase4Home?.me ? (
+                <details className="shrink-0 bg-zinc-950 border border-zinc-800 rounded-2xl px-3 py-2">
+                  <summary className="text-sm font-bold text-zinc-200 cursor-pointer">Миний тоо</summary>
+                  <div className="max-h-[40vh] overflow-y-auto mt-2">
+                    <OwnScore me={phase4Home.me} />
+                  </div>
+                </details>
+              ) : null}
+                              </div>
+              </details>
 
               {/* 4 ГОРИМ: Хаягдал / Хоол / Туршилт / Орлого */}
               <div className="grid grid-cols-5 gap-1.5 sm:gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/80">
