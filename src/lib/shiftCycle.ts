@@ -203,6 +203,25 @@ export function nightDifference(closeQty: number, openQty: number) {
   };
 }
 
+export function takeSaveLock(lock: { current: boolean }) {
+  if (lock.current) return false;
+  lock.current = true;
+  return true;
+}
+
+export function releaseSaveLock(lock: { current: boolean }) {
+  lock.current = false;
+}
+
+export function openingInsertDecision(input: {
+  rows: { incident_type?: string | null }[];
+  existingOpening: boolean;
+}) {
+  const wantsOpening = input.rows.some((row) => row.incident_type === "opening_recount");
+  if (wantsOpening && input.existingOpening) return { write: false as const, ids: [] as string[] };
+  return { write: true as const };
+}
+
 export function buildCountLog(input: {
   clientId: string;
   ingredientId: string;

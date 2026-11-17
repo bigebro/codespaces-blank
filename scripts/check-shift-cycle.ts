@@ -17,6 +17,9 @@ import {
   reviewEnteredCount,
   splitWaste,
   streakText,
+  takeSaveLock,
+  releaseSaveLock,
+  openingInsertDecision,
   type CycleCandidate,
   type CycleItem,
 } from "../src/lib/shiftCycle";
@@ -144,6 +147,58 @@ assert.equal(saved.type, "count");
 assert.equal(saved.shift_id, "shift-1");
 assert.equal(saved.staff_id, "staff-1");
 assert.equal(saved.date, "2026-11-16T02:00:00.000Z");
+
+const openingLock = { current: false };
+let openingWrites = 0;
+for (let tap = 0; tap < 3; tap += 1) {
+  if (takeSaveLock(openingLock)) openingWrites += 1;
+}
+assert.equal(openingWrites, 1);
+releaseSaveLock(openingLock);
+assert.equal(takeSaveLock(openingLock), true);
+
+const closeLock = { current: false };
+let closeWrites = 0;
+for (let tap = 0; tap < 3; tap += 1) {
+  if (takeSaveLock(closeLock)) closeWrites += 1;
+}
+assert.equal(closeWrites, 1);
+
+const five = ["Сүү", "Кофе", "Гурил", "Өндөг", "Сахар"].map((name) => ({
+  incident_type: "opening_recount",
+  name,
+}));
+let existingOpening = false;
+const stored: string[][] = [];
+for (let tap = 0; tap < 3; tap += 1) {
+  const decision = openingInsertDecision({ rows: five, existingOpening });
+  if (decision.write) {
+    stored.push(five.map((row) => row.name));
+    existingOpening = true;
+  } else {
+    assert.deepEqual(decision.ids, []);
+  }
+}
+assert.equal(stored.length, 1);
+assert.equal(stored[0].length, 5);
+assert.equal(new Set(stored[0]).size, 5);
+assert.equal(openingInsertDecision({
+  rows: [{ incident_type: "shift_waste" }, { incident_type: "unexplained_gap" }],
+  existingOpening: true,
+}).write, true);
+
+const cycleSource = readFileSync("src/features/kiosk/CycleCount.tsx", "utf8");
+assert.match(cycleSource, /savingRef = useRef\(false\)/);
+assert.match(cycleSource, /disabled=\{saving\}/);
+assert.match(cycleSource, /Хадгалж байна\.\.\./);
+const pageSource = readFileSync("src/app/kiosk/page.tsx", "utf8");
+assert.match(pageSource, /openingSaveRef = useRef\(false\)/);
+assert.match(pageSource, /closeSaveRef = useRef\(false\)/);
+assert.match(pageSource, /Нээлтийн тооллого хадгалагдсангүй\./);
+const routeSource = readFileSync("src/app/api/kiosk/ops/route.ts", "utf8");
+assert.match(routeSource, /opening_recount/);
+assert.match(routeSource, /ids: decision\.ids/);
+assert.equal(routeSource.includes("CREATE UNIQUE INDEX"), false);
 
 function walk(dir: string, out: string[] = []) {
   for (const name of readdirSync(dir)) {
