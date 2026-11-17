@@ -11,7 +11,10 @@ import {
   Activity,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { ubDay } from "@/lib/ubDate";
 // 2. САНГУУД:
 import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
@@ -29,11 +32,25 @@ function cleanString(str: string) {
     .trim();
 }
 
-function getLocalDateStr(d: Date = new Date()): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+// "YYYY-MM-DD" огноон дээр өдөр нэмэх (цагийн бүсээс хамаарахгүй).
+function addDaysStr(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Тухайн өдрийн долоо хоногийн Даваа гараг.
+function mondayOf(day: string): string {
+  const dow = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
+  return addDaysStr(day, -dow);
+}
+
+type RangeMode = "day" | "week" | "month";
+
+function detectRangeMode(start: string, end: string): RangeMode {
+  if (start === end) return "day";
+  if (start === mondayOf(start) && end > start && end <= addDaysStr(start, 6)) return "week";
+  return "month";
 }
 
 // 4. ОРОХ ӨГӨГДЛИЙН ГЭРЭЭ (PROPS):
@@ -88,6 +105,29 @@ export default function FinanceTab({
   setCatalogTab,
   setUpsellFeature,
 }: FinanceTabProps) {
+  // Огнооны горим: Өдөр / 7 хоног (Даваа-Ням) / Сар. Огноо бүгд Улаанбаатарын цагаар.
+  const todayUb = ubDay(new Date());
+  const [rangeMode, setRangeMode] = useState<RangeMode>(() => detectRangeMode(startDate, endDate));
+
+  const goDay = (day: string) => {
+    const target = day > todayUb ? todayUb : day;
+    setRangeMode("day");
+    setStartDate(target);
+    setEndDate(target);
+    fetchDatabaseData(activeClient, target, target);
+  };
+
+  const goWeek = (monday: string) => {
+    const start = monday > mondayOf(todayUb) ? mondayOf(todayUb) : monday;
+    const sunday = addDaysStr(start, 6);
+    // Одоогийн долоо хоногийн төгсгөл өнөөдрөөр хязгаарлагдана.
+    const end = sunday > todayUb ? todayUb : sunday;
+    setRangeMode("week");
+    setStartDate(start);
+    setEndDate(end);
+    fetchDatabaseData(activeClient, start, end);
+  };
+
   // 5. ДОТООД ХАЙЛТ БА ҮНИЙН ТӨЛӨВҮҮД (Эндээсээ ажиллана):
   const [financeView, setFinanceView] = useState<"report" | "team">("report");
   const [spikeSearch, setSpikeSearch] = useState("");
@@ -361,41 +401,87 @@ export default function FinanceTab({
 
           {/* Огнооны товчнууд + Excel татах */}
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                const today = getLocalDateStr(new Date());
-                setStartDate(today);
-                setEndDate(today);
-                fetchDatabaseData(activeClient, today, today);
-              }}
-              className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
-            >
-              Өнөөдөр
-            </button>
-            {/* 2. 7 ХОНОГ (Буцааж нэмсэн) */}
-            <button
-              type="button"
-              onClick={() => {
-                const now = new Date();
-                const past7 = getLocalDateStr(
-                  new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-                );
-                const today = getLocalDateStr(now);
-                setStartDate(past7);
-                setEndDate(today);
-                fetchDatabaseData(activeClient, past7, today);
-              }}
-              className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
-            >
-              7 хоног
-            </button>
+            {/* Өдөр: өмнөх / дараагийн өдөр */}
+            {rangeMode === "day" ? (
+              <div className="flex items-center gap-1 bg-zinc-950 border border-zinc-800 rounded-xl px-1 py-1">
+                <button
+                  type="button"
+                  aria-label="Өмнөх өдөр"
+                  onClick={() => goDay(addDaysStr(startDate, -1))}
+                  className="p-1 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-xs font-bold text-zinc-200 px-1 font-mono">
+                  {startDate === todayUb ? "Өнөөдөр" : startDate.slice(5)}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Дараагийн өдөр"
+                  disabled={startDate >= todayUb}
+                  onClick={() => goDay(addDaysStr(startDate, 1))}
+                  className="p-1 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => goDay(todayUb)}
+                className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
+              >
+                Өдөр
+              </button>
+            )}
+            {/* 7 хоног: Даваа - Ням, өмнөх / дараагийн долоо хоног */}
+            {rangeMode === "week" ? (
+              <div className="flex items-center gap-1 bg-zinc-950 border border-zinc-800 rounded-xl px-1 py-1">
+                <button
+                  type="button"
+                  aria-label="Өмнөх 7 хоног"
+                  onClick={() => goWeek(addDaysStr(startDate, -7))}
+                  className="p-1 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-xs font-bold text-zinc-200 px-1 font-mono">
+                  {startDate.slice(5)} – {addDaysStr(startDate, 6).slice(5)}
+                  {endDate < addDaysStr(startDate, 6) ? " (өнөөдрийг хүртэл)" : ""}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Дараагийн 7 хоног"
+                  disabled={startDate >= mondayOf(todayUb)}
+                  onClick={() => goWeek(addDaysStr(startDate, 7))}
+                  className="p-1 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => goWeek(mondayOf(todayUb))}
+                className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition"
+              >
+                7 хоног
+              </button>
+            )}
 
             <select
-              value={startDate.substring(0, 7)}
-              onChange={(e) => handleMonthChange(e.target.value)}
+              value={rangeMode === "month" ? startDate.substring(0, 7) : ""}
+              onChange={(e) => {
+                setRangeMode("month");
+                handleMonthChange(e.target.value);
+              }}
               className="bg-zinc-950 border border-zinc-800 text-zinc-200 font-black text-sm rounded-xl px-3 py-2 outline-none cursor-pointer"
             >
+              {rangeMode !== "month" && (
+                <option value="" disabled className="bg-zinc-950 text-zinc-500">
+                  Сар
+                </option>
+              )}
               {availableMonths.map((ym) => {
                 const [year, month] = ym.split("-");
                 return (
