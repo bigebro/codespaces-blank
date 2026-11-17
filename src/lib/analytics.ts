@@ -186,7 +186,7 @@ export function gradeIngredient(item: any, startDay: string, endDay: string, pri
     else if (duplicate) action = "duplicate";
     else action = "count";
   }
-  const fixable = !(action === "count" && (!item.has_start || endDay < ubDay(new Date())));
+  const fixable = !(action === "count" && endDay < ubDay(new Date()));
 
   const actualMoney = actualQty == null ? 0 : actualQty * price;
   const theoMoney = Number(item.theoretical) * price;
