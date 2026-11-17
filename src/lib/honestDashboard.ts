@@ -9,7 +9,7 @@ export type GradeLike = {
 };
 
 export const IMPOSSIBLE_TITLE = "Энэ тоо бодит биш байж магадгүй: өгөгдөл дутуу";
-export const SURPLUS_NOTE = "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй";
+export const SURPLUS_NOTE = "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна";
 export const COMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн";
 
 export function trustTone(pct: number): "red" | "yellow" | "green" {
