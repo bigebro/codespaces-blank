@@ -5,6 +5,7 @@ export type GradeLike = {
   theo_money?: number;
   action?: string | null;
   ingredient_id?: string;
+  fixable?: boolean;
 };
 
 export const IMPOSSIBLE_TITLE = "Энэ тоо бодит биш байж магадгүй: өгөгдөл дутуу";
@@ -35,7 +36,7 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: { pur
       ? Math.round((purchaseVerified / purchaseAll) * 100)
       : (grades.length ? Math.round((verified.length / grades.length) * 100) : 0)
   );
-  const remaining = missing + check;
+  const remaining = grades.filter((row) => row.status !== "Verified" && row.fixable !== false).length;
   const unverified_theo = grades
     .filter((row) => row.status !== "Verified")
     .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
@@ -59,14 +60,24 @@ export function impossibleReasons(actual: number, theoretical: number, grossMarg
   return reasons;
 }
 
-export function unlockLine(purchaseValue: number) {
+export function unlockLine(purchaseValue: number, theoMoney = 0) {
+  if (!(Number(purchaseValue) > 0) && Number(theoMoney) > 0) {
+    return `Худалдан авалт алга. Борлуулалтад ${Math.round(Number(theoMoney)).toLocaleString()}₮-ийн орц зарцуулсан, түүнийг баталгаажуулна`;
+  }
   return `Энэ засвар ${Math.round(Number(purchaseValue) || 0).toLocaleString()}₮-ийн өртгийг баталгаажуулна`;
   
 }
 
 export function topFixActions<T extends GradeLike>(rows: T[], limit = 3) {
   return [...rows]
-    .filter((row) => row.status !== "Verified")
+    .filter((row) => row.status !== "Verified" && row.fixable !== false)
     .sort((a, b) => (Number(b.purchase_value) || 0) - (Number(a.purchase_value) || 0))
     .slice(0, limit);
+}
+
+export function likelyCauses(gapQty: number | null | undefined) {
+  if (gapQty == null || !Number.isFinite(Number(gapQty)) || Number(gapQty) === 0) return "";
+  return Number(gapQty) < 0
+    ? "Үлдэгдэл хүлээгдэж байснаас их. Магадгүй: орлого бүртгээгүй, тооллого буруу, эсвэл жор хэт их орцтой."
+    : "Үлдэгдэл хүлээгдэж байснаас бага. Магадгүй: хаягдал бүртгээгүй, орлого давхар эсвэл илүү бүртгэсэн, тооллого буруу, эсвэл жор хэт бага орцтой.";
 }

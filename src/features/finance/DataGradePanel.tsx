@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
-import { COMPLETE_PERIOD, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
+import { COMPLETE_PERIOD, SURPLUS_NOTE, likelyCauses, topFixActions, unlockLine } from "@/lib/honestDashboard";
 
 type Grade = {
   ingredient_id: string;
@@ -12,6 +12,9 @@ type Grade = {
   status: "Verified" | "Check" | "Missing";
   reasons: string[];
   action: "count" | "price" | "duplicate" | "date" | null;
+  fixable?: boolean;
+  gap_qty?: number | null;
+  theo_money?: number;
   purchase_value: number;
   gap_money: number | null;
   actual_money?: number;
@@ -67,7 +70,9 @@ export default function DataGradePanel({
   const gap = Number(liveAnalytics?.verified_gap ?? liveAnalytics?.financial_ladder?.verified_gap ?? 0);
   const actual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
   const theo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
-  const rows: Grade[] = liveAnalytics?.fix_list || [];
+  const allRows: Grade[] = liveAnalytics?.fix_list || [];
+  const rows = allRows.filter((row) => row.fixable !== false);
+  const lockedRows = allRows.filter((row) => row.fixable === false);
   const losses = Number(liveAnalytics?.total_waste_loss || 0);
   const surpluses = Number(liveAnalytics?.total_surplus_savings || 0);
   const topRows = topFixActions(rows, 3);
@@ -229,7 +234,7 @@ export default function DataGradePanel({
             <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-zinc-100">{row.name}</p>
-                <p className="text-xs text-zinc-400 mt-1">{unlockLine(row.purchase_value)}</p>
+                <p className="text-xs text-zinc-400 mt-1">{unlockLine(row.purchase_value, row.theo_money)}</p>
               </div>
               {actionButton(row)}
             </div>
@@ -279,7 +284,7 @@ export default function DataGradePanel({
       {notice && <p className="text-sm text-emerald-300">{notice}</p>}
       <div className="space-y-2">
         {rows.length === 0 ? (
-          <p className="text-sm text-zinc-400">Засах зүйл алга. Бүх идэвхтэй бараа баталгаажсан.</p>
+          <p className="text-sm text-zinc-400">{lockedRows.length ? "Одоо засах зүйл алга." : "Засах зүйл алга. Бүх идэвхтэй бараа баталгаажсан."}</p>
         ) : (
           rows.map((row) => (
             <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
@@ -304,13 +309,41 @@ export default function DataGradePanel({
                       ? ". Өртөгт оруулаагүй."
                       : `. Зөрүү ${money(row.gap_money)}.`}
                 </p>
-                <p className="text-xs text-zinc-300 mt-1">{unlockLine(row.purchase_value)}</p>
+                <p className="text-xs text-zinc-300 mt-1">{unlockLine(row.purchase_value, row.theo_money)}</p>
+                {row.status === "Check" && likelyCauses(row.gap_qty) && (
+                  <p className="text-xs text-amber-200/90 mt-1">{likelyCauses(row.gap_qty)}</p>
+                )}
               </div>
               {actionButton(row)}
             </div>
           ))
         )}
       </div>
+
+      {lockedRows.length > 0 && (
+        <details className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+          <summary className="text-sm font-bold text-zinc-300 cursor-pointer">
+            Зөвхөн хуучин тооллогоор засна ({lockedRows.length})
+          </summary>
+          <p className="text-xs text-zinc-400 mt-2">
+            Тооллогын өдөр өнгөрсөн тул одоо тоолох нь энэ сарыг засахгүй. Цаас эсвэл Excel дээр тухайн өдрийн тооллого байвал "Бөөнөөр Импортлох" хэсгийн "Агуулахын Босоо Тооллого"-оор тэр огноогоор оруулна уу.
+          </p>
+          <div className="space-y-2 mt-2">
+            {lockedRows.map((row) => (
+              <div key={row.ingredient_id} className="border border-zinc-800 rounded-xl p-3">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-black px-2 py-1 rounded-lg ${COLOR[row.status] || COLOR.Check}`}>
+                    {LABEL[row.status] || row.status}
+                  </span>
+                  <span className="font-bold text-zinc-100 truncate">{row.name}</span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).join(". ")}</p>
+                <p className="text-xs text-zinc-500 mt-1">Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮. Өртөгт оруулаагүй.</p>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       {dialogs}
     </section>
