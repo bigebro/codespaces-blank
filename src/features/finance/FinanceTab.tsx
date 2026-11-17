@@ -783,7 +783,7 @@ export default function FinanceTab({
                   </div>
                 ) : (
                   <p className="text-xm text-zinc-500 italic">
-                    Бүртгэгдсэн алдагдалгүй.
+                    Тооллогоор илэрсэн алдагдал алга.
                   </p>
                 )}
               </div>
