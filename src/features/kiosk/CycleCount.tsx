@@ -38,7 +38,7 @@ export default function CycleCount({
   showNight?: boolean;
   allowCancel?: boolean;
   onCancel: () => void;
-  onDone: (result: CycleResult) => void;
+  onDone: (result: CycleResult) => void | Promise<void>;
 }) {
   const [index, setIndex] = useState(0);
   const [recounting, setRecounting] = useState(false);
