@@ -1573,6 +1573,35 @@ function Home() {
 
   // 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг анхнаасаа зөв татах
   // ⚡ БҮХ ТОВЧЛУУРЫГ 0ms ХУРДТАЙ БОЛГОХ ХӨНГӨН ФУНКЦ
+  // Range бүрийн аналитикийг санах ойд хадгалж, буцаж ороход шууд харуулна.
+  const analyticsCacheRef = useRef<Map<string, any>>(new Map());
+  const analyticsReqRef = useRef(0);
+
+  const loadAnalytics = async (client: string, activeStart: string, activeEnd: string) => {
+    const key = `${client}|${activeStart}|${activeEnd}`;
+    const cached = analyticsCacheRef.current.get(key);
+    if (cached) setLiveAnalytics(cached);
+    const reqId = ++analyticsReqRef.current;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const res = await fetch(
+      `/api/analytics?startDate=${encodeURIComponent(ubDayStartIso(activeStart))}&endDate=${encodeURIComponent(ubDayEndIso(activeEnd))}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return;
+    const analData = await res.json();
+    analyticsCacheRef.current.set(key, analData);
+    // Хуучин хүсэлт сүүлд ирвэл шинэ range-ийн датаг дарахгүй.
+    if (reqId === analyticsReqRef.current) setLiveAnalytics(analData);
+  };
+
   const fetchDatabaseData = async (
     clientId?: string,
     start?: string,
@@ -1586,6 +1615,16 @@ function Home() {
       return;
     }
     const tabToLoad = targetTab || activeTab;
+
+    // Аналитикийг бусад query-тэй зэрэг эхлүүлнэ (өмнө нь хамгийн сүүлд дараалж дууддаг байсан).
+    const analyticsPromise =
+      includeAnalytics || tabToLoad === "dashboard"
+        ? loadAnalytics(
+            targetClient,
+            String(start || startDate).slice(0, 10),
+            String(end || endDate).slice(0, 10),
+          ).catch((err) => console.error("Error fetching analytics:", err))
+        : null;
 
     try {
       //  Зөвхөн үндсэн өгөгдлийг татах (Маш хурдан 0.1s)
@@ -1780,31 +1819,7 @@ function Home() {
         }
       }
 
-      if (includeAnalytics || tabToLoad === "dashboard") {
-        const activeStart = start || startDate;
-        const activeEnd = end || endDate;
-
-        // 🔒 1. Session-оос токен авах
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const token = session?.access_token || "";
-
-        // 🔒 2. URL дээрээс clientId-г ХАССАН, Header-т токен нэмсэн:
-        const res = await fetch(
-          `/api/analytics?startDate=${encodeURIComponent(ubDayStartIso(activeStart))}&endDate=${encodeURIComponent(ubDayEndIso(activeEnd))}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          },
-        );
-        if (res.ok) {
-          const analData = await res.json();
-          setLiveAnalytics(analData);
-        }
-      }
+      if (analyticsPromise) await analyticsPromise;
     } catch (err) {
       console.error("Error fetching database:", err);
     } finally {
