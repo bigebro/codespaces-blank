@@ -474,7 +474,7 @@ export default function FinanceTab({
                 </p>
               )}
               <span className="text-xs text-zinc-200 mt-2 block font-semibold">
-                ✓ ПОС-оор баталгаажсан бодит дүн
+                ПОС-оор баталгаажсан бодит дүн
               </span>
             </div>
 
@@ -492,8 +492,8 @@ export default function FinanceTab({
                   }`}
                 >
                   {liveAnalytics?.financial_ladder?.is_theoretical_mode
-                    ? "📐 Жорын онолоор"
-                    : "✓ Бодит тооллогоор"}
+                    ? "Жорын онолоор"
+                    : "Бодит тооллогоор"}
                 </span>
               </div>
               {loading || !liveAnalytics ? (
@@ -537,7 +537,7 @@ export default function FinanceTab({
                 Дүн:{" "}
                 <strong className="text-zinc-200 font-mono">
                   {liveAnalytics
-                    ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()}₮`
+                    ? `${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()}₮`
                     : "-"}
                 </strong>
               </span>
@@ -621,17 +621,13 @@ export default function FinanceTab({
                     2. Борлуулсан Бүтээгдэхүүний Өртөг (COGS)
                   </span>
                   <span className="text-xs text-zinc-500">
-                    Онолын өртөг (
-                    {Math.round(
-                      liveAnalytics?.financial_ladder?.theo_cogs || 0,
-                    ).toLocaleString()}
-                    ₮)
+                    Баталгаажсан бодит {Math.round(verifiedActual).toLocaleString()}₮ + дутуу, шалгах барааны онолын {Math.round(unverifiedTheo).toLocaleString()}₮
                   </span>
                 </div>
                 <span className="font-bold text-rose-400 font-mono">
                   -
                   {liveAnalytics
-                    ? `${Math.round(liveAnalytics.financial_ladder?.actual_cogs || 0).toLocaleString()} ₮`
+                    ? `${Math.round(liveAnalytics.financial_ladder?.est_cogs || 0).toLocaleString()} ₮`
                     : "-"}
                 </span>
               </div>
@@ -649,12 +645,17 @@ export default function FinanceTab({
               </div>
 
               <div className="flex justify-between pt-3">
-                <span className="text-zinc-300 font-bold">
-                  3. БОХИР АШИГ (Gross Profit)
-                </span>
+                <div>
+                  <span className="text-zinc-300 font-bold block">
+                    3. БОХИР АШИГ (Gross Profit)
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    НӨАТ хассан орлогоос{unverifiedTheo > 0 ? ", онолын өртөг орсон тул тооцоолсон дүн" : ""}
+                  </span>
+                </div>
                 <span className="font-black text-zinc-200 font-mono">
                   {liveAnalytics
-                    ? `${Math.round((liveAnalytics.financial_ladder?.revenue || 0) - (liveAnalytics.financial_ladder?.actual_cogs || 0)).toLocaleString()} ₮`
+                    ? `${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()} ₮`
                     : "-"}
                 </span>
               </div>
@@ -719,17 +720,19 @@ export default function FinanceTab({
                       : "text-zinc-200"
                   }`}
                 >
-                  {(liveAnalytics?.total_unexplained_waste || 0) > 1000
+                  {!liveAnalytics?.financial_ladder?.verified_count
+                    ? "Хэмжих боломжгүй"
+                    : (liveAnalytics?.total_unexplained_waste || 0) > 1000
                     ? `-${Math.round(liveAnalytics.total_unexplained_waste).toLocaleString()} ₮`
-                    : "0 ₮ (Бүх зардал тайлбарлагдсан )"}
+                    : "0 ₮"}
                 </span>
               </div>
               <p className="text-xs text-zinc-500 leading-relaxed">
-                Kiosk-д бүртгэсэн хаягдал болон ПОС-ын борлуулалтыг эцсийн
-                тооллоготой тулгахад
-                {(liveAnalytics?.total_unexplained_waste || 0) > 1000
-                  ? " дээрх хэмжээний түүхий эд тайлбаргүй байна."
-                  : " ямар нэг тайлбаргүй дутагдал илрээгүй, бүх зарлага баримттай байна."}
+                {!liveAnalytics?.financial_ladder?.verified_count
+                  ? "Баталгаажсан бараа алга. Эхлэл, эцсийн тооллоготой бараа гарсны дараа зөрүүг хэмжинэ."
+                  : (liveAnalytics?.total_unexplained_waste || 0) > 1000
+                  ? `Зөвхөн баталгаажсан ${liveAnalytics.financial_ladder.verified_count} бараагаар: хаягдал, борлуулалтыг тооллоготой тулгахад дээрх хэмжээний түүхий эд тайлбаргүй байна.`
+                  : `Зөвхөн баталгаажсан ${liveAnalytics.financial_ladder.verified_count} бараагаар: тайлбаргүй дутагдал илрээгүй.`}
               </p>
             </div>
           </div>
@@ -1058,7 +1061,7 @@ export default function FinanceTab({
                                   }}
                                   className="bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black px-3 py-1.5 rounded-lg text-xs transition shadow shrink-0"
                                 >
-                                  ✓ Батлах
+                                  Батлах
                                 </button>
                               </div>
                             </div>

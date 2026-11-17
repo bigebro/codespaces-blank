@@ -798,7 +798,7 @@ for (const key in master) {
     const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
     const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
     const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
-    totalUnexplainedWaste += unexplainedImpact;
+    if (grade.status === "Verified") totalUnexplainedWaste += unexplainedImpact;
     totalLoggedSpoilage += Math.round(itemLogs.spoilage * m.unit_price) || 0;
     totalLoggedTesting += Math.round(itemLogs.testing * m.unit_price) || 0;
     totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
@@ -1023,7 +1023,7 @@ for (const key in master) {
     .filter((row) => row.status !== "Verified")
     .sort((a, b) => (b.purchase_value || 0) - (a.purchase_value || 0));
 
-  const adjustedCogs = verifiedActual;
+  const adjustedCogs = verifiedActual + unverifiedTheo;
   const adjustedOpex = (dynamicOpexTotal + totalMonthlyDepreciation) || 0;
   
   const finalEbit = (netRevenue - adjustedCogs - adjustedOpex) || 0; 
@@ -1128,9 +1128,10 @@ for (const key in master) {
   // 🧠 УХААЛАГ ӨРТӨГ & МЕНЮТЭЙ 100% ЯГ ТААРДАГ ЖОРГҮЙ ЦЭСИЙН ТООЛОЛТ (ЯГ 7)
   // ===========================================================================
   const effectiveActualCogs = verifiedActual;
+  const estimatedCogs = verifiedActual + unverifiedTheo;
   const effectiveNetRevenue = netRevenue;
-  const effectiveGrossProfit = effectiveNetRevenue - effectiveActualCogs;
-  const effectiveEbit = effectiveNetRevenue - effectiveActualCogs - adjustedOpex;
+  const effectiveGrossProfit = effectiveNetRevenue - estimatedCogs;
+  const effectiveEbit = effectiveNetRevenue - estimatedCogs - adjustedOpex;
   const effectiveNetProfit = Math.round(effectiveEbit - activeTaxAmount);
 
   // 1. Жорын бүх нэрсийг Set болгох
@@ -1219,6 +1220,9 @@ for (const key in master) {
       actual_cogs: effectiveActualCogs,
       theo_cogs: verifiedTheo,
       unverified_theo: unverifiedTheo,
+      est_cogs: estimatedCogs,
+      gross_profit: effectiveGrossProfit,
+      verified_count: verifiedRows.length,
       verified_gap: verifiedActual - verifiedTheo,
       data_trust: dataTrust,
       is_theoretical_mode: false,
