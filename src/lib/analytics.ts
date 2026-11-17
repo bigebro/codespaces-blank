@@ -747,8 +747,31 @@ for (const key in master) {
     }
 
     const weightedForMoney = weightedPrice || m.unit_price || 0;
-    const grade = gradeIngredient(m, startDay, endDay, weightedForMoney);
+    const grade: any = gradeIngredient(m, startDay, endDay, weightedForMoney);
     if (!grade) continue;
+    let wasteSpoilage = 0;
+    let wasteTesting = 0;
+    let wasteStaffMeal = 0;
+    let wasteOther = 0;
+    for (const log of rawInventoryLogs || []) {
+      if (log.ingredient_id !== m.id || !log.date) continue;
+      const day = ubDay(log.date);
+      if (day < startDay || day > endDay) continue;
+      const amount = Math.abs(Number(log.quantity) || 0);
+      if (log.type === "spoilage") wasteSpoilage += amount;
+      else if (log.type === "testing") wasteTesting += amount;
+      else if (log.type === "staff_meal") wasteStaffMeal += amount;
+      else if (log.type === "other" && log.incident_type !== "unexplained_gap") wasteOther += amount;
+    }
+    grade.has_start = Boolean(m.has_start);
+    grade.has_end = Boolean(m.has_end);
+    grade.start_qty = m.has_start ? Number(m.start) : null;
+    grade.end_qty = m.has_end ? Number(m.end) : null;
+    grade.purchased_qty = Number(m.purchased) || 0;
+    grade.waste_spoilage = wasteSpoilage;
+    grade.waste_testing = wasteTesting;
+    grade.waste_staff_meal = wasteStaffMeal;
+    grade.waste_other = wasteOther;
     grades.push(grade);
 
     if (grade.status === "Missing") {

@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
-import { COMPLETE_PERIOD, SURPLUS_NOTE, likelyCauses, topFixActions, unlockLine } from "@/lib/honestDashboard";
+import { COMPLETE_PERIOD, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
+import { gradeGuide } from "@/lib/gradeGuide";
 
 type Grade = {
   ingredient_id: string;
@@ -23,6 +24,18 @@ type Grade = {
   price_log_id?: string | null;
   future_log_id?: string | null;
   duplicate?: { a: LogRow; b: LogRow } | null;
+  has_start?: boolean;
+  has_end?: boolean;
+  start_qty?: number | null;
+  end_qty?: number | null;
+  purchased_qty?: number | null;
+  theoretical_qty?: number | null;
+  actual_qty?: number | null;
+  partial?: boolean;
+  waste_spoilage?: number | null;
+  waste_testing?: number | null;
+  waste_staff_meal?: number | null;
+  waste_other?: number | null;
 };
 
 type LogRow = { id: string; qty: number; cost: number; date: string; notes?: string };
@@ -118,7 +131,11 @@ export default function DataGradePanel({
 
   if (!trust && variant === "full") return null;
 
-  const actionButton = (row: Grade) => row.action ? (
+  const actionButton = (row: Grade) => {
+    const guide = gradeGuide(row);
+    if (!row.action) return null;
+    if (row.action === "count" && !guide.countTask) return null;
+    return (
     <button
       type="button"
       disabled={busy === row.ingredient_id || (row.action === "count" && sent.includes(row.ingredient_id))}
@@ -137,9 +154,26 @@ export default function DataGradePanel({
       }}
       className="shrink-0 bg-white text-zinc-950 font-bold text-xs px-3 py-2 rounded-xl disabled:opacity-50"
     >
-   {busy === row.ingredient_id ? "Хадгалж байна" : row.action === "count" && sent.includes(row.ingredient_id) ? "Илгээсэн" : ACTION[row.action]}
+      {busy === row.ingredient_id ? "Хадгалж байна" : row.action === "count" && sent.includes(row.ingredient_id) ? "Илгээсэн" : ACTION[row.action]}
     </button>
-  ) : null;
+    );
+  };
+
+  const guideBlock = (row: Grade) => {
+    const guide = gradeGuide(row);
+    return (
+      <div className="mt-2 space-y-1">
+        {guide.facts.map((fact, index) => (
+          <p key={`${row.ingredient_id}-fact-${index}`} className="text-xs text-zinc-300">{fact}</p>
+        ))}
+        <ol className="list-decimal pl-4 text-xs text-zinc-200 space-y-1">
+          {guide.steps.map((step, index) => (
+            <li key={`${row.ingredient_id}-step-${index}`}>{step}</li>
+          ))}
+        </ol>
+      </div>
+    );
+  };
 
   const dialogs = (
     <>
@@ -234,7 +268,12 @@ export default function DataGradePanel({
             <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-zinc-100">{row.name}</p>
-                <p className="text-xs text-zinc-400 mt-1">{unlockLine(row.purchase_value, row.theo_money)}</p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {Number(row.purchase_value) > 0
+                    ? unlockLine(row.purchase_value, row.theo_money)
+                    : gradeGuide(row).facts[0]}
+                </p>
+                <p className="text-xs text-zinc-300 mt-1">{gradeGuide(row).steps[0]}</p>
               </div>
               {actionButton(row)}
             </div>
@@ -309,10 +348,7 @@ export default function DataGradePanel({
                       ? ". Өртөгт оруулаагүй."
                       : `. Зөрүү ${money(row.gap_money)}.`}
                 </p>
-                <p className="text-xs text-zinc-300 mt-1">{unlockLine(row.purchase_value, row.theo_money)}</p>
-                {row.status === "Check" && likelyCauses(row.gap_qty) && (
-                  <p className="text-xs text-amber-200/90 mt-1">{likelyCauses(row.gap_qty)}</p>
-                )}
+                {guideBlock(row)}
               </div>
               {actionButton(row)}
             </div>
@@ -338,6 +374,7 @@ export default function DataGradePanel({
                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
                 </div>
                 <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).join(". ")}</p>
+                {guideBlock(row)}
                 <p className="text-xs text-zinc-500 mt-1">Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮. Өртөгт оруулаагүй.</p>
               </div>
             ))}
