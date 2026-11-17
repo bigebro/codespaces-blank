@@ -1205,7 +1205,7 @@ for (const key in master) {
     shifts: phase4Shifts || [],
     profiles: rawProfiles || [],
     gaps: unexplainedGaps,
-    endDay,
+     endDay: endDay > ubDay(new Date()) ? ubDay(new Date()) : endDay,
     today: ubDay(new Date()),
     salesCoverFrom: finalStartDate,
   });
