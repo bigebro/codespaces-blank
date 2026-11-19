@@ -86,6 +86,7 @@ export default function DataGradePanel({
   const allRows: Grade[] = liveAnalytics?.fix_list || [];
   const rows = allRows.filter((row) => row.fixable !== false);
   const lockedRows = allRows.filter((row) => row.fixable === false);
+  const gradedTotal = Number(trust?.total ?? (liveAnalytics?.grades || []).length ?? 0);
   const losses = Number(liveAnalytics?.total_waste_loss || 0);
   const surpluses = Number(liveAnalytics?.total_surplus_savings || 0);
   const topRows = topFixActions(rows, 3);
@@ -323,7 +324,11 @@ export default function DataGradePanel({
       {notice && <p className="text-sm text-emerald-300">{notice}</p>}
       <div className="space-y-2">
         {rows.length === 0 ? (
-          <p className="text-sm text-zinc-400">{lockedRows.length ? "Одоо засах зүйл алга." : "Засах зүйл алга. Бүх идэвхтэй бараа баталгаажсан."}</p>
+          <p className="text-sm text-zinc-400">{lockedRows.length
+            ? "Одоо засах зүйл алга."
+            : gradedTotal > 0
+              ? "Засах зүйл алга. Бүх идэвхтэй бараа баталгаажсан."
+              : "Энэ хугацаанд хэмжсэн бараа алга. Каталог, эхний болон эцсийн тооллого оруулсны дараа энд гарна."}</p>
         ) : (
           rows.map((row) => (
             <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">

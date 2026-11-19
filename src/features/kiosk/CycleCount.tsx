@@ -204,7 +204,7 @@ export default function CycleCount({
                 type="button"
                 onClick={() => {
                   setReason(row);
-                  setValue(String(Math.round((gapNow.gapQty || 0) * 1000) / 1000));
+                  setValue("");
                   setPhase("wasteQty");
                   setError("");
                 }}
@@ -227,12 +227,18 @@ export default function CycleCount({
             unit={item.unit}
             value={value}
             onChange={setValue}
-            hint={`${reason.label}. Хаягдлын тоо`}
+            hint={`${reason.label}. Хаягдлын тоо. Зөрүү: ${Math.round((gapNow.gapQty || 0) * 1000) / 1000} ${displayUnit(item.unit)}`}
           />
           {error ? <p className="text-sm text-rose-300">{error}</p> : null}
           <button
             type="button"
-            onClick={() => acceptWaste(Number(value))}
+            onClick={() => {
+              if (value.trim() === "" || !Number.isFinite(Number(value))) {
+                setError("Хаягдлын тоог оруулна уу.");
+                return;
+              }
+              acceptWaste(Number(value));
+            }}
             className="h-14 rounded-2xl bg-white text-zinc-950 font-black"
           >
             Хадгалах

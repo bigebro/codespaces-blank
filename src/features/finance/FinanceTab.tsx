@@ -166,6 +166,8 @@ export default function FinanceTab({
             tone={trustSummary.tone}
             missing={trustSummary.missing}
             check={trustSummary.check}
+            total={trustSummary.total}
+            verified={trustSummary.verified}
           />
         )}
         <div className="flex gap-2">

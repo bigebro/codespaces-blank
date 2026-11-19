@@ -1055,71 +1055,72 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
     setLoading(true);
     try {
-      const rows = ingredientsPasteText.replace(/\r/g, "").trim().split("\n");
+      const rows = ingredientsPasteText.replace(/\r/g, "").split("\n");
       const itemsMap = new Map<string, any>();
-      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      const rowErrors: string[] = [];
+      // Мөрийг Tab эсвэл 2+ зайгаар салгана. Tab үед сүүлийн хоосон нүдийг хадгална.
       const splitRow = (line: string) => {
+        if (line.includes("\t"))
+          return line.replace(/\s+$/, (tail) => tail.replace(/[^\t]/g, "")).split("\t").map((c) => c.trim());
         const trimmed = line.trim();
-        if (trimmed.includes("\t"))
-          return trimmed.split("\t").map((c) => c.trim());
         if (/\s{2,}/.test(trimmed))
           return trimmed.split(/\s{2,}/).map((c) => c.trim());
         return [trimmed];
       };
-      rows.forEach((row) => {
+      const toNum = (cell: string) => {
+        const cleaned = (cell || "").replace(/[^0-9.-]/g, "");
+        if (!cleaned) return NaN;
+        return Number(cleaned);
+      };
+      rows.forEach((row, idx) => {
         if (!row.trim()) return;
+        const lineNo = idx + 1;
         const cols = splitRow(row);
-        // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
-        if (cols.length < 2) {
-          alert(
-            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
-          );
-          setLoading(false);
+        const rawName = cols[0]?.trim() || "";
+        if (
+          !rawName ||
+          rawName.toLowerCase().includes("item") ||
+          rawName.toLowerCase().includes("нэр")
+        )
+          return;
+        // Загвар: Нэр, Нэгж, Нэгжийн үнэ, Par. Яг 4 багана шаардана.
+        if (cols.length !== 4) {
+          rowErrors.push(`${lineNo}-р мөр: ${cols.length} багана байна, 4 багана хэрэгтэй ("${row.trim()}")`);
           return;
         }
-        if (cols.length >= 2) {
-          const rawName = cols[0]?.trim() || "";
-          if (
-            !rawName ||
-            rawName.toLowerCase().includes("item") ||
-            rawName.toLowerCase().includes("нэр")
-          )
-            return;
-
-          let unit = "ш";
-          let price = 0;
-          let par = 0;
-
-          const col1IsNum = !isNaN(
-            parseFloat(cols[1]?.replace(/[^0-9.-]/g, "")),
-          );
-          const col2IsNum = cols[2]
-            ? !isNaN(parseFloat(cols[2]?.replace(/[^0-9.-]/g, "")))
-            : false;
-
-          if (col1IsNum && !col2IsNum) {
-            price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, "")) || 0;
-            unit = cols[2]?.replace(/per\s*|1\s*/gi, "").trim() || "ш";
-            par = cols[3]
-              ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, "")) || 0
-              : 0;
-          } else {
-            unit = cols[1]?.replace(/per\s*|1\s*/gi, "").trim() || "ш";
-            price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, "")) || 0;
-            par = cols[3]
-              ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, "")) || 0
-              : 0;
-          }
-
-          itemsMap.set(rawName.toLowerCase().trim(), {
-            client_id: activeClient,
-            name: rawName,
-            unit: unit,
-            unit_price: price,
-            par_level: par,
-          });
+        const unit = (cols[1] || "").replace(/per\s*|1\s*/gi, "").trim();
+        if (!unit || /^[0-9\s.,₮-]+$/.test(cols[1] || "")) {
+          rowErrors.push(`${lineNo}-р мөр: 2-р багана нэгж байх ёстой (мл/гр/ш)`);
+          return;
         }
+        const price = toNum(cols[2]);
+        if (!Number.isFinite(price) || price < 0) {
+          rowErrors.push(`${lineNo}-р мөр: 3-р багана нэгжийн үнэ байх ёстой`);
+          return;
+        }
+        const parCell = (cols[3] || "").trim();
+        const par = parCell === "" ? 0 : toNum(parCell);
+        if (!Number.isFinite(par) || par < 0) {
+          rowErrors.push(`${lineNo}-р мөр: 4-р багана хэвийн нөөц (Par) тоо байх ёстой`);
+          return;
+        }
+        itemsMap.set(rawName.toLowerCase().trim(), {
+          client_id: activeClient,
+          name: rawName,
+          unit,
+          unit_price: price,
+          par_level: par,
+        });
       });
+
+      if (rowErrors.length > 0) {
+        const shown = rowErrors.slice(0, 8).join("\n");
+        const more = rowErrors.length > 8 ? `\n... нийт ${rowErrors.length} мөр` : "";
+        alert(
+          `Хадгалаагүй. Загвартай таарахгүй мөр байна:\n${shown}${more}\n\nБагана: Барааны нэр, Нэгж, Нэгжийн үнэ, Хэвийн нөөц (Par). TAB эсвэл 2+ зайгаар салгана.`,
+        );
+        return;
+      }
 
       const itemsToUpsert = Array.from(itemsMap.values());
       if (itemsToUpsert.length > 0) {

@@ -306,7 +306,8 @@ export function advancedMongolianVoiceParser(
 
   for (const ing of ingredients) {
     let currentScore = 0;
-    const dbNameLower = ing.name.toLowerCase();
+    const dbNameLower = String(ing?.name || "").toLowerCase().trim();
+    if (!dbNameLower) continue;
 
     // Бүтэн нэрээрээ байвал шууд 100 оноо!
     if (text.includes(dbNameLower)) {
@@ -406,12 +407,16 @@ export function fastLocalParse(text: string, ingredientsList: string[]) {
 
 export async function parseOperationalText(
   text: string,
-  ingredientsList: string[],
+  ingredients: { id: string; name: string; unit?: string | null }[],
   learnedAliases: { phrase: string; ingredient_id: string }[] = [],
 ) {
+  // Local parser needs full rows (id, name, unit); the AI prompt needs names only.
+  const ingredientsList = (ingredients || [])
+    .map((i) => String(i?.name || "").trim())
+    .filter(Boolean);
   const localResult = advancedMongolianVoiceParser(
     text,
-    ingredientsList,
+    ingredients || [],
     learnedAliases,
   );
   if (localResult) return localResult;
@@ -483,7 +488,7 @@ export async function parseOperationalText(
   }
 
   if (!responseText) {
-    return { is_transaction: false, success: false, error_message: lastError };
+    return { is_transaction: false, success: false, ai_failed: true, error_message: lastError };
   }
 
   try {

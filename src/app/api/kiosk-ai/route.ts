@@ -641,18 +641,45 @@ ${JSON.stringify(unmatched)}`;
           .select("phrase, ingredient_id")
           .eq("client_id", clientId);
 
-        const aiAnalysis = await parseOperationalText(
+        const aiAnalysis: any = await parseOperationalText(
           text,
-          allowedNames,
+          ingredients || [],
           learnedAliases || [],
         );
 
+        if (aiAnalysis?.ai_failed) {
+          return NextResponse.json({
+            success: false,
+            is_log: false,
+            message:
+              "AI одоогоор хариу өгсөнгүй. Бүртгэл хадгалагдаагүй. Хэсэг хүлээгээд дахин илгээнэ үү.",
+          });
+        }
+
         if (aiAnalysis && aiAnalysis.is_transaction && aiAnalysis.success) {
-          const ingredient = ingredients?.find(
-            (i) =>
-              i.name.toLowerCase().trim() ===
-              aiAnalysis.item_name.toLowerCase().trim(),
-          );
+          const wantedName = String(aiAnalysis.item_name || "").toLowerCase().trim();
+          const ingredient = wantedName
+            ? ingredients?.find(
+                (i) => String(i.name || "").toLowerCase().trim() === wantedName,
+              )
+            : undefined;
+          const parsedQty = Number(aiAnalysis.quantity);
+          if (!ingredient) {
+            return NextResponse.json({
+              success: false,
+              is_log: false,
+              message:
+                "Барааг жагсаалтаас олсонгүй. Бүртгэл хадгалагдаагүй. Барааны нэрийг жагсаалтад байгаагаар нь бичээд дахин илгээнэ үү.",
+            });
+          }
+          if (!Number.isFinite(parsedQty) || parsedQty === 0) {
+            return NextResponse.json({
+              success: false,
+              is_log: false,
+              message:
+                "Тоо хэмжээг уншиж чадсангүй. Бүртгэл хадгалагдаагүй. Тоо, нэгжээ бичээд дахин илгээнэ үү.",
+            });
+          }
           if (ingredient) {
             // 1. Зарлагын лог хадгалах
             const { data: log, error: logError } = await supabaseAdmin
@@ -661,7 +688,7 @@ ${JSON.stringify(unmatched)}`;
                 {
                   client_id: clientId,
                   ingredient_id: ingredient.id,
-                  quantity: aiAnalysis.quantity,
+                  quantity: parsedQty,
                   type: aiAnalysis.type,
                   notes: aiAnalysis.notes || "Instant Log",
                   worker_name: workerName,
@@ -709,7 +736,7 @@ ${JSON.stringify(unmatched)}`;
               is_log: true,
               log_id: log?.id,
               learned_alias_id: newlyLearnedId, // 👈 Undo хийх үед устгах ID
-              message: `**Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(aiAnalysis.quantity)} ${ingredient.unit}**`,
+              message: `**Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(parsedQty)} ${ingredient.unit}**`,
             });
           }
         }
