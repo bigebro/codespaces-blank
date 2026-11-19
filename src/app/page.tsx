@@ -129,8 +129,8 @@ export default function PremiumLandingPage() {
       a: "Хаягдал, тооллого, худалдан авалт, борлуулалтыг нэг дор цуглуулж, бараа бүрийн зөрүүг харуулна. Өгөгдөл дутуу бол тоог таамаглахгүй, «Дутуу» эсвэл «Шалгах» гэж тэмдэглэнэ.",
     },
     {
-      q: "Би өөрөө юу хийх хэрэгтэй вэ?",
-      a: "Каталогоо оруулах, эхний тооллогоо хийх, ажилтнаа нэмэх, таблетаа холбох. Дараа нь ажилтан ээлж бүрт таблетаас тоолж, хаягдлаа бүртгэнэ. Бэлэн жортой бол нэвтрүүлэхэд тусална.",
+      q: "Хэрхэн эхлэх вэ?",
+      a: "Эхлээд жор, эхний тооллого, таблетаа нэг удаа тохируулна. Цаашид таблетаас бүртгэнэ. Бүх тоо самбарт гарч, AI бизнесийн байдлыг тайлбарлаж, юу хийхийг зөвлөнө.",
     },
     {
       q: "Манай байгууллага өөрийн гэсэн онцлогтой бол яах вэ?",
@@ -184,12 +184,10 @@ export default function PremiumLandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-center lg:text-left">
             <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
-              Кафег тань хамт удирддаг AI.
+          Бизнесээ нэг самбараас удирд.
             </h1>
             <p className="text-zinc-400 text-lg sm:text-xl mb-10 leading-relaxed font-medium">
-              OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаагдал, өртгийг хянаж,
-              асуудлыг олж, даалгавар санал болгож, танд юу хийхийг хэлнэ. Та
-              зөвхөн шийднэ.
+              OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаягдал, өртгийг хянаж, асуудлыг олж, багтаа даалгавар санал болгож, танд юу хийхийг хэлнэ. Та зөвхөн шийднэ.
             </p>
             <Link
               href="/login"
@@ -222,7 +220,7 @@ export default function PremiumLandingPage() {
 
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
           {[
-            "Ажилтан таблетаас бүртгэнэ",
+            "Баг тань таблетаас бүртгэнэ",
             "Самбар бодит зөрүүг харуулна",
             "AI тайлбарлаж, зөвлөнө",
           ].map((line) => (
@@ -243,13 +241,11 @@ export default function PremiumLandingPage() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
-              Та зөвхөн самбараа харна, ажилтан бүртгэнэ.
+               Баг тань таблетаас бүртгэнэ, та самбараас удирдана.
             </h2>
             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
-              Ажилтан хаягдал, тооллогоо таблетаас бүртгэнэ. Та самбараас хянаж,
-              хэрэгтэй бол ажилтанд даалгавар онооно. Эхлэхдээ каталог, эхний
-              тооллого, ажилтан, таблетаа нэг удаа тохируулна.{" "}
-              <strong>14 хоног үнэгүй туршина.</strong>
+              Баг тань хаягдал, тооллогоо таблетаас бүртгэнэ. Та самбараас хянаж, AI-ийн санал болгосон даалгаврыг зөвшөөрнө. Эхлэхдээ каталог, эхний тооллого, багаа, таблетаа нэг удаа тохируулна{" "}
+              <strong>14 хоног үнэгүй.</strong>
             </p>
           </div>
         </div>
@@ -276,7 +272,7 @@ export default function PremiumLandingPage() {
                 Хаягдал ба зөрүү
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Ажилтан хаягдлаа таблетаас бүртгэнэ. Тооллого ба борлуулалтын
+                Баг тань хаягдлаа таблетаас бүртгэнэ Тооллого ба борлуулалтын
                 зөрүүг бараа бүрээр харуулж, тайлбаргүй зөрүүг тусад нь гаргана.
               </p>
             </div>
@@ -365,7 +361,7 @@ export default function PremiumLandingPage() {
 
           <div className="text-center mb-10 relative z-10">
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center justify-center gap-3">
-              <Calculator className="text-zinc-200 h-8 w-8" /> Жишээ: зөвхөн хаагдалаас хэдийг хэмнэх вэ?
+              <Calculator className="text-zinc-200 h-8 w-8" /> Жишээ: зөвхөн хаягдалаас хэдийг хэмнэх вэ?
             </h2>
             <p className="text-sm text-zinc-400">
               Энэ бол жишээ тооцоо, таны өгөгдөл биш. Сарын бараа материалын
