@@ -4,6 +4,8 @@ export type GradeGuideInput = {
   status?: string;
   unit?: string;
   action?: string | null;
+  fixable?: boolean;
+  reasons?: string[];
   partial?: boolean;
   has_start?: boolean;
   has_end?: boolean;
@@ -62,7 +64,10 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   const logged = spoilage + testing + staffMeal + other;
   const theo = known(row.theoretical_qty) ? Number(row.theoretical_qty) : null;
   const actual = known(row.actual_qty) ? Number(row.actual_qty) : null;
-  const gap = known(row.gap_qty) ? Number(row.gap_qty) : (actual != null && theo != null ? actual - theo : null);
+  // Хэсэгчилсэн хугацаанд gap_qty null. Бүтэн хугацааны жортой хасаж хуурамч зөрүү гаргахгүй.
+  const gap = known(row.gap_qty) ? Number(row.gap_qty) : null;
+  const ended = row.fixable === false;
+  const lateEnd = (row.reasons || []).some((r) => r.includes("7 хоног өнгөрсний дараа"));
   const start = known(row.start_qty) ? Number(row.start_qty) : null;
   const end = known(row.end_qty) ? Number(row.end_qty) : null;
   const bought = known(row.purchased_qty) ? Number(row.purchased_qty) : null;
@@ -70,7 +75,11 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   const facts: string[] = [];
   if (hasStart && hasEnd && start != null && end != null) {
     const boughtText = bought == null ? "Мэдээлэл дутуу" : qty(bought);
-    facts.push(`Эхлэх тоо ${qty(start)}${unitText}, орлого ${boughtText}${unitText}, одоогийн тоо ${qty(end)}${unitText}.`);
+    facts.push(`Эхлэх тоо ${qty(start)}${unitText}, орлого ${boughtText}${unitText}, эцсийн тоо ${qty(end)}${unitText}.`);
+  } else if (hasStart && start != null) {
+    facts.push(`Эхлэх тоо ${qty(start)}${unitText}.`);
+  } else if (hasEnd && end != null && !partial) {
+    facts.push(`Эцсийн тоо ${qty(end)}${unitText}.`);
   }
   if (theo != null) {
     facts.push(Math.abs(theo) <= 0.0001
@@ -79,6 +88,8 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   }
   if (actual != null && gap != null) {
     facts.push(`Бодитоор ${qty(actual)}${unitText} гарсан. Зөрүү ${qty(gap)}${unitText}.`);
+  } else if (actual != null && partial) {
+    facts.push(`Хэмжсэн хугацаанд бодитоор ${qty(actual)}${unitText} гарсан.`);
   }
   if (!wasteKnown) {
     facts.push("Хаягдлын бүртгэл энэ мөрөнд ирээгүй. Мэдээлэл дутуу.");
@@ -89,8 +100,12 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   }
   if (gap == null) facts.push("Тооны зөрүүг тооцоолоогүй.");
   else if (Math.abs(gap) <= 0.05) facts.push("Тооны зөрүү алга.");
-  else if (!known(row.gap_money) || Math.abs(Number(row.gap_money)) < 1) facts.push("Үнэ алга. Тооны зөрүүг мөнгөөр харуулахгүй.");
+  else if (!known(row.gap_money)) facts.push("Мөнгөн зөрүүг тооцоолоогүй.");
+  else if (Number(row.gap_money) === 0) facts.push("Үнэ алга. Тооны зөрүүг мөнгөөр харуулахгүй.");
   else facts.push(`Мөнгөн зөрүү ${money(Number(row.gap_money))}.`);
+  if (row.status === "Check" && gap != null && Math.abs(gap) > 0.05) {
+    facts.push("Шар мөр тул энэ зөрүү Алдагдал, Илүүдэл, Шалтгаангүй зөрүүгийн нийт дүнд ороогүй.");
+  }
 
   if (action === "date") {
     return {
@@ -142,21 +157,35 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   }
   if (!hasStart || !hasEnd) {
     const missing = !hasStart && !hasEnd
-      ? "Эхлэх тоо болон одоогийн тоо хоёул алга."
+      ? "Эхлэх тоо болон эцсийн тоо хоёул алга."
       : !hasStart
         ? "Эхлэх тоо алга."
-        : "Одоогийн тоо алга.";
+        : "Эцсийн тоо алга.";
     return {
       facts: [missing, ...facts],
-      countTask: !hasEnd,
+      countTask: !hasEnd && !ended,
       steps: [
         !hasEnd
-          ? "Киоск дээр энэ барааг одоо тоол, эсвэл Тоолох даалгавар үүсгэ."
-          : "Одоогийн тоо байна. Шинэ тооллого энэ мөрийг засахгүй.",
+          ? ended
+            ? "Хугацаа дууссан. Одоо тоолох нь энэ хугацааг засахгүй. Хугацааны сүүлийн өдрийн тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул."
+            : "Киоск дээр энэ барааг одоо тоол, эсвэл Тоолох даалгавар үүсгэ."
+          : "Эцсийн тоо байна. Шинэ тооллого энэ мөрийг засахгүй.",
         !hasStart
           ? "Хугацааны эхний тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул."
           : "Эхлэх тоо байна. Түүнийг бүү дарж бич.",
         "Хоёр тоо хоёул орсон хойно л зөрүүг уншина.",
+      ],
+    };
+  }
+
+  if (lateEnd) {
+    return {
+      facts: [...facts, "Эцсийн тооллого хугацаа дууссанаас 7 хоногоос хойш хийгдсэн. Энэ хооронд орсон зарлага, орлого зөрүүг бүдгэрүүлнэ."],
+      countTask: false,
+      steps: [
+        "Тоолох даалгавар бүү үүсгэ.",
+        "Хугацааны сүүлийн өдрийн тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул.",
+        "Олдохгүй бол энэ хугацаа шар хэвээр үлдэнэ. Дараагийн хугацааны сүүлийн өдөр тоол.",
       ],
     };
   }
@@ -167,9 +196,11 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       facts: [...facts, "Бууралт бүртгэсэн хаягдалтай таарсан. Тайлбаргүй үлдэгдэл 0."],
       countTask: false,
       steps: [
-        "Тоолох даалгавар хэрэггүй. Эхлэх тоо болон одоогийн тоо аль хэдийн байна.",
+        "Тоолох даалгавар хэрэггүй. Эхлэх тоо болон эцсийн тоо аль хэдийн байна.",
         "Хаягдал дээр нэмж бүртгэх зүйл алга.",
-        "Мөр шар хэвээр үлдэнэ. Жор 0 үед ямар ч бууралт 30%-иас их гэж тэмдэглэгддэг. Өнгө нь засах ажил гэсэн үг биш.",
+        theo != null && Math.abs(theo) <= 0.0001
+          ? "Мөр шар хэвээр үлдэнэ. Жор 0 үед ямар ч бууралт 30%-иас их гэж тэмдэглэгддэг. Өнгө нь засах ажил гэсэн үг биш."
+          : "Мөр шар хэвээр үлдэнэ. Хаягдал жорын зарцуулалтаас 30%-иас их байна. Өнгө нь засах ажил гэсэн үг биш.",
       ],
     };
   }
@@ -178,7 +209,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       facts: [...facts, `Тайлбаргүй ${qty(unexplained)}${unitText}.`],
       countTask: false,
       steps: [
-        "Тоолох даалгавар бүү үүсгэ. Эхлэх тоо болон одоогийн тоо аль хэдийн байна.",
+        "Тоолох даалгавар бүү үүсгэ. Эхлэх тоо болон эцсийн тоо аль хэдийн байна.",
         `Киоск дээр Хаягдал цэсийг нээ. Тайлбаргүй ${qty(unexplained)}${unitText}-ийг нэг шалтгаанаар бүртгэ: Муудсан, Туршилт, Ажилтны хоол, Асгарсан, эсвэл Бусад.`,
         theo != null && Math.abs(theo) <= 0.0001
           ? "Жор 0 байгаа тул борлуулалт энэ барааг олоогүй. Зарагдсан гэж үзэж байвал жорын нэрийг борлуулалтын нэртэй тулга."
@@ -194,7 +225,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       steps: [
         "Тоолох даалгавар бүү үүсгэ.",
         "Киоскын түүхээс энэ барааны хаягдлыг нээ. Давхардсан эсвэл буруу тоотой мөрийг засаарай.",
-        "Хаягдал зөв бол эхлэх эсвэл одоогийн тооллогын цаасан тоог тухайн өдрөөр импортолно.",
+        "Хаягдал зөв бол эхлэх эсвэл эцсийн тооллогын цаасан тоог тухайн өдрөөр импортолно.",
       ],
     };
   }

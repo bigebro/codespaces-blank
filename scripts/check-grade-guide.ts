@@ -141,3 +141,38 @@ assert.equal(panel.includes("хаягдал бүртгээгүй"), false);
 assert.equal(panel.includes("likelyCauses"), false);
 
 console.log("grade guide checks passed");
+
+// pr19 fixes
+const partialNoFakeGap = gradeGuide({
+  status: "Check", unit: "pc", action: "count", partial: true, measured_from: "2026-11-11",
+  has_start: false, has_end: true, end_qty: 10, theoretical_qty: 0, actual_qty: 6, gap_qty: null, gap_money: null,
+  waste_spoilage: 0, waste_testing: 0, waste_staff_meal: 0, waste_other: 0,
+});
+assert.equal(partialNoFakeGap.facts.join(" ").includes("Зөрүү 6"), false);
+assert.equal(partialNoFakeGap.facts.join(" ").includes("Үнэ алга"), false);
+assert.match(partialNoFakeGap.facts.join(" "), /Хэмжсэн хугацаанд бодитоор 6 ширхэг/);
+
+const endedMissingEnd = gradeGuide({
+  status: "Missing", action: "count", fixable: false, has_start: true, has_end: false, start_qty: 12,
+  theoretical_qty: 0, waste_spoilage: 0, waste_testing: 0, waste_staff_meal: 0, waste_other: 0,
+});
+assert.equal(endedMissingEnd.countTask, false);
+assert.match(endedMissingEnd.steps[0], /Хугацаа дууссан/);
+assert.match(endedMissingEnd.facts.join(" "), /Эхлэх тоо 12/);
+
+const late = gradeGuide({
+  status: "Check", action: "count", has_start: true, has_end: true, start_qty: 5, end_qty: 5, purchased_qty: 0,
+  theoretical_qty: 0, actual_qty: 0, gap_qty: 0, gap_money: 0,
+  reasons: ["Эцсийн тооллого хугацаа дууссанаас хойш 7 хоног өнгөрсний дараа хийгдсэн"],
+  waste_spoilage: 0, waste_testing: 0, waste_staff_meal: 0, waste_other: 0,
+});
+assert.match(late.facts.join(" "), /7 хоногоос хойш/);
+
+const explainedTheo = gradeGuide({
+  status: "Check", action: "count", has_start: true, has_end: true, start_qty: 20, end_qty: 4, purchased_qty: 0,
+  theoretical_qty: 5, actual_qty: 16, gap_qty: 11, gap_money: 1100,
+  waste_spoilage: 11, waste_testing: 0, waste_staff_meal: 0, waste_other: 0,
+});
+assert.equal(explainedTheo.steps.join(" ").includes("Жор 0 үед"), false);
+assert.match(explainedTheo.facts.join(" "), /нийт дүнд ороогүй/);
+console.log("pr19 fix checks passed");

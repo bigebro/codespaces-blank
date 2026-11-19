@@ -693,6 +693,7 @@ for (const key in master) {
     const logDate = log.date ? ubDay(log.date) : '';
 
     if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
+    if (log.incident_type === 'unexplained_gap') return;
     if (logDate < startDay || logDate > endDay) return;
 
     if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;

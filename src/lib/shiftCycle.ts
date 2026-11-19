@@ -30,8 +30,8 @@ export function logTypeLabel(type: string) {
 
 export function displayUnit(unit: string) {
   const key = String(unit || "").trim().toLowerCase();
-  if (key === "ш" || key === "ширхэг" || key === "pc") return "ширхэг";
-  if (key === "гр" || key === "г" || key === "g") return "гр";
+  if (key === "ш" || key === "ширхэг" || key === "pc" || key === "piece" || key === "item") return "ширхэг";
+  if (key === "гр" || key === "г" || key === "g" || key === "gram") return "гр";
   if (key === "мл" || key === "ml") return "мл";
   if (key === "кг" || key === "kg") return "кг";
   if (key === "л" || key === "l" || key === "литр") return "л";
