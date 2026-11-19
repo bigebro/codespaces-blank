@@ -115,15 +115,13 @@ export function OperlinkLogo({
 
 export default function PremiumLandingPage() {
   const router = useRouter();
-  const [dailyRevenue, setDailyRevenue] = useState(2500000);
+  const [monthlySpend, setMonthlySpend] = useState(10000000);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isYearly, setIsYearly] = useState(false);
 
-  // Бодит цэвэр ашгийн тооцоо
-  const monthlyRevenue = dailyRevenue * 30;
-  const pureProfitGainMonthly = Math.round(monthlyRevenue * 0.05);
-  const yearlyProfitGain = pureProfitGainMonthly * 12;
-  const hoursSavedMonthly = 40;
+  // Жишээ тооцоо: сарын бараа материалын зардал x 5%. Хэрэглэгчийн бодит өгөгдөл биш.
+  const monthlySaving = Math.round(monthlySpend * 0.05);
+  const yearlySaving = monthlySaving * 12;
 
   const faqs = [
     {
@@ -182,27 +180,60 @@ export default function PremiumLandingPage() {
       </nav>
 
       {/* 2. THE HERO SECTION */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pt-24 pb-20 text-center">
-        <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tight leading-[1.1] mb-8">
-          <span className="text-white">Хаягдал, хоолны өртөг, ээлжийн тооллогоо нэг дор хяна.</span>
-        </h1>
+      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-20 pb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="text-center lg:text-left">
+            <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
+              Кафег тань хамт удирддаг AI.
+            </h1>
+            <p className="text-zinc-400 text-lg sm:text-xl mb-10 leading-relaxed font-medium">
+              OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаагдал, өртгийг хянаж,
+              асуудлыг олж, даалгавар санал болгож, танд юу хийхийг хэлнэ. Та
+              зөвхөн шийднэ.
+            </p>
+            <Link
+              href="/login"
+              className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-zinc-950 font-black text-base px-10 py-5 rounded-2xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 max-w-sm mx-auto lg:mx-0 cursor-pointer"
+            >
+              14 хоног үнэгүй турших
+            </Link>
+            <p className="text-xs text-zinc-500 mt-4">
+              Дараа нь сард 149,000₮. Карт шаардлагагүй.
+            </p>
+          </div>
 
-        <p className="text-zinc-400 text-lg sm:text-xl max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
-          Кафе, рестораны эзэнд зориулсан самбар, ажилтанд зориулсан таблет.
-          Ажилтан хаягдлаа таблетаас бүртгэж, ээлж бүрийн төгсгөлд тоолно.
-          Та хаана, юу зөрж байгааг тооллогод тулгуурлан харна. Өгөгдөл дутуу
-          бол самбар «Дутуу» гэж шууд хэлнэ.
-        </p>
+          {/* 20 секундын дэлгэц бичлэгийн оронд тавьсан түр хайрцаг.
+              Бичлэг бэлэн болоход энэ div-ийг дараах <video>-оор соль:
+              <video src="/hero.mp4" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" /> */}
+          <div
+            id="hero-media"
+            className="relative aspect-video w-full rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/50"
+          >
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+              <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center">
+                <Play className="h-7 w-7 text-zinc-950 fill-current ml-1" />
+              </div>
+              <p className="text-sm font-bold text-zinc-300">
+                Тун удахгүй: таблет → самбар → AI
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <Link
-          href="/login"
-          className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-zinc-950 font-black text-base px-10 py-5 rounded-2xl  hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto cursor-pointer max-w-sm"
-        >
-          14 хоног үнэгүй турших
-        </Link>
-        <p className="text-xs text-zinc-500 mt-4">
-          Дараа нь Starter багц сард 149,000₮.
-        </p>
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+          {[
+            "Ажилтан таблетаас бүртгэнэ",
+            "Самбар бодит зөрүүг харуулна",
+            "AI тайлбарлаж, зөвлөнө",
+          ].map((line) => (
+            <p
+              key={line}
+              className="text-sm font-bold text-zinc-300 bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3"
+            >
+              {line}
+            </p>
+          ))}
+        </div>
       </section>
 
       {/* 3. ЭХЛЭХ АЛХАМ */}
@@ -235,7 +266,7 @@ export default function PremiumLandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
             <div>
               <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
@@ -281,77 +312,108 @@ export default function PremiumLandingPage() {
               </p>
             </div>
           </div>
+
+          <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
+                <Sparkles className="h-7 w-7 text-zinc-300" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                AI туслах
+              </h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Танай бодит өгөгдлөс зөрүүг тайлбарлаж, юу хийхийг санал болгоно.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
+                <DollarSign className="h-7 w-7 text-zinc-300" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                Өсөлтөө тоогоор хар
+              </h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Борлуулалт, өртөг, зөрүү өдөр, долоо хоног, сараар хэрхэн өөрчлөгдөж байгааг харж, зөв шийдвэр гаргана.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-10 rounded-3xl border border-dashed border-zinc-800 p-6 opacity-60">
+          <p className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-3">
+            Удахгүй (одоогоор ашиглах боломжгүй)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {["Ажилтантай ярилцах AI", "Шинэ үйлчлүүлэгч татах", "Контент бэлтгэх"].map((item) => (
+              <span
+                key={item}
+                className="text-sm text-zinc-500 border border-zinc-800 rounded-full px-4 py-1.5"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* 5. PROFIT SIMULATOR */}
+      {/* 5. ХЭМНЭЛТИЙН ЖИШЭЭ ТООЦОО */}
       <section className="max-w-4xl mx-auto px-6 py-16">
         <div className="bg-zinc-900 p-8 sm:p-12 rounded-[2rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/60 blur-3xl rounded-full pointer-events-none"></div>
 
           <div className="text-center mb-10 relative z-10">
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center justify-center gap-3">
-              <Calculator className="text-zinc-200 h-8 w-8" /> Таны бодит цэвэр
-              ашиг & эрх чөлөө
+              <Calculator className="text-zinc-200 h-8 w-8" /> Жишээ: зөвхөн хаагдалаас хэдийг хэмнэх вэ?
             </h2>
             <p className="text-sm text-zinc-400">
-              Өдөр тутмын орлогоо оруулаад, таны халаасанд үлдэх бодит үр дүнг
-              хар.
+              Энэ бол жишээ тооцоо, таны өгөгдөл биш. Сарын бараа материалын
+              зардлаа сонгож үзнэ үү.
             </p>
           </div>
 
           <div className="mb-12 max-w-2xl mx-auto relative z-10">
             <div className="flex justify-between items-end mb-4">
               <span className="text-sm font-bold text-zinc-300 uppercase tracking-wide">
-                Өдрийн дундаж орлого:
+                Сарын бараа материалын зардал:
               </span>
               <span className="text-3xl font-black text-white font-mono">
-                {dailyRevenue.toLocaleString()} ₮
+                {monthlySpend.toLocaleString()} ₮
               </span>
             </div>
             <input
               type="range"
-              min={300000}
-              max={15000000}
-              step={100000}
-              value={dailyRevenue}
-              onChange={(e) => setDailyRevenue(Number(e.target.value))}
+              min={2000000}
+              max={60000000}
+              step={500000}
+              value={monthlySpend}
+              onChange={(e) => setMonthlySpend(Number(e.target.value))}
               className="w-full h-3 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-zinc-950/50 outline-none"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center relative z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center relative z-10">
             <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
-              <p className="text-xs text-zinc-400 font-bold uppercase mb-2">
-                Сар бүр нэмэгдэх цэвэр ашиг
+              <p className="text-xs text-zinc-400 font-bold mb-2">
+                Хаагдлаа 5%-ийн бууруулвал сард ойролцоогоор
               </p>
               <p className="text-2xl font-black text-zinc-200 font-mono">
-                +{pureProfitGainMonthly.toLocaleString()} ₮
-              </p>
-              <p className="text-[10px] text-zinc-500 mt-1">
-                Дансанд тань цэвэр хуримтлагдана
+                {monthlySaving.toLocaleString()} ₮ хэмнэнэ
               </p>
             </div>
-            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
-              <p className="text-xs text-zinc-400 font-bold uppercase mb-2">
-                Танд эргэж ирэх хувийн цаг
+            <div className="bg-zinc-800 p-6 rounded-2xl border border-zinc-700/50 shadow-lg flex flex-col justify-center">
+              <p className="text-xs text-zinc-200 font-bold mb-2">
+                Жилд ойролцоогоор
               </p>
-              <p className="text-2xl font-black text-zinc-300 font-mono">
-                +{hoursSavedMonthly} цаг / сард
-              </p>
-              <p className="text-[10px] text-zinc-500 mt-1">
-                Гэр бүл, өөртөө зориулах эрх чөлөө
-              </p>
-            </div>
-            <div className="bg-zinc-800 p-6 rounded-2xl border border-zinc-700/50 transform sm:scale-110 shadow-lg flex flex-col justify-center">
-              <p className="text-xs text-zinc-200 font-black uppercase mb-2 tracking-wide">
-                Жилд халаасанд тань үлдэх дүн
-              </p>
-              <p className="text-3xl font-black text-zinc-200 font-mono">
-                +{yearlyProfitGain.toLocaleString()} ₮
+              <p className="text-2xl font-black text-zinc-200 font-mono">
+                {yearlySaving.toLocaleString()} ₮
               </p>
             </div>
           </div>
+          <p className="text-xs text-zinc-500 text-center mt-6 relative z-10">
+            Жишээ тооцоо. Бодит үр дүн танай тооллогоос хамаарна.
+          </p>
         </div>
       </section>
 
