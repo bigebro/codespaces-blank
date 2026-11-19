@@ -196,7 +196,7 @@ export default function PremiumLandingPage() {
             >
               14 хоног үнэгүй турших
             </Link>
-            <p className="text-xs text-zinc-500 mt-4">
+            <p className="text-xs text-zinc-400 mt-4">
               Дараа нь сард 149,000₮. Карт шаардлагагүй.
             </p>
           </div>
@@ -242,10 +242,10 @@ export default function PremiumLandingPage() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
-               Баг тань таблетаас бүртгэнэ, та самбараас удирдана.
+               Нэг удаа тохируулаад, самбараас удирд.
             </h2>
             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
-              Баг тань хаягдал, тооллогоо таблетаас бүртгэнэ. Та самбараас хянаж, AI-ийн санал болгосон даалгаврыг зөвшөөрнө. Эхлэхдээ каталог, эхний тооллого, багаа, таблетаа нэг удаа тохируулна{" "}
+            Эхлээд жор, эхний тооллого, таблетаа нэг удаа тохируулна. Цаашид таблетаас бүртгэнэ. Бүх тоо самбарт гарч, AI бизнесийн байдлыг тайлбарлаж, юу хийхийг зөвлөнө.{" "}
               <strong>14 хоног үнэгүй.</strong>
             </p>
           </div>
@@ -345,7 +345,7 @@ export default function PremiumLandingPage() {
                 Ухаалаг захиалга
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Par түвшинд тулгуурлан юу, хэдийг захиалахыг санал болгож, таны зөвшөөрлөөр нийлүүлэгч рүү илгээнэ.
+                Нөөцийн доод хэмжээнд тулгуурлан түвшинд тулгуурлан юу, хэдийг захиалахыг санал болгож, таны зөвшөөрлөөр нийлүүлэгч рүү илгээнэ.
               </p>
             </div>
           </div>
@@ -374,7 +374,7 @@ export default function PremiumLandingPage() {
 
           <div className="text-center mb-10 relative z-10">
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center justify-center gap-3">
-              <Calculator className="text-zinc-200 h-8 w-8" /> Жишээ: зөвхөн хаягдалаас хэдийг хэмнэх вэ?
+              <Calculator className="text-zinc-200 h-8 w-8" /> Жишээ: зөвхөн хаягдлаас хэдийг хэмнэх вэ?
             </h2>
             <p className="text-sm text-zinc-400">
               Энэ бол жишээ тооцоо, таны өгөгдөл биш. Сарын бараа материалын
@@ -405,7 +405,7 @@ export default function PremiumLandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center relative z-10">
             <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
               <p className="text-xs text-zinc-400 font-bold mb-2">
-                Хаягдлаа 5%-ийн бууруулвал сард ойролцоогоор
+                Хаягдлаа 5%-иар бууруулвал сард ойролцоогоор
               </p>
               <p className="text-2xl font-black text-zinc-200 font-mono">
                 {monthlySaving.toLocaleString()} ₮ хэмнэнэ
