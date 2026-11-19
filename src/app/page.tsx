@@ -115,8 +115,15 @@ export function OperlinkLogo({
 
 export default function PremiumLandingPage() {
   const router = useRouter();
+  const [dailyRevenue, setDailyRevenue] = useState(2500000);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isYearly, setIsYearly] = useState(false);
+
+  // Бодит цэвэр ашгийн тооцоо
+  const monthlyRevenue = dailyRevenue * 30;
+  const pureProfitGainMonthly = Math.round(monthlyRevenue * 0.05);
+  const yearlyProfitGain = pureProfitGainMonthly * 12;
+  const hoursSavedMonthly = 40;
 
   const faqs = [
     {
@@ -205,11 +212,12 @@ export default function PremiumLandingPage() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
-              Эхлэхэд 4 алхам
+              Та зөвхөн самбараа харна, ажилтан бүртгэнэ.
             </h2>
             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
-              Каталогоо оруулна, эхний тооллогоо хийнэ, ажилтнаа нэмнэ, таблетаа
-              холбоно. Үүний дараа ээлж бүрийн тооллого, хаягдал самбарт орж ирнэ.{" "}
+              Ажилтан хаягдал, тооллогоо таблетаас бүртгэнэ. Та самбараас хянаж,
+              хэрэгтэй бол ажилтанд даалгавар онооно. Эхлэхдээ каталог, эхний
+              тооллого, ажилтан, таблетаа нэг удаа тохируулна.{" "}
               <strong>14 хоног үнэгүй туршина.</strong>
             </p>
           </div>
@@ -270,6 +278,77 @@ export default function PremiumLandingPage() {
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Ээлжийн тооллого, хаалтын тайлан таблет дээр хийгдэнэ. Та
                 самбараас өдөр, долоо хоног, сараар харна.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. PROFIT SIMULATOR */}
+      <section className="max-w-4xl mx-auto px-6 py-16">
+        <div className="bg-zinc-900 p-8 sm:p-12 rounded-[2rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/60 blur-3xl rounded-full pointer-events-none"></div>
+
+          <div className="text-center mb-10 relative z-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center justify-center gap-3">
+              <Calculator className="text-zinc-200 h-8 w-8" /> Таны бодит цэвэр
+              ашиг & эрх чөлөө
+            </h2>
+            <p className="text-sm text-zinc-400">
+              Өдөр тутмын орлогоо оруулаад, таны халаасанд үлдэх бодит үр дүнг
+              хар.
+            </p>
+          </div>
+
+          <div className="mb-12 max-w-2xl mx-auto relative z-10">
+            <div className="flex justify-between items-end mb-4">
+              <span className="text-sm font-bold text-zinc-300 uppercase tracking-wide">
+                Өдрийн дундаж орлого:
+              </span>
+              <span className="text-3xl font-black text-white font-mono">
+                {dailyRevenue.toLocaleString()} ₮
+              </span>
+            </div>
+            <input
+              type="range"
+              min={300000}
+              max={15000000}
+              step={100000}
+              value={dailyRevenue}
+              onChange={(e) => setDailyRevenue(Number(e.target.value))}
+              className="w-full h-3 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-zinc-950/50 outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center relative z-10">
+            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
+              <p className="text-xs text-zinc-400 font-bold uppercase mb-2">
+                Сар бүр нэмэгдэх цэвэр ашиг
+              </p>
+              <p className="text-2xl font-black text-zinc-200 font-mono">
+                +{pureProfitGainMonthly.toLocaleString()} ₮
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Дансанд тань цэвэр хуримтлагдана
+              </p>
+            </div>
+            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
+              <p className="text-xs text-zinc-400 font-bold uppercase mb-2">
+                Танд эргэж ирэх хувийн цаг
+              </p>
+              <p className="text-2xl font-black text-zinc-300 font-mono">
+                +{hoursSavedMonthly} цаг / сард
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Гэр бүл, өөртөө зориулах эрх чөлөө
+              </p>
+            </div>
+            <div className="bg-zinc-800 p-6 rounded-2xl border border-zinc-700/50 transform sm:scale-110 shadow-lg flex flex-col justify-center">
+              <p className="text-xs text-zinc-200 font-black uppercase mb-2 tracking-wide">
+                Жилд халаасанд тань үлдэх дүн
+              </p>
+              <p className="text-3xl font-black text-zinc-200 font-mono">
+                +{yearlyProfitGain.toLocaleString()} ₮
               </p>
             </div>
           </div>
