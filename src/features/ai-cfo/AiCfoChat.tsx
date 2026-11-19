@@ -123,6 +123,25 @@ const fetchChatHistory = useCallback(async () => {
 
   const handleApproveProposal = async (proposal: any, cardKey: string) => {
     try {
+      if (proposal.alertId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/alerts/decision", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token || ""}`,
+          },
+          body: JSON.stringify({ alertId: proposal.alertId, decision: "approve" }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || "Шийдвэр хадгалагдсангүй");
+        const status = json.alert?.status;
+        setExecutedProposals((prev) => ({
+          ...prev,
+          [cardKey]: status === "approved" ? "Зөвшөөрөгдлөө." : `Энэ санал аль хэдийн шийдэгдсэн: ${status || "тодорхойгүй"}`,
+        }));
+        return;
+      }
       if (proposal.actionType === "UPDATE_MENU_PRICE") {
         const { productName, proposedPrice } = proposal.payload;
         const { error } = await supabase

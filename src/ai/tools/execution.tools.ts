@@ -56,7 +56,7 @@ export async function executeAiTool(
           reason: safe.reason,
           marginImpact: safe.marginImpact || "",
         };
-        await createAlert({
+        const alertRow = await createAlert({
           clientId: context.clientId,
           kind: "price_change",
           title: `Үнэ: ${payload.productName}`,
@@ -67,6 +67,7 @@ export async function executeAiTool(
           success: true,
           data: {
             type: "PROPOSAL",
+            alertId: alertRow?.id || null,
             actionType: "UPDATE_MENU_PRICE",
             status: "pending_human_approval",
             payload,
@@ -96,7 +97,7 @@ export async function executeAiTool(
           weight: Number(safe.weight) || 10,
           reason: safe.reason,
         };
-        await createAlert({
+        const alertRow = await createAlert({
           clientId: context.clientId,
           kind: "staff_task",
           title: payload.taskName,
@@ -107,6 +108,7 @@ export async function executeAiTool(
           success: true,
           data: {
             type: "PROPOSAL",
+            alertId: alertRow?.id || null,
             actionType: "CREATE_STAFF_TASK",
             status: "pending_human_approval",
             payload,
@@ -126,7 +128,7 @@ export async function executeAiTool(
 
       case "action_save_business_rule": {
         const payload = { topic: safe.topic, fact: safe.fact };
-        await createAlert({
+        const alertRow = await createAlert({
           clientId: context.clientId,
           kind: "memory_rule",
           title: `Дүрэм: ${safe.topic}`,
@@ -137,6 +139,7 @@ export async function executeAiTool(
           success: true,
           data: {
             type: "PROPOSAL",
+            alertId: alertRow?.id || null,
             actionType: "SAVE_BUSINESS_RULE",
             status: "pending_human_approval",
             payload,
@@ -154,7 +157,7 @@ export async function executeAiTool(
           confidence: safe.confidence,
           evidenceLogIds: safe.evidenceLogIds || [],
         };
-        await createAlert({
+        const alertRow = await createAlert({
           clientId: context.clientId,
           kind: "memory_lesson",
           title: "Сургамж батлах",
@@ -166,6 +169,7 @@ export async function executeAiTool(
           success: true,
           data: {
             type: "PROPOSAL",
+            alertId: alertRow?.id || null,
             actionType: "RECORD_BUSINESS_LESSON",
             status: "pending_human_approval",
             payload,
@@ -201,7 +205,7 @@ export async function executeAiTool(
 
       case "skill_propose_shift_plan": {
         const plan = await proposeShiftPlan(context.clientId, safe.laborTarget);
-        await createAlert({
+        const alertRow = await createAlert({
           clientId: context.clientId,
           kind: "shift_plan",
           title: "Дараа долоо хоногийн ээлж",
@@ -212,6 +216,7 @@ export async function executeAiTool(
           success: true,
           data: {
             type: "PROPOSAL",
+            alertId: alertRow?.id || null,
             actionType: "SHIFT_PLAN",
             status: "pending_human_approval",
             payload: plan,
@@ -221,7 +226,7 @@ export async function executeAiTool(
 
       case "action_propose_purchase_order": {
         const proposal = await buildPurchaseProposal(context.clientId, safe.supplierId);
-        await createAlert({
+        const alertRow = await createAlert({
           clientId: context.clientId,
           kind: "purchase_order",
           title: "Худалдан авалтын санал",
@@ -237,6 +242,7 @@ export async function executeAiTool(
           success: true,
           data: {
             type: "PROPOSAL",
+            alertId: alertRow?.id || null,
             actionType: "PURCHASE_ORDER",
             status: "pending_human_approval",
             payload: proposal,

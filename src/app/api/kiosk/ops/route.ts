@@ -257,7 +257,7 @@ export async function POST(request: Request) {
       for (const item of Array.isArray(body.waste) ? body.waste : []) {
         const type = String(item.type || "");
         if (!["spoilage", "testing", "staff_meal", "other"].includes(type)) return fail("Хаягдлын төрөл буруу.");
-        const qty = Number(item.quantity);
+        const qty = Number(item.qty ?? item.quantity);
         if (!Number.isFinite(qty) || qty < 0) return fail("Хаягдлын тоо буруу.");
         if (qty === 0) continue;
         logs.push({
@@ -275,7 +275,7 @@ export async function POST(request: Request) {
         });
       }
       for (const item of Array.isArray(body.unexplained) ? body.unexplained : []) {
-        const qty = Number(item.quantity);
+        const qty = Number(item.qty ?? item.quantity);
         if (!Number.isFinite(qty) || qty === 0) continue;
         const cost = item.money == null ? null : Number(item.money);
         logs.push({

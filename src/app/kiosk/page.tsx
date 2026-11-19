@@ -488,8 +488,13 @@ function KioskAiChatSection({
           formData.append("slangHints", slangHints);
 
           try {
+            const voiceTokens = kioskTokens();
             const res = await fetch("/api/transcribe", {
               method: "POST",
+              headers: {
+                "x-kiosk-device": voiceTokens.deviceToken,
+                "x-kiosk-worker": voiceTokens.workerToken,
+              },
               body: formData,
               signal: abortControllerRef.current?.signal,
             });

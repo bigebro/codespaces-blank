@@ -4,13 +4,22 @@ import { advancedMongolianVoiceParser } from '../../../lib/gemini';
 import { GoogleGenerativeAI } from "@/lib/ai/genai";
 import { MODELS } from "@/lib/ai/models";
 import { resolveTenantFromRequest } from "@/lib/tenant";
+import { requireKioskWorker } from "@/lib/kioskAuth";
 import { subscriptionBlockMessage } from "@/lib/subscription";
 
 export async function POST(request: Request) {
   try {
     const session = await resolveTenantFromRequest(request);
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const blocked = await subscriptionBlockMessage(session.clientId);
+    let clientId = session?.clientId || '';
+    if (!clientId) {
+      const worker = await requireKioskWorker(
+        request.headers.get('x-kiosk-device') || '',
+        request.headers.get('x-kiosk-worker') || '',
+      );
+      clientId = worker?.clientId || '';
+    }
+    if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const blocked = await subscriptionBlockMessage(clientId);
     if (blocked) return NextResponse.json({ error: blocked }, { status: 402 });
 
     const formData = await request.formData();
@@ -18,7 +27,6 @@ export async function POST(request: Request) {
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: 'Дуут файл олдсонгүй' }, { status: 400 });
     }
-    const clientId = session.clientId;
     const mimeType = ((formData.get('mimeType') as string) || file.type || 'audio/webm').split(';')[0];
 
     const [{ data: ingredients }, { data: learnedAliases }] = await Promise.all([
@@ -35,7 +43,8 @@ export async function POST(request: Request) {
     if (groqKey) {
       try {
         const slangHints = (formData.get('slangHints') as string) || '';
-        const basePrompt = `${clientId}: 1 литр сүү, латте, эспрессо, американо, сироп, цөцгий, өндөг, талх, хаягдал, асгасан, авсан, муудсан`;
+        const ingredientNames = (ingredients || []).map((i: any) => i.name).filter(Boolean).slice(0, 25).join(', ');
+        const basePrompt = `1 литр сүү, хаягдал, асгасан, авсан, муудсан, ${ingredientNames}`;
         const dynamicPrompt = slangHints ? `${basePrompt}, ${slangHints}` : basePrompt;
 
         const groqData = new FormData();
