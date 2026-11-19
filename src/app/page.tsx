@@ -15,6 +15,7 @@ import {
   Zap,
   Compass,
   CheckCircle2,
+   ShoppingCart
 } from "lucide-react";
 
 export function OperlinkLogo({
@@ -331,6 +332,20 @@ export default function PremiumLandingPage() {
               </h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
                 Борлуулалт, өртөг, зөрүү өдөр, долоо хоног, сараар хэрхэн өөрчлөгдөж байгааг харж, зөв шийдвэр гаргана.
+              </p>
+            </div>
+          </div>
+          
+          <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 hover:border-zinc-700/40 transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div className="h-14 w-14 bg-zinc-800/60 rounded-2xl flex items-center justify-center mb-6 border border-zinc-700/20 group-hover:scale-105 transition-transform">
+                <ShoppingCart className="h-7 w-7 text-zinc-300" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                Ухаалаг захиалга
+              </h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Par түвшинд тулгуурлан юу, хэдийг захиалахыг санал болгож, таны зөвшөөрлөөр нийлүүлэгч рүү илгээнэ.
               </p>
             </div>
           </div>
