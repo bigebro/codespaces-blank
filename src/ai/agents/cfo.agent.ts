@@ -4,6 +4,7 @@ import { getVitals } from "@/core/packages/pkg_vitals";
 import { AgentContext } from "@/types/agent.types";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { runToolAgent } from "@/ai/runtime/agentLoop";
+import { buildTodaySnapshot, isOverviewQuestion } from "@/ai/agents/overview";
 
 function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
   if (!dateStr || typeof dateStr !== "string") return fallbackDate;
@@ -19,7 +20,8 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
     ? context.activeStartDate.split("-")[0]
     : String(currentIsoDate.slice(0, 4));
 
-  const [vitals, rulesResult, briefResult] = await Promise.all([
+  const wantsOverview = isOverviewQuestion(userMessage);
+  const [vitals, rulesResult, briefResult, todaySnapshot] = await Promise.all([
     getVitals(context.clientId),
     supabaseAdmin
       .from("business_memory")
@@ -34,6 +36,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    wantsOverview ? buildTodaySnapshot(context.clientId, currentIsoDate) : Promise.resolve(""),
   ]);
   const rules = rulesResult.data;
 
@@ -58,9 +61,11 @@ You are the Operlink AI Chief Financial Officer for "${context.clientId}".
 - CURRENT YEAR: ${targetYear}
 
 [FINANCIAL VITALS]:
+- (MTD = сарын эхнээс өнөөдрийг хүртэл. «Өнөөдөр» гэсэн асуултад MTD тоог өнөөдрийн тоо гэж хэзээ ч бүү хэл.)
 - MTD Revenue: ${vitals.monthToDateRevenue.toLocaleString()} ₮
 - Est. Net Profit: ${vitals.estimatedNetProfit.toLocaleString()} ₮ (WARNING: Rough 15% margin guess, NOT actual audited profit)
 - Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
+${todaySnapshot ? "\n" + todaySnapshot + "\n" : ""}
 ${weeklyBriefPromptText}
 ${businessRulesText}
 

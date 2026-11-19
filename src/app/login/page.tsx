@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
@@ -108,6 +108,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const submitLockRef = useRef(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -206,6 +208,10 @@ export default function LoginPage() {
 
 const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Давхар дарахаас хамгаалах түгжээ (state шинэчлэгдэхээс өмнөх хоёр дахь дарилтыг барина).
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    let navigating = false;
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -283,10 +289,14 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         // ⚡ 4. DASHBOARD РУУ ШУУД ҮСЭРГЭХ (Modal өөрөө нээгдэнэ):
         if (actionIntent === "pay") {
+          navigating = true;
+          setRedirecting(true);
           router.push(
             `/dashboard?checkout=open&plan=${chosenPlan}&cycle=${chosenCycle}&phone=${phoneNumber}`,
           );
         } else {
+          navigating = true;
+          setRedirecting(true);
           router.push("/dashboard");
         }
       } else {
@@ -297,6 +307,8 @@ const handleSubmit = async (e: React.FormEvent) => {
         });
 
         if (error) throw error;
+        navigating = true;
+        setRedirecting(true);
         router.push("/dashboard");
       }
     } catch (err: any) {
@@ -315,7 +327,11 @@ const handleSubmit = async (e: React.FormEvent) => {
         setErrorMsg(err.message || "Үйлдэл амжилтгүй боллоо.");
       }
     } finally {
-      setLoading(false);
+      // Амжилттай нэвтэрсэн бол хуудас солигдох хүртэл товчийг идэвхгүй байлгана.
+      if (!navigating) {
+        setLoading(false);
+        submitLockRef.current = false;
+      }
     }
   };
 
@@ -482,7 +498,12 @@ const handleSubmit = async (e: React.FormEvent) => {
             className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3.5 rounded-xl transition duration-150 text-sm shadow-lg mt-4 cursor-pointer disabled:opacity-50"
           >
             {loading
-              ? "Түр хүлээнэ үү..."
+              ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-zinc-400 border-t-zinc-900 animate-spin" />
+                  {redirecting ? "Дашборд руу шилжиж байна..." : "Шалгаж байна..."}
+                </span>
+              )
               : isForgotPassword
                 ? "Сэргээх холбоос илгээх"
                 : isSignUp

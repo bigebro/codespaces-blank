@@ -430,6 +430,10 @@ export async function getAnalyticsData(
 
   const startDay = ubDay(finalStartDate);
   const endDay = ubDay(finalEndDate);
+  // Тайлант хугацаа дуусаагүй (сарын сүүлийн өдөр ирээгүй) үед эцсийн тооллогыг «өнөөдөр» хүртэл хайна.
+  // Ирээдүйн өдрөөр тооллого нэхэх нь утгагүй (жишээ нь 11-р сарын 20-нд «11-30-нд тооллого алга»).
+  const todayDay = ubDay(new Date());
+  const countEndDay = endDay > todayDay ? todayDay : endDay;
 
 //fixed
 
@@ -539,7 +543,7 @@ for (const key in master) {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
   master[key].purchases_after = afterPurchases[key] || [];
-  applyCountPick(master[key], history, startDay, endDay, afterLimit);
+  applyCountPick(master[key], history, startDay, countEndDay, afterLimit);
 }
 
  
@@ -748,7 +752,7 @@ for (const key in master) {
     }
 
     const weightedForMoney = weightedPrice || m.unit_price || 0;
-    const grade: any = gradeIngredient(m, startDay, endDay, weightedForMoney);
+    const grade: any = gradeIngredient(m, startDay, countEndDay, weightedForMoney);
     if (!grade) continue;
     let wasteSpoilage = 0;
     let wasteTesting = 0;

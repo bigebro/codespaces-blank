@@ -169,7 +169,7 @@ export default function IngredientsPanel({
               <th className="py-3 px-3">Барааны нэр</th>
               <th className="py-3 px-3">Хэмжих нэгж</th>
               <th className="py-3 px-3 text-right">Нэгжийн өртөг (₮)</th>
-              <th className="py-3 px-3 text-right">Хэвийн нөөц (PAR)</th>
+              <th className="py-3 px-3 text-right">Хэвийн нөөц</th>
               <th className="py-3 px-3 text-right">Үйлдэл</th>
             </tr>
           </thead>
@@ -655,7 +655,7 @@ export default function IngredientsPanel({
             </div>
             <div>
               <label className="block text-xs font-bold text-zinc-400 mb-1">
-                Хэвийн нөөц (PAR):
+                Хэвийн нөөц:
               </label>
               <input
                 type="number"

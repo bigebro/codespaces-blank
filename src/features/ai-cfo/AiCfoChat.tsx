@@ -454,7 +454,7 @@ const fetchChatHistory = useCallback(async () => {
                     <FileText className="h-4 w-4 text-zinc-500"/> 3. Үйлдэл гүйцэтгэх
                   </div>
                   <p className="text-sm text-zinc-500 leading-relaxed">
-                    Алдагдалтай цэсний үнийг нэмэх санал гаргах, ажилтнуудад шинэ даалгавар (SOP) үүсгэх.
+                    Алдагдалтай цэсний үнийг нэмэх санал гаргах, ажилтнуудад шинэ даалгавар үүсгэх.
                   </p>
                 </div>
 

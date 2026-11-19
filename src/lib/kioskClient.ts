@@ -13,6 +13,9 @@ export async function kioskOps(action: string, payload: Record<string, unknown> 
     body: JSON.stringify({ ...kioskTokens(), action, ...payload }),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.ok && data.ok !== false && action.startsWith("logs.") && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("kiosk-logs-changed"));
+  }
   if (!res.ok || data.ok === false) {
     const error = new Error(data.message || "Хадгалж чадсангүй.") as Error & { status?: number; data?: unknown };
     error.status = res.status;
@@ -51,6 +54,20 @@ export async function kioskBootstrap() {
     throw new Error(data.message || "Киоск дата татаж чадсангүй.");
   }
   return data as Record<string, any>;
+}
+
+// Зөвхөн өнөөдрийн бүртгэлийг хурдан татна (бүтэн bootstrap биш).
+export async function kioskTodayLogs() {
+  const res = await fetch("/api/kiosk/bootstrap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...kioskTokens(), only: "logs" }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.message || "Бүртгэл татаж чадсангүй.");
+  }
+  return (data.todayLogs || []) as any[];
 }
 
 export async function kioskTrust() {

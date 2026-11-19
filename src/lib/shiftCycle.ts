@@ -24,7 +24,14 @@ const TYPE_LABEL: Record<string, string> = {
   other: "Бусад",
 };
 
-export function logTypeLabel(type: string) {
+// Хадгалагдсан төрөл (spoilage гэх мэт) өөрчлөгдөхгүй, зөвхөн харуулах нэр.
+// Хаягдал дотроос бичвэрт нь «асга» байвал Асгарсан, «мууд» байвал Муудсан гэж харуулна.
+export function logTypeLabel(type: string, text?: string | null) {
+  if (type === "spoilage") {
+    const t = String(text || "").toLowerCase();
+    if (t.includes("асга")) return "Асгарсан";
+    if (t.includes("мууд")) return "Муудсан";
+  }
   return TYPE_LABEL[type] || "Бүртгэл";
 }
 

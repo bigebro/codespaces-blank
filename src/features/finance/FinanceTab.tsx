@@ -144,6 +144,8 @@ export default function FinanceTab({
     grades: liveAnalytics?.grades,
     data_trust: liveAnalytics?.data_trust,
   });
+  // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
+  const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
   const verifiedTheo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
   const unverifiedTheo = Number(
@@ -567,7 +569,7 @@ export default function FinanceTab({
             {/* 1. НИЙТ ОРЛОГО */}
             <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
               <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
-                Нийт Орлого (Revenue)
+                Нийт Орлого
               </p>
               {loading || !liveAnalytics ? (
                 <div className="h-8 w-32 bg-zinc-800  rounded-xl my-1" />
@@ -588,7 +590,7 @@ export default function FinanceTab({
             <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
               <div className="flex justify-between items-center mb-1">
                 <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
-                  Өртөг (Food Cost)
+                  Өртөг
                 </p>
                 {(() => {
                   const verified = Number(liveAnalytics?.data_trust?.verified ?? 0);
@@ -628,7 +630,9 @@ export default function FinanceTab({
               </span>
               <span className="text-xs text-zinc-300 mt-1 block">
                 {liveAnalytics?.data_trust
-                  ? `${liveAnalytics.data_trust.total} бараанаас ${liveAnalytics.data_trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${liveAnalytics.data_trust.purchase_pct}%)`
+                  ? Number(liveAnalytics.data_trust.verified) > 0
+                    ? `${liveAnalytics.data_trust.total} бараанаас ${liveAnalytics.data_trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${liveAnalytics.data_trust.purchase_pct}%)`
+                    : `${liveAnalytics.data_trust.total} бараанаас баталгаажсан нь алга`
                   : "Баталгаажсан барааны бодит өртөг"}
               </span>
               <span className="text-xs text-amber-200 mt-1 block">
@@ -640,13 +644,13 @@ export default function FinanceTab({
             {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
             <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
               <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
-                Бохир Ашиг (Gross Margin)
+                Бохир Ашиг
               </p>
               {loading || !liveAnalytics ? (
                 <div className="h-8 w-20 bg-zinc-800  rounded-xl my-1" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-black text-zinc-200 font-mono animate-in fade-in duration-150">
-                  {liveAnalytics.financial_ladder?.gross_margin || "0%"}
+                  {hasRevenue ? liveAnalytics.financial_ladder?.gross_margin || "0%" : "—"}
                 </p>
               )}
               <span className="text-xs text-zinc-400 mt-2 block">
@@ -662,7 +666,7 @@ export default function FinanceTab({
             {/* 4. ЦЭВЭР АШИГ (NET PROFIT) */}
             <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
               <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
-                Цэвэр Ашиг (Net Profit)
+                Цэвэр Ашиг
               </p>
               {loading || !liveAnalytics ? (
                 <div className="h-8 w-32 bg-zinc-800  rounded-xl my-1" />
@@ -683,7 +687,7 @@ export default function FinanceTab({
               <span className="text-xs text-zinc-400 mt-2 block">
                 Цэвэр маржин:{" "}
                 <strong className="text-white font-mono">
-                  {liveAnalytics?.financial_ladder?.net_margin || "0%"}
+                  {hasRevenue ? liveAnalytics?.financial_ladder?.net_margin || "0%" : "—"}
                 </strong>
               </span>
             </div>
@@ -712,7 +716,7 @@ export default function FinanceTab({
             <div>
               <h3 className="text-base font-black text-white flex items-center gap-2 mb-1">
                 <TrendingUp className="h-5 w-5 text-zinc-200" />
-                Бизнес Моделийн Шаталсан Тайлан (P&L Ladder)
+                Бизнес Моделийн Шаталсан Тайлан
               </h3>
               <p className="text-sm text-zinc-400">
                 Борлуулалтын орлогоос цэвэр ашиг хүртэлх зардлын урсгал
@@ -734,7 +738,7 @@ export default function FinanceTab({
               <div className="flex justify-between pt-3">
                 <div>
                   <span className="text-zinc-400 block">
-                    2. Борлуулсан Бүтээгдэхүүний Өртөг (COGS)
+                    2. Борлуулсан Бүтээгдэхүүний Өртөг
                   </span>
                   <span className="text-xs text-zinc-500">
                     Баталгаажсан бодит {Math.round(verifiedActual).toLocaleString()}₮ + дутуу, шалгах барааны онолын {Math.round(unverifiedTheo).toLocaleString()}₮
@@ -763,7 +767,7 @@ export default function FinanceTab({
               <div className="flex justify-between pt-3">
                 <div>
                   <span className="text-zinc-300 font-bold block">
-                    3. БОХИР АШИГ (Gross Profit)
+                    3. БОХИР АШИГ
                   </span>
                   <span className="text-xs text-zinc-500">
                     НӨАТ хассан орлогоос{unverifiedTheo > 0 ? ", онолын өртөг орсон тул тооцоолсон дүн" : ""}
@@ -779,7 +783,7 @@ export default function FinanceTab({
               <div className="flex justify-between pt-3">
                 <div>
                   <span className="text-zinc-400 block">
-                    4. Үйл Ажиллагааны Зардал (OPEX)
+                    4. Үйл Ажиллагааны Зардал
                   </span>
                   <span className="text-xs text-zinc-500">
                     Түрээс, Цалин, Хүнсний бус, Ажилчдын хоол, Туршилт
@@ -795,7 +799,7 @@ export default function FinanceTab({
 
               <div className="flex justify-between pt-3">
                 <span className="text-zinc-400">
-                  5. Татварын Өмнөх Ашиг (EBIT)
+                  5. Татварын Өмнөх Ашиг
                 </span>
                 <span className="font-bold text-white font-mono">
                   {liveAnalytics
@@ -806,7 +810,7 @@ export default function FinanceTab({
 
               <div className="flex justify-between pt-3.5 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800">
                 <span className="text-white font-black text-base">
-                  6. ЦЭВЭР АШИГ (Net Profit)
+                  6. ЦЭВЭР АШИГ
                 </span>
                 <span
                   className={`font-black text-lg font-mono ${

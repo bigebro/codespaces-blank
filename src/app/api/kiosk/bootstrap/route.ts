@@ -5,9 +5,29 @@ import { ubDayStartIso, ubDay } from "@/lib/ubDate";
 
 export const dynamic = "force-dynamic";
 
+// Өнөөдрийн бүртгэл: ажилтны id эсвэл одоогийн нэрээр. Үүрэг нэр солигдсон ч хуучин бүртгэл алга болохгүй.
+async function loadTodayLogs(worker: { clientId: string; workerId: string; workerName: string }) {
+  const today = ubDayStartIso(ubDay(new Date()));
+  const name = worker.workerName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return supabaseAdmin
+    .from("inventory_logs")
+    .select("id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
+    .eq("client_id", worker.clientId)
+    .or(`created_by.eq.${worker.workerId},worker_name.eq."${name}"`)
+    .gte("date", today)
+    .order("date", { ascending: false })
+    .limit(200);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    if (body.only === "logs") {
+      const w = await requireKioskWorker(body.deviceToken, body.workerToken);
+      if (!w) return NextResponse.json({ ok: false, message: "Киоск нэвтрэлт хүчингүй." }, { status: 401 });
+      const logs = await loadTodayLogs(w);
+      return NextResponse.json({ ok: true, todayLogs: logs.data || [] });
+    }
     const device = await requireKioskDevice(body.deviceToken);
     if (!device) return NextResponse.json({ ok: false, message: "Төхөөрөмж идэвхгүй." }, { status: 401 });
 
@@ -49,14 +69,7 @@ export async function POST(request: Request) {
         .select("id, daily_tasks_checklist, character_role, is_active, start_time")
         .eq("client_id", worker.clientId)
         .or(`start_time.gte."${todayUtc}",is_active.eq.true`),
-      supabaseAdmin
-        .from("inventory_logs")
-        .select("id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
-        .eq("client_id", worker.clientId)
-        .eq("worker_name", worker.workerName)
-        .gte("date", today)
-        .order("date", { ascending: false })
-        .limit(30),
+      loadTodayLogs(worker),
     ]);
 
     return NextResponse.json({

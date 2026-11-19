@@ -2991,10 +2991,10 @@ function Home() {
                                 <th className="pb-3 px-2">Барааны Нэр</th>
                                 <th className="pb-3 px-2 text-right">Хэмжээ</th>
                                 <th className="pb-3 px-2 text-right">
-                                  Үнэ (Cost)
+                                  Үнэ
                                 </th>
                                 <th className="pb-3 px-2 text-center">
-                                  Баримт (Proof)
+                                  Баримт
                                 </th>
                                 <th className="pb-3 px-2">Тайлбар</th>
                                 <th className="pb-3 px-2">Огноо</th>
@@ -3377,7 +3377,7 @@ function Home() {
                                 <Coffee className="h-5 w-5 text-zinc-200" />
                               </div>
                               <h4 className="font-bold text-zinc-200 text-sm">
-                                1. Орц хэтрүүлэлт (Overpouring)
+                                1. Орц хэтрүүлэлт
                               </h4>
                             </div>
                             <p className="text-sm text-zinc-400 mb-2">
@@ -3399,7 +3399,7 @@ function Home() {
                                 <Layers3 className="h-5 w-5 text-zinc-300" />
                               </div>
                               <h4 className="font-bold text-zinc-200 text-sm">
-                                2. Бүртгэхээ мартсан (Forgot Log)
+                                2. Бүртгэхээ мартсан
                               </h4>
                             </div>
                             <p className="text-sm text-zinc-400 mb-2">
@@ -3422,7 +3422,7 @@ function Home() {
                                 <DollarSign className="h-5 w-5 text-rose-400" />
                               </div>
                               <h4 className="font-bold text-rose-400 text-sm">
-                                3. Бэлэн мөнгөний хулгай (Un-rung Sales)
+                                3. Бэлэн мөнгөний тооцоо зөрөх
                               </h4>
                             </div>
                             <p className="text-sm text-zinc-400 mb-2">
@@ -3440,7 +3440,7 @@ function Home() {
                               <span>
                                 Агуулахын Тооллого цэсний "Үйл ажиллагааны
                                 Хяналтын Лог" хэсгээс тооллого дутсан яг тэр цаг
-                                мөчийг шүүж, хяналтын камертай (CCTV) тулгаж
+                                мөчийг шүүж, хяналтын камертай тулгаж
                                 шалгана уу.
                               </span>
                             </div>

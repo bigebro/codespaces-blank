@@ -31,10 +31,12 @@ export default function TruthMeter({
 }) {
   const tone = toneProp ?? statusTone(missing, check, 1);
   const width = Math.max(0, Math.min(100, pct));
+  // Хэмжих зүйл байхгүй (нийт 0) эсвэл баталгаажсан нь 0 үед «0%» биш «—» харуулна.
+  const measurable = !(total === 0 || verified === 0);
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className={`text-sm font-black ${TEXT[tone]}`}>Үнэн зөв байдал: {Math.round(pct)}%</p>
+        <p className={`text-sm font-black ${TEXT[tone]}`}>Үнэн зөв байдал: {measurable ? `${Math.round(pct)}%` : "—"}</p>
       </div>
       <div className="mt-2 h-2 rounded-full bg-zinc-800 overflow-hidden">
         <div className={`h-full ${FILL[tone]}`} style={{ width: `${width}%` }} />

@@ -7,6 +7,7 @@ import { MODELS } from "@/lib/ai/models";
 import { subscriptionBlockMessage } from "@/lib/subscription";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordChatMessage } from "@/ai/memory/thread.manager";
+import { isOverviewQuestion } from "./overview";
 
 interface RouterDecision {
   route: "CFO" | "COO" | "HR" | "GENERAL";
@@ -75,6 +76,8 @@ function fastRoute(userText: string): RouterDecision["route"] | null {
   const scores = routeScores(text);
   const ranked = (Object.entries(scores) as [RouterDecision["route"], number][]).sort((a, b) => b[1] - a[1]);
   if (ranked[0][1] > 0 && ranked[0][1] > ranked[1][1]) return ranked[0][0];
+  // Ерөнхий «бизнес ямар байна» асуулт: өгөгдөл унших CFO руу явуулна (GENERAL биш).
+  if (ranked[0][1] === 0 && isOverviewQuestion(text)) return "CFO";
   return null;
 }
 

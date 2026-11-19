@@ -1110,7 +1110,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         const parCell = (cols[3] || "").trim();
         const par = parCell === "" ? 0 : toNum(parCell);
         if (!Number.isFinite(par) || par < 0) {
-          rowErrors.push(`${lineNo}-р мөр: 4-р багана хэвийн нөөц (Par) тоо байх ёстой`);
+          rowErrors.push(`${lineNo}-р мөр: 4-р багана хэвийн нөөц тоо байх ёстой`);
           return;
         }
         itemsMap.set(rawName.toLowerCase().trim(), {
@@ -1126,7 +1126,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         const shown = rowErrors.slice(0, 8).join("\n");
         const more = rowErrors.length > 8 ? `\n... нийт ${rowErrors.length} мөр` : "";
         alert(
-          `Хадгалаагүй. Загвартай таарахгүй мөр байна:\n${shown}${more}\n\nБагана: Барааны нэр, Нэгж, Нэгжийн үнэ, Хэвийн нөөц (Par). TAB эсвэл 2+ зайгаар салгана.`,
+          `Хадгалаагүй. Загвартай таарахгүй мөр байна:\n${shown}${more}\n\nБагана: Барааны нэр, Нэгж, Нэгжийн үнэ, Хэвийн нөөц. TAB эсвэл 2+ зайгаар салгана.`,
         );
         return;
       }
@@ -1685,7 +1685,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-200" />
               <h3 className="text-lg font-bold">
-                Борлуулалт Импортлох (Sales Paste)
+                Борлуулалт Импортлох
               </h3>
             </div>
             <button
@@ -1776,8 +1776,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             >
               <UploadCloud className="h-4 w-4" />
               {overwriteSales
-                ? "Хуучныг Дарж Шинэчлэх (Overwrite)"
-                : "Орлого Бөөнөөр Оруулах (Import)"}
+                ? "Хуучныг Дарж Шинэчлэх"
+                : "Орлого Бөөнөөр Оруулах"}
             </button>
           </form>
         </div>
@@ -1787,7 +1787,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
               <h3 className="text-lg font-bold">
-                Татан авалт Импортлох (Purchases Paste)
+                Татан авалт Импортлох
               </h3>
             </div>
             <button
@@ -1873,8 +1873,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             >
               <UploadCloud className="h-4 w-4" />
               {overwritePurchases
-                ? "Хуучныг Дарж Шинэчлэх (Overwrite)"
-                : "Татан авалт Бөөнөөр Нэмэх (Import)"}
+                ? "Хуучныг Дарж Шинэчлэх"
+                : "Татан авалт Бөөнөөр Нэмэх"}
             </button>
           </form>
         </div>
@@ -1885,7 +1885,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-zinc-300" />
               <h3 className="text-lg font-bold">
-                Агуулахын Босоо Тооллого (Vertical Audit Paste)
+                Агуулахын Босоо Тооллого
               </h3>
             </div>
             {/*  ЗАГВАР ХАРАХ ТОВЧ */}
@@ -1900,8 +1900,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
           <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
             Excel дээрх <strong>[Барааны нэр] болон [Тоо хэмжээ]</strong> гэсэн
-            2 босоо баганыг хуулаад доор тавина уу. (Хэвтээ 125 багана
-            шаардлагагүй).
+            2 босоо баганыг хуулаад доор тавина уу. Хэвтээ олон багана
+            шаардлагагүй.
           </p>
 
           {inventoryImportSuccess && (
@@ -1940,7 +1940,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           : "text-zinc-500 hover:text-zinc-300"
       }`}
     >
-      Эхний үлдэгдэл (Start)
+      Эхний үлдэгдэл
     </button>
     <button
       type="button"
@@ -1951,7 +1951,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           : "text-zinc-500 hover:text-zinc-300"
       }`}
     >
-      Эцсийн тооллого (End)
+      Эцсийн тооллого
     </button>
   </div>
 </div>
@@ -1986,7 +1986,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 active:scale-95"
             >
               <UploadCloud className="h-4 w-4" />
-              Босоо Тооллого Хадгалах (Import Vertical Audit)
+              Босоо Тооллого Хадгалах
             </button>
           </form>
         </div>
@@ -1996,7 +1996,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             <div className="flex items-center gap-2 mb-4">
               <Trash2 className="h-6 w-6 text-rose-400" />
               <h3 className="text-lg font-bold">
-                Гал тогооны хаягдал бөөнөөр импортлох (Kitchen Logs Paste)
+                Гал тогооны хаягдал бөөнөөр импортлох
               </h3>
             </div>
 
@@ -2077,7 +2077,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/20 py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
             >
               <UploadCloud className="h-4 w-4" />
-              Хаягдал Бөөнөөр Шивэх (Import Kitchen Logs)
+              Хаягдал Бөөнөөр Шивэх
             </button>
           </form>
         </div>
@@ -2104,7 +2104,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
                 Excel-ээс{" "}
                 <strong>
-                  Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц (Par)
+                  Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц
                 </strong>{" "}
                 гэсэн 4 баганыг хуулаад доор хуулж тавина уу.
               </p>
@@ -2129,7 +2129,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
                 >
                   <UploadCloud className="h-4 w-4" />
-                  Түүхий эдүүд хадгалах (Import Catalog)
+                  Түүхий эдүүд хадгалах
                 </button>
               </form>
             </div>
@@ -2178,7 +2178,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
                 >
                   <UploadCloud className="h-4 w-4" />
-                  Жор бөөнөөр хадгалах (Import Recipes)
+                  Жор бөөнөөр хадгалах
                 </button>
               </form>
             </div>
@@ -2188,7 +2188,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 <div className="flex items-center gap-2 mb-2">
                   <Coffee className="h-6 w-6 text-zinc-200" />
                   <h3 className="text-lg font-bold">
-                    Меню / Цэс бөөнөөр оруулах (Products & Selling Prices)
+                    Меню / Цэс бөөнөөр оруулах
                   </h3>
                 </div>
 
@@ -2202,11 +2202,11 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 </button>
               </div>
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
-                Google Sheets-ээс{" "}
+                Excel эсвэл Google Sheets-ээс{" "}
                 <strong>
-                  Category (Ангилал), Item (Нэр), Selling Price (Зарах үнэ)
+                  Ангилал, Бүтээгдэхүүний нэр, Зарах үнэ
                 </strong>{" "}
-                гэсэн 3 баганыг хуулаад доор paste хийнэ үү.
+                гэсэн 3 баганыг хуулаад доор буулгана уу.
               </p>
 
               {productsImportSuccess && (
@@ -2229,7 +2229,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2"
                 >
                   <UploadCloud className="h-4 w-4" />
-                  Цэсний үнийг хадгалах (Import Menu)
+                  Цэсний үнийг хадгалах
                 </button>
               </form>
             </div>
@@ -2299,7 +2299,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1">
                     <p>
-                      💡 <strong className="text-zinc-200">Санамж:</strong>
+                      <strong className="text-zinc-200">Санамж:</strong>
                     </p>
                     <p>
                       • Баганын дараалал ямар ч байсан систем толгой мөрөөрөө
@@ -2324,7 +2324,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-zinc-800 hover:bg-white/30 text-zinc-200 border border-zinc-800 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    📋 Борлуулалтын загвар хуулах (Copy Sales Template)
+                    Борлуулалтын загвар хуулах
                   </button>
                 </div>
               )}
@@ -2357,7 +2357,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1">
                     <p>
-                      💡 <strong className="text-zinc-200">Санамж:</strong>
+                      <strong className="text-zinc-200">Санамж:</strong>
                     </p>
                     <p>
                       • Хүнсний түүхий эдээс гадна сальфетка, аяга, угаалгын
@@ -2382,7 +2382,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-zinc-200/20 hover:bg-zinc-200/30 text-zinc-300 border border-zinc-800 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    📋 Татан авалтын загвар хуулах (Copy Purchases Template)
+                    Татан авалтын загвар хуулах
                   </button>
                 </div>
               )}
@@ -2394,8 +2394,8 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 <div className="space-y-3">
                   <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
                     <div className="grid grid-cols-2 bg-zinc-950 p-2.5 font-black text-zinc-300 border-b border-zinc-800">
-                      <span>1. Барааны нэр (Item Name)</span>
-                      <span>2. Тоо хэмжээ (Quantity)</span>
+                      <span>1. Барааны нэр</span>
+                      <span>2. Тоо хэмжээ</span>
                     </div>
                     <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Matcha powder</span>
@@ -2413,7 +2413,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1">
                     <p>
-                      💡 <strong className="text-zinc-200">Заавар:</strong>
+                      <strong className="text-zinc-200">Заавар:</strong>
                     </p>
                     <p>
                       • Дээрх огноо сонгогчоос <strong>Огноо</strong> болон{" "}
@@ -2427,7 +2427,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   <button
                     type="button"
                     onClick={() => {
-                      // 📋 Толгой мөртэйгөө хамт хуулагдана:
+                      // Толгой мөртэйгөө хамт хуулагдана:
                       navigator.clipboard.writeText(
                         "Барааны нэр\tТоо хэмжээ\nMatcha powder\t41.9\nEggs\t5\nHazelnut syrup\t833.9\nMilk\t352.4",
                       );
@@ -2437,7 +2437,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-zinc-800/60 hover:bg-teal-500/30 text-zinc-300 border border-zinc-700/30 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    📋 Босоо тооллогын загвар хуулах (Copy Template with Header)
+                    Босоо тооллогын загвар хуулах
                   </button>
                 </div>
               )}
@@ -2489,7 +2489,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   {/* 💡 БҮХ 4 ТӨРЛИЙН САНХҮҮГИЙН НАРИЙН ТАЙЛБАР */}
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-300 space-y-1.5">
                     <p className="font-bold text-white">
-                      📌 Төрөл (Type) сонголт ба санхүүгийн ялгаа:
+                      Төрлийн сонголт ба санхүүгийн ялгаа:
                     </p>
                     <p>
                       •{" "}
@@ -2537,7 +2537,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    📋 Загвар хуулах (Copy Kitchen Logs Template with Other)
+                    Хаягдлын загвар хуулах
                   </button>
                 </div>
               )}
@@ -2550,7 +2550,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span>1. Нэр</span>
                       <span>2. Нэгж (мл/гр/ш)</span>
                       <span>3. Нэгжийн үнэ (₮)</span>
-                      <span>4. Хэвийн нөөц (Par)</span>
+                      <span>4. Хэвийн нөөц</span>
                     </div>
                     <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Milk</span>
@@ -2577,7 +2577,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-zinc-800 hover:bg-white/30 text-zinc-200 border border-zinc-800 py-2 rounded-xl text-sm font-bold transition"
                   >
-                    📋 Жишээ хуулах (Copy Test Catalog)
+                    Жишээ хуулах
                   </button>
                 </div>
               )}
@@ -2614,7 +2614,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-zinc-800/60 hover:bg-white/30 text-zinc-300 border border-zinc-800/30 py-2 rounded-xl text-sm font-bold transition"
                   >
-                    📋 Жишээ хуулах (Copy Test Recipes)
+                    Жишээ хуулах
                   </button>
                 </div>
               )}
@@ -2624,7 +2624,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 <div className="space-y-3">
                   <div className="border border-zinc-800 rounded-xl overflow-hidden font-mono text-sm text-center">
                     <div className="grid grid-cols-3 bg-zinc-950 p-2 font-black text-zinc-300 border-b border-zinc-800">
-                      <span>1. Ангилал (Category)</span>
+                      <span>1. Ангилал</span>
                       <span>2. Бүтээгдэхүүний нэр</span>
                       <span>3. Зарах үнэ (₮)</span>
                     </div>
@@ -2651,7 +2651,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     }}
                     className="w-full bg-zinc-800/60 hover:bg-teal-500/30 text-zinc-300 border border-zinc-700/30 py-2 rounded-xl text-sm font-bold transition"
                   >
-                    📋 Жишээ хуулах (Copy Test Menu)
+                    Жишээ хуулах
                   </button>
                 </div>
               )}

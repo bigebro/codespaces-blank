@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
 import OwnScore from "../../features/kiosk/OwnScore";
 import CupCheck from "../../features/finance/CupCheck";
 import TeamGoalBar from "../../features/finance/TeamGoalBar";
@@ -720,7 +720,7 @@ function KioskAiChatSection({
             ...prev,
             {
               sender: "ai",
-              text: `Бүртгэгдлээ:\n• Бараа: **${localMatch.item_name}**\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
+              text: `Бүртгэгдлээ:\n• Төрөл: **${logTypeLabel(localMatch.type, textToProcess)}**\n• Бараа: **${localMatch.item_name}**\n• Хэмжээ: **${Math.abs(localMatch.quantity)} ${localMatch.unit}**`,
               logId: newLogId,
             },
           ]);
@@ -764,6 +764,7 @@ function KioskAiChatSection({
 
       const data = await res.json();
       if (isCancelledRef.current) return;
+      if (data.log_id) window.dispatchEvent(new Event("kiosk-logs-changed"));
 
       setChatHistory((prev) => [
         ...prev,
@@ -1548,14 +1549,28 @@ const handleKioskBulkSave = async () => {
 
     return () => clearTimeout(timer);
   }, [recentToast]);
+  const [logsRefreshing, setLogsRefreshing] = useState(false);
   const fetchTodayLogs = async () => {
+    // Токен байхгүй (PIN өгөөгүй) үед сервер рүү хандахгүй, жагсаалтыг хэвээр үлдээнэ.
+    if (!kioskTokens().workerToken) return;
+    setLogsRefreshing(true);
     try {
-      const data = await kioskBootstrap();
-      if (data.todayLogs) setTodayLogs(data.todayLogs);
+      setTodayLogs(await kioskTodayLogs());
     } catch {
-      setTodayLogs([]);
+      // Алдаа гарвал одоо байгаа жагсаалтыг устгахгүй.
+    } finally {
+      setLogsRefreshing(false);
     }
   };
+  const fetchTodayLogsRef = useRef(fetchTodayLogs);
+  fetchTodayLogsRef.current = fetchTodayLogs;
+  useEffect(() => {
+    const onChanged = () => {
+      void fetchTodayLogsRef.current();
+    };
+    window.addEventListener("kiosk-logs-changed", onChanged);
+    return () => window.removeEventListener("kiosk-logs-changed", onChanged);
+  }, []);
 
 // ⚡ DEEP HARDWARE & DEVICE MODEL PROFILER
   const getDeepDeviceInfo = async (): Promise<string> => {
@@ -1646,35 +1661,62 @@ const initKioskContext = async () => {
   setTenantClientId(savedClient);
   setStep("select_worker");
 
-  // 3. Цаана нь чимээгүйхэн шалгах (Background Verification):
+  // 3. Төхөөрөмж шалгах, салбарын лого, дата татах гурвыг зэрэг хийнэ (өмнө нь дарааллаар явдаг байсан).
   try {
-    const res = await fetch("/api/kiosk/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceToken: savedToken }),
-    });
+    const [verifyJson, data] = await Promise.all([
+      fetch("/api/kiosk/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceToken: savedToken }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+      fetchKioskData(savedClient).catch(() => null),
+    ]);
 
-    if (res.ok) {
-      const data = await res.json();
-      // ЗӨВХӨН админ Dashboard-аас тухайн таблетыг зориуд устгасан үед л салгана:
-      if (data.valid === false) {
-        localStorage.removeItem("kiosk_device_token");
-        localStorage.removeItem("kiosk_client_id");
-        setStep("pairing");
-        return;
-      }
+    // ЗӨВХӨН админ Dashboard-аас тухайн таблетыг зориуд устгасан үед л салгана:
+    if (verifyJson && verifyJson.valid === false) {
+      localStorage.removeItem("kiosk_device_token");
+      localStorage.removeItem("kiosk_client_id");
+      localStorage.removeItem("kiosk_worker_token");
+      setStep("pairing");
+      return;
     }
 
-    // Хэвийн үед датагаа татна:
-    await fetchKioskData(savedClient);
+    if (data) await restoreOpenShiftSession(savedClient, data);
   } catch (err) {
     // Сүлжээ унасан, сервер гацсан ч түлхүүрийг ХЭЗЭЭ Ч УСТГАХГҮЙ, ажилласаар байна!
     console.warn("Kiosk verify skipped due to network, using offline session.");
-    await fetchKioskData(savedClient);
   } finally {
     setIsLoadingKiosk(false);
   }
 };
+
+  // Хуудас шинэчлэхэд нээлттэй ээлжтэй ажилтныг PIN дахин асуухгүй сэргээнэ.
+  // Аюулгүй байдал: bootstrap нь (1) идэвхтэй төхөөрөмжийн токен, (2) тэр төхөөрөмж ба
+  // салбарт холбогдсон HMAC-ээр гарын үсэглэсэн, 16 цагт дуусах ажилтны токенийг сервер талд
+  // шалгаж, worker-ийг буцаана. Түүнээс гадна (3) тэр ажилтны нээлттэй ээлж байх ёстой.
+  // Аль нэг нь дутвал токеныг устгаад ажилтан сонгох дэлгэц рүү буцаана, PIN заавал шаардана.
+  const restoreOpenShiftSession = async (client: string, data: Record<string, any>) => {
+    const hasToken = Boolean(localStorage.getItem("kiosk_worker_token"));
+    if (!data.worker || !data.activeShift) {
+      if (hasToken) localStorage.removeItem("kiosk_worker_token");
+      return;
+    }
+    const staffRow =
+      (data.staff || []).find((row: any) => row.id === data.worker.workerId) || {
+        id: data.worker.workerId,
+        full_name: data.worker.fullName,
+        role: data.worker.role,
+        client_id: data.worker.clientId,
+      };
+    setSelectedWorker(staffRow);
+    const liveTasks = await loadLiveTodayTasks(client, staffRow, data);
+    setTasks(liveTasks);
+    setActiveShift(data.activeShift);
+    setStep("menu");
+  };
+
   const matchIngredient = (name: string) => {
     const key = String(name || "").toLowerCase().trim();
     const alias = learnedAliases.find((row: any) => String(row.phrase || "").toLowerCase() === key);
@@ -1683,15 +1725,16 @@ const initKioskContext = async () => {
   };
 
   const fetchKioskData = async (_client?: string) => {
-    const brandingRes = await fetch("/api/kiosk/branding", {
+    // Лого болон дата хоёрыг зэрэг татна.
+    const brandingPromise = fetch("/api/kiosk/branding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deviceToken: localStorage.getItem("kiosk_device_token") || "" }),
-    });
-    const branding = await brandingRes.json().catch(() => ({}));
+    })
+      .then((res) => res.json())
+      .catch(() => ({}));
+    const [branding, data] = await Promise.all([brandingPromise, kioskBootstrap()]);
     setClientLogo(branding?.logoUrl || null);
-
-    const data = await kioskBootstrap();
     if (data.staff) setWorkers(data.staff);
     if (data.ingredients) setIngredients(data.ingredients);
     if (data.aliases) setLearnedAliases(data.aliases);
@@ -4341,11 +4384,12 @@ const handleCloseShift = async () => {
                   <div className="flex justify-between items-center border-b border-zinc-800 pb-2.5">
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
-                        <span>📋 Өнөөдрийн бүх бүртгэлүүд</span>
+                        <span>Өнөөдрийн бүх бүртгэлүүд</span>
                       </h3>
                       <p className="text-xs text-zinc-400 mt-0.5">
                         Нийт {todayLogs.length} үйлдэл хийгдсэн байна. Буруу
                         бичсэн бол буцаана уу.
+                        {logsRefreshing ? " Шинэчилж байна..." : ""}
                       </p>
                     </div>
                     <button
@@ -4378,7 +4422,7 @@ const handleCloseShift = async () => {
                           log.non_food_item ||
                           "Тодорхойгүй";
                         const unit = displayUnit(log.ingredients?.unit || "ш");
-                        const typeLabel = log.non_food_item?.includes("Касс") ? "Касс" : logTypeLabel(log.type);
+                        const typeLabel = log.non_food_item?.includes("Касс") ? "Касс" : logTypeLabel(log.type, log.notes);
                         const cost = parseFloat(log.total_cost) || 0;
                         const qty = Math.abs(parseFloat(log.quantity) || 0);
                         const timeStr = log.date

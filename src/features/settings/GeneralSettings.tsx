@@ -288,7 +288,7 @@ export default function GeneralSettings({
           <div>
             <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
               <Smartphone className="h-5 w-5 text-zinc-400" />
-              Төхөөрөмжийн Удирдлага (Live)
+              Төхөөрөмжийн Удирдлага
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
               Холбогдсон болон холболт хүлээж буй бүх төхөөрөмжүүд
@@ -803,7 +803,7 @@ export default function GeneralSettings({
           <div>
             <h3 className="text-base font-black text-zinc-300 flex items-center gap-2">
               <span>
-                 Ангиллын Ашгийн Маржингийн Бодлого (Target Margins)
+                 Ангиллын Ашгийн Маржингийн Бодлого
               </span>
             </h3>
             <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
@@ -885,7 +885,7 @@ export default function GeneralSettings({
                 </div>
 
                 <p className="text-xs text-zinc-500 font-mono">
-                  Зорилтот өртөг (Food Cost):{" "}
+                  Зорилтот өртөг:{" "}
                   <strong>{(100 - currentVal).toFixed(0)}%</strong>
                 </p>
               </div>

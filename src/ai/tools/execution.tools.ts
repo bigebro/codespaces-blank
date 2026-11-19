@@ -1,3 +1,4 @@
+import { ubDayStartIso, ubDayEndIso } from "@/lib/ubDate";
 import { AgentContext } from "@/types/agent.types";
 import { getProfitabilityPackage, getCashflowPackage } from "@/core/packages/pkg_finance";
 import { getPricingStrategyPackage, getProcurementForecastPackage } from "@/core/packages/pkg_inventory";
@@ -20,6 +21,16 @@ import {
   buildPurchaseProposal,
 } from "@/ai/skills/restaurantSkills";
 
+// Модель YYYY-MM-DD өгдөг. Үүнийг timestamp багананд шууд өгвөл өдрийн дунд (UTC 00:00) болж,
+// «өнөөдөр» гэх мэт нэг өдрийн хүрээ хоосон гарна. Улаанбаатарын өдрийн эхлэл, төгсгөл болгоно.
+const DAY_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+function dayStart(value: unknown) {
+  return typeof value === "string" && DAY_ONLY.test(value) ? ubDayStartIso(value) : (value as string | undefined);
+}
+function dayEnd(value: unknown) {
+  return typeof value === "string" && DAY_ONLY.test(value) ? ubDayEndIso(value) : (value as string | undefined);
+}
+
 export async function executeAiTool(
   context: AgentContext,
   toolName: string,
@@ -34,7 +45,7 @@ export async function executeAiTool(
   try {
     switch (toolName) {
       case "skill_analyze_profitability": {
-        const data = await getProfitabilityPackage(context.clientId, safe.startDate, safe.endDate);
+        const data = await getProfitabilityPackage(context.clientId, dayStart(safe.startDate), dayEnd(safe.endDate));
         return { success: true, data };
       }
 
@@ -44,7 +55,7 @@ export async function executeAiTool(
       }
 
       case "skill_reconcile_cashflow": {
-        const data = await getCashflowPackage(context.clientId, safe.startDate, safe.endDate);
+        const data = await getCashflowPackage(context.clientId, dayStart(safe.startDate), dayEnd(safe.endDate));
         return { success: true, data };
       }
 
@@ -76,7 +87,7 @@ export async function executeAiTool(
       }
 
       case "skill_detect_fraud_and_leakage": {
-        const data = await getFraudAndLeakagePackage(context.clientId, safe.startDate, safe.endDate);
+        const data = await getFraudAndLeakagePackage(context.clientId, dayStart(safe.startDate), dayEnd(safe.endDate));
         return { success: true, data };
       }
 
@@ -117,7 +128,7 @@ export async function executeAiTool(
       }
 
       case "skill_analyze_staff_performance": {
-        const data = await getStaffPerformancePackage(context.clientId, safe.startDate, safe.endDate);
+        const data = await getStaffPerformancePackage(context.clientId, dayStart(safe.startDate), dayEnd(safe.endDate));
         return { success: true, data };
       }
 

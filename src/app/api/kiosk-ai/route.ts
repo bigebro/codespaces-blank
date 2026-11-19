@@ -10,6 +10,7 @@ import { subscriptionBlockMessage } from "@/lib/subscription";
 import { AgentContext } from "@/types/agent.types";
 import { requireKioskWorker } from "@/lib/kioskAuth";
 import { convertToIngredientUnit } from "@/lib/units";
+import { logTypeLabel } from "@/lib/shiftCycle";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -736,7 +737,7 @@ ${JSON.stringify(unmatched)}`;
               is_log: true,
               log_id: log?.id,
               learned_alias_id: newlyLearnedId, // 👈 Undo хийх үед устгах ID
-              message: `**Бүртгэгдлээ:**\n• Төрөл: \`${aiAnalysis.type}\`\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(parsedQty)} ${ingredient.unit}**`,
+              message: `**Бүртгэгдлээ:**\n• Төрөл: **${logTypeLabel(String(aiAnalysis.type || ""), `${text} ${aiAnalysis.notes || ""}`)}**\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(parsedQty)} ${ingredient.unit}**`,
             });
           }
         }
