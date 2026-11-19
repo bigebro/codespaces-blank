@@ -33,6 +33,16 @@ const fromTrust = summarizeTrust({ grades, data_trust: { purchase_pct: summary.p
 assert.equal(fromTrust.purchase_pct, 80);
 assert.equal(fromTrust.meter, summary.meter);
 
+// grades ирээгүй ч data_trust-ийн тоог самбар болон AI ижил харуулна.
+const fromCountsOnly = summarizeTrust({
+  data_trust: { verified: 2, total: 3, missing: 0, check: 1, remaining: 1, unverified_theo: 8, purchase_pct: 80 },
+});
+assert.equal(fromCountsOnly.verified, 2);
+assert.equal(fromCountsOnly.total, 3);
+assert.equal(fromCountsOnly.check, 1);
+assert.equal(fromCountsOnly.missing, 0);
+assert.equal(fromCountsOnly.estimate, "Тооцоолсон, 3 бараанаас 2 баталгаажсан, 1 ажил үлдсэн");
+
 const actions = topFixActions(grades, 3);
 assert.equal(actions.length, 3);
 assert.equal(actions[0].name, "Гурил");
@@ -96,3 +106,30 @@ assert.match(route, /check: trust\.check/);
 assert.doesNotMatch(route, /\.(insert|update|delete|upsert)\(/);
 
 console.log("honest dashboard checks passed");
+
+const overview = readFileSync("src/ai/agents/overview.ts", "utf8");
+assert.match(overview, /summarizeTrust/);
+assert.match(overview, /ubDayStartIso/);
+assert.match(overview, /ubDayEndIso/);
+assert.match(overview, /resolveOverviewPeriod/);
+assert.match(overview, /buildOverviewSnapshot/);
+assert.match(overview, /overviewDateLine/);
+assert.match(overview, /trustStatusLine/);
+
+const cfo = readFileSync("src/ai/agents/cfo.agent.ts", "utf8");
+assert.match(cfo, /preamble: wantsOverview/);
+assert.match(cfo, /resolveOverviewPeriod/);
+assert.match(cfo, /MN_BUSINESS_SPELLING_NOTE/);
+assert.match(cfo, /overviewDateLine\(overviewPeriod\)/);
+
+const chat = readFileSync("src/features/ai-cfo/AiCfoChat.tsx", "utf8");
+assert.match(chat, /startDate: ubDayStartIso\(startDate\)/);
+assert.match(chat, /endDate: ubDayEndIso\(endDate\)/);
+
+const kioskAi = readFileSync("src/app/api/kiosk-ai/route.ts", "utf8");
+assert.match(kioskAi, /activeStartDate: body\.startDate/);
+assert.match(kioskAi, /activeEndDate: body\.endDate/);
+
+const analytics = readFileSync("src/lib/analytics.ts", "utf8");
+assert.match(analytics, /buildDataTrust\(grades\)/);
+assert.match(analytics, /analyticsPeriod\(startDate, endDate\)/);

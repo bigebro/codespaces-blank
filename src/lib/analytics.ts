@@ -1,6 +1,7 @@
 import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
-import { ubDay, ubMonthStartIso } from './ubDate';
+import { analyticsPeriod, ubDay } from './ubDate';
+import { buildDataTrust } from './honestDashboard';
 import { displayUnit } from './shiftCycle';
 import { assemblePhase4 } from './phase4';
 
@@ -253,12 +254,7 @@ export async function getAnalyticsData(
   startDate?: string,
   endDate?: string
 ) {
-  const now = new Date();
-  const defaultStart = ubMonthStartIso();
-  const defaultEnd = now.toISOString();
-
-  const finalStartDate = startDate || defaultStart;
-  const finalEndDate = endDate || defaultEnd;
+  const { startDay, endDay, todayDay, countEndDay, finalStartDate, finalEndDate } = analyticsPeriod(startDate, endDate);
     const afterLimit = new Date(new Date(finalEndDate).getTime() + 45 * 86400000).toISOString();
   // 1. ОГНООНЫ ШҮҮЛТҮҮРТЭЙ ДАТА ТАТАЛТ
 // Replace the Promise.all at the top of getAnalyticsData with this optimized version:
@@ -428,12 +424,7 @@ export async function getAnalyticsData(
     };
   });
 
-  const startDay = ubDay(finalStartDate);
-  const endDay = ubDay(finalEndDate);
-  // Тайлант хугацаа дуусаагүй (сарын сүүлийн өдөр ирээгүй) үед эцсийн тооллогыг «өнөөдөр» хүртэл хайна.
-  // Ирээдүйн өдрөөр тооллого нэхэх нь утгагүй (жишээ нь 11-р сарын 20-нд «11-30-нд тооллого алга»).
-  const todayDay = ubDay(new Date());
-  const countEndDay = endDay > todayDay ? todayDay : endDay;
+  // startDay / endDay / countEndDay-г analyticsPeriod-оос авсан. Дуусаагүй сард эцсийн тооллогыг өнөөдрөөр хязгаарлана.
 
 //fixed
 
@@ -894,7 +885,7 @@ for (const key in master) {
   fullInventory.forEach((item) => {
     cumulativeSpend += item.total_spend_value;
     const cumulativePct = totalSpendSum > 0 ? (cumulativeSpend / totalSpendSum) * 100 : 100;
-    const isTemporarilyPromoted = item.is_suspicious_promoted && item.promoted_until && new Date(item.promoted_until) > now;
+    const isTemporarilyPromoted = item.is_suspicious_promoted && item.promoted_until && new Date(item.promoted_until) > new Date();
 
     if (isTemporarilyPromoted || item.is_critical || (item.total_spend_value > 0 && cumulativePct <= 80)) {
       item.abc_class = 'A';
@@ -1029,24 +1020,10 @@ for (const key in master) {
   const verifiedRows = grades.filter((row) => row.status === "Verified");
   const verifiedActual = verifiedRows.reduce((sum, row) => sum + (Number(row.actual_money) || 0), 0);
   const verifiedTheo = verifiedRows.reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
-  const missingCount = grades.filter((row) => row.status === "Missing").length;
-  const checkCount = grades.filter((row) => row.status === "Check").length;
   const unverifiedTheo = grades
     .filter((row) => row.status !== "Verified")
     .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
-  const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
-  const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
-  const dataTrust = {
-    verified: verifiedRows.length,
-    total: grades.length,
-    missing: missingCount,
-    check: checkCount,
-    remaining: missingCount + checkCount,
-    unverified_theo: unverifiedTheo,
-    purchase_pct: purchaseAll > 0
-      ? Math.round((purchaseVerified / purchaseAll) * 100)
-      : (grades.length ? Math.round((verifiedRows.length / grades.length) * 100) : 0),
-  };
+  const dataTrust = buildDataTrust(grades);
   const fixList = grades
     .filter((row) => row.status !== "Verified")
     .sort((a, b) => (b.purchase_value || 0) - (a.purchase_value || 0));

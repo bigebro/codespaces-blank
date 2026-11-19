@@ -1,10 +1,11 @@
-import { ubDay } from "@/lib/ubDate";
+import { ubDay, ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { cfoSkills } from "@/ai/tools/skills.network";
 import { getVitals } from "@/core/packages/pkg_vitals";
 import { AgentContext } from "@/types/agent.types";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { runToolAgent } from "@/ai/runtime/agentLoop";
-import { buildTodaySnapshot, isOverviewQuestion } from "@/ai/agents/overview";
+import { buildOverviewSnapshot, isOverviewQuestion, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
+import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
 
 function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
   if (!dateStr || typeof dateStr !== "string") return fallbackDate;
@@ -21,6 +22,12 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
     : String(currentIsoDate.slice(0, 4));
 
   const wantsOverview = isOverviewQuestion(userMessage);
+  const overviewPeriod = resolveOverviewPeriod(
+    userMessage,
+    context.activeStartDate,
+    context.activeEndDate,
+    now,
+  );
   const [vitals, rulesResult, briefResult, todaySnapshot] = await Promise.all([
     getVitals(context.clientId),
     supabaseAdmin
@@ -36,7 +43,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    wantsOverview ? buildTodaySnapshot(context.clientId, currentIsoDate) : Promise.resolve(""),
+    wantsOverview ? buildOverviewSnapshot(context.clientId, overviewPeriod) : Promise.resolve(""),
   ]);
   const rules = rulesResult.data;
 
@@ -55,13 +62,15 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
   const cfoSystemPrompt = `
 You are the Operlink AI Chief Financial Officer for "${context.clientId}".
 [ABSOLUTE CONSTRAINT: NO EMOJIS]. You analyze revenue, profitability, and margins. Use 'MNT' or '₮' for currency. Translate raw JSON keys into professional Mongolian text. Keep responses clinical, analytical, and highly structured using Markdown tables. If a price change is needed, call action_propose_price_change.
+${MN_BUSINESS_SPELLING_NOTE}
 
 [TEMPORAL CONTEXT]:
 - TODAY: ${currentIsoDate}
 - CURRENT YEAR: ${targetYear}
 
 [FINANCIAL VITALS]:
-- (MTD = сарын эхнээс өнөөдрийг хүртэл. «Өнөөдөр» гэсэн асуултад MTD тоог өнөөдрийн тоо гэж хэзээ ч бүү хэл.)
+- (MTD = сарын эхнээс өнөөдрийг хүртэл. Сонгосон хугацааны тоог MTD-тай бүү холь. «Өнөөдөр» гэсэн асуултад MTD-г өнөөдрийн тоо гэж хэлж болохгүй.)
+- OVERVIEW PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar)
 - MTD Revenue: ${vitals.monthToDateRevenue.toLocaleString()} ₮
 - Est. Net Profit: ${vitals.estimatedNetProfit.toLocaleString()} ₮ (WARNING: Rough 15% margin guess, NOT actual audited profit)
 - Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
@@ -84,14 +93,19 @@ openingQty null means no count was logged. Never use currentStock as the opening
       ...raw,
       startDate: sanitizeDateWithYear(
         raw.startDate as string | undefined,
-        context.activeStartDate || `${targetYear}-01-01`,
+        wantsOverview
+          ? ubDayStartIso(overviewPeriod.startDay)
+          : (context.activeStartDate || `${targetYear}-01-01`),
         targetYear,
       ),
       endDate: sanitizeDateWithYear(
         raw.endDate as string | undefined,
-        context.activeEndDate || currentIsoDate,
+        wantsOverview
+          ? ubDayEndIso(overviewPeriod.endDay)
+          : (context.activeEndDate || currentIsoDate),
         targetYear,
       ),
     }),
+    preamble: wantsOverview ? `${overviewDateLine(overviewPeriod)}\n\n` : undefined,
   });
 }

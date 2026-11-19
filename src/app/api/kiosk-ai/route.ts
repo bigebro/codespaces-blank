@@ -803,8 +803,9 @@ ${JSON.stringify(unmatched)}`;
           userId,
           userRole: "owner",
           workerName,
-          activeStartDate: body.startDate, 
-          activeEndDate: body.endDate, 
+          // Owner chat sends the dashboard's selected range (UB day ISO).
+          activeStartDate: body.startDate,
+          activeEndDate: body.endDate,
         };
 
         try {

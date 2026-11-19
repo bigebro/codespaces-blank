@@ -8,6 +8,7 @@ import { subscriptionBlockMessage } from "@/lib/subscription";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordChatMessage } from "@/ai/memory/thread.manager";
 import { isOverviewQuestion } from "./overview";
+import { MN_BUSINESS_SPELLING_NOTE, fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
 
 interface RouterDecision {
   route: "CFO" | "COO" | "HR" | "GENERAL";
@@ -158,6 +159,7 @@ You are Operlink, a restaurant operating assistant. Answer in Mongolian.
 If the user is greeting you, greet them back in one sentence and ask what they want to look at: санхүү, нөөц, эсвэл цалин.
 If the request is unclear, do not guess a department. Ask one clarifying question.
 No emojis.
+${MN_BUSINESS_SPELLING_NOTE}
 `.trim(),
             temperature: 0.2,
             thinkingConfig: { thinkingBudget: 0 },
@@ -167,7 +169,7 @@ No emojis.
         for await (const chunk of stream) {
           if (!chunk.text) continue;
           wrote = true;
-          controller.enqueue(encoder.encode(chunk.text));
+          controller.enqueue(encoder.encode(fixMnBusinessSpelling(chunk.text)));
         }
         if (!wrote) {
           controller.enqueue(encoder.encode("Юу гэж туслах вэ: санхүү, нөөц, эсвэл цалин?"));

@@ -207,6 +207,7 @@ const fetchChatHistory = useCallback(async () => {
           workerName: "Owner",
           text,
           userRole: "owner",
+          // Самбарын сонгосон Өдөр/7 хоног/Сар. Асуултад хугацаа нэрлээгүй үед overview үүнийг авна.
           startDate: ubDayStartIso(startDate),
           endDate: ubDayEndIso(endDate),
         }),

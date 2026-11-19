@@ -8,6 +8,54 @@ export type GradeLike = {
   fixable?: boolean;
 };
 
+export type DataTrust = {
+  verified: number;
+  total: number;
+  missing: number;
+  check: number;
+  remaining: number;
+  unverified_theo: number;
+  purchase_pct: number;
+};
+
+/** Самбар болон OP AI хоёулаа энэ тооллогоор «баталгаажсан / дутуу / шалгах»-ыг бодно. */
+export function buildDataTrust(grades: GradeLike[] = [], purchasePct?: number): DataTrust {
+  const verifiedRows = grades.filter((row) => row.status === "Verified");
+  const missing = grades.filter((row) => row.status === "Missing").length;
+  const check = grades.filter((row) => row.status === "Check").length;
+  const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+  const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+  const purchase_pct = purchasePct ?? (
+    purchaseAll > 0
+      ? Math.round((purchaseVerified / purchaseAll) * 100)
+      : (grades.length ? Math.round((verifiedRows.length / grades.length) * 100) : 0)
+  );
+  const unverified_theo = grades
+    .filter((row) => row.status !== "Verified")
+    .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
+  return {
+    verified: verifiedRows.length,
+    total: grades.length,
+    missing,
+    check,
+    remaining: missing + check,
+    unverified_theo,
+    purchase_pct,
+  };
+}
+
+export function estimateLine(t: { total: number; verified: number; remaining: number }) {
+  return `Тооцоолсон, ${t.total} бараанаас ${t.verified} баталгаажсан, ${t.remaining} ажил үлдсэн`;
+}
+
+export function trustStatusLine(t: { verified: number; missing: number; check: number; total: number }) {
+  return `${t.verified} баталгаажсан, ${t.missing} дутуу, ${t.check} шалгах, нийт ${t.total} бараа`;
+}
+
+function hasTrustCounts(t?: Partial<DataTrust> | null): t is Partial<DataTrust> {
+  return Boolean(t && (t.total != null || t.verified != null));
+}
+
 export const IMPOSSIBLE_TITLE = "Энэ тоо бодит биш байж магадгүй: өгөгдөл дутуу";
 export const SURPLUS_NOTE = "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна";
 export const COMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн";
@@ -31,37 +79,46 @@ export function parsePct(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: { purchase_pct?: number } | null }) {
+export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Partial<DataTrust> | null }) {
   const grades = input.grades || [];
-  const verified = grades.filter((row) => row.status === "Verified");
-  const missing = grades.filter((row) => row.status === "Missing").length;
-  const check = grades.filter((row) => row.status === "Check").length;
-  const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
-  const purchaseVerified = verified.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
-  const purchase_pct = input.data_trust?.purchase_pct ?? (
-    purchaseAll > 0
-      ? Math.round((purchaseVerified / purchaseAll) * 100)
-      : (grades.length ? Math.round((verified.length / grades.length) * 100) : 0)
-  );
-  const remaining = grades.filter((row) => row.status !== "Verified" && row.fixable !== false).length;
+  const fromGrades = buildDataTrust(grades, input.data_trust?.purchase_pct);
+  // data_trust байвал самбар ч, AI ч нэг эх сурвалжийн тоог харуулна (grades ирээгүй үед ч).
+  const trust = hasTrustCounts(input.data_trust)
+    ? {
+        ...fromGrades,
+        verified: Number(input.data_trust.verified ?? fromGrades.verified) || 0,
+        total: Number(input.data_trust.total ?? fromGrades.total) || 0,
+        missing: Number(input.data_trust.missing ?? fromGrades.missing) || 0,
+        check: Number(input.data_trust.check ?? fromGrades.check) || 0,
+        remaining: Number(
+          input.data_trust.remaining ??
+            ((input.data_trust.missing != null || input.data_trust.check != null)
+              ? (Number(input.data_trust.missing) || 0) + (Number(input.data_trust.check) || 0)
+              : fromGrades.remaining),
+        ) || 0,
+        unverified_theo: Number(input.data_trust.unverified_theo ?? fromGrades.unverified_theo) || 0,
+        purchase_pct: input.data_trust.purchase_pct ?? fromGrades.purchase_pct,
+      }
+    : fromGrades;
+  // «ажил үлдсэн»: grades байвал засварлаж болох мөр, үгүй бол data_trust.remaining.
+  const remaining = grades.length
+    ? grades.filter((row) => row.status !== "Verified" && row.fixable !== false).length
+    : trust.remaining;
   // Тоогоор: баталгаажсан бараа / нийт бараа. 100% зөвхөн бүгд баталгаажсан үед (floor).
-  const verified_pct = grades.length ? Math.floor((verified.length / grades.length) * 100) : 0;
-  const unverified_theo = grades
-    .filter((row) => row.status !== "Verified")
-    .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
+  const verified_pct = trust.total ? Math.floor((trust.verified / trust.total) * 100) : 0;
   return {
-    purchase_pct,
+    purchase_pct: trust.purchase_pct,
     verified_pct,
-    verified: verified.length,
-    total: grades.length,
-    missing,
-    check,
+    verified: trust.verified,
+    total: trust.total,
+    missing: trust.missing,
+    check: trust.check,
     remaining,
-    unverified_theo,
-    tone: statusTone(missing, check, grades.length),
+    unverified_theo: trust.unverified_theo,
+    tone: statusTone(trust.missing, trust.check, trust.total),
     meter: `Үнэн зөв байдал: ${verified_pct}%`,
-    counts: `${missing} бараа дутуу, ${check} бараа шалгах`,
-    estimate: `Тооцоолсон, ${grades.length} бараанаас ${verified.length} баталгаажсан, ${remaining} ажил үлдсэн`,
+    counts: `${trust.missing} бараа дутуу, ${trust.check} бараа шалгах`,
+    estimate: estimateLine({ total: trust.total, verified: trust.verified, remaining }),
   };
 }
 

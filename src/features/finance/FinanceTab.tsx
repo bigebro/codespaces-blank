@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { ubDay } from "@/lib/ubDate";
+import { addDaysStr, detectRangeMode, mondayOf, ubDay, type RangeMode } from "@/lib/ubDate";
 // 2. САНГУУД:
 import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
@@ -32,26 +32,6 @@ function cleanString(str: string) {
     .trim();
 }
 
-// "YYYY-MM-DD" огноон дээр өдөр нэмэх (цагийн бүсээс хамаарахгүй).
-function addDaysStr(day: string, n: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-// Тухайн өдрийн долоо хоногийн Даваа гараг.
-function mondayOf(day: string): string {
-  const dow = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
-  return addDaysStr(day, -dow);
-}
-
-type RangeMode = "day" | "week" | "month";
-
-function detectRangeMode(start: string, end: string): RangeMode {
-  if (start === end) return "day";
-  if (start === mondayOf(start) && end > start && end <= addDaysStr(start, 6)) return "week";
-  return "month";
-}
 
 // 4. ОРОХ ӨГӨГДЛИЙН ГЭРЭЭ (PROPS):
 interface FinanceTabProps {

@@ -6,6 +6,7 @@ import { executeAiTool } from "@/ai/tools/execution.tools";
 import { getConversationThread, recordChatMessage } from "@/ai/memory/thread.manager";
 import { AgentContext } from "@/types/agent.types";
 import { createNameScrubber, scrubInternalNames } from "@/ai/runtime/scrubToolNames";
+import { MN_BUSINESS_SPELLING_NOTE, createSpellingFixer, fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
 
 type ModelPart = Record<string, unknown>;
 
@@ -88,15 +89,22 @@ export async function runToolAgent(opts: {
   systemInstruction: string;
   tools: FunctionDeclaration[];
   sanitizeArgs?: (args: Record<string, unknown>) => Record<string, unknown>;
+  preamble?: string;
 }): Promise<ReadableStream> {
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
-      const enqueue = (text: string) => {
+      const spelling = createSpellingFixer();
+      const enqueueRaw = (text: string) => {
         if (text) controller.enqueue(encoder.encode(text));
       };
+      const enqueue = (text: string) => {
+        if (text) enqueueRaw(spelling.push(text));
+      };
+      const flushSpelling = () => enqueueRaw(spelling.flush());
       try {
+        if (opts.preamble) enqueue(opts.preamble);
         const historyPromise = getConversationThread(opts.context.clientId, 6);
         const ai = getGenAI();
         const history = sanitizeHistory((await historyPromise) as { role?: string; parts?: ModelPart[] }[]);
@@ -125,7 +133,7 @@ export async function runToolAgent(opts: {
             model: MODELS.flash,
             contents,
             config: {
-              systemInstruction: opts.systemInstruction + "\n\nДҮРЭМ: Хэрэглэгчид хэзээ ч хэрэгслийн нэр, функцийн нэр, кодын нэр (жишээ нь skill_..., action_...) бүү дурд. Юу хийж чадахаа энгийн монгол хэлээр тайлбарла.",
+              systemInstruction: opts.systemInstruction + "\n\nДҮРЭМ: Хэрэглэгчид хэзээ ч хэрэгслийн нэр, функцийн нэр, кодын нэр (жишээ нь skill_..., action_...) бүү дурд. Юу хийж чадахаа энгийн монгол хэлээр тайлбарла.\n" + MN_BUSINESS_SPELLING_NOTE,
               temperature: 0.1,
               ...(thinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
               tools: [{ functionDeclarations: opts.tools }],
@@ -194,7 +202,7 @@ export async function runToolAgent(opts: {
           const { text, modelParts, calls } = outcome;
 
           if (calls.length === 0) {
-            finalText = text;
+            finalText = (opts.preamble || "") + text;
             break;
           }
 
@@ -237,6 +245,9 @@ export async function runToolAgent(opts: {
           enqueue(extra);
         }
 
+        flushSpelling();
+        finalText = fixMnBusinessSpelling(finalText);
+
         after(() => {
           const writes: Promise<unknown>[] = [];
           if (finalText.trim()) {
@@ -248,6 +259,7 @@ export async function runToolAgent(opts: {
       } catch (err: unknown) {
         console.error("[agent]", err);
         enqueue("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.");
+        flushSpelling();
         controller.close();
       }
     },
