@@ -68,6 +68,15 @@ export default function ImportTab({
   const [kitchenPasteText, setKitchenPasteText] = useState("");
   const [ingredientsPasteText, setIngredientsPasteText] = useState("");
   const [recipesPasteText, setRecipesPasteText] = useState("");
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
+  // Дэлгэцийг хаадаг window.alert-ын оронд дэлгэц дээр үлдэх, хуулж болох мэдэгдэл.
+  const alert = (text: string) => {
+    const clean = String(text ?? "").trim();
+    setNotice({
+      text: clean,
+      error: /алдаа|чадсангүй|хадгалаагүй|олдсонгүй|буруу/i.test(clean),
+    });
+  };
   const [productsPasteText, setProductsPasteText] = useState("");
   const [overwriteSales, setOverwriteSales] = useState(false);
   const [overwritePurchases, setOverwritePurchases] = useState(false);
@@ -1649,6 +1658,27 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
   return (
     <>
+      {notice && (
+        <div
+          role="status"
+          className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] w-[min(92vw,640px)] rounded-2xl border p-4 shadow-2xl ${
+            notice.error
+              ? "bg-rose-950 border-rose-800 text-rose-100"
+              : "bg-zinc-900 border-zinc-700 text-zinc-100"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <p className="flex-1 text-sm whitespace-pre-line select-text break-words">{notice.text}</p>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="text-xs font-bold text-zinc-300 hover:text-white shrink-0"
+            >
+              Хаах
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <div className="flex items-center justify-between gap-2 mb-3">

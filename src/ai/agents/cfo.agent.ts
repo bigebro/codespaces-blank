@@ -1,3 +1,4 @@
+import { ubDay } from "@/lib/ubDate";
 import { cfoSkills } from "@/ai/tools/skills.network";
 import { getVitals } from "@/core/packages/pkg_vitals";
 import { AgentContext } from "@/types/agent.types";
@@ -13,10 +14,10 @@ function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string,
 
 export async function runCfoAgent(context: AgentContext, userMessage: string): Promise<ReadableStream> {
   const now = new Date();
-  const currentIsoDate = now.toISOString().split("T")[0];
+  const currentIsoDate = ubDay(now); // Asia/Ulaanbaatar өдөр, UTC биш
   const targetYear = context.activeStartDate
     ? context.activeStartDate.split("-")[0]
-    : String(now.getFullYear());
+    : String(currentIsoDate.slice(0, 4));
 
   const [vitals, rulesResult, briefResult] = await Promise.all([
     getVitals(context.clientId),

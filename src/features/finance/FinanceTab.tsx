@@ -827,7 +827,7 @@ export default function FinanceTab({
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <div className="flex justify-between items-center text-xm">
                 <span className="text-zinc-400 font-bold uppercase tracking-wider">
-                  Шалтгаангүй Зөрүү (Бүртгэлгүй Зарлага):
+                  Тайлбаргүй зөрүү (бүртгэлгүй зарлага):
                 </span>
                 <span
                   className={`font-mono font-black text-sm ${
