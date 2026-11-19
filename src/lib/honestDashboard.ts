@@ -8,6 +8,45 @@ export type GradeLike = {
   fixable?: boolean;
 };
 
+export type ItemStatusName = "Verified" | "Check" | "Missing";
+
+export const STATUS_LABEL: Record<ItemStatusName, string> = {
+  Verified: "Баталгаажсан",
+  Check: "Шалгах",
+  Missing: "Дутуу",
+};
+
+export type ItemStatus = {
+  name: string;
+  status: ItemStatusName;
+  label: string;
+  ingredient_id?: string;
+};
+
+export function normalizeStatus(status?: string): ItemStatusName {
+  if (status === "Verified" || status === "Баталгаажсан") return "Verified";
+  if (status === "Missing" || status === "Дутуу") return "Missing";
+  return "Check";
+}
+
+/** Самбар болон OP AI хоёулаа энэ жагсаалтаар барааны статусыг харуулж, тоог бодно. */
+export function itemStatusList(grades: GradeLike[] = []): ItemStatus[] {
+  return (grades || []).map((row) => {
+    const status = normalizeStatus(row.status);
+    return {
+      name: String(row.name || "").trim() || "Нэргүй бараа",
+      status,
+      label: STATUS_LABEL[status],
+      ingredient_id: row.ingredient_id,
+    };
+  });
+}
+
+export function itemStatusLines(items: ItemStatus[]): string {
+  if (!items.length) return "Хэмжигдсэн бараа алга.";
+  return items.map((row) => `- ${row.name}: ${row.label}`).join("\n");
+}
+
 export type DataTrust = {
   verified: number;
   total: number;
@@ -20,22 +59,23 @@ export type DataTrust = {
 
 /** Самбар болон OP AI хоёулаа энэ тооллогоор «баталгаажсан / дутуу / шалгах»-ыг бодно. */
 export function buildDataTrust(grades: GradeLike[] = [], purchasePct?: number): DataTrust {
-  const verifiedRows = grades.filter((row) => row.status === "Verified");
-  const missing = grades.filter((row) => row.status === "Missing").length;
-  const check = grades.filter((row) => row.status === "Check").length;
-  const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+  const normalized = (grades || []).map((row) => ({ ...row, status: normalizeStatus(row.status) }));
+  const verifiedRows = normalized.filter((row) => row.status === "Verified");
+  const missing = normalized.filter((row) => row.status === "Missing").length;
+  const check = normalized.filter((row) => row.status === "Check").length;
+  const purchaseAll = normalized.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
   const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
   const purchase_pct = purchasePct ?? (
     purchaseAll > 0
       ? Math.round((purchaseVerified / purchaseAll) * 100)
-      : (grades.length ? Math.round((verifiedRows.length / grades.length) * 100) : 0)
+      : (normalized.length ? Math.round((verifiedRows.length / normalized.length) * 100) : 0)
   );
-  const unverified_theo = grades
+  const unverified_theo = normalized
     .filter((row) => row.status !== "Verified")
     .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
   return {
     verified: verifiedRows.length,
-    total: grades.length,
+    total: normalized.length,
     missing,
     check,
     remaining: missing + check,
@@ -82,8 +122,8 @@ export function parsePct(value: unknown) {
 export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Partial<DataTrust> | null }) {
   const grades = input.grades || [];
   const fromGrades = buildDataTrust(grades, input.data_trust?.purchase_pct);
-  // data_trust байвал самбар ч, AI ч нэг эх сурвалжийн тоог харуулна (grades ирээгүй үед ч).
-  const trust = hasTrustCounts(input.data_trust)
+  // Барааны жагсаалт байвал түүний статус л эх сурвалж. data_trust-ийг зөвхөн grades хоосон үед авна.
+  const trust = grades.length === 0 && hasTrustCounts(input.data_trust)
     ? {
         ...fromGrades,
         verified: Number(input.data_trust.verified ?? fromGrades.verified) || 0,
@@ -102,7 +142,7 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
     : fromGrades;
   // «ажил үлдсэн»: grades байвал засварлаж болох мөр, үгүй бол data_trust.remaining.
   const remaining = grades.length
-    ? grades.filter((row) => row.status !== "Verified" && row.fixable !== false).length
+    ? grades.filter((row) => normalizeStatus(row.status) !== "Verified" && row.fixable !== false).length
     : trust.remaining;
   // Тоогоор: баталгаажсан бараа / нийт бараа. 100% зөвхөн бүгд баталгаажсан үед (floor).
   const verified_pct = trust.total ? Math.floor((trust.verified / trust.total) * 100) : 0;
@@ -120,6 +160,26 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
     counts: `${trust.missing} бараа дутуу, ${trust.check} бараа шалгах`,
     estimate: estimateLine({ total: trust.total, verified: trust.verified, remaining }),
   };
+}
+
+/** Самбар болон overview-ийн нэг эх сурвалж: бараа тус бүрийн статус + түүнээс гарсан тоо. */
+export function dashboardTrust(analytics: { grades?: GradeLike[]; data_trust?: Partial<DataTrust> | null } | null | undefined) {
+  const grades = analytics?.grades || [];
+  const items = itemStatusList(grades);
+  const summary = summarizeTrust({
+    grades,
+    data_trust: grades.length ? { purchase_pct: analytics?.data_trust?.purchase_pct } : analytics?.data_trust,
+  });
+  return { items, summary };
+}
+
+export function overviewStatusBlock(board: { items: ItemStatus[]; summary: ReturnType<typeof summarizeTrust> }) {
+  return [
+    `- Хэмжилтийн байдал: ${trustStatusLine(board.summary)}`,
+    `- Самбарын мөр: ${board.summary.estimate}`,
+    `- Бараа тус бүр (самбар дээрх статус. Энэ жагсаалтаас тоол. Статусыг битгий өөрчил):`,
+    itemStatusLines(board.items),
+  ].join("\n");
 }
 
 export function impossibleReasons(actual: number, theoretical: number, grossMarginPct: number) {
@@ -142,7 +202,7 @@ export function unlockLine(purchaseValue: number, theoMoney = 0) {
 
 export function topFixActions<T extends GradeLike>(rows: T[], limit = 3) {
   return [...rows]
-    .filter((row) => row.status !== "Verified" && row.fixable !== false)
+    .filter((row) => normalizeStatus(row.status) !== "Verified" && row.fixable !== false)
     .sort((a, b) => (Number(b.purchase_value) || 0) - (Number(a.purchase_value) || 0))
     .slice(0, limit);
 }

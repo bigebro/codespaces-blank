@@ -43,6 +43,21 @@ assert.equal(fromCountsOnly.check, 1);
 assert.equal(fromCountsOnly.missing, 0);
 assert.equal(fromCountsOnly.estimate, "Тооцоолсон, 3 бараанаас 2 баталгаажсан, 1 ажил үлдсэн");
 
+
+// grades байвал data_trust-ийн өөр тоог үл тоомсорлож, самбарын жагсаалтыг дагана.
+const gradesWin = summarizeTrust({
+  grades: [
+    { name: "Сүү", status: "Check", purchase_value: 10 },
+    { name: "Кофе үр", status: "Check", purchase_value: 10 },
+    { name: "Цаасан аяга", status: "Check", purchase_value: 10 },
+  ],
+  data_trust: { verified: 2, total: 3, missing: 0, check: 1, remaining: 1, purchase_pct: 80, unverified_theo: 0 },
+});
+assert.equal(gradesWin.verified, 0);
+assert.equal(gradesWin.check, 3);
+assert.equal(gradesWin.estimate, "Тооцоолсон, 3 бараанаас 0 баталгаажсан, 3 ажил үлдсэн");
+assert.equal(gradesWin.counts, "0 бараа дутуу, 3 бараа шалгах");
+
 const actions = topFixActions(grades, 3);
 assert.equal(actions.length, 3);
 assert.equal(actions[0].name, "Гурил");
@@ -83,6 +98,7 @@ assert.match(finance, /<TruthMeter/);
 assert.match(finance, /variant="actions"/);
 assert.match(finance, /IMPOSSIBLE_TITLE/);
 assert.match(finance, /trustSummary\.estimate/);
+assert.match(finance, /dashboardTrust\(liveAnalytics\)/);
 assert.match(finance, /unverifiedTheo/);
 
 const panel = readFileSync("src/features/finance/DataGradePanel.tsx", "utf8");
@@ -108,13 +124,13 @@ assert.doesNotMatch(route, /\.(insert|update|delete|upsert)\(/);
 console.log("honest dashboard checks passed");
 
 const overview = readFileSync("src/ai/agents/overview.ts", "utf8");
-assert.match(overview, /summarizeTrust/);
+assert.match(overview, /dashboardTrust/);
+assert.match(overview, /overviewStatusBlock/);
 assert.match(overview, /ubDayStartIso/);
 assert.match(overview, /ubDayEndIso/);
 assert.match(overview, /resolveOverviewPeriod/);
 assert.match(overview, /buildOverviewSnapshot/);
 assert.match(overview, /overviewDateLine/);
-assert.match(overview, /trustStatusLine/);
 
 const cfo = readFileSync("src/ai/agents/cfo.agent.ts", "utf8");
 assert.match(cfo, /preamble: wantsOverview/);

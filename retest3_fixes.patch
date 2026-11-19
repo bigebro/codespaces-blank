@@ -1,0 +1,427 @@
+From 55c604ebcabc35f877dd00710340334ed1909a1a Mon Sep 17 00:00:00 2001
+From: Bilguun Enkhee <47089626+bigebro@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 05:51:44 +0800
+Subject: [PATCH] Use one per-item status list for the dashboard and OP AI
+ overview
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Count confirmed / to-check / short from the same grade list the dashboard shows, and have the overview name each item so it cannot relabel a Шалгах row as баталгаажсан.
+---
+ scripts/check-honest-dashboard.ts       |  20 ++++-
+ scripts/check-status-sync.ts            | 106 ++++++++++++++++++++++++
+ src/ai/agents/overview.ts               |  10 +--
+ src/features/finance/DataGradePanel.tsx |  12 +--
+ src/features/finance/FinanceTab.tsx     |   7 +-
+ src/lib/honestDashboard.ts              |  82 +++++++++++++++---
+ 6 files changed, 205 insertions(+), 32 deletions(-)
+ create mode 100644 scripts/check-status-sync.ts
+
+diff --git a/scripts/check-honest-dashboard.ts b/scripts/check-honest-dashboard.ts
+index 7640c6e..a9d0fe1 100644
+--- a/scripts/check-honest-dashboard.ts
++++ b/scripts/check-honest-dashboard.ts
+@@ -43,6 +43,21 @@ assert.equal(fromCountsOnly.check, 1);
+ assert.equal(fromCountsOnly.missing, 0);
+ assert.equal(fromCountsOnly.estimate, "Тооцоолсон, 3 бараанаас 2 баталгаажсан, 1 ажил үлдсэн");
+ 
++
++// grades байвал data_trust-ийн өөр тоог үл тоомсорлож, самбарын жагсаалтыг дагана.
++const gradesWin = summarizeTrust({
++  grades: [
++    { name: "Сүү", status: "Check", purchase_value: 10 },
++    { name: "Кофе үр", status: "Check", purchase_value: 10 },
++    { name: "Цаасан аяга", status: "Check", purchase_value: 10 },
++  ],
++  data_trust: { verified: 2, total: 3, missing: 0, check: 1, remaining: 1, purchase_pct: 80, unverified_theo: 0 },
++});
++assert.equal(gradesWin.verified, 0);
++assert.equal(gradesWin.check, 3);
++assert.equal(gradesWin.estimate, "Тооцоолсон, 3 бараанаас 0 баталгаажсан, 3 ажил үлдсэн");
++assert.equal(gradesWin.counts, "0 бараа дутуу, 3 бараа шалгах");
++
+ const actions = topFixActions(grades, 3);
+ assert.equal(actions.length, 3);
+ assert.equal(actions[0].name, "Гурил");
+@@ -83,6 +98,7 @@ assert.match(finance, /<TruthMeter/);
+ assert.match(finance, /variant="actions"/);
+ assert.match(finance, /IMPOSSIBLE_TITLE/);
+ assert.match(finance, /trustSummary\.estimate/);
++assert.match(finance, /dashboardTrust\(liveAnalytics\)/);
+ assert.match(finance, /unverifiedTheo/);
+ 
+ const panel = readFileSync("src/features/finance/DataGradePanel.tsx", "utf8");
+@@ -108,13 +124,13 @@ assert.doesNotMatch(route, /\.(insert|update|delete|upsert)\(/);
+ console.log("honest dashboard checks passed");
+ 
+ const overview = readFileSync("src/ai/agents/overview.ts", "utf8");
+-assert.match(overview, /summarizeTrust/);
++assert.match(overview, /dashboardTrust/);
++assert.match(overview, /overviewStatusBlock/);
+ assert.match(overview, /ubDayStartIso/);
+ assert.match(overview, /ubDayEndIso/);
+ assert.match(overview, /resolveOverviewPeriod/);
+ assert.match(overview, /buildOverviewSnapshot/);
+ assert.match(overview, /overviewDateLine/);
+-assert.match(overview, /trustStatusLine/);
+ 
+ const cfo = readFileSync("src/ai/agents/cfo.agent.ts", "utf8");
+ assert.match(cfo, /preamble: wantsOverview/);
+diff --git a/scripts/check-status-sync.ts b/scripts/check-status-sync.ts
+new file mode 100644
+index 0000000..da208bc
+--- /dev/null
++++ b/scripts/check-status-sync.ts
+@@ -0,0 +1,106 @@
++// Run: JITI_ALIAS={"@":"$PWD/src"} jiti scripts/check-status-sync.ts
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { applyCountPick, gradeIngredient } from "../src/lib/analytics";
++import { dashboardTrust, overviewStatusBlock } from "../src/lib/honestDashboard";
++
++const LIMIT = "2026-12-20T00:00:00+08:00";
++
++function blank(extra: Record<string, unknown> = {}) {
++  return {
++    id: "x",
++    name: "n",
++    unit: "u",
++    purchased: 0,
++    purchase_value: 0,
++    purchases: [],
++    purchases_after: [],
++    theoretical: 0,
++    in_period_log: true,
++    no_price: false,
++    future_log_id: null,
++    has_start: false,
++    has_end: false,
++    start: null,
++    end: null,
++    ...extra,
++  };
++}
++
++function gradeRow(
++  name: string,
++  history: Array<{ id: string; date: string; qty: number }>,
++  startDay: string,
++  endDay: string,
++) {
++  const item = blank({ name, id: name });
++  applyCountPick(item, history, startDay, endDay, LIMIT);
++  const grade = gradeIngredient(item, startDay, endDay, 1000);
++  assert.ok(grade, `${name} ${startDay}..${endDay} should grade`);
++  return { ...grade, name };
++}
++
++// TEST кафегийн бодит тооллого (UB-д 11-01 00:00, 11-20 00:29, 11-20 04:47).
++const coffee = [
++  { id: "a", date: "2026-10-31T16:00:00+00:00", qty: 2000 },
++  { id: "b", date: "2026-11-19T16:29:09.006+00:00", qty: 1750 },
++  { id: "c", date: "2026-11-19T20:47:32.594+00:00", qty: 1750 },
++];
++const milk = [
++  { id: "a", date: "2026-10-31T16:00:00+00:00", qty: 10000 },
++  { id: "b", date: "2026-11-19T16:29:09.006+00:00", qty: 8800 },
++  { id: "c", date: "2026-11-19T20:47:32.594+00:00", qty: 5000 },
++];
++const cups = [
++  { id: "a", date: "2026-10-31T16:00:00+00:00", qty: 200 },
++  { id: "b", date: "2026-11-19T16:29:09.006+00:00", qty: 175 },
++  { id: "c", date: "2026-11-19T20:47:32.594+00:00", qty: 175 },
++];
++
++function gradesFor(startDay: string, endDay: string) {
++  return [
++    gradeRow("Кофе үр (ТУРШИЛТ)", coffee, startDay, endDay),
++    gradeRow("Сүү (ТУРШИЛТ)", milk, startDay, endDay),
++    gradeRow("Цаасан аяга (ТУРШИЛТ)", cups, startDay, endDay),
++  ];
++}
++
++function assertBoardMatchesOverview(grades: ReturnType<typeof gradesFor>) {
++  const board = dashboardTrust({ grades });
++  const text = overviewStatusBlock(board);
++  // AI snapshot болон самбар ижил тоо, ижил барааны статусыг ашиглана.
++  assert.equal(board.summary.verified, board.items.filter((row) => row.status === "Verified").length);
++  assert.equal(board.summary.check, board.items.filter((row) => row.status === "Check").length);
++  assert.equal(board.summary.missing, board.items.filter((row) => row.status === "Missing").length);
++  assert.equal(board.summary.total, board.items.length);
++  for (const row of board.items) {
++    assert.ok(text.includes(`${row.name}: ${row.label}`));
++  }
++  assert.match(text, new RegExp(`${board.summary.total} бараанаас ${board.summary.verified} баталгаажсан`));
++  return board;
++}
++
++const todayGrades = gradesFor("2026-11-20", "2026-11-20");
++const today = assertBoardMatchesOverview(todayGrades);
++assert.equal(today.items.find((row) => row.name.startsWith("Кофе"))?.label, "Баталгаажсан");
++assert.equal(today.items.find((row) => row.name.startsWith("Цаасан"))?.label, "Баталгаажсан");
++assert.equal(today.items.find((row) => row.name.startsWith("Сүү"))?.label, "Шалгах");
++assert.equal(today.summary.verified, 2);
++assert.equal(today.summary.check, 1);
++assert.equal(today.summary.estimate, "Тооцоолсон, 3 бараанаас 2 баталгаажсан, 1 ажил үлдсэн");
++
++const monthGrades = gradesFor("2026-11-01", "2026-11-20");
++const month = assertBoardMatchesOverview(monthGrades);
++assert.deepEqual(month.items.map((row) => row.label), ["Шалгах", "Шалгах", "Шалгах"]);
++assert.equal(month.summary.verified, 0);
++assert.equal(month.summary.check, 3);
++assert.equal(month.summary.counts, "0 бараа дутуу, 3 бараа шалгах");
++assert.equal(month.summary.estimate, "Тооцоолсон, 3 бараанаас 0 баталгаажсан, 3 ажил үлдсэн");
++
++const finance = readFileSync("src/features/finance/FinanceTab.tsx", "utf8");
++assert.match(finance, /dashboardTrust\(liveAnalytics\)/);
++const overview = readFileSync("src/ai/agents/overview.ts", "utf8");
++assert.match(overview, /dashboardTrust\(/);
++assert.match(overview, /overviewStatusBlock\(board\)/);
++
++console.log("status sync checks passed");
+diff --git a/src/ai/agents/overview.ts b/src/ai/agents/overview.ts
+index 394ee30..28688cb 100644
+--- a/src/ai/agents/overview.ts
++++ b/src/ai/agents/overview.ts
+@@ -1,5 +1,5 @@
+ import { getAnalyticsData } from "@/lib/analytics";
+-import { summarizeTrust, trustStatusLine } from "@/lib/honestDashboard";
++import { dashboardTrust, overviewStatusBlock } from "@/lib/honestDashboard";
+ import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+ import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
+ import type { OverviewPeriod } from "@/lib/overviewPeriod";
+@@ -41,10 +41,11 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
+   try {
+     const data: any = await getAnalyticsData(clientId, ubDayStartIso(startDay), ubDayEndIso(endDay));
+     const fin = data?.financial_ladder || {};
+-    const trust = summarizeTrust({
++    const board = dashboardTrust({
+       grades: data?.grades,
+       data_trust: data?.data_trust || fin.data_trust,
+     });
++    const trust = board.summary;
+     const revenue = Number(fin.revenue) || 0;
+     const waste = Number(data?.total_waste_loss) || 0;
+     const unexplained = Number(data?.total_unexplained_waste) || 0;
+@@ -68,9 +69,8 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
+       `- Баталгаажсан барааны цэвэр зөрүү: ${mnt(fin.verified_gap)}`,
+       `- Хаягдлын алдагдал: ${mnt(waste)}`,
+       `- Тайлбаргүй зөрүү: ${mnt(unexplained)}`,
+-      `- Хэмжилтийн байдал: ${trustStatusLine(trust)}`,
+-      `- Самбарын мөр: ${trust.estimate}`,
+-      "ДҮРЭМ: Зөвхөн дээрх тоог ашигла. Хариултын эхэнд хугацааг систем нэмнэ, чи давхар бичиж хэрэггүй. 0 нь өгөгдөл байхгүй гэсэн утгатай байж болно, тэгвэл «өгөгдөл алга» гэж хэл. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
++      overviewStatusBlock(board),
++      "ДҮРЭМ: Зөвхөн дээрх тоо болон бараа тус бүрийн статусыг ашигла. Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Хариултын эхэнд хугацааг систем нэмнэ, чи давхар бичиж хэрэггүй. 0 нь өгөгдөл байхгүй гэсэн утгатай байж болно, тэгвэл «өгөгдөл алга» гэж хэл. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
+       MN_BUSINESS_SPELLING_NOTE,
+     ].join("\n");
+   } catch (err) {
+diff --git a/src/features/finance/DataGradePanel.tsx b/src/features/finance/DataGradePanel.tsx
+index aed3487..d6e8e04 100644
+--- a/src/features/finance/DataGradePanel.tsx
++++ b/src/features/finance/DataGradePanel.tsx
+@@ -3,7 +3,7 @@
+ import React, { useState } from "react";
+ import { supabase } from "@/lib/supabase";
+ import { ubDay } from "@/lib/ubDate";
+-import { COMPLETE_PERIOD, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
++import { COMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
+ import { gradeGuide } from "@/lib/gradeGuide";
+ 
+ type Grade = {
+@@ -40,12 +40,6 @@ type Grade = {
+ 
+ type LogRow = { id: string; qty: number; cost: number; date: string; notes?: string };
+ 
+-const LABEL: Record<Grade["status"], string> = {
+-  Verified: "Баталгаажсан",
+-  Check: "Шалгах",
+-  Missing: "Дутуу",
+-};
+-
+ const COLOR: Record<Grade["status"], string> = {
+   Verified: "bg-emerald-500/15 text-emerald-300",
+   Check: "bg-amber-500/15 text-amber-300",
+@@ -335,7 +329,7 @@ export default function DataGradePanel({
+               <div className="flex-1 min-w-0">
+                 <div className="flex items-center gap-2">
+                   <span className={`text-xs font-black px-2 py-1 rounded-lg ${COLOR[row.status] || COLOR.Check}`}>
+-                    {LABEL[row.status] || row.status}
++                    {STATUS_LABEL[row.status] || row.status}
+                   </span>
+                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
+                 </div>
+@@ -374,7 +368,7 @@ export default function DataGradePanel({
+               <div key={row.ingredient_id} className="border border-zinc-800 rounded-xl p-3">
+                 <div className="flex items-center gap-2">
+                   <span className={`text-xs font-black px-2 py-1 rounded-lg ${COLOR[row.status] || COLOR.Check}`}>
+-                    {LABEL[row.status] || row.status}
++                    {STATUS_LABEL[row.status] || row.status}
+                   </span>
+                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
+                 </div>
+diff --git a/src/features/finance/FinanceTab.tsx b/src/features/finance/FinanceTab.tsx
+index 20cd422..574875a 100644
+--- a/src/features/finance/FinanceTab.tsx
++++ b/src/features/finance/FinanceTab.tsx
+@@ -23,7 +23,7 @@ import UnexplainedGaps from "./UnexplainedGaps";
+ import CupCheck from "./CupCheck";
+ import TeamBoard from "./TeamBoard";
+ import TruthMeter from "./TruthMeter";
+-import { IMPOSSIBLE_TITLE, impossibleReasons, parsePct, summarizeTrust } from "@/lib/honestDashboard";
++import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, parsePct } from "@/lib/honestDashboard";
+ 
+ // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
+ function cleanString(str: string) {
+@@ -120,10 +120,7 @@ export default function FinanceTab({
+     Record<string, number>
+   >({});
+ 
+-  const trustSummary = summarizeTrust({
+-    grades: liveAnalytics?.grades,
+-    data_trust: liveAnalytics?.data_trust,
+-  });
++  const trustSummary = dashboardTrust(liveAnalytics).summary;
+   // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
+   const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
+   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
+diff --git a/src/lib/honestDashboard.ts b/src/lib/honestDashboard.ts
+index 64d89ca..93092ec 100644
+--- a/src/lib/honestDashboard.ts
++++ b/src/lib/honestDashboard.ts
+@@ -8,6 +8,45 @@ export type GradeLike = {
+   fixable?: boolean;
+ };
+ 
++export type ItemStatusName = "Verified" | "Check" | "Missing";
++
++export const STATUS_LABEL: Record<ItemStatusName, string> = {
++  Verified: "Баталгаажсан",
++  Check: "Шалгах",
++  Missing: "Дутуу",
++};
++
++export type ItemStatus = {
++  name: string;
++  status: ItemStatusName;
++  label: string;
++  ingredient_id?: string;
++};
++
++export function normalizeStatus(status?: string): ItemStatusName {
++  if (status === "Verified" || status === "Баталгаажсан") return "Verified";
++  if (status === "Missing" || status === "Дутуу") return "Missing";
++  return "Check";
++}
++
++/** Самбар болон OP AI хоёулаа энэ жагсаалтаар барааны статусыг харуулж, тоог бодно. */
++export function itemStatusList(grades: GradeLike[] = []): ItemStatus[] {
++  return (grades || []).map((row) => {
++    const status = normalizeStatus(row.status);
++    return {
++      name: String(row.name || "").trim() || "Нэргүй бараа",
++      status,
++      label: STATUS_LABEL[status],
++      ingredient_id: row.ingredient_id,
++    };
++  });
++}
++
++export function itemStatusLines(items: ItemStatus[]): string {
++  if (!items.length) return "Хэмжигдсэн бараа алга.";
++  return items.map((row) => `- ${row.name}: ${row.label}`).join("\n");
++}
++
+ export type DataTrust = {
+   verified: number;
+   total: number;
+@@ -20,22 +59,23 @@ export type DataTrust = {
+ 
+ /** Самбар болон OP AI хоёулаа энэ тооллогоор «баталгаажсан / дутуу / шалгах»-ыг бодно. */
+ export function buildDataTrust(grades: GradeLike[] = [], purchasePct?: number): DataTrust {
+-  const verifiedRows = grades.filter((row) => row.status === "Verified");
+-  const missing = grades.filter((row) => row.status === "Missing").length;
+-  const check = grades.filter((row) => row.status === "Check").length;
+-  const purchaseAll = grades.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
++  const normalized = (grades || []).map((row) => ({ ...row, status: normalizeStatus(row.status) }));
++  const verifiedRows = normalized.filter((row) => row.status === "Verified");
++  const missing = normalized.filter((row) => row.status === "Missing").length;
++  const check = normalized.filter((row) => row.status === "Check").length;
++  const purchaseAll = normalized.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+   const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+   const purchase_pct = purchasePct ?? (
+     purchaseAll > 0
+       ? Math.round((purchaseVerified / purchaseAll) * 100)
+-      : (grades.length ? Math.round((verifiedRows.length / grades.length) * 100) : 0)
++      : (normalized.length ? Math.round((verifiedRows.length / normalized.length) * 100) : 0)
+   );
+-  const unverified_theo = grades
++  const unverified_theo = normalized
+     .filter((row) => row.status !== "Verified")
+     .reduce((sum, row) => sum + (Number(row.theo_money) || 0), 0);
+   return {
+     verified: verifiedRows.length,
+-    total: grades.length,
++    total: normalized.length,
+     missing,
+     check,
+     remaining: missing + check,
+@@ -82,8 +122,8 @@ export function parsePct(value: unknown) {
+ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Partial<DataTrust> | null }) {
+   const grades = input.grades || [];
+   const fromGrades = buildDataTrust(grades, input.data_trust?.purchase_pct);
+-  // data_trust байвал самбар ч, AI ч нэг эх сурвалжийн тоог харуулна (grades ирээгүй үед ч).
+-  const trust = hasTrustCounts(input.data_trust)
++  // Барааны жагсаалт байвал түүний статус л эх сурвалж. data_trust-ийг зөвхөн grades хоосон үед авна.
++  const trust = grades.length === 0 && hasTrustCounts(input.data_trust)
+     ? {
+         ...fromGrades,
+         verified: Number(input.data_trust.verified ?? fromGrades.verified) || 0,
+@@ -102,7 +142,7 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
+     : fromGrades;
+   // «ажил үлдсэн»: grades байвал засварлаж болох мөр, үгүй бол data_trust.remaining.
+   const remaining = grades.length
+-    ? grades.filter((row) => row.status !== "Verified" && row.fixable !== false).length
++    ? grades.filter((row) => normalizeStatus(row.status) !== "Verified" && row.fixable !== false).length
+     : trust.remaining;
+   // Тоогоор: баталгаажсан бараа / нийт бараа. 100% зөвхөн бүгд баталгаажсан үед (floor).
+   const verified_pct = trust.total ? Math.floor((trust.verified / trust.total) * 100) : 0;
+@@ -122,6 +162,26 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
+   };
+ }
+ 
++/** Самбар болон overview-ийн нэг эх сурвалж: бараа тус бүрийн статус + түүнээс гарсан тоо. */
++export function dashboardTrust(analytics: { grades?: GradeLike[]; data_trust?: Partial<DataTrust> | null } | null | undefined) {
++  const grades = analytics?.grades || [];
++  const items = itemStatusList(grades);
++  const summary = summarizeTrust({
++    grades,
++    data_trust: grades.length ? { purchase_pct: analytics?.data_trust?.purchase_pct } : analytics?.data_trust,
++  });
++  return { items, summary };
++}
++
++export function overviewStatusBlock(board: { items: ItemStatus[]; summary: ReturnType<typeof summarizeTrust> }) {
++  return [
++    `- Хэмжилтийн байдал: ${trustStatusLine(board.summary)}`,
++    `- Самбарын мөр: ${board.summary.estimate}`,
++    `- Бараа тус бүр (самбар дээрх статус. Энэ жагсаалтаас тоол. Статусыг битгий өөрчил):`,
++    itemStatusLines(board.items),
++  ].join("\n");
++}
++
+ export function impossibleReasons(actual: number, theoretical: number, grossMarginPct: number) {
+   const reasons: string[] = [];
+   if (actual < theoretical) reasons.push("Баталгаажсан барааны бодит өртөг онолын өртгөөс бага байна");
+@@ -142,7 +202,7 @@ export function unlockLine(purchaseValue: number, theoMoney = 0) {
+ 
+ export function topFixActions<T extends GradeLike>(rows: T[], limit = 3) {
+   return [...rows]
+-    .filter((row) => row.status !== "Verified" && row.fixable !== false)
++    .filter((row) => normalizeStatus(row.status) !== "Verified" && row.fixable !== false)
+     .sort((a, b) => (Number(b.purchase_value) || 0) - (Number(a.purchase_value) || 0))
+     .slice(0, limit);
+ }
+-- 
+2.47.3
+

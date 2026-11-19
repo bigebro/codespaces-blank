@@ -23,7 +23,7 @@ import UnexplainedGaps from "./UnexplainedGaps";
 import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
-import { IMPOSSIBLE_TITLE, impossibleReasons, parsePct, summarizeTrust } from "@/lib/honestDashboard";
+import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, parsePct } from "@/lib/honestDashboard";
 
 // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
 function cleanString(str: string) {
@@ -120,10 +120,7 @@ export default function FinanceTab({
     Record<string, number>
   >({});
 
-  const trustSummary = summarizeTrust({
-    grades: liveAnalytics?.grades,
-    data_trust: liveAnalytics?.data_trust,
-  });
+  const trustSummary = dashboardTrust(liveAnalytics).summary;
   // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
   const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);

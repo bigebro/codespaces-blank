@@ -1,5 +1,5 @@
 import { getAnalyticsData } from "@/lib/analytics";
-import { summarizeTrust, trustStatusLine } from "@/lib/honestDashboard";
+import { dashboardTrust, overviewStatusBlock } from "@/lib/honestDashboard";
 import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
 import type { OverviewPeriod } from "@/lib/overviewPeriod";
@@ -41,10 +41,11 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
   try {
     const data: any = await getAnalyticsData(clientId, ubDayStartIso(startDay), ubDayEndIso(endDay));
     const fin = data?.financial_ladder || {};
-    const trust = summarizeTrust({
+    const board = dashboardTrust({
       grades: data?.grades,
       data_trust: data?.data_trust || fin.data_trust,
     });
+    const trust = board.summary;
     const revenue = Number(fin.revenue) || 0;
     const waste = Number(data?.total_waste_loss) || 0;
     const unexplained = Number(data?.total_unexplained_waste) || 0;
@@ -68,9 +69,8 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
       `- Баталгаажсан барааны цэвэр зөрүү: ${mnt(fin.verified_gap)}`,
       `- Хаягдлын алдагдал: ${mnt(waste)}`,
       `- Тайлбаргүй зөрүү: ${mnt(unexplained)}`,
-      `- Хэмжилтийн байдал: ${trustStatusLine(trust)}`,
-      `- Самбарын мөр: ${trust.estimate}`,
-      "ДҮРЭМ: Зөвхөн дээрх тоог ашигла. Хариултын эхэнд хугацааг систем нэмнэ, чи давхар бичиж хэрэггүй. 0 нь өгөгдөл байхгүй гэсэн утгатай байж болно, тэгвэл «өгөгдөл алга» гэж хэл. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
+      overviewStatusBlock(board),
+      "ДҮРЭМ: Зөвхөн дээрх тоо болон бараа тус бүрийн статусыг ашигла. Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Хариултын эхэнд хугацааг систем нэмнэ, чи давхар бичиж хэрэггүй. 0 нь өгөгдөл байхгүй гэсэн утгатай байж болно, тэгвэл «өгөгдөл алга» гэж хэл. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
       MN_BUSINESS_SPELLING_NOTE,
     ].join("\n");
   } catch (err) {

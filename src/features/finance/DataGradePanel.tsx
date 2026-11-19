@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
-import { COMPLETE_PERIOD, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
+import { COMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
 import { gradeGuide } from "@/lib/gradeGuide";
 
 type Grade = {
@@ -39,12 +39,6 @@ type Grade = {
 };
 
 type LogRow = { id: string; qty: number; cost: number; date: string; notes?: string };
-
-const LABEL: Record<Grade["status"], string> = {
-  Verified: "Баталгаажсан",
-  Check: "Шалгах",
-  Missing: "Дутуу",
-};
 
 const COLOR: Record<Grade["status"], string> = {
   Verified: "bg-emerald-500/15 text-emerald-300",
@@ -335,7 +329,7 @@ export default function DataGradePanel({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-black px-2 py-1 rounded-lg ${COLOR[row.status] || COLOR.Check}`}>
-                    {LABEL[row.status] || row.status}
+                    {STATUS_LABEL[row.status] || row.status}
                   </span>
                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
                 </div>
@@ -374,7 +368,7 @@ export default function DataGradePanel({
               <div key={row.ingredient_id} className="border border-zinc-800 rounded-xl p-3">
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-black px-2 py-1 rounded-lg ${COLOR[row.status] || COLOR.Check}`}>
-                    {LABEL[row.status] || row.status}
+                    {STATUS_LABEL[row.status] || row.status}
                   </span>
                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
                 </div>
