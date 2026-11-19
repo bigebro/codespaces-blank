@@ -4,9 +4,13 @@ import {
   COMPLETE_PERIOD,
   IMPOSSIBLE_TITLE,
   SURPLUS_NOTE,
+  TRUST_EMPTY_LINE,
+  TRUST_PENDING_LINE,
   impossibleReasons,
+  isTrustReady,
   summarizeTrust,
   topFixActions,
+  trustEstimateDisplay,
   trustTone,
   unlockLine,
 } from "../src/lib/honestDashboard";
@@ -58,6 +62,22 @@ assert.equal(gradesWin.check, 3);
 assert.equal(gradesWin.estimate, "Тооцоолсон, 3 бараанаас 0 баталгаажсан, 3 ажил үлдсэн");
 assert.equal(gradesWin.counts, "0 бараа дутуу, 3 бараа шалгах");
 
+assert.equal(TRUST_PENDING_LINE, "—");
+assert.equal(isTrustReady(null), false);
+assert.equal(isTrustReady(undefined), false);
+assert.equal(isTrustReady({}), false);
+assert.equal(isTrustReady({ grades: [] }), true);
+assert.equal(isTrustReady({ data_trust: { total: 3, verified: 2 } }), true);
+assert.equal(trustEstimateDisplay(null), TRUST_PENDING_LINE);
+assert.equal(trustEstimateDisplay({}), TRUST_PENDING_LINE);
+assert.equal(trustEstimateDisplay(null, true), TRUST_PENDING_LINE);
+assert.equal(trustEstimateDisplay({ grades }, true), summary.estimate);
+assert.equal(trustEstimateDisplay({ grades: [] }), TRUST_EMPTY_LINE);
+assert.equal(trustEstimateDisplay({ grades }), summary.estimate);
+assert.equal(trustEstimateDisplay(null).includes("0 бараанаас"), false);
+assert.equal(trustEstimateDisplay({ grades: [] }).includes("0 бараанаас"), false);
+assert.equal(trustEstimateDisplay({}, true).includes("0"), false);
+
 const actions = topFixActions(grades, 3);
 assert.equal(actions.length, 3);
 assert.equal(actions[0].name, "Гурил");
@@ -97,8 +117,10 @@ const finance = readFileSync("src/features/finance/FinanceTab.tsx", "utf8");
 assert.match(finance, /<TruthMeter/);
 assert.match(finance, /variant="actions"/);
 assert.match(finance, /IMPOSSIBLE_TITLE/);
-assert.match(finance, /trustSummary\.estimate/);
+assert.match(finance, /trustEstimateDisplay\(liveAnalytics, loading\)/);
+assert.match(finance, /isTrustReady\(liveAnalytics\)/);
 assert.match(finance, /dashboardTrust\(liveAnalytics\)/);
+assert.equal(finance.includes("{trustSummary.estimate}"), false);
 assert.match(finance, /unverifiedTheo/);
 
 const panel = readFileSync("src/features/finance/DataGradePanel.tsx", "utf8");
@@ -149,3 +171,8 @@ assert.match(kioskAi, /activeEndDate: body\.endDate/);
 const analytics = readFileSync("src/lib/analytics.ts", "utf8");
 assert.match(analytics, /buildDataTrust\(grades\)/);
 assert.match(analytics, /analyticsPeriod\(startDate, endDate\)/);
+
+const agentLoop = readFileSync("src/ai/runtime/agentLoop.ts", "utf8");
+assert.match(agentLoop, /ensureSinglePeriodPrefix/);
+assert.match(agentLoop, /createPeriodPrefixGate/);
+assert.equal(agentLoop.includes("if (opts.preamble) enqueue(opts.preamble)"), false);

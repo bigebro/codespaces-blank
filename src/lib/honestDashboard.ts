@@ -84,6 +84,9 @@ export function buildDataTrust(grades: GradeLike[] = [], purchasePct?: number): 
   };
 }
 
+export const TRUST_PENDING_LINE = "—";
+export const TRUST_EMPTY_LINE = "Хэмжигдсэн бараа алга";
+
 export function estimateLine(t: { total: number; verified: number; remaining: number }) {
   return `Тооцоолсон, ${t.total} бараанаас ${t.verified} баталгаажсан, ${t.remaining} ажил үлдсэн`;
 }
@@ -163,7 +166,7 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
 }
 
 /** Самбар болон overview-ийн нэг эх сурвалж: бараа тус бүрийн статус + түүнээс гарсан тоо. */
-export function dashboardTrust(analytics: { grades?: GradeLike[]; data_trust?: Partial<DataTrust> | null } | null | undefined) {
+export function dashboardTrust(analytics: { grades?: GradeLike[] | null; data_trust?: Partial<DataTrust> | null } | null | undefined) {
   const grades = analytics?.grades || [];
   const items = itemStatusList(grades);
   const summary = summarizeTrust({
@@ -171,6 +174,28 @@ export function dashboardTrust(analytics: { grades?: GradeLike[]; data_trust?: P
     data_trust: grades.length ? { purchase_pct: analytics?.data_trust?.purchase_pct } : analytics?.data_trust,
   });
   return { items, summary };
+}
+
+/** grades эсвэл data_trust ирсэн үед л тоо мэдэгдэж байгаа. Ачааллах/хоосон объект дээр 0 гэж үзэхгүй. */
+export function isTrustReady(
+  analytics: { grades?: GradeLike[] | null; data_trust?: Partial<DataTrust> | null } | null | undefined,
+): boolean {
+  if (!analytics) return false;
+  if (Array.isArray(analytics.grades)) return true;
+  return hasTrustCounts(analytics.data_trust);
+}
+
+/** Самбар дээр харуулах мөр: тоо мэдэгдээгүй бол «—», бараа алга бол «Хэмжигдсэн бараа алга». */
+export function trustEstimateDisplay(
+  analytics: { grades?: GradeLike[] | null; data_trust?: Partial<DataTrust> | null } | null | undefined,
+  loading = false,
+): string {
+  // Ачааллаж байгаа ч бэлэн өгөгдөл байвал түүнийг харуулна. Зөвхөн мэдэгдэхгүй үед «—».
+  if (loading && !isTrustReady(analytics)) return TRUST_PENDING_LINE;
+  if (!isTrustReady(analytics)) return TRUST_PENDING_LINE;
+  const summary = dashboardTrust(analytics).summary;
+  if (summary.total === 0) return TRUST_EMPTY_LINE;
+  return summary.estimate;
 }
 
 export function overviewStatusBlock(board: { items: ItemStatus[]; summary: ReturnType<typeof summarizeTrust> }) {
@@ -197,7 +222,7 @@ export function unlockLine(purchaseValue: number, theoMoney = 0) {
     return "Худалдан авалт алга. Энэ мөр үнэ баталгаажуулах ажил биш.";
   }
   return `Энэ засвар ${Math.round(Number(purchaseValue) || 0).toLocaleString()}₮-ийн өртгийг баталгаажуулна`;
-  
+
 }
 
 export function topFixActions<T extends GradeLike>(rows: T[], limit = 3) {

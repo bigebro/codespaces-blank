@@ -99,6 +99,8 @@ assert.equal(month.summary.estimate, "Тооцоолсон, 3 бараанаас
 
 const finance = readFileSync("src/features/finance/FinanceTab.tsx", "utf8");
 assert.match(finance, /dashboardTrust\(liveAnalytics\)/);
+assert.match(finance, /trustEstimateDisplay\(liveAnalytics, loading\)/);
+assert.equal(finance.includes("{trustSummary.estimate}"), false);
 const overview = readFileSync("src/ai/agents/overview.ts", "utf8");
 assert.match(overview, /dashboardTrust\(/);
 assert.match(overview, /overviewStatusBlock\(board\)/);

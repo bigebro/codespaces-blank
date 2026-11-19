@@ -97,3 +97,57 @@ export function resolveOverviewPeriod(
 export function overviewDateLine(value: OverviewPeriod | string) {
   return typeof value === "string" ? `Өнөөдөр (${value})` : value.label;
 }
+
+
+function escapeRe(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Хариултын эхэнд хугацааны мөрийг нэг л удаа үлдээнэ (систем эсвэл модель давхар бичсэн ч). */
+export function ensureSinglePeriodPrefix(text: string, label: string): string {
+  const line = String(label || "").trim();
+  const body = String(text ?? "");
+  if (!line) return body;
+  const leading = new RegExp(`^(?:\\s*${escapeRe(line)}\\s*)+`);
+  const rest = body.replace(leading, "").replace(/^\s+/, "");
+  return rest ? `${line}\n\n${rest}` : `${line}\n\n`;
+}
+
+/** Стрим дээр хугацааны мөрийг нэг удаа нэмж, модель давхар бичвэл хасна. */
+export function createPeriodPrefixGate(label: string) {
+  const line = String(label || "").trim();
+  let buf = "";
+  let done = false;
+
+  return {
+    push(chunk: string): string {
+      if (!line) return chunk;
+      if (done) return chunk;
+      buf += chunk;
+      const trimmed = buf.replace(/^\s+/, "");
+      if (!trimmed) return "";
+      if (trimmed.length < line.length && line.startsWith(trimmed)) return "";
+      const out = ensureSinglePeriodPrefix(buf, line);
+      buf = "";
+      done = true;
+      return out;
+    },
+    flush(): string {
+      if (done) {
+        const out = buf;
+        buf = "";
+        return out;
+      }
+      if (!line) {
+        const out = buf;
+        buf = "";
+        done = true;
+        return out;
+      }
+      const out = ensureSinglePeriodPrefix(buf, line);
+      buf = "";
+      done = true;
+      return out;
+    },
+  };
+}

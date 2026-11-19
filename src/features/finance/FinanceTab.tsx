@@ -23,7 +23,7 @@ import UnexplainedGaps from "./UnexplainedGaps";
 import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
-import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, parsePct } from "@/lib/honestDashboard";
+import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustEstimateDisplay } from "@/lib/honestDashboard";
 
 // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
 function cleanString(str: string) {
@@ -120,7 +120,9 @@ export default function FinanceTab({
     Record<string, number>
   >({});
 
+  const trustReady = isTrustReady(liveAnalytics);
   const trustSummary = dashboardTrust(liveAnalytics).summary;
+  const estimateText = trustEstimateDisplay(liveAnalytics, loading);
   // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
   const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
@@ -139,7 +141,7 @@ export default function FinanceTab({
   return (
     <>
       <div className="space-y-6">
-        {liveAnalytics && (
+        {trustReady && (
           <TruthMeter
             pct={trustSummary.verified_pct}
             tone={trustSummary.tone}
@@ -499,7 +501,7 @@ export default function FinanceTab({
                       onClick={() => {
             if (tenantInfo?.plan === "starter") {
                setUpsellFeature?.("E-Tax СТ-2 татварын тайлан экспортлох");
-              setShowCheckoutModal?.(true); 
+              setShowCheckoutModal?.(true);
               return;
             }
               exportAuditExcel(liveAnalytics, activeClient, startDate, endDate);
@@ -516,7 +518,7 @@ export default function FinanceTab({
           <div className="bg-zinc-800/60 border-2 border-zinc-700 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-             
+
                 <h4 className="text-base font-black text-zinc-300">
                   Санхүүгийн ашиг ба өртгийн тооцоолол түгжигдсэн
                 </h4>
@@ -569,9 +571,9 @@ export default function FinanceTab({
                 <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
                   Өртөг
                 </p>
-                {(() => {
-                  const verified = Number(liveAnalytics?.data_trust?.verified ?? 0);
-                  const total = Number(liveAnalytics?.data_trust?.total ?? 0);
+                {trustReady && (() => {
+                  const verified = Number(trustSummary.verified ?? 0);
+                  const total = Number(trustSummary.total ?? 0);
                   const label =
                     verified === 0
                       ? "Жорын онолоор"
@@ -606,16 +608,18 @@ export default function FinanceTab({
                 {Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮
               </span>
               <span className="text-xs text-zinc-300 mt-1 block">
-                {liveAnalytics?.data_trust
-                  ? Number(liveAnalytics.data_trust.verified) > 0
-                    ? `${liveAnalytics.data_trust.total} бараанаас ${liveAnalytics.data_trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${liveAnalytics.data_trust.purchase_pct}%)`
-                    : `${liveAnalytics.data_trust.total} бараанаас баталгаажсан нь алга`
-                  : "Баталгаажсан барааны бодит өртөг"}
+                {trustReady
+                  ? trustSummary.verified > 0
+                    ? `${trustSummary.total} бараанаас ${trustSummary.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${trustSummary.purchase_pct}%)`
+                    : trustSummary.total > 0
+                      ? `${trustSummary.total} бараанаас баталгаажсан нь алга`
+                      : "—"
+                  : "—"}
               </span>
               <span className="text-xs text-amber-200 mt-1 block">
                 Дутуу, шалгах барааны онолын өртөг: {Math.round(unverifiedTheo).toLocaleString()}₮
               </span>
-              <span className="text-xs text-zinc-400 mt-1 block">{trustSummary.estimate}</span>
+              <span className="text-xs text-zinc-400 mt-1 block">{estimateText}</span>
             </div>
 
             {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
@@ -734,7 +738,7 @@ export default function FinanceTab({
                   <span className="text-zinc-400 block">
                     Дутуу, шалгах барааны онолын өртөг
                   </span>
-                  <span className="text-xs text-zinc-500">{trustSummary.estimate}</span>
+                  <span className="text-xs text-zinc-500">{estimateText}</span>
                 </div>
                 <span className="font-bold text-amber-200 font-mono">
                   {Math.round(unverifiedTheo).toLocaleString()} ₮

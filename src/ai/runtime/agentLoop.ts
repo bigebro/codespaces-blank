@@ -7,6 +7,7 @@ import { getConversationThread, recordChatMessage } from "@/ai/memory/thread.man
 import { AgentContext } from "@/types/agent.types";
 import { createNameScrubber, scrubInternalNames } from "@/ai/runtime/scrubToolNames";
 import { MN_BUSINESS_SPELLING_NOTE, createSpellingFixer, fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
+import { createPeriodPrefixGate, ensureSinglePeriodPrefix } from "@/lib/overviewPeriod";
 
 type ModelPart = Record<string, unknown>;
 
@@ -104,7 +105,16 @@ export async function runToolAgent(opts: {
       };
       const flushSpelling = () => enqueueRaw(spelling.flush());
       try {
-        if (opts.preamble) enqueue(opts.preamble);
+        const periodLabel = String(opts.preamble || "").trim();
+        const prefixGate = createPeriodPrefixGate(periodLabel);
+        const enqueueModel = (piece: string) => {
+          const released = prefixGate.push(piece);
+          if (released) enqueue(released);
+        };
+        const flushPrefix = () => {
+          const released = prefixGate.flush();
+          if (released) enqueue(released);
+        };
         const historyPromise = getConversationThread(opts.context.clientId, 6);
         const ai = getGenAI();
         const history = sanitizeHistory((await historyPromise) as { role?: string; parts?: ModelPart[] }[]);
@@ -127,7 +137,7 @@ export async function runToolAgent(opts: {
         let attemptSent = false;
 
         const readModel = async (thinking: boolean) => {
-          
+
           attemptSent = false;
           const stream = await ai.models.generateContentStream({
             model: MODELS.flash,
@@ -169,12 +179,15 @@ export async function runToolAgent(opts: {
             if (delta) text += delta;
             if (delta && !sawCall) {
               if (!streamed) streamed = true;
-              else if (text === delta) enqueue("\n");
+              else if (text === delta) enqueueModel("\n");
               attemptSent = true;
-              enqueue(scrubber.push(delta));
+              enqueueModel(scrubber.push(delta));
             }
           }
-          if (attemptSent) enqueue(scrubber.flush());
+          if (attemptSent) {
+            enqueueModel(scrubber.flush());
+            flushPrefix();
+          }
 
           const seen = new Set<string>();
           const calls: { name: string; args: Record<string, unknown> }[] = [];
@@ -202,7 +215,9 @@ export async function runToolAgent(opts: {
           const { text, modelParts, calls } = outcome;
 
           if (calls.length === 0) {
-            finalText = (opts.preamble || "") + text;
+            finalText = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
+            if (!streamed && finalText) enqueue(finalText);
+            else flushPrefix();
             break;
           }
 
