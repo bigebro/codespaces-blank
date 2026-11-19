@@ -104,7 +104,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   else if (Number(row.gap_money) === 0) facts.push("Үнэ алга. Тооны зөрүүг мөнгөөр харуулахгүй.");
   else facts.push(`Мөнгөн зөрүү ${money(Number(row.gap_money))}.`);
   if (row.status === "Check" && gap != null && Math.abs(gap) > 0.05) {
-    facts.push("Шар мөр тул энэ зөрүү Алдагдал, Илүүдэл, Шалтгаангүй зөрүүгийн нийт дүнд ороогүй.");
+    facts.push("Шар мөр тул энэ зөрүү Алдагдал, Илүүдэл, Тайлбаргүй зөрүүгийн нийт дүнд ороогүй.");
   }
 
   if (action === "date") {

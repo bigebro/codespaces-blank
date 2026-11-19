@@ -44,6 +44,7 @@ import {
   ShoppingCart,
   ChefHat,
   Smartphone,
+  Loader2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1075,6 +1076,9 @@ function KioskPage() {
   const confirmRef = useRef<(value: boolean) => void>(() => {});
   const openingSaveRef = useRef(false);
   const closeSaveRef = useRef(false);
+  const startSaveRef = useRef(false);
+  const pinCheckRef = useRef(false);
+  const [verifyingPin, setVerifyingPin] = useState(false);
   const [askText, setAskText] = useState<string | null>(null);
   useEffect(() => {
     pushNote = (text) => setNoteText(text);
@@ -1803,43 +1807,54 @@ const initKioskContext = async () => {
 
   const handleVerifyPin = async () => {
     if (!selectedWorker) return;
-
-    const pinRes = await fetch("/api/kiosk/pin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        workerId: selectedWorker.id,
-        pin,
-        deviceToken: localStorage.getItem("kiosk_device_token") || "",
-      }),
-    });
-    const pinJson = await pinRes.json().catch(() => ({ valid: false }));
-
-    if (!pinRes.ok || !pinJson.valid) {
-      setMsg(pinJson.message || "Буруу PIN код!");
-      setPin("");
-      return;
-    }
-    if (pinJson.workerToken) localStorage.setItem("kiosk_worker_token", pinJson.workerToken);
-        const session = await kioskBootstrap();
-    if (session.ingredients) setIngredients(session.ingredients);
-    if (session.aliases) setLearnedAliases(session.aliases);
-    if (session.recipes) setRecipesList(session.recipes);
-    if (session.todayLogs) setTodayLogs(session.todayLogs);
-    const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker, session);
-    setTasks(liveTasks);
-    if (!session.activeShift) {
-      setStep("shift_handover");
-    } else {
-      setActiveShift(session.activeShift);
-      setStep("menu");
-    }
-
-    setPin("");
+    if (!takeSaveLock(pinCheckRef)) return;
+    setVerifyingPin(true);
     setMsg("");
+    try {
+      const pinRes = await fetch("/api/kiosk/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workerId: selectedWorker.id,
+          pin,
+          deviceToken: localStorage.getItem("kiosk_device_token") || "",
+        }),
+      });
+      const pinJson = await pinRes.json().catch(() => ({ valid: false }));
+
+      if (!pinRes.ok || !pinJson.valid) {
+        setMsg(pinJson.message || "Буруу PIN код!");
+        setPin("");
+        return;
+      }
+      if (pinJson.workerToken) localStorage.setItem("kiosk_worker_token", pinJson.workerToken);
+      const session = await kioskBootstrap();
+      if (session.ingredients) setIngredients(session.ingredients);
+      if (session.aliases) setLearnedAliases(session.aliases);
+      if (session.recipes) setRecipesList(session.recipes);
+      if (session.todayLogs) setTodayLogs(session.todayLogs);
+      const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker, session);
+      setTasks(liveTasks);
+      if (!session.activeShift) {
+        setStep("shift_handover");
+      } else {
+        setActiveShift(session.activeShift);
+        setStep("menu");
+      }
+
+      setPin("");
+      setMsg("");
+    } catch (err: any) {
+      setMsg(`Нэвтэрч чадсангүй: ${err?.message || "Сүлжээ шалгаад дахин оролдоно уу."}`);
+      setPin("");
+    } finally {
+      releaseSaveLock(pinCheckRef);
+      setVerifyingPin(false);
+    }
   };
   const handleStartShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!takeSaveLock(startSaveRef)) return;
     setIsAiLoading(true);
 
     let startImgUrl = null;
@@ -1854,7 +1869,6 @@ const initKioskContext = async () => {
         daily_tasks_checklist: tasks,
       });
       setActiveShift(saved.shift);
-      setIsAiLoading(false);
       try {
         const plan = await kioskOps("cycle.plan", { activeShiftId: saved.shift?.id });
         setCountStreak(Number(plan.streak) || 0);
@@ -1869,6 +1883,9 @@ const initKioskContext = async () => {
       }
     } catch (err: any) {
       setMsg(`Алдаа: ${err.message || "Ээлж үүсгэж чадсангүй."}`);
+    } finally {
+      // Ээлж нээгдэж, дараагийн дэлгэц гартал хүлээлгэ харагдана.
+      releaseSaveLock(startSaveRef);
       setIsAiLoading(false);
     }
   };
@@ -1898,7 +1915,7 @@ const initKioskContext = async () => {
             incident_type: "previous_shift_damage",
             reported_against_worker: incidentWorker || "Өмнөх ээлжийн ажилтан",
             image_url: damageImgUrl,
-            notes: `Өмнөх ээлжийн алдагдал: ${incidentNote || "Шалтгаангүй хаягдал илэрсэн"}`,
+            notes: `Өмнөх ээлжийн алдагдал: ${incidentNote || "Тайлбаргүй зөрүү илэрсэн"}`,
             is_food: false,
           },
         ],
@@ -2132,13 +2149,13 @@ const handleCloseShift = async () => {
             {/* Салбарын нэр */}
             {tenantClientId ? (
               <h1 className="text-sm sm:text-base font-black tracking-tight text-white uppercase leading-none">
-                {tenantClientId} KIOSK
+                {tenantClientId} · Таблет
               </h1>
             ) : (
               <div className="h-4 w-28 bg-zinc-800  rounded" />
             )}
             <p className="text-xs sm:text-xs text-zinc-200 font-bold uppercase mt-1">
-              Smart Operations
+              Ээлжийн самбар
             </p>
           </div>
         </div>
@@ -2315,7 +2332,7 @@ const handleCloseShift = async () => {
             </div>
 
             <div className="text-center text-xs text-zinc-500 pb-1 shrink-0">
-              {tenantClientId} Kitchen Kiosk • Voice & AI Powered
+              {tenantClientId} · Гал тогооны таблет
             </div>
           </div>
         )}
@@ -2376,7 +2393,7 @@ const handleCloseShift = async () => {
                 }}
                 className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-700 text-zinc-300 rounded-2xl text-sm sm:text-base font-black shadow-md flex items-center justify-center select-none transition-transform cursor-pointer"
               >
-                Clear
+                Арилгах
               </button>
 
               <button
@@ -2396,13 +2413,15 @@ const handleCloseShift = async () => {
                   e.preventDefault();
                   handleVerifyPin();
                 }}
-                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform cursor-pointer"
+                disabled={verifyingPin}
+                className="w-full h-full min-h-[50px] sm:min-h-[56px] bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 rounded-2xl text-base sm:text-lg font-black  flex items-center justify-center select-none transition-transform cursor-pointer disabled:opacity-60 disabled:cursor-wait gap-2"
               >
-                OK
+                {verifyingPin ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                {verifyingPin ? "Шалгаж байна..." : "Нэвтрэх"}
               </button>
             </div>
             <p className="text-center text-xs text-zinc-500 pt-2">
-              PIN мартсан бол эзэн самбараас солино.
+              PIN мартсан бол эзэн самбарын «Ажлын Даалгавар» хэсгээс солино.
             </p>
             <div className="text-center space-y-1 w-full pt-1 shrink-0">
               <button
@@ -2485,8 +2504,9 @@ const handleCloseShift = async () => {
               <button
                 type="submit"
                 disabled={isAiLoading}
-                className="w-full bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 font-black py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 font-black py-3.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
               >
+                {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 <span>
                   {isAiLoading
                     ? "Эхлүүлж байна..."
@@ -3761,7 +3781,7 @@ const handleCloseShift = async () => {
                         ? "ЗУРАГ ДАРЖ БАТЛАХ"
                         : kioskMode === "purchase" && !noEbarimtFile
                           ? "БАТЛАХ (Зураггүй оруулах)"
-                          : "БАТЛАХ (OK)"}
+                          : "БАТЛАХ"}
                   </button>
                   {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
                   {kioskMode === "purchase" && (
@@ -4774,8 +4794,9 @@ const handleCloseShift = async () => {
                     type="button"
                     onClick={handleCloseShift}
                     disabled={isAiLoading || !posZFile || actualCashDrawer.trim() === ""}
-                    className="flex-1 bg-white text-zinc-950 font-black py-3 rounded-xl text-xs disabled:opacity-40"
+                    className="flex-1 bg-white text-zinc-950 font-black py-3 rounded-xl text-xs disabled:opacity-40 flex items-center justify-center gap-2"
                   >
+                    {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     {isAiLoading ? "Хааж байна..." : "Хаах"}
                   </button>
                 </div>

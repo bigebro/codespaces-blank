@@ -68,6 +68,15 @@ export default function ImportTab({
   const [kitchenPasteText, setKitchenPasteText] = useState("");
   const [ingredientsPasteText, setIngredientsPasteText] = useState("");
   const [recipesPasteText, setRecipesPasteText] = useState("");
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
+  // Дэлгэцийг хаадаг window.alert-ын оронд дэлгэц дээр үлдэх, хуулж болох мэдэгдэл.
+  const alert = (text: string) => {
+    const clean = String(text ?? "").trim();
+    setNotice({
+      text: clean,
+      error: /алдаа|чадсангүй|хадгалаагүй|олдсонгүй|буруу/i.test(clean),
+    });
+  };
   const [productsPasteText, setProductsPasteText] = useState("");
   const [overwriteSales, setOverwriteSales] = useState(false);
   const [overwritePurchases, setOverwritePurchases] = useState(false);
@@ -1055,71 +1064,72 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
     setLoading(true);
     try {
-      const rows = ingredientsPasteText.replace(/\r/g, "").trim().split("\n");
+      const rows = ingredientsPasteText.replace(/\r/g, "").split("\n");
       const itemsMap = new Map<string, any>();
-      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      const rowErrors: string[] = [];
+      // Мөрийг Tab эсвэл 2+ зайгаар салгана. Tab үед сүүлийн хоосон нүдийг хадгална.
       const splitRow = (line: string) => {
+        if (line.includes("\t"))
+          return line.replace(/\s+$/, (tail) => tail.replace(/[^\t]/g, "")).split("\t").map((c) => c.trim());
         const trimmed = line.trim();
-        if (trimmed.includes("\t"))
-          return trimmed.split("\t").map((c) => c.trim());
         if (/\s{2,}/.test(trimmed))
           return trimmed.split(/\s{2,}/).map((c) => c.trim());
         return [trimmed];
       };
-      rows.forEach((row) => {
+      const toNum = (cell: string) => {
+        const cleaned = (cell || "").replace(/[^0-9.-]/g, "");
+        if (!cleaned) return NaN;
+        return Number(cleaned);
+      };
+      rows.forEach((row, idx) => {
         if (!row.trim()) return;
+        const lineNo = idx + 1;
         const cols = splitRow(row);
-        // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
-        if (cols.length < 2) {
-          alert(
-            `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
-          );
-          setLoading(false);
+        const rawName = cols[0]?.trim() || "";
+        if (
+          !rawName ||
+          rawName.toLowerCase().includes("item") ||
+          rawName.toLowerCase().includes("нэр")
+        )
+          return;
+        // Загвар: Нэр, Нэгж, Нэгжийн үнэ, Par. Яг 4 багана шаардана.
+        if (cols.length !== 4) {
+          rowErrors.push(`${lineNo}-р мөр: ${cols.length} багана байна, 4 багана хэрэгтэй ("${row.trim()}")`);
           return;
         }
-        if (cols.length >= 2) {
-          const rawName = cols[0]?.trim() || "";
-          if (
-            !rawName ||
-            rawName.toLowerCase().includes("item") ||
-            rawName.toLowerCase().includes("нэр")
-          )
-            return;
-
-          let unit = "ш";
-          let price = 0;
-          let par = 0;
-
-          const col1IsNum = !isNaN(
-            parseFloat(cols[1]?.replace(/[^0-9.-]/g, "")),
-          );
-          const col2IsNum = cols[2]
-            ? !isNaN(parseFloat(cols[2]?.replace(/[^0-9.-]/g, "")))
-            : false;
-
-          if (col1IsNum && !col2IsNum) {
-            price = parseFloat(cols[1]?.replace(/[^0-9.-]/g, "")) || 0;
-            unit = cols[2]?.replace(/per\s*|1\s*/gi, "").trim() || "ш";
-            par = cols[3]
-              ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, "")) || 0
-              : 0;
-          } else {
-            unit = cols[1]?.replace(/per\s*|1\s*/gi, "").trim() || "ш";
-            price = parseFloat(cols[2]?.replace(/[^0-9.-]/g, "")) || 0;
-            par = cols[3]
-              ? parseFloat(cols[3]?.replace(/[^0-9.-]/g, "")) || 0
-              : 0;
-          }
-
-          itemsMap.set(rawName.toLowerCase().trim(), {
-            client_id: activeClient,
-            name: rawName,
-            unit: unit,
-            unit_price: price,
-            par_level: par,
-          });
+        const unit = (cols[1] || "").replace(/per\s*|1\s*/gi, "").trim();
+        if (!unit || /^[0-9\s.,₮-]+$/.test(cols[1] || "")) {
+          rowErrors.push(`${lineNo}-р мөр: 2-р багана нэгж байх ёстой (мл/гр/ш)`);
+          return;
         }
+        const price = toNum(cols[2]);
+        if (!Number.isFinite(price) || price < 0) {
+          rowErrors.push(`${lineNo}-р мөр: 3-р багана нэгжийн үнэ байх ёстой`);
+          return;
+        }
+        const parCell = (cols[3] || "").trim();
+        const par = parCell === "" ? 0 : toNum(parCell);
+        if (!Number.isFinite(par) || par < 0) {
+          rowErrors.push(`${lineNo}-р мөр: 4-р багана хэвийн нөөц (Par) тоо байх ёстой`);
+          return;
+        }
+        itemsMap.set(rawName.toLowerCase().trim(), {
+          client_id: activeClient,
+          name: rawName,
+          unit,
+          unit_price: price,
+          par_level: par,
+        });
       });
+
+      if (rowErrors.length > 0) {
+        const shown = rowErrors.slice(0, 8).join("\n");
+        const more = rowErrors.length > 8 ? `\n... нийт ${rowErrors.length} мөр` : "";
+        alert(
+          `Хадгалаагүй. Загвартай таарахгүй мөр байна:\n${shown}${more}\n\nБагана: Барааны нэр, Нэгж, Нэгжийн үнэ, Хэвийн нөөц (Par). TAB эсвэл 2+ зайгаар салгана.`,
+        );
+        return;
+      }
 
       const itemsToUpsert = Array.from(itemsMap.values());
       if (itemsToUpsert.length > 0) {
@@ -1648,6 +1658,27 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
   return (
     <>
+      {notice && (
+        <div
+          role="status"
+          className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] w-[min(92vw,640px)] rounded-2xl border p-4 shadow-2xl ${
+            notice.error
+              ? "bg-rose-950 border-rose-800 text-rose-100"
+              : "bg-zinc-900 border-zinc-700 text-zinc-100"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <p className="flex-1 text-sm whitespace-pre-line select-text break-words">{notice.text}</p>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="text-xs font-bold text-zinc-300 hover:text-white shrink-0"
+            >
+              Хаах
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <div className="flex items-center justify-between gap-2 mb-3">

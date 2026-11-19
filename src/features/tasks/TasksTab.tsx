@@ -3,6 +3,7 @@
 import React from "react";
 import { CheckSquare, Activity, Camera } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import StaffPinReset from "./StaffPinReset";
 
 interface TasksTabProps {
   activeClient: string;
@@ -643,6 +644,9 @@ export default function TasksTab({
             </div>
           </div>
         </div>
+      </div>
+      <div className="mt-8">
+        <StaffPinReset workers={workersList} />
       </div>
     </>
   );

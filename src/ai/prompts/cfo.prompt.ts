@@ -1,10 +1,11 @@
+import { ubDay } from "@/lib/ubDate";
 // src/ai/prompts/cfo.prompt.ts
 import { BusinessVitals } from "@/core/packages/pkg_vitals";
 
 export function buildCfoSystemPrompt(vitals: BusinessVitals, clientName: string) {
   const now = new Date();
-  const currentIsoDate = now.toISOString().split("T")[0];
-  const currentYear = now.getFullYear();
+  const currentIsoDate = ubDay(now); // Asia/Ulaanbaatar өдөр, UTC биш
+  const currentYear = currentIsoDate.slice(0, 4);
 
   return `
 You are the Chief Financial Officer (CFO) and Forensic Auditor for "${clientName}".

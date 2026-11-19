@@ -5,6 +5,7 @@ import { MODELS } from "@/lib/ai/models";
 import { executeAiTool } from "@/ai/tools/execution.tools";
 import { getConversationThread, recordChatMessage } from "@/ai/memory/thread.manager";
 import { AgentContext } from "@/types/agent.types";
+import { createNameScrubber, scrubInternalNames } from "@/ai/runtime/scrubToolNames";
 
 type ModelPart = Record<string, unknown>;
 
@@ -109,6 +110,8 @@ export async function runToolAgent(opts: {
             contents.push({ role: "user", parts: [{ text: latest }] });
           }
         }
+        const toolNames = (opts.tools || []).map((t) => t.name).filter((n): n is string => Boolean(n));
+        const scrubber = createNameScrubber(toolNames);
         const proposalCards: unknown[] = [];
         let finalText = "";
         let streamed = false;
@@ -160,9 +163,10 @@ export async function runToolAgent(opts: {
               if (!streamed) streamed = true;
               else if (text === delta) enqueue("\n");
               attemptSent = true;
-              enqueue(delta);
+              enqueue(scrubber.push(delta));
             }
           }
+          if (attemptSent) enqueue(scrubber.flush());
 
           const seen = new Set<string>();
           const calls: { name: string; args: Record<string, unknown> }[] = [];
@@ -236,7 +240,7 @@ export async function runToolAgent(opts: {
         after(() => {
           const writes: Promise<unknown>[] = [];
           if (finalText.trim()) {
-            writes.push(recordChatMessage(opts.context.clientId, "ai", finalText));
+            writes.push(recordChatMessage(opts.context.clientId, "ai", scrubInternalNames(finalText, toolNames)));
           }
           return Promise.all(writes).catch(console.error);
         });

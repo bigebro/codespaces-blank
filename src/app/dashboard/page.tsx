@@ -46,6 +46,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useRouter } from "next/navigation";
+import GettingStarted from "@/features/onboarding/GettingStarted";
 import {
   autoCategorizeProduct,
   evaluateSaleItem,
@@ -294,6 +295,15 @@ function Home() {
     | "ai_cfo"
     | "alerts"
   >("dashboard");
+  const [tabFromUrlReady, setTabFromUrlReady] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!tabFromUrlReady) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("tab") === activeTab) return;
+    url.searchParams.set("tab", activeTab);
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [activeTab, tabFromUrlReady]);
   // 2. Динамик Тохиргооны State-үүд
   const [fixedAssets, setFixedAssets] = useState<any[]>([]);
   const [fixedOpexList, setFixedOpexList] = useState<any[]>([]);
@@ -358,6 +368,7 @@ function Home() {
   const [companyRoles, setCompanyRoles] = useState<any[]>([]);
 
   const [myPin, setMyPin] = useState("");
+  const [myPinNotice, setMyPinNotice] = useState<{ text: string; error: boolean } | null>(null);
 
   const [showWasteGuideModal, setShowWasteGuideModal] = useState(false);
   // 1. Давхардлыг арилгаж, хуучныг цэвэрлэх 4 төлөв
@@ -1542,14 +1553,22 @@ function Home() {
         setIsOwner(userIsOwner);
         setUserRole(userIsOwner ? "owner" : rawRole); // Бааз дээрх 'Тогооч', 'Бармен' гэдэг нэр нь шууд хадгалагдана
 
+        // URL-ын ?tab=... байвал тэр цэсийг нээнэ (хуваалцах, шинэчлэхэд хадгалагдана).
+        const urlTab =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("tab")
+            : null;
+        const ownerTabs = ["dashboard", "operations", "sales", "inventory", "import", "tasks", "settings", "ai_cfo", "alerts"] as const;
         if (userIsOwner) {
-          setActiveTab("dashboard");
+          const wanted = ownerTabs.find((t) => t === urlTab);
+          setActiveTab(wanted || "dashboard");
         } else {
           setActiveTab("operations");
         }
 
         fetchDatabaseData(realBranch);
       }
+      setTabFromUrlReady(true);
       setIsAuthChecking(false);
     }
   };
@@ -2550,7 +2569,7 @@ function Home() {
                   {user.email}
                 </p>
                 <p className="text-zinc-500 text-xs uppercase font-bold mt-0.5">
-                  {userRole}
+                  {userRole === "owner" ? "Эзэн" : userRole === "manager" ? "Менежер" : userRole === "staff" ? "Ажилтан" : userRole}
                 </p>
               </div>
               <button
@@ -2604,13 +2623,13 @@ function Home() {
               onClick={() => setIsLive(false)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isLive ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"}`}
             >
-              Demo
+              Жишээ
             </button>
             <button
               onClick={() => setIsLive(true)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isLive ? "bg-zinc-800 text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
             >
-              <Database className="h-3 w-3" /> Live DB
+              <Database className="h-3 w-3" /> Бодит өгөгдөл
             </button>
           </div>
         </header>
@@ -2709,6 +2728,10 @@ function Home() {
                             : `Багц ${tenantInfo.daysLeft} хоногийн дараа дуусна. Эрхээ сунгана уу.`}
                         </div>
                       )}
+                    <GettingStarted
+                      clientId={activeClient}
+                      onOpenTab={(tab) => setActiveTab(tab)}
+                    />
                     <FinanceTab
                       isLive={isLive}
                       activeClient={activeClient}
@@ -2772,10 +2795,10 @@ function Home() {
                     <div>
                       {/* 🔐 ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
                       {userRole !== "owner" && (
-                        <div className="bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800 mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-4">
                           <div>
                             <p className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-                             Миний Kiosk PIN код
+                             Миний таблетын PIN код
                             </p>
                             <p className="text-sm text-zinc-400 mt-0.5">
                               Гал тогооны таблет дээр нэвтрэх нууц код.
@@ -2800,11 +2823,10 @@ function Home() {
                               type="button"
                               onClick={async () => {
                                 if (myPin.length !== 4) {
-                                  alert(
-                                    "PIN код заавал 4 оронтой тоо байх ёстой!",
-                                  );
+                                  setMyPinNotice({ text: "PIN код 4 оронтой тоо байх ёстой.", error: true });
                                   return;
                                 }
+                                setMyPinNotice(null);
                                 const {
                                   data: { session },
                                 } = await supabase.auth.getSession();
@@ -2818,10 +2840,10 @@ function Home() {
                                 });
                                 const data = await res.json().catch(() => ({}));
                                 if (!res.ok) {
-                                  alert(data.message || "PIN хадгалж чадсангүй.");
+                                  setMyPinNotice({ text: data.message || "PIN хадгалж чадсангүй.", error: true });
                                 } else {
                                   setMyPin("");
-                                  alert("PIN нууцлагдсан. Таблет дээр шинэ кодоо ашиглана уу.");
+                                  setMyPinNotice({ text: "PIN хадгалагдлаа. Таблет дээр шинэ кодоо ашиглана уу.", error: false });
                                 }
                               }}
                               className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-sm transition"
@@ -2829,6 +2851,14 @@ function Home() {
                               Шинэчлэх
                             </button>
                           </div>
+                          {myPinNotice && (
+                            <p
+                              role="status"
+                              className={`w-full text-sm font-bold ${myPinNotice.error ? "text-rose-300" : "text-emerald-300"}`}
+                            >
+                              {myPinNotice.text}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -3290,7 +3320,7 @@ function Home() {
                               Алдагдлын Шинжилгээний Гарын Авлага
                             </h3>
                             <p className="text-sm text-zinc-400 mt-1.5 leading-relaxed">
-                              Систем дээр үүссэн "Шалтгаангүй алдагдал" нь шууд
+                              Систем дээр үүссэн "Тайлбаргүй зөрүү" нь шууд
                               хулгай гэсэн үг биш юм. Та менежерийн хувиар
                               дараах 4 нөхцөлийг шалгаж эрсдэлийг удирдах
                               боломжтой.

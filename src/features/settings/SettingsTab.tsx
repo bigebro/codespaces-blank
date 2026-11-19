@@ -77,6 +77,11 @@ interface SettingsTabProps {
   ) => Promise<void>;
 }
 
+// Хоосон каталогийг «(0)» биш «хоосон» гэж харуулна.
+function catalogCount(n: number) {
+  return n > 0 ? `(${n})` : "(хоосон)";
+}
+
 export default function SettingsTab({
   startDate,
   endDate,
@@ -248,8 +253,8 @@ export default function SettingsTab({
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <Package className="h-4 w-4" /> Түүхий эд (
-                  {ingredients.length})
+                  <Package className="h-4 w-4" /> Түүхий эд{" "}
+                  {catalogCount(ingredients.length)}
                 </span>
               </button>
               <button
@@ -266,8 +271,8 @@ export default function SettingsTab({
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <Coffee className="h-4 w-4" /> Менюний үнэ (
-                  {productsList.length})
+                  <Coffee className="h-4 w-4" /> Менюний үнэ{" "}
+                  {catalogCount(productsList.length)}
                 </span>
               </button>
               <button
@@ -284,12 +289,11 @@ export default function SettingsTab({
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" /> Жорууд (
-                  {
+                  <BookOpen className="h-4 w-4" /> Жорууд{" "}
+                  {catalogCount(
                     Array.from(new Set(recipes.map((r: any) => r.product_name)))
-                      .length
-                  }
-                  )
+                      .length,
+                  )}
                 </span>
               </button>
             </div>

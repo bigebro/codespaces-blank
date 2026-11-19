@@ -19,11 +19,15 @@ export default function TruthMeter({
   tone: toneProp,
   missing,
   check,
+  total,
+  verified,
 }: {
   pct: number;
   tone?: "red" | "yellow" | "green";
   missing: number;
   check: number;
+  total?: number;
+  verified?: number;
 }) {
   const tone = toneProp ?? statusTone(missing, check, 1);
   const width = Math.max(0, Math.min(100, pct));
@@ -36,6 +40,15 @@ export default function TruthMeter({
         <div className={`h-full ${FILL[tone]}`} style={{ width: `${width}%` }} />
       </div>
       <p className="text-xs text-zinc-400 mt-2">{missing} бараа дутуу, {check} бараа шалгах</p>
+      {total === 0 ? (
+        <p className="text-xs text-amber-200 mt-1">
+          Энэ хугацаанд хэмжих бараа алга. Каталог, эхний болон эцсийн тооллого орсны дараа хувь гарна.
+        </p>
+      ) : total != null && total > 0 && verified === 0 ? (
+        <p className="text-xs text-amber-200 mt-1">
+          Баталгаажсан бараа алга. Бараа бүрт эхлэл ба эцсийн тооллого хоёулаа хэрэгтэй.
+        </p>
+      ) : null}
     </div>
   );
 }
