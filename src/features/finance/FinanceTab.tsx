@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { addDaysStr, detectRangeMode, mondayOf, ubDay, type RangeMode } from "@/lib/ubDate";
+import { addDaysStr, mondayOf, ubDay, type RangeMode } from "@/lib/ubDate";
 // 2. САНГУУД:
 import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
@@ -41,6 +41,8 @@ interface FinanceTabProps {
   endDate: string;
   setStartDate: (d: string) => void;
   setEndDate: (d: string) => void;
+  rangeMode: RangeMode;
+  setRangeMode: (m: RangeMode) => void;
   availableMonths: string[];
   handleMonthChange: (ym: string) => void;
   priceSpikeAlerts: any[];
@@ -70,6 +72,8 @@ export default function FinanceTab({
   endDate,
   setStartDate,
   setEndDate,
+  rangeMode,
+  setRangeMode,
   availableMonths,
   handleMonthChange,
   priceSpikeAlerts,
@@ -87,7 +91,6 @@ export default function FinanceTab({
 }: FinanceTabProps) {
   // Огнооны горим: Өдөр / 7 хоног (Даваа-Ням) / Сар. Огноо бүгд Улаанбаатарын цагаар.
   const todayUb = ubDay(new Date());
-  const [rangeMode, setRangeMode] = useState<RangeMode>(() => detectRangeMode(startDate, endDate));
 
   const goDay = (day: string) => {
     const target = day > todayUb ? todayUb : day;

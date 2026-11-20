@@ -11,6 +11,7 @@ import { AgentContext } from "@/types/agent.types";
 import { requireKioskWorker } from "@/lib/kioskAuth";
 import { convertToIngredientUnit } from "@/lib/units";
 import { logTypeLabel } from "@/lib/shiftCycle";
+import { readRequestRange } from "@/lib/analyticsRange";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -798,14 +799,16 @@ ${JSON.stringify(unmatched)}`;
         }
 
         // 🧠 ХЭРЭВ АСУУЛТ АСУУСАН БОЛ -> CFO AGENT АЖИЛЛАНА
+        const dashboardRange = readRequestRange(body);
         const agentContext: AgentContext = {
           clientId,
           userId,
           userRole: "owner",
           workerName,
-          // Owner chat sends the dashboard's selected range (UB day ISO).
-          activeStartDate: body.startDate,
-          activeEndDate: body.endDate,
+          // Самбарын сонгосон Өдөр/7 хоног/Сар. Өдрийн мөрөөр нэг мөр болгоно.
+          activeStartDate: dashboardRange?.startDay ?? body.startDate,
+          activeEndDate: dashboardRange?.endDay ?? body.endDate,
+          rangeMode: dashboardRange?.mode,
         };
 
         try {

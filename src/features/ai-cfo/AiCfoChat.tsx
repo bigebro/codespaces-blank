@@ -10,12 +10,13 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
-import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+import { detectRangeMode, ubDay, type RangeMode } from "@/lib/ubDate";
 
 interface AiCfoChatProps {
   activeClient: string;
   startDate: string;
   endDate: string;
+  rangeMode?: RangeMode;
 }
 
 interface ChatMessage {
@@ -35,6 +36,7 @@ export default function AiCfoChat({
   activeClient,
   startDate,
   endDate,
+  rangeMode,
 }: AiCfoChatProps) {
   const [cfoChatInput, setCfoChatInput] = useState("");
   const [cfoChatHistory, setCfoChatHistory] = useState<ChatMessage[]>([]);
@@ -207,9 +209,10 @@ const fetchChatHistory = useCallback(async () => {
           workerName: "Owner",
           text,
           userRole: "owner",
-          // Самбарын сонгосон Өдөр/7 хоног/Сар. Асуултад хугацаа нэрлээгүй үед overview үүнийг авна.
-          startDate: ubDayStartIso(startDate),
-          endDate: ubDayEndIso(endDate),
+          // Самбарын одоогийн хүрээ (tab солилтсоны дараа ч ижил). Асуултад нэрлэсэн хугацаа үүнийг дарна.
+          startDate: ubDay(startDate),
+          endDate: ubDay(endDate),
+          rangeMode: rangeMode || detectRangeMode(ubDay(startDate), ubDay(endDate)),
         }),
       });
 

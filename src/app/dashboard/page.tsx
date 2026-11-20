@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, startTransition } from "react";
 import { supabase } from "../../lib/supabase";
-import { ubDay, ubDayEndIso, ubDayStartIso } from "../../lib/ubDate";
+import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubDate";
+import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
 // @ts-ignore
@@ -332,6 +333,7 @@ function Home() {
     const lastDay = new Date(y, m, 0).getDate(); // Тухайн сарын сүүлийн өдрийг автоматаар бодно (28, 30, 31)
     return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   });
+  const [rangeMode, setRangeMode] = useState<RangeMode>("month");
 
   const [workerSearchQuery, setWorkerSearchQuery] = useState("");
   // Database States
@@ -340,6 +342,7 @@ function Home() {
   const [inventoryLogs, setInventoryLogs] = useState<any[]>([]);
   const [salesLogs, setSalesLogs] = useState<any[]>([]);
   const [liveAnalytics, setLiveAnalytics] = useState<any>(null);
+  const [liveAnalyticsKey, setLiveAnalyticsKey] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [selectedImageModal, setSelectedImageModal] = useState<{
@@ -1595,18 +1598,31 @@ function Home() {
   // Range бүрийн аналитикийг санах ойд хадгалж, буцаж ороход шууд харуулна.
   const analyticsCacheRef = useRef<Map<string, any>>(new Map());
   const analyticsReqRef = useRef(0);
+  const analyticsSelectedKeyRef = useRef("");
+  const selectedRangeRef = useRef({ start: startDate, end: endDate, mode: rangeMode });
+  selectedRangeRef.current = { start: startDate, end: endDate, mode: rangeMode };
 
   const loadAnalytics = async (client: string, activeStart: string, activeEnd: string) => {
-    const key = `${client}|${activeStart}|${activeEnd}`;
-    const cached = analyticsCacheRef.current.get(key);
-    if (cached) setLiveAnalytics(cached);
+    const startDay = ubDay(activeStart);
+    const endDay = ubDay(activeEnd);
+    const key = rangeKey(client, startDay, endDay);
     const reqId = ++analyticsReqRef.current;
+    analyticsSelectedKeyRef.current = key;
+    const cached = analyticsCacheRef.current.get(key);
+    if (cached) {
+      setLiveAnalytics(cached);
+      setLiveAnalyticsKey(key);
+    } else {
+      // Өөр хүрээний (ж.нь сарын) тоог шинэ Өдөр дээр бүү үлдээ. Ачаалал дуустал «—»/скелетон.
+      setLiveAnalytics(null);
+      setLiveAnalyticsKey(null);
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();
     const token = session?.access_token || "";
     const res = await fetch(
-      `/api/analytics?startDate=${encodeURIComponent(ubDayStartIso(activeStart))}&endDate=${encodeURIComponent(ubDayEndIso(activeEnd))}`,
+      `/api/analytics?startDate=${encodeURIComponent(ubDayStartIso(startDay))}&endDate=${encodeURIComponent(ubDayEndIso(endDay))}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1617,8 +1633,18 @@ function Home() {
     if (!res.ok) return;
     const analData = await res.json();
     analyticsCacheRef.current.set(key, analData);
-    // Хуучин хүсэлт сүүлд ирвэл шинэ range-ийн датаг дарахгүй.
-    if (reqId === analyticsReqRef.current) setLiveAnalytics(analData);
+    // Хуучин хүсэлт эсвэл өөр хүрээний хариу одоогийн сонголтыг дарахгүй.
+    if (
+      shouldApplyAnalytics({
+        reqId,
+        currentReqId: analyticsReqRef.current,
+        requestedKey: key,
+        selectedKey: analyticsSelectedKeyRef.current,
+      })
+    ) {
+      setLiveAnalytics(analData);
+      setLiveAnalyticsKey(key);
+    }
   };
 
   const fetchDatabaseData = async (
@@ -1634,15 +1660,16 @@ function Home() {
       return;
     }
     const tabToLoad = targetTab || activeTab;
+    const range = selectedRangeRef.current;
+    const startDay = ubDay(String(start || range.start));
+    const endDay = ubDay(String(end || range.end));
 
     // Аналитикийг бусад query-тэй зэрэг эхлүүлнэ (өмнө нь хамгийн сүүлд дараалж дууддаг байсан).
     const analyticsPromise =
       includeAnalytics || tabToLoad === "dashboard"
-        ? loadAnalytics(
-            targetClient,
-            String(start || startDate).slice(0, 10),
-            String(end || endDate).slice(0, 10),
-          ).catch((err) => console.error("Error fetching analytics:", err))
+        ? loadAnalytics(targetClient, startDay, endDay).catch((err) =>
+            console.error("Error fetching analytics:", err),
+          )
         : null;
 
     try {
@@ -1664,8 +1691,8 @@ function Home() {
           .order("name", { ascending: true }),
         supabase.from("recipes").select("*").eq("client_id", targetClient),
         (async () => {
-          const fromIso = ubDayStartIso(String(start || startDate).slice(0, 10));
-          const toIso = ubDayEndIso(String(end || endDate).slice(0, 10));
+          const fromIso = ubDayStartIso(startDay);
+          const toIso = ubDayEndIso(endDay);
           const rows: any[] = [];
           for (let offset = 0; offset < 8000; offset += 1000) {
             const { data, error } = await supabase
@@ -1708,7 +1735,7 @@ function Home() {
         setRecipes(recData);
       }
       if (logData) setInventoryLogs(logData);
-      const shiftFrom = new Date(new Date(ubDayStartIso(String(start || startDate).slice(0, 10))).getTime() - 45 * 86400000).toISOString();
+      const shiftFrom = new Date(new Date(ubDayStartIso(startDay)).getTime() - 45 * 86400000).toISOString();
       const { data: periodShifts } = await supabase
         .from("shifts")
         .select("id, character_role, start_time, end_time, is_active")
@@ -2209,7 +2236,7 @@ function Home() {
     (inventoryLogs || [])
       .filter((l) => l.client_id === activeClient && l.date)
       .forEach((l) => monthsSet.add(l.date.substring(0, 7)));
-      
+
     // Хэрэв огт борлуулалт ороогүй шинэ салбар бол одоогийн сарыг харуулна
     if (monthsSet.size === 0) {
       monthsSet.add(new Date().toISOString().substring(0, 7));
@@ -2229,6 +2256,7 @@ function Home() {
     const lastDayNum = new Date(year, month, 0).getDate();
     const lastDay = `${selectedYearMonth}-${String(lastDayNum).padStart(2, "0")}`;
 
+    setRangeMode("month");
     setStartDate(firstDay);
     setEndDate(lastDay);
     fetchDatabaseData(activeClient, firstDay, lastDay);
@@ -2263,9 +2291,9 @@ function Home() {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-zinc-900/60 p-8 rounded-3xl border border-zinc-800 shadow-2xl backdrop-blur-md text-center">
-      
 
-        
+
+
           <p className="text-sm text-zinc-400 mt-1 mb-6">
              Мэдээлэл харахын тулд
             нууц үгээ оруулна уу.
@@ -2308,7 +2336,7 @@ function Home() {
               }}
               className="text-sm text-zinc-400 hover:text-zinc-200 transition underline underline-offset-4 font-bold"
             >
-              Өөр хаягаар нэвтрэх 
+              Өөр хаягаар нэвтрэх
             </button>
           </div>
 
@@ -2555,7 +2583,7 @@ function Home() {
                   <span>Эрх идэвхжүүлэх</span>
               </span>
               <span className="text-xs bg-zinc-950/20 px-1.5 py-0.5 rounded">
-                 Авах 
+                 Авах
               </span>
             </button>
           </div>
@@ -2739,10 +2767,12 @@ function Home() {
                       endDate={endDate}
                       setStartDate={setStartDate}
                       setEndDate={setEndDate}
+                      rangeMode={rangeMode}
+                      setRangeMode={setRangeMode}
                       availableMonths={availableMonths}
                       handleMonthChange={handleMonthChange}
                       priceSpikeAlerts={priceSpikeAlerts}
-                      liveAnalytics={liveAnalytics}
+                      liveAnalytics={displayAnalytics(liveAnalytics, liveAnalyticsKey, rangeKey(activeClient, startDate, endDate))}
                       loading={loading}
                       setLoading={setLoading}
                       productsList={productsList}
@@ -2758,7 +2788,7 @@ function Home() {
                   )}
 
                   {activeTab === "alerts" && userRole === "owner" && <AlertsPanel />}
-              
+
          {/* 2. AI CFO CHAT TAB (OWNER ONLY) */}
 
               {userRole === "owner" && (
@@ -2766,16 +2796,16 @@ function Home() {
                   {tenantInfo?.plan === "starter" ? (
                     <div className="flex flex-col items-center justify-center h-[75vh] bg-zinc-900/40 rounded-3xl border border-zinc-800 p-6 text-center">
                       <div className="bg-zinc-800/60 p-4 rounded-full mb-4"><Bot className="h-10 w-10 text-zinc-300" /></div>
-                    
+
                       <p className="text-sm text-zinc-200 max-w-md mb-6">
                      Танай бизнесийн бүх датанд суурилсан AI шинжээч. Борлуулалт, орцын өртөг, цэвэр ашгаа гүнзгийрүүлэн шинжлүүлж, шууд асуулт асуух боломжтой
                       </p>
-                     <button 
+                     <button
                   onClick={() => {
                     setUpsellFeature("AI CFO Санхүүгийн зөвлөх"); // 👈 Шалтгаан
                     setCheckoutInitialPlan("professional");
                     setShowCheckoutModal(true);
-                  }} 
+                  }}
                   className="bg-white hover:bg-zinc-200 text-zinc-950 px-5 py-2.5 rounded-xl font-bold text-xs transition active:scale-95 cursor-pointer shadow-sm"
                 >
                   Багц ахиулах
@@ -2786,6 +2816,7 @@ function Home() {
                       activeClient={activeClient}
                       startDate={startDate}
                       endDate={endDate}
+                      rangeMode={rangeMode}
                     />
                   )}
                 </div>
@@ -3571,7 +3602,7 @@ function Home() {
               isOpen={showCheckoutModal}
                onClose={() => {
                 setShowCheckoutModal(false);
-                setUpsellFeature(null); 
+                setUpsellFeature(null);
               }}
               clientId={activeClient}
               userPhone={userPhone}

@@ -161,12 +161,14 @@ assert.match(cfo, /MN_BUSINESS_SPELLING_NOTE/);
 assert.match(cfo, /overviewDateLine\(overviewPeriod\)/);
 
 const chat = readFileSync("src/features/ai-cfo/AiCfoChat.tsx", "utf8");
-assert.match(chat, /startDate: ubDayStartIso\(startDate\)/);
-assert.match(chat, /endDate: ubDayEndIso\(endDate\)/);
+assert.match(chat, /startDate: ubDay\(startDate\)/);
+assert.match(chat, /endDate: ubDay\(endDate\)/);
+assert.match(chat, /rangeMode:/);
 
 const kioskAi = readFileSync("src/app/api/kiosk-ai/route.ts", "utf8");
-assert.match(kioskAi, /activeStartDate: body\.startDate/);
-assert.match(kioskAi, /activeEndDate: body\.endDate/);
+assert.match(kioskAi, /readRequestRange\(body\)/);
+assert.match(kioskAi, /activeStartDate: dashboardRange\?\.startDay/);
+assert.match(kioskAi, /activeEndDate: dashboardRange\?\.endDay/);
 
 const analytics = readFileSync("src/lib/analytics.ts", "utf8");
 assert.match(analytics, /buildDataTrust\(grades\)/);

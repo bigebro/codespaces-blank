@@ -3,8 +3,9 @@ export interface AgentContext {
   userId: string;
   userRole: "owner" | "staff" | "manager";
   workerName: string;
-  activeStartDate?: string; 
-  activeEndDate?: string; 
+  activeStartDate?: string;
+  activeEndDate?: string;
+  rangeMode?: "day" | "week" | "month";
 }
 
 export interface ToolExecutionResult {
