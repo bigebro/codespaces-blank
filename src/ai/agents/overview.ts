@@ -1,11 +1,13 @@
 import { getCachedAnalytics } from "@/lib/analyticsCache";
-import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
+import { dashboardTrust, overviewStatusBlock, purchasePctLabel } from "@/lib/honestDashboard";
+import { gradeFactLines } from "@/lib/gradeGuide";
 import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
 import type { OverviewPeriod } from "@/lib/overviewPeriod";
 
 export type { OverviewPeriod } from "@/lib/overviewPeriod";
 export { hasNamedPeriod, overviewDateLine, resolveOverviewPeriod } from "@/lib/overviewPeriod";
+export { gradeFactLines } from "@/lib/gradeGuide";
 
 // «Бизнес ямар байна вэ?» төрлийн ерөнхий асуулт.
 const OVERVIEW_PATTERNS = [
@@ -30,60 +32,6 @@ export function isOverviewQuestion(text: string) {
   return OVERVIEW_PATTERNS.some((p) => t.includes(p));
 }
 
-
-function qtyLine(value: unknown, unit?: string) {
-  if (value == null || value === "") return "—";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
-  const u = String(unit || "").trim();
-  return u ? `${Math.round(n * 10) / 10} ${u}` : `${Math.round(n * 10) / 10}`;
-}
-
-function moneyLine(value: unknown) {
-  if (value == null || value === "") return "—";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
-  return `${Math.round(n).toLocaleString("en-US")} ₮`;
-}
-
-function loggedWasteQty(row: any) {
-  return (
-    Number(row?.waste_spoilage || 0) +
-    Number(row?.waste_testing || 0) +
-    Number(row?.waste_staff_meal || 0) +
-    Number(row?.waste_other || 0)
-  );
-}
-
-function loggedWasteMoney(row: any) {
-  const qty = loggedWasteQty(row);
-  const price = Number(row?.unit_price || row?.price || 0);
-  if (!(qty > 0) || !(price > 0)) return null;
-  return qty * price;
-}
-
-/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Хаягдал, тайлбаргүй зөрүүг нэгтгэхгүй. */
-export function gradeFactLines(grades: any[] = []): string {
-  if (!grades.length) return "Барааны зөрүүний мөр алга.";
-  return grades.map((row) => {
-    const name = String(row?.name || "").trim() || "Нэргүй бараа";
-    const status = STATUS_LABEL[normalizeStatus(row?.status)];
-    const unit = row?.unit;
-    const logged = loggedWasteQty(row);
-    const loggedMoney = loggedWasteMoney(row);
-    const gap = row?.gap_qty;
-    const unexplained = gap == null || !Number.isFinite(Number(gap))
-      ? null
-      : Math.max(0, Number(gap) - logged);
-    const unexplainedMoney = unexplained != null && Number(row?.unit_price || row?.price || 0) > 0
-      ? unexplained * Number(row.unit_price || row.price)
-      : null;
-    return (
-      `- ${name}: ${status}; хэмжсэн тооллого: ${qtyLine(row?.actual_qty, unit)}; онолын тооцоо: ${qtyLine(row?.theoretical_qty, unit)}; тооцоолсон зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}; ` +
-      `бүртгэгдсэн хаягдал: ${qtyLine(logged || null, unit)} / ${moneyLine(loggedMoney)}; тайлбаргүй зөрүү: ${qtyLine(unexplained, unit)} / ${moneyLine(unexplainedMoney)}`
-    );
-  }).join("\n");
-}
 
 function mnt(value: unknown) {
   const n = Number(value);
@@ -125,13 +73,13 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
       `- Орлого: ${mnt(revenue)}`,
       `- Өртөг (баталгаажсан барааны бодит): ${mnt(fin.actual_cogs)}; онолын өртөг: ${mnt(fin.theo_cogs)}`,
       `- Баталгаажсан барааны цэвэр зөрүү: ${mnt(fin.verified_gap)}`,
-      `- Хаягдлын алдагдал: ${mnt(waste)}`,
-      `- Тайлбаргүй зөрүү: ${mnt(unexplained)}`,
+      `- Баталгаажсан барааны хаягдлын алдагдал (шар болон дутуу мөр ороогүй, төгрөг): ${mnt(waste)}`,
+      `- Баталгаажсан барааны тайлбаргүй зөрүү (шар болон дутуу мөр ороогүй, төгрөг): ${mnt(unexplained)}`,
       overviewStatusBlock(board),
       `- Худалдан авалтын үнийн дүнгийн хувь: ${purchasePctLabel(trust)}`,
-      "Бараа тус бүрийн тоо (самбартай ижил. Энд байхгүй тоог битгий нэм):",
+      "Бараа тус бүрийн тоо (самбарын картай ижил өгүүлбэр. Энд байхгүй тоог битгий нэм):",
       gradeFactLines(data?.grades || []),
-      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Бүртгэгдсэн хаягдал («Хаягдлын алдагдал») болон «Тайлбаргүй зөрүү» хоёрыг хэзээ ч нэг тоо болгон нэмж болохгүй. Самбар дээрх шошго, дүнгээр тусад нь хэл. Хүснэгтэд «бодит үлдэгдэл» гэж битгий нэрлэ (одоогийн нөөцтэй андуурна). «Хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү» гэж бич. Дээрх тоо хангалттай бол tool дахин битгий дууд. Эцэст нь 2-3 богино зөвлөгөө өг.",
+      "ДҮРЭМ: Зөвхөн дээрх тоо болон барааны мөрийг иш тат. Tool битгий дууд: эдгээр тоо самбартай ижил. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Бүртгэгдсэн хаягдал болон «Тайлбаргүй зөрүү» хоёрыг хэзээ ч нэг тоо болгон нэмж болохгүй, тусад нь хэл. Эхлэх болон эцсийн тоог тусад нь хэл. Нийт төгрөгийн дүн нь зөвхөн баталгаажсан (ногоон) мөр. Шалгах (шар) барааны хаягдал, тайлбаргүй зөрүүг нийт дүнгээс 0 гэж бүү үз — тухайн барааны мөрийг унш. Хүснэгтэд «бодит үлдэгдэл» гэж битгий нэрлэ. Хариултыг богино байлга, 2-3 зөвлөгөөөр төгсгө.",
       MN_BUSINESS_SPELLING_NOTE,
     ].join("\n");
   } catch (err) {

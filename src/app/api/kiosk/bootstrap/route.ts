@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     if (body.only === "logs") {
       const w = await requireKioskWorker(body.deviceToken, body.workerToken);
-      if (!w) return NextResponse.json({ ok: false, message: "Киоск нэвтрэлт хүчингүй." }, { status: 401 });
+      if (!w) return NextResponse.json({ ok: false, message: "Таблет нэвтрэлт хүчингүй." }, { status: 401 });
       const logs = await loadTodayLogs(w);
       return NextResponse.json({ ok: true, todayLogs: sortLogsNewestFirst(logs.data || []) });
     }
@@ -91,6 +91,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[kiosk bootstrap]", err);
-    return NextResponse.json({ ok: false, message: "Киоск дата татаж чадсангүй." }, { status: 500 });
+    return NextResponse.json({ ok: false, message: "Таблетын өгөгдөл татаж чадсангүй." }, { status: 500 });
   }
 }

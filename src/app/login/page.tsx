@@ -545,7 +545,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               href="/kiosk"
               className="text-xs text-zinc-500 hover:text-zinc-200 font-bold transition inline-flex items-center gap-1"
             >
-              ← Киоск руу буцах
+              ← Таблет руу буцах
             </Link>
           </div>
         )}

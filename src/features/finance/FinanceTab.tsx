@@ -24,7 +24,7 @@ import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
 import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustConfirmedLine, trustEstimateDisplay } from "@/lib/honestDashboard";
-import { logTypeLabel, staffDisplayName } from "@/lib/shiftCycle";
+import { logTypeLabel, staffDisplayName, displaySourceNote} from "@/lib/shiftCycle";
 import { sortLogsNewestFirst } from "@/lib/logSort";
 import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
 
@@ -958,7 +958,7 @@ export default function FinanceTab({
                             >
                               {logTypeLabel(log.type, log.notes)}
                             </span>
-                            <span>• {log.notes}</span>
+                            <span>• {displaySourceNote(log.notes)}</span>
                           </p>
                         </div>
                       ))}

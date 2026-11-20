@@ -1,9 +1,10 @@
+import { after } from "next/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireKioskWorker } from "@/lib/kioskAuth";
 import { buildCyclePlan } from "@/lib/cyclePlan";
 import { loadKioskPhase4 } from "@/lib/phase4Load";
-import { buildCountLog, openingInsertDecision } from "@/lib/shiftCycle";
+import { buildCountLog, displaySourceNote, openingInsertDecision } from "@/lib/shiftCycle";
 import { convertToIngredientUnit } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const worker = await requireKioskWorker(body.deviceToken, body.workerToken);
-    if (!worker) return fail("Киоск нэвтрэлт хүчингүй. Дахин PIN оруулна уу.", 401);
+    if (!worker) return fail("Таблет нэвтрэлт хүчингүй. Дахин PIN оруулна уу.", 401);
 
     const action = String(body.action || "");
     const nowIso = new Date().toISOString();
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
         });
         if (!decision.write) return NextResponse.json({ ok: true, ids: decision.ids });
       }
-      const prepared = [];
+      const prepared: Record<string, any>[] = [];
       for (const row of rows) {
         const type = String(row.type || "");
         if (!LOG_TYPES.has(type)) return fail("Буруу бүртгэлийн төрөл.");
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
           is_ebarimt: row.is_ebarimt === true,
           incident_type: row.incident_type ?? null,
           reported_against_worker: row.reported_against_worker || null,
-          notes: String(row.notes || "").slice(0, 500),
+          notes: displaySourceNote(String(row.notes || "")).slice(0, 500),
           worker_name: worker.workerName,
           created_by: worker.workerId,
           staff_id: worker.workerId,
@@ -151,19 +152,28 @@ export async function POST(request: Request) {
       }
       const { data, error } = await supabaseAdmin.from("inventory_logs").insert(prepared).select("id");
       if (error) return fail(error.message, 500);
-      for (const row of prepared) {
-        if (row.type === "purchase" && row.ingredient_id && row.total_cost > 0 && row.quantity > 0) {
-          await weightedPrice(row.ingredient_id, row.quantity, row.total_cost);
+      const aliases = Array.isArray(body.aliases) ? body.aliases : [];
+      after(async () => {
+        try {
+          for (const row of prepared) {
+            if (row.type === "purchase" && row.ingredient_id && row.total_cost > 0 && row.quantity > 0) {
+              await weightedPrice(row.ingredient_id, row.quantity, row.total_cost);
+            }
+          }
+          await Promise.all(
+            aliases.map((alias: { phrase?: string; ingredient_id?: string }) => {
+              const phrase = String(alias.phrase || "").trim().toLowerCase();
+              if (phrase.length < 2 || !alias.ingredient_id) return Promise.resolve();
+              return supabaseAdmin.from("learned_aliases").upsert(
+                [{ client_id: worker.clientId, phrase, ingredient_id: alias.ingredient_id }],
+                { onConflict: "client_id,phrase" },
+              );
+            }),
+          );
+        } catch (err) {
+          console.error("[kiosk logs.insert after]", err);
         }
-      }
-      for (const alias of Array.isArray(body.aliases) ? body.aliases : []) {
-        const phrase = String(alias.phrase || "").trim().toLowerCase();
-        if (phrase.length < 2 || !alias.ingredient_id) continue;
-        await supabaseAdmin.from("learned_aliases").upsert(
-          [{ client_id: worker.clientId, phrase, ingredient_id: alias.ingredient_id }],
-          { onConflict: "client_id,phrase" },
-        );
-      }
+      });
       return NextResponse.json({ ok: true, ids: (data || []).map((row) => row.id) });
     }
 
@@ -361,7 +371,7 @@ export async function POST(request: Request) {
             payment_method: "bank",
             image_url: body.image_url || null,
             is_ebarimt: false,
-            notes: "Kiosk дээр шинээр үүсгэж орлого авсан",
+            notes: "Таблет дээр шинээр үүсгэж орлого авсан",
             worker_name: worker.workerName,
             created_by: worker.workerId,
             staff_id: worker.workerId,

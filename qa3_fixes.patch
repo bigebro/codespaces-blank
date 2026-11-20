@@ -1,0 +1,1146 @@
+diff --git a/scripts/check-ai-dashboard-facts.ts b/scripts/check-ai-dashboard-facts.ts
+new file mode 100644
+index 0000000..46422b6
+--- /dev/null
++++ b/scripts/check-ai-dashboard-facts.ts
+@@ -0,0 +1,53 @@
++import assert from "node:assert/strict";
++import { dashboardItemFactsText, gradeFactLines, gradeGuide, itemVarianceFacts } from "../src/lib/gradeGuide";
++
++/** Самбарт гарсан сүүний жишээ: бүртгэгдсэн хаягдал 2100, тайлбаргүй 3800, эхлэх 10000, эцэс 8800. */
++const milk = {
++  name: "Сүү",
++  status: "Check",
++  unit: "мл",
++  action: "count",
++  has_start: true,
++  has_end: true,
++  start_qty: 10000,
++  end_qty: 8800,
++  purchased_qty: 4700,
++  theoretical_qty: 0,
++  actual_qty: 5900,
++  gap_qty: 5900,
++  gap_money: 29500,
++  waste_spoilage: 900,
++  waste_testing: 1200,
++  waste_staff_meal: 0,
++  waste_other: 0,
++};
++
++const facts = itemVarianceFacts(milk);
++assert.equal(facts.start, 10000);
++assert.equal(facts.end, 8800);
++assert.equal(facts.logged, 2100);
++assert.equal(facts.spoilage, 900);
++assert.equal(facts.testing, 1200);
++assert.equal(facts.unexplainedQty, 3800);
++
++const dashboard = dashboardItemFactsText(milk);
++assert.match(dashboard, /Эхлэх тоо 10000 мл/);
++assert.match(dashboard, /эцсийн тоо 8800 мл/);
++assert.match(dashboard, /Хаягдал бүртгэгдсэн 2100 мл/);
++assert.match(dashboard, /Муудсан 900/);
++assert.match(dashboard, /Туршилт 1200/);
++assert.match(dashboard, /Тайлбаргүй 3800 мл/);
++assert.doesNotMatch(dashboard, /Тайлбаргүй 0/);
++
++const ai = gradeFactLines([milk]);
++assert.equal(ai.includes(dashboard), true);
++assert.match(ai, /Хаягдал бүртгэгдсэн 2100 мл/);
++assert.match(ai, /Тайлбаргүй 3800 мл/);
++assert.doesNotMatch(ai, /тайлбаргүй зөрүү: 0/i);
++
++// Нийт дүн шар мөрийг оруулдаггүй. Барааны мөр 0 болох ёсгүй.
++const board = gradeGuide(milk);
++assert.match(board.facts.join(" "), /нийт дүнд ороогүй/);
++assert.equal(facts.unexplainedQty, 3800);
++
++console.log("ai dashboard facts checks passed");
+diff --git a/scripts/check-log-sort.ts b/scripts/check-log-sort.ts
+index 4a3d9f0..8a98a00 100644
+--- a/scripts/check-log-sort.ts
++++ b/scripts/check-log-sort.ts
+@@ -7,4 +7,12 @@ const rows = [
+   { id: "mid-same-created", created_at: "2026-11-20T03:00:00.000Z", date: "2026-11-20T11:00:00.000Z" },
+ ];
+ assert.deepEqual(sortLogsNewestFirst(rows).map((r) => r.id), ["mid-same-created", "new", "old"]);
++
++// Query/render both must keep created_at. Day-only date must not hide last-hour rows.
++const sameDay = [
++  { id: "same-day-old", created_at: "2026-11-01T01:00:00.000Z", date: "2026-11-01" },
++  { id: "same-day-new", created_at: "2026-11-20T04:00:00.000Z", date: "2026-11-01" },
++];
++assert.deepEqual(sortLogsNewestFirst(sameDay).map((r) => r.id), ["same-day-new", "same-day-old"]);
++assert.equal(sortLogsNewestFirst(sameDay).slice(0, 1)[0].id, "same-day-new");
+ console.log("log sort checks passed");
+diff --git a/scripts/check-waste-labels.ts b/scripts/check-waste-labels.ts
+index 703fb61..14ebac9 100644
+--- a/scripts/check-waste-labels.ts
++++ b/scripts/check-waste-labels.ts
+@@ -1,5 +1,5 @@
+ import assert from "node:assert/strict";
+-import { logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
++import { displaySourceNote, logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
+ import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
+ 
+ assert.equal(logTypeLabel("TESTING"), "Туршилт");
+@@ -15,6 +15,10 @@ assert.equal(staffDisplayName("TEST Бариста"), "TEST Бариста");
+ assert.equal(staffDisplayName("Ажилтан: staff (TEST Бариста)"), "Ажилтан: TEST Бариста");
+ assert.equal(staffDisplayName("Kiosk (Хаягдал)"), "Таблет (Хаягдал)");
+ assert.equal(staffDisplayName("kiosk"), "Таблет");
++assert.equal(staffDisplayName("Киоск (Хаягдал)"), "Таблет (Хаягдал)");
++assert.equal(displaySourceNote("Kiosk (Хаягдал)"), "Таблет (Хаягдал)");
++assert.equal(displaySourceNote("Киоскын түүхээс"), "Таблетын түүхээс");
++assert.equal(displaySourceNote("киоск дээр орлого"), "таблет дээр орлого");
+ assert.equal(itemDisplayName("Сүү (ТУРШИЛТ)"), "Сүү");
+ assert.equal(splitItemName("Кофе үр (ТУРШИЛТ)").isTest, true);
+ assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");
+diff --git a/src/ai/agents/cfo.agent.ts b/src/ai/agents/cfo.agent.ts
+index 4928d42..d587032 100644
+--- a/src/ai/agents/cfo.agent.ts
++++ b/src/ai/agents/cfo.agent.ts
+@@ -4,7 +4,7 @@ import { getVitals } from "@/core/packages/pkg_vitals";
+ import { AgentContext } from "@/types/agent.types";
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ import { runToolAgent } from "@/ai/runtime/agentLoop";
+-import { buildOverviewSnapshot, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
++import { buildOverviewSnapshot, isOverviewQuestion, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
+ import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
+ 
+ 
+@@ -21,73 +21,87 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
+     context.activeEndDate,
+     now,
+   );
+-  const [vitals, rulesResult, briefResult, todaySnapshot] = await Promise.all([
+-    getVitals(context.clientId),
+-    supabaseAdmin
+-      .from("business_memory")
+-      .select("topic, fact")
+-      .eq("client_id", context.clientId.trim())
+-      .order("updated_at", { ascending: false })
+-      .limit(8),
+-    supabaseAdmin
+-      .from("weekly_briefs")
+-      .select("body")
+-      .eq("client_id", context.clientId.trim())
+-      .order("created_at", { ascending: false })
+-      .limit(1)
+-      .maybeSingle(),
+-    buildOverviewSnapshot(context.clientId, overviewPeriod),
+-  ]);
+-  const rules = rulesResult.data;
++  const overviewOnly = isOverviewQuestion(userMessage);
++  const todaySnapshot = await buildOverviewSnapshot(context.clientId, overviewPeriod);
+ 
+-  const businessRulesText = rules && rules.length > 0
+-    ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" +
+-      rules.map((r) => `- ${r.topic}: ${r.fact}`).join("\n") +
+-      "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
+-    : "";
+-
+-  const briefBody = briefResult.data?.body || "";
++  let businessRulesText = "";
++  let weeklyBriefPromptText = "";
++  let vitalsBlock = "";
++  if (!overviewOnly) {
++    const [vitals, rulesResult, briefResult] = await Promise.all([
++      getVitals(context.clientId),
++      supabaseAdmin
++        .from("business_memory")
++        .select("topic, fact")
++        .eq("client_id", context.clientId.trim())
++        .order("updated_at", { ascending: false })
++        .limit(8),
++      supabaseAdmin
++        .from("weekly_briefs")
++        .select("body")
++        .eq("client_id", context.clientId.trim())
++        .order("created_at", { ascending: false })
++        .limit(1)
++        .maybeSingle(),
++    ]);
++    const rules = rulesResult.data;
++    businessRulesText = rules && rules.length > 0
++      ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" +
++        rules.map((r) => `- ${r.topic}: ${r.fact}`).join("\n") +
++        "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
++      : "";
++    const briefBody = briefResult.data?.body || "";
++    weeklyBriefPromptText = briefBody
++      ? `\n[LAST SAVED WEEK BRIEF (Note: Saved operational snapshot, NOT live numbers)]:\n${briefBody}\n`
++      : "";
++    vitalsBlock = `
++[FINANCIAL VITALS]:
++- (MTD = сарын эхнээс өнөөдрийг хүртэл. Сонгосон хугацааны тоог MTD-тай бүү холь. «Өнөөдөр» гэсэн асуултад MTD-г өнөөдрийн тоо гэж хэлж болохгүй.)
++- MTD figures below are NOT the selected period. Do not quote them as facts for the question.
++- MTD Revenue (сарын эхнээс өнөөдрийг хүртэл, жишиг биш): ${vitals.monthToDateRevenue.toLocaleString()} ₮
++- Est. Net Profit (WARNING: Rough 15% margin guess, NOT actual audited profit): ${vitals.estimatedNetProfit.toLocaleString()} ₮
++- Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
++`;
++  }
+ 
+-  const weeklyBriefPromptText = briefBody
+-    ? `\n[LAST SAVED WEEK BRIEF (Note: Saved operational snapshot, NOT live numbers)]:\n${briefBody}\n`
+-    : "";
++  const catalogRule = overviewOnly
++    ? ""
++    : `
++[CATALOG RULE]:
++If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
++If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.
++openingQty null means no count was logged. Never use currentStock as the opening count.
++`;
+ 
+   const cfoSystemPrompt = `
+ You are the Operlink AI Chief Financial Officer for "${context.clientId}".
+-[ABSOLUTE CONSTRAINT: NO EMOJIS]. You analyze revenue, profitability, and margins. Use 'MNT' or '₮' for currency. Translate raw JSON keys into professional Mongolian text. Keep responses clinical, analytical, and highly structured using Markdown tables. If a price change is needed, call action_propose_price_change.
++[ABSOLUTE CONSTRAINT: NO EMOJIS]. You analyze revenue, profitability, and margins. Use 'MNT' or '₮' for currency. Translate raw JSON keys into professional Mongolian text. Keep responses clinical, analytical, and highly structured using Markdown tables. ${overviewOnly ? "Do not call tools. Answer only from the snapshot. Keep the answer short." : "If a price change is needed, call action_propose_price_change."}
+ ${MN_BUSINESS_SPELLING_NOTE}
+ 
+ [TEMPORAL CONTEXT]:
+ - TODAY: ${currentIsoDate}
+ - CURRENT YEAR: ${targetYear}
+-
+-[FINANCIAL VITALS]:
+-- (MTD = сарын эхнээс өнөөдрийг хүртэл. Сонгосон хугацааны тоог MTD-тай бүү холь. «Өнөөдөр» гэсэн асуултад MTD-г өнөөдрийн тоо гэж хэлж болохгүй.)
+ - OVERVIEW PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar)
+ - If OVERVIEW PERIOD is not today, do not write a «Өнөөдөр (YYYY-MM-DD)» heading. The system already prepends the period.
+ - Cite only the OVERVIEW PERIOD. Never name a second period (do not write both «Өнөөдөр» and «энэ сар»).
+-- MTD figures below are NOT the selected period. Do not quote them as facts for the question.
+-- MTD Revenue (сарын эхнээс өнөөдрийг хүртэл, жишиг биш): ${vitals.monthToDateRevenue.toLocaleString()} ₮
+-- Est. Net Profit (WARNING: Rough 15% margin guess, NOT actual audited profit): ${vitals.estimatedNetProfit.toLocaleString()} ₮
+-- Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
++${vitalsBlock}
+ ${todaySnapshot ? "\n" + todaySnapshot + "\n" : ""}
+ ${weeklyBriefPromptText}
+ ${businessRulesText}
+ 
+ [PERIOD NUMBERS]:
+-The overview snapshot already has the selected period's dashboard numbers, including logged waste («Хаягдлын алдагдал») and unexplained gap («Тайлбаргүй зөрүү») separately. Do not add those two together into one gap. Do not label a count or variance as «бодит үлдэгдэл» (that looks like stock); use «хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү». If the snapshot has the numbers you need, do not call tools just to restate them.
+-
+-[CATALOG RULE]:
+-If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
+-If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.
+-openingQty null means no count was logged. Never use currentStock as the opening count.
++The overview snapshot already has the selected period's dashboard numbers, including logged waste and unexplained gap separately, plus start/end stock from the same function the dashboard uses. Do not add those two together into one gap. Do not label a count or variance as «бодит үлдэгдэл». If the snapshot has the numbers you need, do not call tools just to restate them. Period totals in төгрөг exclude Check/Missing (yellow) rows; read the item line for a yellow item instead of treating the period total as 0.
++${catalogRule}
+ `.trim();
+ 
+   return runToolAgent({
+     context,
+     userMessage,
+     systemInstruction: cfoSystemPrompt,
+-    tools: cfoSkills as never,
++    tools: overviewOnly ? [] : cfoSkills as never,
++    disableTools: overviewOnly,
++    historyLimit: overviewOnly ? 2 : 6,
++    maxOutputTokens: overviewOnly ? 2048 : 3072,
+     sanitizeArgs: (raw) => ({
+       ...raw,
+       startDate: ubDayStartIso(overviewPeriod.startDay),
+diff --git a/src/ai/agents/coo.agent.ts b/src/ai/agents/coo.agent.ts
+index 86551ea..bfa7b7e 100644
+--- a/src/ai/agents/coo.agent.ts
++++ b/src/ai/agents/coo.agent.ts
+@@ -67,7 +67,7 @@ ${openLessonsText}
+ [FORENSIC LEAKAGE LOGIC]:
+ 1. Proportional multi-item depletion with 0 POS sales -> Flag as potential cash theft / un-rung sales (recommend CCTV audit).
+ 2. Recurring small deficits per unit -> Overpouring / grinder calibration error.
+-3. 1-2 random units missing -> Unlogged staff meal / dropped item on Kiosk.
++3. 1-2 random units missing -> Unlogged staff meal / dropped item on the tablet.
+ 4. Sudden bulk loss (carton/kg) -> Large spill or physical theft.
+ 
+ [SHIFT CLOSE COUNT]:
+diff --git a/src/ai/agents/overview.ts b/src/ai/agents/overview.ts
+index 86bdea0..a972a22 100644
+--- a/src/ai/agents/overview.ts
++++ b/src/ai/agents/overview.ts
+@@ -1,11 +1,13 @@
+ import { getCachedAnalytics } from "@/lib/analyticsCache";
+-import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
++import { dashboardTrust, overviewStatusBlock, purchasePctLabel } from "@/lib/honestDashboard";
++import { gradeFactLines } from "@/lib/gradeGuide";
+ import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+ import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
+ import type { OverviewPeriod } from "@/lib/overviewPeriod";
+ 
+ export type { OverviewPeriod } from "@/lib/overviewPeriod";
+ export { hasNamedPeriod, overviewDateLine, resolveOverviewPeriod } from "@/lib/overviewPeriod";
++export { gradeFactLines } from "@/lib/gradeGuide";
+ 
+ // «Бизнес ямар байна вэ?» төрлийн ерөнхий асуулт.
+ const OVERVIEW_PATTERNS = [
+@@ -31,60 +33,6 @@ export function isOverviewQuestion(text: string) {
+ }
+ 
+ 
+-function qtyLine(value: unknown, unit?: string) {
+-  if (value == null || value === "") return "—";
+-  const n = Number(value);
+-  if (!Number.isFinite(n)) return "—";
+-  const u = String(unit || "").trim();
+-  return u ? `${Math.round(n * 10) / 10} ${u}` : `${Math.round(n * 10) / 10}`;
+-}
+-
+-function moneyLine(value: unknown) {
+-  if (value == null || value === "") return "—";
+-  const n = Number(value);
+-  if (!Number.isFinite(n)) return "—";
+-  return `${Math.round(n).toLocaleString("en-US")} ₮`;
+-}
+-
+-function loggedWasteQty(row: any) {
+-  return (
+-    Number(row?.waste_spoilage || 0) +
+-    Number(row?.waste_testing || 0) +
+-    Number(row?.waste_staff_meal || 0) +
+-    Number(row?.waste_other || 0)
+-  );
+-}
+-
+-function loggedWasteMoney(row: any) {
+-  const qty = loggedWasteQty(row);
+-  const price = Number(row?.unit_price || row?.price || 0);
+-  if (!(qty > 0) || !(price > 0)) return null;
+-  return qty * price;
+-}
+-
+-/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Хаягдал, тайлбаргүй зөрүүг нэгтгэхгүй. */
+-export function gradeFactLines(grades: any[] = []): string {
+-  if (!grades.length) return "Барааны зөрүүний мөр алга.";
+-  return grades.map((row) => {
+-    const name = String(row?.name || "").trim() || "Нэргүй бараа";
+-    const status = STATUS_LABEL[normalizeStatus(row?.status)];
+-    const unit = row?.unit;
+-    const logged = loggedWasteQty(row);
+-    const loggedMoney = loggedWasteMoney(row);
+-    const gap = row?.gap_qty;
+-    const unexplained = gap == null || !Number.isFinite(Number(gap))
+-      ? null
+-      : Math.max(0, Number(gap) - logged);
+-    const unexplainedMoney = unexplained != null && Number(row?.unit_price || row?.price || 0) > 0
+-      ? unexplained * Number(row.unit_price || row.price)
+-      : null;
+-    return (
+-      `- ${name}: ${status}; хэмжсэн тооллого: ${qtyLine(row?.actual_qty, unit)}; онолын тооцоо: ${qtyLine(row?.theoretical_qty, unit)}; тооцоолсон зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}; ` +
+-      `бүртгэгдсэн хаягдал: ${qtyLine(logged || null, unit)} / ${moneyLine(loggedMoney)}; тайлбаргүй зөрүү: ${qtyLine(unexplained, unit)} / ${moneyLine(unexplainedMoney)}`
+-    );
+-  }).join("\n");
+-}
+-
+ function mnt(value: unknown) {
+   const n = Number(value);
+   return Number.isFinite(n) ? `${Math.round(n).toLocaleString("en-US")} ₮` : "мэдээлэл алга";
+@@ -125,13 +73,13 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
+       `- Орлого: ${mnt(revenue)}`,
+       `- Өртөг (баталгаажсан барааны бодит): ${mnt(fin.actual_cogs)}; онолын өртөг: ${mnt(fin.theo_cogs)}`,
+       `- Баталгаажсан барааны цэвэр зөрүү: ${mnt(fin.verified_gap)}`,
+-      `- Хаягдлын алдагдал: ${mnt(waste)}`,
+-      `- Тайлбаргүй зөрүү: ${mnt(unexplained)}`,
++      `- Баталгаажсан барааны хаягдлын алдагдал (шар болон дутуу мөр ороогүй, төгрөг): ${mnt(waste)}`,
++      `- Баталгаажсан барааны тайлбаргүй зөрүү (шар болон дутуу мөр ороогүй, төгрөг): ${mnt(unexplained)}`,
+       overviewStatusBlock(board),
+       `- Худалдан авалтын үнийн дүнгийн хувь: ${purchasePctLabel(trust)}`,
+-      "Бараа тус бүрийн тоо (самбартай ижил. Энд байхгүй тоог битгий нэм):",
++      "Бараа тус бүрийн тоо (самбарын картай ижил өгүүлбэр. Энд байхгүй тоог битгий нэм):",
+       gradeFactLines(data?.grades || []),
+-      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Бүртгэгдсэн хаягдал («Хаягдлын алдагдал») болон «Тайлбаргүй зөрүү» хоёрыг хэзээ ч нэг тоо болгон нэмж болохгүй. Самбар дээрх шошго, дүнгээр тусад нь хэл. Хүснэгтэд «бодит үлдэгдэл» гэж битгий нэрлэ (одоогийн нөөцтэй андуурна). «Хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү» гэж бич. Дээрх тоо хангалттай бол tool дахин битгий дууд. Эцэст нь 2-3 богино зөвлөгөө өг.",
++      "ДҮРЭМ: Зөвхөн дээрх тоо болон барааны мөрийг иш тат. Tool битгий дууд: эдгээр тоо самбартай ижил. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Бүртгэгдсэн хаягдал болон «Тайлбаргүй зөрүү» хоёрыг хэзээ ч нэг тоо болгон нэмж болохгүй, тусад нь хэл. Эхлэх болон эцсийн тоог тусад нь хэл. Нийт төгрөгийн дүн нь зөвхөн баталгаажсан (ногоон) мөр. Шалгах (шар) барааны хаягдал, тайлбаргүй зөрүүг нийт дүнгээс 0 гэж бүү үз — тухайн барааны мөрийг унш. Хүснэгтэд «бодит үлдэгдэл» гэж битгий нэрлэ. Хариултыг богино байлга, 2-3 зөвлөгөөөр төгсгө.",
+       MN_BUSINESS_SPELLING_NOTE,
+     ].join("\n");
+   } catch (err) {
+diff --git a/src/ai/prompts/cfo.prompt.ts b/src/ai/prompts/cfo.prompt.ts
+index 863a13c..03a66e0 100644
+--- a/src/ai/prompts/cfo.prompt.ts
++++ b/src/ai/prompts/cfo.prompt.ts
+@@ -39,7 +39,7 @@ You are a text-only, highly secure enterprise terminal. If you use a single emoj
+ If asked about missing stock or waste, evaluate these 4 probabilities:
+ 1. CASH THEFT (Un-rung Sales): Multiple recipe-linked items (milk, beans, cups) missing simultaneously without POS revenue. Action: Check CCTV for un-rung cash sales.
+ 2. OVERPOURING: Small, consistent deficits per cup. Action: Recalibrate grinder or warn baristas on measurements.
+-3. UNLOGGED WASTE: 1-2 units missing. Action: Worker likely forgot to log a staff meal or spill on the Kiosk.
++3. UNLOGGED WASTE: 1-2 units missing. Action: Worker likely forgot to log a staff meal or spill on the tablet.
+ 4. PHYSICAL THEFT / BIG SPILLS: Entire cartons/kg missing suddenly. Action: Demand explanation from the shift worker.
+ 
+ [ACTION PROPOSALS]:
+diff --git a/src/ai/prompts/kiosk.prompt.ts b/src/ai/prompts/kiosk.prompt.ts
+index 72af912..0a295d7 100644
+--- a/src/ai/prompts/kiosk.prompt.ts
++++ b/src/ai/prompts/kiosk.prompt.ts
+@@ -1,5 +1,5 @@
+ export const KIOSK_SYSTEM_PROMPT = `
+-Та гал тогооны ажилтнуудад зориулагдсан Kiosk AI бүртгэлийн туслах юм.
++Та гал тогооны ажилтнуудад зориулагдсан таблетын AI бүртгэлийн туслах юм.
+ Таны ганц үүрэг: Ажилтны бичсэн эсвэл ярьсан зарлага, хаягдал, хоол, татан авалтын орцыг үнэн зөв таних.
+ Санхүүгийн ашиг, орлого, тайлан асуувал: "Санхүүгийн тайланг зөвхөн Эзний эрхээр харах боломжтой." гэж хариулна.
+ `;
+diff --git a/src/ai/runtime/agentLoop.ts b/src/ai/runtime/agentLoop.ts
+index b9a3e16..98674a4 100644
+--- a/src/ai/runtime/agentLoop.ts
++++ b/src/ai/runtime/agentLoop.ts
+@@ -84,6 +84,13 @@ function isInvalidArgument(err: unknown) {
+ 
+ const MAX_STEPS = 5;
+ 
++const TRUNCATED_NOTE = "\n(Хариулт тасарсан тул дээрх нь дутуу байж болно. Үргэлжлэхийг асуугаарай.)";
++
++function isTruncatedFinish(reason: unknown) {
++  const r = String(reason || "").toUpperCase();
++  return r === "MAX_TOKENS" || r === "LENGTH";
++}
++
+ export async function runToolAgent(opts: {
+   context: AgentContext;
+   userMessage: string;
+@@ -91,6 +98,9 @@ export async function runToolAgent(opts: {
+   tools: FunctionDeclaration[];
+   sanitizeArgs?: (args: Record<string, unknown>) => Record<string, unknown>;
+   preamble?: string;
++  disableTools?: boolean;
++  historyLimit?: number;
++  maxOutputTokens?: number;
+ }): Promise<ReadableStream> {
+   const encoder = new TextEncoder();
+ 
+@@ -115,7 +125,7 @@ export async function runToolAgent(opts: {
+           const released = prefixGate.flush();
+           if (released) enqueue(released);
+         };
+-        const historyPromise = getConversationThread(opts.context.clientId, 6);
++        const historyPromise = getConversationThread(opts.context.clientId, opts.historyLimit ?? 6);
+         const ai = getGenAI();
+         const history = sanitizeHistory((await historyPromise) as { role?: string; parts?: ModelPart[] }[]);
+         const contents: { role: string; parts: ModelPart[] }[] = [...history];
+@@ -139,21 +149,25 @@ export async function runToolAgent(opts: {
+         const readModel = async (thinking: boolean) => {
+ 
+           attemptSent = false;
++          const useTools = !opts.disableTools && (opts.tools || []).length > 0;
+           const stream = await ai.models.generateContentStream({
+             model: MODELS.flash,
+             contents,
+             config: {
+               systemInstruction: opts.systemInstruction + "\n\nДҮРЭМ: Хэрэглэгчид хэзээ ч хэрэгслийн нэр, функцийн нэр, кодын нэр (жишээ нь skill_..., action_...) бүү дурд. Юу хийж чадахаа энгийн монгол хэлээр тайлбарла.\n" + MN_BUSINESS_SPELLING_NOTE,
+               temperature: 0.1,
++              maxOutputTokens: opts.maxOutputTokens || 2048,
+               ...(thinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+-              tools: [{ functionDeclarations: opts.tools }],
++              ...(useTools ? { tools: [{ functionDeclarations: opts.tools }] } : {}),
+             },
+           });
+ 
+           let text = "";
+           let sawCall = false;
++          let truncated = false;
+           const modelParts: ModelPart[] = [];
+           for await (const chunk of stream) {
++            if (isTruncatedFinish(chunk.candidates?.[0]?.finishReason)) truncated = true;
+             const parts = chunk.candidates?.[0]?.content?.parts || [];
+             let delta = "";
+             let partHadText = false;
+@@ -199,7 +213,7 @@ export async function runToolAgent(opts: {
+             seen.add(key);
+             calls.push({ name: call.name, args: call.args || {} });
+           }
+-          return { text, modelParts, calls };
++          return { text, modelParts, calls, truncated };
+         };
+ 
+         for (let step = 0; step < MAX_STEPS; step++) {
+@@ -218,6 +232,7 @@ export async function runToolAgent(opts: {
+             finalText = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
+             if (!streamed && finalText) enqueue(finalText);
+             else flushPrefix();
++            if (outcome.truncated) enqueue(TRUNCATED_NOTE);
+             break;
+           }
+ 
+diff --git a/src/app/api/kiosk-ai/route.ts b/src/app/api/kiosk-ai/route.ts
+index 06cc009..ef104ac 100644
+--- a/src/app/api/kiosk-ai/route.ts
++++ b/src/app/api/kiosk-ai/route.ts
+@@ -1,6 +1,7 @@
+ import { NextResponse } from "next/server";
+ import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+ import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
++import { fixMnBusinessSpelling } from "../../../ai/runtime/mnSpelling";
+ import { GoogleGenerativeAI } from "@/lib/ai/genai";
+ import { createClient } from "@supabase/supabase-js";
+ import { saveBusinessRule } from "@/ai/memory/memory.service";
+@@ -85,7 +86,7 @@ export async function POST(request: Request) {
+       const worker = await requireKioskWorker(deviceToken, workerToken);
+       if (!worker) {
+         return NextResponse.json(
+-          { success: false, message: "Киоск нэвтрэлт хүчингүй." },
++          { success: false, message: "Таблет нэвтрэлт хүчингүй." },
+           { status: 401 },
+         );
+       }
+@@ -770,7 +771,7 @@ ${JSON.stringify(unmatched)}`;
+           return NextResponse.json({
+             success: true,
+             is_log: false,
+-            message: instantReport,
++            message: fixMnBusinessSpelling(instantReport),
+           });
+         }
+ 
+diff --git a/src/app/api/kiosk/bootstrap/route.ts b/src/app/api/kiosk/bootstrap/route.ts
+index 8e29f8b..48a8ad2 100644
+--- a/src/app/api/kiosk/bootstrap/route.ts
++++ b/src/app/api/kiosk/bootstrap/route.ts
+@@ -26,7 +26,7 @@ export async function POST(request: Request) {
+     const body = await request.json();
+     if (body.only === "logs") {
+       const w = await requireKioskWorker(body.deviceToken, body.workerToken);
+-      if (!w) return NextResponse.json({ ok: false, message: "Киоск нэвтрэлт хүчингүй." }, { status: 401 });
++      if (!w) return NextResponse.json({ ok: false, message: "Таблет нэвтрэлт хүчингүй." }, { status: 401 });
+       const logs = await loadTodayLogs(w);
+       return NextResponse.json({ ok: true, todayLogs: sortLogsNewestFirst(logs.data || []) });
+     }
+@@ -91,6 +91,6 @@ export async function POST(request: Request) {
+     });
+   } catch (err) {
+     console.error("[kiosk bootstrap]", err);
+-    return NextResponse.json({ ok: false, message: "Киоск дата татаж чадсангүй." }, { status: 500 });
++    return NextResponse.json({ ok: false, message: "Таблетын өгөгдөл татаж чадсангүй." }, { status: 500 });
+   }
+ }
+diff --git a/src/app/api/kiosk/ops/route.ts b/src/app/api/kiosk/ops/route.ts
+index facfbed..cd9f782 100644
+--- a/src/app/api/kiosk/ops/route.ts
++++ b/src/app/api/kiosk/ops/route.ts
+@@ -1,9 +1,10 @@
++import { after } from "next/server";
+ import { NextResponse } from "next/server";
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ import { requireKioskWorker } from "@/lib/kioskAuth";
+ import { buildCyclePlan } from "@/lib/cyclePlan";
+ import { loadKioskPhase4 } from "@/lib/phase4Load";
+-import { buildCountLog, openingInsertDecision } from "@/lib/shiftCycle";
++import { buildCountLog, displaySourceNote, openingInsertDecision } from "@/lib/shiftCycle";
+ import { convertToIngredientUnit } from "@/lib/units";
+ 
+ export const dynamic = "force-dynamic";
+@@ -60,7 +61,7 @@ export async function POST(request: Request) {
+   try {
+     const body = await request.json();
+     const worker = await requireKioskWorker(body.deviceToken, body.workerToken);
+-    if (!worker) return fail("Киоск нэвтрэлт хүчингүй. Дахин PIN оруулна уу.", 401);
++    if (!worker) return fail("Таблет нэвтрэлт хүчингүй. Дахин PIN оруулна уу.", 401);
+ 
+     const action = String(body.action || "");
+     const nowIso = new Date().toISOString();
+@@ -97,7 +98,7 @@ export async function POST(request: Request) {
+         });
+         if (!decision.write) return NextResponse.json({ ok: true, ids: decision.ids });
+       }
+-      const prepared = [];
++      const prepared: Record<string, any>[] = [];
+       for (const row of rows) {
+         const type = String(row.type || "");
+         if (!LOG_TYPES.has(type)) return fail("Буруу бүртгэлийн төрөл.");
+@@ -141,7 +142,7 @@ export async function POST(request: Request) {
+           is_ebarimt: row.is_ebarimt === true,
+           incident_type: row.incident_type ?? null,
+           reported_against_worker: row.reported_against_worker || null,
+-          notes: String(row.notes || "").slice(0, 500),
++          notes: displaySourceNote(String(row.notes || "")).slice(0, 500),
+           worker_name: worker.workerName,
+           created_by: worker.workerId,
+           staff_id: worker.workerId,
+@@ -151,19 +152,28 @@ export async function POST(request: Request) {
+       }
+       const { data, error } = await supabaseAdmin.from("inventory_logs").insert(prepared).select("id");
+       if (error) return fail(error.message, 500);
+-      for (const row of prepared) {
+-        if (row.type === "purchase" && row.ingredient_id && row.total_cost > 0 && row.quantity > 0) {
+-          await weightedPrice(row.ingredient_id, row.quantity, row.total_cost);
++      const aliases = Array.isArray(body.aliases) ? body.aliases : [];
++      after(async () => {
++        try {
++          for (const row of prepared) {
++            if (row.type === "purchase" && row.ingredient_id && row.total_cost > 0 && row.quantity > 0) {
++              await weightedPrice(row.ingredient_id, row.quantity, row.total_cost);
++            }
++          }
++          await Promise.all(
++            aliases.map((alias: { phrase?: string; ingredient_id?: string }) => {
++              const phrase = String(alias.phrase || "").trim().toLowerCase();
++              if (phrase.length < 2 || !alias.ingredient_id) return Promise.resolve();
++              return supabaseAdmin.from("learned_aliases").upsert(
++                [{ client_id: worker.clientId, phrase, ingredient_id: alias.ingredient_id }],
++                { onConflict: "client_id,phrase" },
++              );
++            }),
++          );
++        } catch (err) {
++          console.error("[kiosk logs.insert after]", err);
+         }
+-      }
+-      for (const alias of Array.isArray(body.aliases) ? body.aliases : []) {
+-        const phrase = String(alias.phrase || "").trim().toLowerCase();
+-        if (phrase.length < 2 || !alias.ingredient_id) continue;
+-        await supabaseAdmin.from("learned_aliases").upsert(
+-          [{ client_id: worker.clientId, phrase, ingredient_id: alias.ingredient_id }],
+-          { onConflict: "client_id,phrase" },
+-        );
+-      }
++      });
+       return NextResponse.json({ ok: true, ids: (data || []).map((row) => row.id) });
+     }
+ 
+@@ -361,7 +371,7 @@ export async function POST(request: Request) {
+             payment_method: "bank",
+             image_url: body.image_url || null,
+             is_ebarimt: false,
+-            notes: "Kiosk дээр шинээр үүсгэж орлого авсан",
++            notes: "Таблет дээр шинээр үүсгэж орлого авсан",
+             worker_name: worker.workerName,
+             created_by: worker.workerId,
+             staff_id: worker.workerId,
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+index 87e7774..272c8a9 100644
+--- a/src/app/dashboard/page.tsx
++++ b/src/app/dashboard/page.tsx
+@@ -6,7 +6,7 @@ import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubD
+ import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
+ import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
+ import { roleLabel } from "../../lib/roleLabel";
+-import { staffDisplayName } from "../../lib/shiftCycle";
++import { displaySourceNote, staffDisplayName } from "../../lib/shiftCycle";
+ import { planLabel } from "../../lib/planLabel";
+ import { SignedImg } from "../../components/shared/SignedImg";
+ import Link from "next/link";
+@@ -3215,7 +3215,7 @@ function Home() {
+                                           )}
+                                         </td>
+                                         <td className="py-3 px-2 text-zinc-400 max-w-[200px] truncate">
+-                                          {log.notes || "-"}
++                                          {displaySourceNote(log.notes) || "—"}
+                                         </td>
+                                         <td className="py-3 px-2 text-zinc-400 text-sm font-mono">
+                                           {new Date(log.date).toLocaleString(
+@@ -3474,7 +3474,7 @@ function Home() {
+                             </p>
+                             <div className="bg-blue-500/5 border-l-2 border-blue-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
+                               <strong>Авах арга хэмжээ:</strong> Ажилтнаас
+-                              асуух. Хэрэв асгасан байвал Kiosk руу ороод "1л
++                              асуух. Хэрэв асгасан байвал Таблет руу ороод "1л
+                               сүү асгасан" гэж нөхөж оруулахад л системийн энэ
+                               алдагдал автоматаар 0 болж засагдана.
+                             </div>
+diff --git a/src/app/kiosk/page.tsx b/src/app/kiosk/page.tsx
+index b7e2814..9714e01 100644
+--- a/src/app/kiosk/page.tsx
++++ b/src/app/kiosk/page.tsx
+@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
+ import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+ import { sortLogsNewestFirst } from "../../lib/logSort";
+ import { chatErrorMessage, isTransientChatFailure } from "../../lib/chatError";
++import { fixMnBusinessSpelling } from "../../ai/runtime/mnSpelling";
+ import OwnScore from "../../features/kiosk/OwnScore";
+ import CupCheck from "../../features/finance/CupCheck";
+ import TeamGoalBar from "../../features/finance/TeamGoalBar";
+@@ -785,7 +786,7 @@ function KioskAiChatSection({
+         ...prev,
+         {
+           sender: "ai",
+-          text: data.message || "Гүйлгээ боловсруулагдлаа.",
++          text: fixMnBusinessSpelling(data.message || "Гүйлгээ боловсруулагдлаа."),
+           logId: data.log_id,
+           learnedAliasId: data.learned_alias_id,
+         },
+@@ -1343,7 +1344,7 @@ const handleKioskBulkSave = async () => {
+             quantity: parseFloat(val) || 0,
+             type: "count",
+             incident_type: "kiosk_count", // 👈 ЗӨВХӨН ЭНЭ Л БАЙНА, ӨӨР ИЛҮҮ ДУТУУ ТААМАГЛАЛ БАЙХГҮЙ
+-            notes: `Kiosk Тооллого: ${val}`, 
++            notes: `Таблет Тооллого: ${val}`,
+             date: currentDate,
+             worker_name: currentWorkerName,
+           });
+@@ -1763,6 +1764,12 @@ const initKioskContext = async () => {
+     return data;
+   };
+ 
++  const refreshTodayLogs = () => {
++    kioskTodayLogs()
++      .then((logs) => setTodayLogs(sortLogsNewestFirst(logs)))
++      .catch(() => {});
++  };
++
+  const loadLiveTodayTasks = async (tenantId: string, worker: any, pre?: any) => {
+     const data = pre || (await kioskBootstrap());
+     const allTasks = data.tasks || [];
+@@ -3800,7 +3807,7 @@ const handleCloseShift = async () => {
+         incident_type: kioskMode === "count" ? "kiosk_count" : null,
+         notes: kioskMode === "spoilage" && chosenReason
+           ? chosenReason.notes
+-          : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
++          : kioskMode === "count" ? `Таблет тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
+         input_unit: itemToSave.unit,
+       },
+     ]);
+@@ -3813,7 +3820,7 @@ const handleCloseShift = async () => {
+       id: newId || "ok",
+       text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
+     });
+-    fetchKioskData(tenantClientId);
++    refreshTodayLogs();
+   } catch (err: any) {
+     notify(err?.message || "Хадгалж чадсангүй.");
+     console.error("Kiosk save failed:", err);
+@@ -4123,7 +4130,7 @@ const handleCloseShift = async () => {
+                             id: saved.ids?.[0] || "bulk",
+                             text: `${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
+                           });
+-                          fetchKioskData(tenantClientId);
++                          refreshTodayLogs();
+                         } catch (e: any) {
+                           notify(e.message || "E-Barimt хадгалагдсангүй.");
+                         }
+@@ -5070,7 +5077,7 @@ const handleCloseShift = async () => {
+                                 id: saved.ids[0],
+                                 text: `Сагсан дахь ${itemsToProcess.length} бараа бүртгэгдлээ.`,
+                               });
+-                              fetchKioskData(tenantClientId);
++                              refreshTodayLogs();
+                             }
+                           } catch (err: any) {
+                             notify(err.message || "Сагс хадгалагдсангүй.");
+diff --git a/src/app/login/page.tsx b/src/app/login/page.tsx
+index 975519e..f4de4ff 100644
+--- a/src/app/login/page.tsx
++++ b/src/app/login/page.tsx
+@@ -545,7 +545,7 @@ const handleSubmit = async (e: React.FormEvent) => {
+               href="/kiosk"
+               className="text-xs text-zinc-500 hover:text-zinc-200 font-bold transition inline-flex items-center gap-1"
+             >
+-              ← Киоск руу буцах
++              ← Таблет руу буцах
+             </Link>
+           </div>
+         )}
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index f8c8a12..a322d13 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -185,7 +185,7 @@ export default function PremiumLandingPage() {
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+           <div className="text-center lg:text-left">
+             <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
+-          Бизнесээ нэг самбараас удирд.
++          Бизнесээ нэг самбараас удирдлага.
+             </h1>
+             <p className="text-zinc-400 text-lg sm:text-xl mb-10 leading-relaxed font-medium">
+               OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаягдал, өртгийг хянаж, асуудлыг олж, багтаа даалгавар санал болгож, танд юу хийхийг хэлнэ. Та зөвхөн шийднэ.
+@@ -242,7 +242,7 @@ export default function PremiumLandingPage() {
+             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
+             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
+             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
+-               Нэг удаа тохируулаад, самбараас удирд.
++               Нэг удаа тохируулаад, самбараас удирдлага.
+             </h2>
+             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
+             Эхлээд жор, эхний тооллого, таблетаа нэг удаа тохируулна. Цаашид таблетаас бүртгэнэ. Бүх тоо самбарт гарч, AI бизнесийн байдлыг тайлбарлаж, юу хийхийг зөвлөнө.{" "}
+diff --git a/src/core/packages/pkg_weekly_brief.ts b/src/core/packages/pkg_weekly_brief.ts
+index e9a3107..ed8b948 100644
+--- a/src/core/packages/pkg_weekly_brief.ts
++++ b/src/core/packages/pkg_weekly_brief.ts
+@@ -45,7 +45,7 @@ export async function runWeeklyBrief(rawClientId: string): Promise<string> {
+     `2. Нийт хаягдал: ${currWaste.toLocaleString()}₮ (Өмнөх 7 хоногт: ${prevWaste.toLocaleString()}₮)`,
+     `3. Хамгийн их хаягдсан: ${topWasteItem ? `${topWasteItem[0]} (${topWasteItem[1].toLocaleString()}₮)` : "Бүртгэгдээгүй"}`,
+     `4. Идэвхтэй ээлж: ${shiftStatus}`,
+-    `5. Шалгах зүйл: ${currWaste > 50000 ? "Хаягдал 50,000₮ давсан. Kiosk бүртгэлээ шалга." : "Хаягдал 50,000₮-өөс доош."}`,
++    `5. Шалгах зүйл: ${currWaste > 50000 ? "Хаягдал 50,000₮ давсан. Таблетын бүртгэлээ шалга." : "Хаягдал 50,000₮-өөс доош."}`,
+   ].join("\n");
+ 
+   const weekStart = sevenDaysAgo.split("T")[0];
+diff --git a/src/features/ai-cfo/AiCfoChat.tsx b/src/features/ai-cfo/AiCfoChat.tsx
+index 523d9a0..2878c04 100644
+--- a/src/features/ai-cfo/AiCfoChat.tsx
++++ b/src/features/ai-cfo/AiCfoChat.tsx
+@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm";
+ import { supabase } from "@/lib/supabase";
+ import { detectRangeMode, ubDay, type RangeMode } from "@/lib/ubDate";
+ import { chatErrorMessage, isTransientChatFailure } from "@/lib/chatError";
++import { fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
+ 
+ interface AiCfoChatProps {
+   activeClient: string;
+@@ -242,7 +243,7 @@ const fetchChatHistory = useCallback(async () => {
+           
+           // 🛡️ Immediately strip emojis from the incoming stream chunks
+           const chunk = decoder.decode(value, { stream: true });
+-          accumulatedText += stripEmojis(chunk);
++          accumulatedText = fixMnBusinessSpelling(accumulatedText + stripEmojis(chunk));
+ 
+           setCfoChatHistory((prev) => {
+             const updated = [...prev];
+@@ -273,7 +274,7 @@ const fetchChatHistory = useCallback(async () => {
+ 
+   const renderMessageContent = (fullText: string, messageIndex: number) => {
+     // 🛡️ Final safeguard: Double check the full text has no emojis before rendering
+-    const cleanText = stripEmojis(fullText);
++    const cleanText = fixMnBusinessSpelling(stripEmojis(fullText));
+     
+     const proposalRegex = /:::PROPOSAL_CARD\n([\s\S]*?)\n:::/g;
+     const parts: React.ReactNode[] = [];
+diff --git a/src/features/finance/FinanceTab.tsx b/src/features/finance/FinanceTab.tsx
+index 0a497d0..1aed038 100644
+--- a/src/features/finance/FinanceTab.tsx
++++ b/src/features/finance/FinanceTab.tsx
+@@ -24,7 +24,7 @@ import CupCheck from "./CupCheck";
+ import TeamBoard from "./TeamBoard";
+ import TruthMeter from "./TruthMeter";
+ import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustConfirmedLine, trustEstimateDisplay } from "@/lib/honestDashboard";
+-import { logTypeLabel, staffDisplayName } from "@/lib/shiftCycle";
++import { logTypeLabel, staffDisplayName, displaySourceNote} from "@/lib/shiftCycle";
+ import { sortLogsNewestFirst } from "@/lib/logSort";
+ import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
+ 
+@@ -958,7 +958,7 @@ export default function FinanceTab({
+                             >
+                               {logTypeLabel(log.type, log.notes)}
+                             </span>
+-                            <span>• {log.notes}</span>
++                            <span>• {displaySourceNote(log.notes)}</span>
+                           </p>
+                         </div>
+                       ))}
+diff --git a/src/features/inventory/InventoryTab.tsx b/src/features/inventory/InventoryTab.tsx
+index efe583a..0a10f1d 100644
+--- a/src/features/inventory/InventoryTab.tsx
++++ b/src/features/inventory/InventoryTab.tsx
+@@ -421,11 +421,7 @@ export default function InventoryTab({
+                                   <span className="text-xs font-medium text-zinc-300/80 font-mono flex items-center gap-1">
+                                     {translationsCache[
+                                       ing.name.toLowerCase().trim()
+-                                    ] || (
+-                                      <span className="text-zinc-500 italic">
+-                                        Орчуулга алга
+-                                      </span>
+-                                    )}
++                                    ] || ing.name}
+                                   </span>
+                                   <button
+                                     onClick={() =>
+diff --git a/src/features/settings/GeneralSettings.tsx b/src/features/settings/GeneralSettings.tsx
+index 550abd1..4c0444b 100644
+--- a/src/features/settings/GeneralSettings.tsx
++++ b/src/features/settings/GeneralSettings.tsx
+@@ -428,13 +428,13 @@ export default function GeneralSettings({
+           {/* 🖼️ KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
+           <div className="mb-4">
+             <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">
+-              Киоск таблетын лого
++              Таблетын лого
+             </label>
+             <div className="flex items-center gap-3 bg-zinc-950 p-2 rounded-xl border border-zinc-800 mb-1.5">
+               {kioskLogoUrl ? (
+                 <img
+                   src={kioskLogoUrl}
+-                  alt="Киоск лого"
++                  alt="Таблетын лого"
+                   className="h-10 w-10 rounded-xl object-cover border border-zinc-700 shrink-0"
+                 />
+               ) : (
+@@ -482,7 +482,7 @@ export default function GeneralSettings({
+                     } else {
+                       setKioskLogoUrl(newLogoUrl); // Дэлгэц дээрх зургийг тэр дор нь солих
+                       alert(
+-                        "Лого амжилттай солигдлоо! Киоск дээр шууд харагдана.",
++                        "Лого амжилттай солигдлоо! Таблет дээр шууд харагдана.",
+                       );
+                       fetchData();
+                     }
+diff --git a/src/features/tasks/TasksTab.tsx b/src/features/tasks/TasksTab.tsx
+index afd751b..236c3f2 100644
+--- a/src/features/tasks/TasksTab.tsx
++++ b/src/features/tasks/TasksTab.tsx
+@@ -64,7 +64,7 @@ export default function TasksTab({
+           {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
+           <div className="mb-6">
+             <h3 className="text-base font-bold mb-3 text-zinc-200">
+-              ➕ Салбартаа шинэ ажилтан нэмэх (Kiosk дээр шууд гарна)
++              Салбартаа шинэ ажилтан нэмэх (Таблет дээр шууд гарна)
+             </h3>
+             <form
+               onSubmit={async (e) => {
+@@ -115,7 +115,7 @@ export default function TasksTab({
+                     alert(`Ажилтан үүссэн ч PIN хадгалж чадсангүй: ${pinData.message || pinRes.status}`);
+                   } else {
+                     alert(
+-                      `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`,
++                      `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Таблет дээр шууд гарна.`,
+                     );
+                   }
+                   form.reset();
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index 3be6e90..de335da 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
+ import { calculateMatchScore, transliterate } from './autoReconcile';
+ import { analyticsPeriod, ubDay } from './ubDate';
+ import { buildDataTrust } from './honestDashboard';
+-import { displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
++import { displaySourceNote, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+ import { sortLogsNewestFirst } from './logSort';
+ import { formatUbTime } from './formatUbTime';
+ import { assemblePhase4 } from './phase4';
+@@ -1113,6 +1113,8 @@ for (const key in master) {
+     return {
+       date: log.date ? ubDay(log.date) : "",
+       time: log.date ? formatUbTime(log.date) : "",
++      created_at: log.created_at || log.date || null,
++      logged_at: log.date || null,
+       worker: staffDisplayName(log.worker_name || "Систем / Админ"),
+       item: ing ? ing.name : (log.non_food_item || "Unknown"),
+       qty: log.quantity,
+@@ -1124,10 +1126,12 @@ for (const key in master) {
+       image_url: log.image_url || null,
+       incident_type: log.incident_type || 'normal',
+       reported_against_worker: log.reported_against_worker || null,
+-      notes: log.notes || ""
++      notes: displaySourceNote(log.notes || "")
+     };
+   });
+ 
++  const timelineNewest = sortLogsNewestFirst(timelineLogs);
++
+   const formattedShifts = (rawShifts || []).map((s: any) => ({
+     worker: s.character_role || "Ерөнхий ажилтан",
+     start_time: s.start_time ? new Date(s.start_time).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : "-",
+@@ -1316,9 +1320,9 @@ logged_spoilage_items: (rawInventoryLogs || [])
+     menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
+     all_recipes: allRecipesMap,
+     opex_details: opexDetails,
+-    all_timeline_logs: sortLogsNewestFirst(timelineLogs),
++    all_timeline_logs: timelineNewest,
+     recent_shifts: formattedShifts,
+-    recent_worker_logs: timelineLogs.slice(0, 40),
++    recent_worker_logs: timelineNewest.slice(0, 40),
+     grades,
+     fix_list: fixList,
+     data_trust: dataTrust,
+diff --git a/src/lib/gradeGuide.ts b/src/lib/gradeGuide.ts
+index 5c640e5..9fe9358 100644
+--- a/src/lib/gradeGuide.ts
++++ b/src/lib/gradeGuide.ts
+@@ -1,4 +1,5 @@
+ import { displayUnit } from "@/lib/shiftCycle";
++import { STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
+ 
+ export type GradeGuideInput = {
+   status?: string;
+@@ -49,10 +50,32 @@ function known(value: number | null | undefined): value is number {
+   return value != null && Number.isFinite(Number(value));
+ }
+ 
+-export function gradeGuide(row: GradeGuideInput): GradeGuide {
++/** Самбар болон AI-ийн барааны тооны нэг эх сурвалж. */
++export type ItemVarianceFacts = {
++  unit: string;
++  unitText: string;
++  hasStart: boolean;
++  hasEnd: boolean;
++  partial: boolean;
++  wasteKnown: boolean;
++  spoilage: number;
++  testing: number;
++  staffMeal: number;
++  other: number;
++  logged: number;
++  theo: number | null;
++  actual: number | null;
++  gapQty: number | null;
++  gapMoney: number | null;
++  start: number | null;
++  end: number | null;
++  purchased: number | null;
++  unexplainedQty: number | null;
++};
++
++export function itemVarianceFacts(row: GradeGuideInput): ItemVarianceFacts {
+   const unit = displayUnit(row.unit || "");
+   const unitText = unit ? ` ${unit}` : "";
+-  const action = row.action || null;
+   const partial = Boolean(row.partial || row.measured_from);
+   const hasStart = row.has_start === true;
+   const hasEnd = row.has_end === true;
+@@ -65,12 +88,82 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
+   const theo = known(row.theoretical_qty) ? Number(row.theoretical_qty) : null;
+   const actual = known(row.actual_qty) ? Number(row.actual_qty) : null;
+   // Хэсэгчилсэн хугацаанд gap_qty null. Бүтэн хугацааны жортой хасаж хуурамч зөрүү гаргахгүй.
+-  const gap = known(row.gap_qty) ? Number(row.gap_qty) : null;
+-  const ended = row.fixable === false;
+-  const lateEnd = (row.reasons || []).some((r) => r.includes("7 хоног өнгөрсний дараа"));
++  const gapQty = known(row.gap_qty) ? Number(row.gap_qty) : null;
++  const gapMoney = known(row.gap_money) ? Number(row.gap_money) : null;
+   const start = known(row.start_qty) ? Number(row.start_qty) : null;
+   const end = known(row.end_qty) ? Number(row.end_qty) : null;
+-  const bought = known(row.purchased_qty) ? Number(row.purchased_qty) : null;
++  const purchased = known(row.purchased_qty) ? Number(row.purchased_qty) : null;
++  const unexplainedQty = gapQty == null || !wasteKnown ? null : gapQty - logged;
++  return {
++    unit,
++    unitText,
++    hasStart,
++    hasEnd,
++    partial,
++    wasteKnown,
++    spoilage,
++    testing,
++    staffMeal,
++    other,
++    logged,
++    theo,
++    actual,
++    gapQty,
++    gapMoney,
++    start,
++    end,
++    purchased,
++    unexplainedQty,
++  };
++}
++
++/** Самбарын барааны картай ижил өгүүлбэрүүд. AI үүнийг шууд хэрэглэнэ. */
++export function dashboardItemFactsText(row: GradeGuideInput): string {
++  return gradeGuide(row).facts.join(" ");
++}
++
++function isNotableGrade(row: any) {
++  const v = itemVarianceFacts(row);
++  if (v.logged > 0.0001) return true;
++  if (v.unexplainedQty != null && Math.abs(v.unexplainedQty) > 0.05) return true;
++  if (v.gapQty != null && Math.abs(v.gapQty) > 0.05) return true;
++  return normalizeStatus(row?.status) !== "Verified";
++}
++
++/** Самбарын барааны картын өгүүлбэрийг яг тэр хэлбэрээр AI-д өгнө. */
++export function gradeFactLines(grades: any[] = []): string {
++  const rows = (grades || []).filter(isNotableGrade);
++  if (!rows.length) return "Зөрүүтэй, хаягдалтай, эсвэл шалгах барааны мөр алга.";
++  return rows.map((row) => {
++    const name = String(row?.name || "").trim() || "Нэргүй бараа";
++    const status = STATUS_LABEL[normalizeStatus(row?.status)];
++    return `- ${name} (${status}): ${dashboardItemFactsText(row)}`;
++  }).join("\n");
++}
++
++
++export function gradeGuide(row: GradeGuideInput): GradeGuide {
++  const action = row.action || null;
++  const v = itemVarianceFacts(row);
++  const unit = v.unit;
++  const unitText = v.unitText;
++  const partial = v.partial;
++  const hasStart = v.hasStart;
++  const hasEnd = v.hasEnd;
++  const wasteKnown = v.wasteKnown;
++  const spoilage = v.spoilage;
++  const testing = v.testing;
++  const staffMeal = v.staffMeal;
++  const other = v.other;
++  const logged = v.logged;
++  const theo = v.theo;
++  const actual = v.actual;
++  const gap = v.gapQty;
++  const ended = row.fixable === false;
++  const lateEnd = (row.reasons || []).some((r) => r.includes("7 хоног өнгөрсний дараа"));
++  const start = v.start;
++  const end = v.end;
++  const bought = v.purchased;
+ 
+   const facts: string[] = [];
+   if (hasStart && hasEnd && start != null && end != null) {
+@@ -168,7 +261,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
+         !hasEnd
+           ? ended
+             ? "Хугацаа дууссан. Одоо тоолох нь энэ хугацааг засахгүй. Хугацааны сүүлийн өдрийн тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул."
+-            : "Киоск дээр энэ барааг одоо тоол, эсвэл Тоолох даалгавар үүсгэ."
++            : "Таблет дээр энэ барааг одоо тоол, эсвэл Тоолох даалгавар үүсгэ."
+           : "Эцсийн тоо байна. Шинэ тооллого энэ мөрийг засахгүй.",
+         !hasStart
+           ? "Хугацааны эхний тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул."
+@@ -210,7 +303,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
+       countTask: false,
+       steps: [
+         "Тоолох даалгавар бүү үүсгэ. Эхлэх тоо болон эцсийн тоо аль хэдийн байна.",
+-        `Киоск дээр Хаягдал цэсийг нээ. Тайлбаргүй ${qty(unexplained)}${unitText}-ийг нэг шалтгаанаар бүртгэ: Муудсан, Туршилт, Ажилтны хоол, Асгарсан, эсвэл Бусад.`,
++        `Таблет дээр Хаягдал цэсийг нээ. Тайлбаргүй ${qty(unexplained)}${unitText}-ийг нэг шалтгаанаар бүртгэ: Муудсан, Туршилт, Ажилтны хоол, Асгарсан, эсвэл Бусад.`,
+         theo != null && Math.abs(theo) <= 0.0001
+           ? "Жор 0 байгаа тул борлуулалт энэ барааг олоогүй. Зарагдсан гэж үзэж байвал жорын нэрийг борлуулалтын нэртэй тулга."
+           : "Хэрэв жор бага байгаа бол жорыг нээж нэг борлуулалтын орцыг шалга. Тоог таахгүй.",
+@@ -224,7 +317,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
+       countTask: false,
+       steps: [
+         "Тоолох даалгавар бүү үүсгэ.",
+-        "Киоскын түүхээс энэ барааны хаягдлыг нээ. Давхардсан эсвэл буруу тоотой мөрийг засаарай.",
++        "Таблетын түүхээс энэ барааны хаягдлыг нээ. Давхардсан эсвэл буруу тоотой мөрийг засаарай.",
+         "Хаягдал зөв бол эхлэх эсвэл эцсийн тооллогын цаасан тоог тухайн өдрөөр импортолно.",
+       ],
+     };
+@@ -235,7 +328,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
+       countTask: false,
+       steps: [
+         "Тоолох даалгавар бүү үүсгэ. Хоёр тоо аль хэдийн байна.",
+-        "Энэ хугацааны орлого бүртгэлээ нээ. Бараа ирсэн мөртлөө орлого алга бол киоск дээр орлогоор яг ирсэн тоог бүртгэ.",
++        "Энэ хугацааны орлого бүртгэлээ нээ. Бараа ирсэн мөртлөө орлого алга бол таблет дээр орлогоор яг ирсэн тоог бүртгэ.",
+         "Орлого зөв бол жорыг нээж нэг борлуулалтын орцыг шалга. Жор хэт их бол бодит үлдэгдэл их харагдана.",
+         "Тооллого буруу байсан бол цаасан тоог тухайн өдрөөр импортолно. Өнөөдрийн шинэ тоо энэ хугацааг засахгүй.",
+       ],
+diff --git a/src/lib/kioskClient.ts b/src/lib/kioskClient.ts
+index 8af73c1..35cc777 100644
+--- a/src/lib/kioskClient.ts
++++ b/src/lib/kioskClient.ts
+@@ -51,7 +51,7 @@ export async function kioskBootstrap() {
+   });
+   const data = await res.json().catch(() => ({}));
+   if (!res.ok || data.ok === false) {
+-    throw new Error(data.message || "Киоск дата татаж чадсангүй.");
++    throw new Error(data.message || "Таблетын өгөгдөл татаж чадсангүй.");
+   }
+   return data as Record<string, any>;
+ }
+diff --git a/src/lib/shiftCycle.ts b/src/lib/shiftCycle.ts
+index 746b36a..ad293b4 100644
+--- a/src/lib/shiftCycle.ts
++++ b/src/lib/shiftCycle.ts
+@@ -52,14 +52,30 @@ export function logTypeLabel(type: string, text?: string | null) {
+ 
+ const ROLE_PREFIX = /^(staff|barista|worker|менежер|ажилтан|тогооч|бариста)$/i;
+ 
++/** Хуучин бичлэгийн Kiosk / Киоск эх үүсвэрийг харуулахдаа Таблет гэж сольно. */
++export function displaySourceNote(raw: string | null | undefined): string {
++  let s = String(raw || "");
++  if (!s) return "";
++  s = s.replace(/Киоскын/g, "Таблетын");
++  s = s.replace(/киоскын/g, "таблетын");
++  s = s.replace(/КИОСКЫН/g, "ТАБЛЕТЫН");
++  s = s.replace(/Киоск/g, "Таблет");
++  s = s.replace(/киоск/g, "таблет");
++  s = s.replace(/КИОСК/g, "ТАБЛЕТ");
++  s = s.replace(/\bKiosk\b/g, "Таблет");
++  s = s.replace(/\bkiosk\b/g, "Таблет");
++  s = s.replace(/\bKIOSK\b/g, "ТАБЛЕТ");
++  return s;
++}
++
+ /** «staff (Нэр)» -> «Ажилтан: Нэр». «Kiosk (Хаягдал)» -> «Таблет (Хаягдал)». */
+ export function staffDisplayName(raw: string | null | undefined): string {
+   let s = String(raw || "").trim();
+   if (!s) return "Ажилтан";
+   s = s.replace(/^ажилтан\s*:\s*/i, "").trim();
+   if (!s) return "Ажилтан";
+-  // Төхөөрөмжийн нэр: Kiosk / kiosk -> Таблет (өгөгдлийн хуучин бичлэгт үлдсэн).
+-  s = s.replace(/\bkiosk\b/gi, "Таблет");
++  // Төхөөрөмжийн нэр: Kiosk / Киоск -> Таблет (өгөгдлийн хуучин бичлэгт үлдсэн).
++  s = displaySourceNote(s);
+   const wrapped = s.match(/^\s*(staff|barista|worker|менежер|ажилтан|тогооч|бариста)\s*\((.+)\)\s*$/i);
+   if (wrapped) {
+     const inner = staffDisplayName(wrapped[2].trim());

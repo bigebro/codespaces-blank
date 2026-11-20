@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
+import { displaySourceNote, logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
 import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
 
 assert.equal(logTypeLabel("TESTING"), "Туршилт");
@@ -15,6 +15,10 @@ assert.equal(staffDisplayName("TEST Бариста"), "TEST Бариста");
 assert.equal(staffDisplayName("Ажилтан: staff (TEST Бариста)"), "Ажилтан: TEST Бариста");
 assert.equal(staffDisplayName("Kiosk (Хаягдал)"), "Таблет (Хаягдал)");
 assert.equal(staffDisplayName("kiosk"), "Таблет");
+assert.equal(staffDisplayName("Киоск (Хаягдал)"), "Таблет (Хаягдал)");
+assert.equal(displaySourceNote("Kiosk (Хаягдал)"), "Таблет (Хаягдал)");
+assert.equal(displaySourceNote("Киоскын түүхээс"), "Таблетын түүхээс");
+assert.equal(displaySourceNote("киоск дээр орлого"), "таблет дээр орлого");
 assert.equal(itemDisplayName("Сүү (ТУРШИЛТ)"), "Сүү");
 assert.equal(splitItemName("Кофе үр (ТУРШИЛТ)").isTest, true);
 assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");

@@ -428,13 +428,13 @@ export default function GeneralSettings({
           {/* 🖼️ KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">
-              Киоск таблетын лого
+              Таблетын лого
             </label>
             <div className="flex items-center gap-3 bg-zinc-950 p-2 rounded-xl border border-zinc-800 mb-1.5">
               {kioskLogoUrl ? (
                 <img
                   src={kioskLogoUrl}
-                  alt="Киоск лого"
+                  alt="Таблетын лого"
                   className="h-10 w-10 rounded-xl object-cover border border-zinc-700 shrink-0"
                 />
               ) : (
@@ -482,7 +482,7 @@ export default function GeneralSettings({
                     } else {
                       setKioskLogoUrl(newLogoUrl); // Дэлгэц дээрх зургийг тэр дор нь солих
                       alert(
-                        "Лого амжилттай солигдлоо! Киоск дээр шууд харагдана.",
+                        "Лого амжилттай солигдлоо! Таблет дээр шууд харагдана.",
                       );
                       fetchData();
                     }

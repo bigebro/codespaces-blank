@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
+import { fixMnBusinessSpelling } from "../../../ai/runtime/mnSpelling";
 import { GoogleGenerativeAI } from "@/lib/ai/genai";
 import { createClient } from "@supabase/supabase-js";
 import { saveBusinessRule } from "@/ai/memory/memory.service";
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       const worker = await requireKioskWorker(deviceToken, workerToken);
       if (!worker) {
         return NextResponse.json(
-          { success: false, message: "Киоск нэвтрэлт хүчингүй." },
+          { success: false, message: "Таблет нэвтрэлт хүчингүй." },
           { status: 401 },
         );
       }
@@ -770,7 +771,7 @@ ${JSON.stringify(unmatched)}`;
           return NextResponse.json({
             success: true,
             is_log: false,
-            message: instantReport,
+            message: fixMnBusinessSpelling(instantReport),
           });
         }
 

@@ -64,7 +64,7 @@ export default function TasksTab({
           {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
           <div className="mb-6">
             <h3 className="text-base font-bold mb-3 text-zinc-200">
-              ➕ Салбартаа шинэ ажилтан нэмэх (Kiosk дээр шууд гарна)
+              Салбартаа шинэ ажилтан нэмэх (Таблет дээр шууд гарна)
             </h3>
             <form
               onSubmit={async (e) => {
@@ -115,7 +115,7 @@ export default function TasksTab({
                     alert(`Ажилтан үүссэн ч PIN хадгалж чадсангүй: ${pinData.message || pinRes.status}`);
                   } else {
                     alert(
-                      `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Kiosk дээр шууд гарна.`,
+                      `[${workerName}] ажилтныг [${workerRole}] үүрэгтэйгээр амжилттай бүртгэлээ! Таблет дээр шууд гарна.`,
                     );
                   }
                   form.reset();

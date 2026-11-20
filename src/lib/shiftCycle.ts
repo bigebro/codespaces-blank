@@ -52,14 +52,30 @@ export function logTypeLabel(type: string, text?: string | null) {
 
 const ROLE_PREFIX = /^(staff|barista|worker|менежер|ажилтан|тогооч|бариста)$/i;
 
+/** Хуучин бичлэгийн Kiosk / Киоск эх үүсвэрийг харуулахдаа Таблет гэж сольно. */
+export function displaySourceNote(raw: string | null | undefined): string {
+  let s = String(raw || "");
+  if (!s) return "";
+  s = s.replace(/Киоскын/g, "Таблетын");
+  s = s.replace(/киоскын/g, "таблетын");
+  s = s.replace(/КИОСКЫН/g, "ТАБЛЕТЫН");
+  s = s.replace(/Киоск/g, "Таблет");
+  s = s.replace(/киоск/g, "таблет");
+  s = s.replace(/КИОСК/g, "ТАБЛЕТ");
+  s = s.replace(/\bKiosk\b/g, "Таблет");
+  s = s.replace(/\bkiosk\b/g, "Таблет");
+  s = s.replace(/\bKIOSK\b/g, "ТАБЛЕТ");
+  return s;
+}
+
 /** «staff (Нэр)» -> «Ажилтан: Нэр». «Kiosk (Хаягдал)» -> «Таблет (Хаягдал)». */
 export function staffDisplayName(raw: string | null | undefined): string {
   let s = String(raw || "").trim();
   if (!s) return "Ажилтан";
   s = s.replace(/^ажилтан\s*:\s*/i, "").trim();
   if (!s) return "Ажилтан";
-  // Төхөөрөмжийн нэр: Kiosk / kiosk -> Таблет (өгөгдлийн хуучин бичлэгт үлдсэн).
-  s = s.replace(/\bkiosk\b/gi, "Таблет");
+  // Төхөөрөмжийн нэр: Kiosk / Киоск -> Таблет (өгөгдлийн хуучин бичлэгт үлдсэн).
+  s = displaySourceNote(s);
   const wrapped = s.match(/^\s*(staff|barista|worker|менежер|ажилтан|тогооч|бариста)\s*\((.+)\)\s*$/i);
   if (wrapped) {
     const inner = staffDisplayName(wrapped[2].trim());

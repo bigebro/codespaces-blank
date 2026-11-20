@@ -1,4 +1,5 @@
 import { displayUnit } from "@/lib/shiftCycle";
+import { STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
 
 export type GradeGuideInput = {
   status?: string;
@@ -49,10 +50,32 @@ function known(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(Number(value));
 }
 
-export function gradeGuide(row: GradeGuideInput): GradeGuide {
+/** Самбар болон AI-ийн барааны тооны нэг эх сурвалж. */
+export type ItemVarianceFacts = {
+  unit: string;
+  unitText: string;
+  hasStart: boolean;
+  hasEnd: boolean;
+  partial: boolean;
+  wasteKnown: boolean;
+  spoilage: number;
+  testing: number;
+  staffMeal: number;
+  other: number;
+  logged: number;
+  theo: number | null;
+  actual: number | null;
+  gapQty: number | null;
+  gapMoney: number | null;
+  start: number | null;
+  end: number | null;
+  purchased: number | null;
+  unexplainedQty: number | null;
+};
+
+export function itemVarianceFacts(row: GradeGuideInput): ItemVarianceFacts {
   const unit = displayUnit(row.unit || "");
   const unitText = unit ? ` ${unit}` : "";
-  const action = row.action || null;
   const partial = Boolean(row.partial || row.measured_from);
   const hasStart = row.has_start === true;
   const hasEnd = row.has_end === true;
@@ -65,12 +88,82 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   const theo = known(row.theoretical_qty) ? Number(row.theoretical_qty) : null;
   const actual = known(row.actual_qty) ? Number(row.actual_qty) : null;
   // Хэсэгчилсэн хугацаанд gap_qty null. Бүтэн хугацааны жортой хасаж хуурамч зөрүү гаргахгүй.
-  const gap = known(row.gap_qty) ? Number(row.gap_qty) : null;
-  const ended = row.fixable === false;
-  const lateEnd = (row.reasons || []).some((r) => r.includes("7 хоног өнгөрсний дараа"));
+  const gapQty = known(row.gap_qty) ? Number(row.gap_qty) : null;
+  const gapMoney = known(row.gap_money) ? Number(row.gap_money) : null;
   const start = known(row.start_qty) ? Number(row.start_qty) : null;
   const end = known(row.end_qty) ? Number(row.end_qty) : null;
-  const bought = known(row.purchased_qty) ? Number(row.purchased_qty) : null;
+  const purchased = known(row.purchased_qty) ? Number(row.purchased_qty) : null;
+  const unexplainedQty = gapQty == null || !wasteKnown ? null : gapQty - logged;
+  return {
+    unit,
+    unitText,
+    hasStart,
+    hasEnd,
+    partial,
+    wasteKnown,
+    spoilage,
+    testing,
+    staffMeal,
+    other,
+    logged,
+    theo,
+    actual,
+    gapQty,
+    gapMoney,
+    start,
+    end,
+    purchased,
+    unexplainedQty,
+  };
+}
+
+/** Самбарын барааны картай ижил өгүүлбэрүүд. AI үүнийг шууд хэрэглэнэ. */
+export function dashboardItemFactsText(row: GradeGuideInput): string {
+  return gradeGuide(row).facts.join(" ");
+}
+
+function isNotableGrade(row: any) {
+  const v = itemVarianceFacts(row);
+  if (v.logged > 0.0001) return true;
+  if (v.unexplainedQty != null && Math.abs(v.unexplainedQty) > 0.05) return true;
+  if (v.gapQty != null && Math.abs(v.gapQty) > 0.05) return true;
+  return normalizeStatus(row?.status) !== "Verified";
+}
+
+/** Самбарын барааны картын өгүүлбэрийг яг тэр хэлбэрээр AI-д өгнө. */
+export function gradeFactLines(grades: any[] = []): string {
+  const rows = (grades || []).filter(isNotableGrade);
+  if (!rows.length) return "Зөрүүтэй, хаягдалтай, эсвэл шалгах барааны мөр алга.";
+  return rows.map((row) => {
+    const name = String(row?.name || "").trim() || "Нэргүй бараа";
+    const status = STATUS_LABEL[normalizeStatus(row?.status)];
+    return `- ${name} (${status}): ${dashboardItemFactsText(row)}`;
+  }).join("\n");
+}
+
+
+export function gradeGuide(row: GradeGuideInput): GradeGuide {
+  const action = row.action || null;
+  const v = itemVarianceFacts(row);
+  const unit = v.unit;
+  const unitText = v.unitText;
+  const partial = v.partial;
+  const hasStart = v.hasStart;
+  const hasEnd = v.hasEnd;
+  const wasteKnown = v.wasteKnown;
+  const spoilage = v.spoilage;
+  const testing = v.testing;
+  const staffMeal = v.staffMeal;
+  const other = v.other;
+  const logged = v.logged;
+  const theo = v.theo;
+  const actual = v.actual;
+  const gap = v.gapQty;
+  const ended = row.fixable === false;
+  const lateEnd = (row.reasons || []).some((r) => r.includes("7 хоног өнгөрсний дараа"));
+  const start = v.start;
+  const end = v.end;
+  const bought = v.purchased;
 
   const facts: string[] = [];
   if (hasStart && hasEnd && start != null && end != null) {
@@ -168,7 +261,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
         !hasEnd
           ? ended
             ? "Хугацаа дууссан. Одоо тоолох нь энэ хугацааг засахгүй. Хугацааны сүүлийн өдрийн тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул."
-            : "Киоск дээр энэ барааг одоо тоол, эсвэл Тоолох даалгавар үүсгэ."
+            : "Таблет дээр энэ барааг одоо тоол, эсвэл Тоолох даалгавар үүсгэ."
           : "Эцсийн тоо байна. Шинэ тооллого энэ мөрийг засахгүй.",
         !hasStart
           ? "Хугацааны эхний тоо цаас эсвэл Excel дээр байвал Бөөнөөр импортлох хэсгээр яг тэр өдрөөр оруул."
@@ -210,7 +303,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       countTask: false,
       steps: [
         "Тоолох даалгавар бүү үүсгэ. Эхлэх тоо болон эцсийн тоо аль хэдийн байна.",
-        `Киоск дээр Хаягдал цэсийг нээ. Тайлбаргүй ${qty(unexplained)}${unitText}-ийг нэг шалтгаанаар бүртгэ: Муудсан, Туршилт, Ажилтны хоол, Асгарсан, эсвэл Бусад.`,
+        `Таблет дээр Хаягдал цэсийг нээ. Тайлбаргүй ${qty(unexplained)}${unitText}-ийг нэг шалтгаанаар бүртгэ: Муудсан, Туршилт, Ажилтны хоол, Асгарсан, эсвэл Бусад.`,
         theo != null && Math.abs(theo) <= 0.0001
           ? "Жор 0 байгаа тул борлуулалт энэ барааг олоогүй. Зарагдсан гэж үзэж байвал жорын нэрийг борлуулалтын нэртэй тулга."
           : "Хэрэв жор бага байгаа бол жорыг нээж нэг борлуулалтын орцыг шалга. Тоог таахгүй.",
@@ -224,7 +317,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       countTask: false,
       steps: [
         "Тоолох даалгавар бүү үүсгэ.",
-        "Киоскын түүхээс энэ барааны хаягдлыг нээ. Давхардсан эсвэл буруу тоотой мөрийг засаарай.",
+        "Таблетын түүхээс энэ барааны хаягдлыг нээ. Давхардсан эсвэл буруу тоотой мөрийг засаарай.",
         "Хаягдал зөв бол эхлэх эсвэл эцсийн тооллогын цаасан тоог тухайн өдрөөр импортолно.",
       ],
     };
@@ -235,7 +328,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       countTask: false,
       steps: [
         "Тоолох даалгавар бүү үүсгэ. Хоёр тоо аль хэдийн байна.",
-        "Энэ хугацааны орлого бүртгэлээ нээ. Бараа ирсэн мөртлөө орлого алга бол киоск дээр орлогоор яг ирсэн тоог бүртгэ.",
+        "Энэ хугацааны орлого бүртгэлээ нээ. Бараа ирсэн мөртлөө орлого алга бол таблет дээр орлогоор яг ирсэн тоог бүртгэ.",
         "Орлого зөв бол жорыг нээж нэг борлуулалтын орцыг шалга. Жор хэт их бол бодит үлдэгдэл их харагдана.",
         "Тооллого буруу байсан бол цаасан тоог тухайн өдрөөр импортолно. Өнөөдрийн шинэ тоо энэ хугацааг засахгүй.",
       ],

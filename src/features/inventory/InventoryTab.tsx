@@ -421,11 +421,7 @@ export default function InventoryTab({
                                   <span className="text-xs font-medium text-zinc-300/80 font-mono flex items-center gap-1">
                                     {translationsCache[
                                       ing.name.toLowerCase().trim()
-                                    ] || (
-                                      <span className="text-zinc-500 italic">
-                                        Орчуулга алга
-                                      </span>
-                                    )}
+                                    ] || ing.name}
                                   </span>
                                   <button
                                     onClick={() =>

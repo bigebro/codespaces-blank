@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { analyticsPeriod, ubDay } from './ubDate';
 import { buildDataTrust } from './honestDashboard';
-import { displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+import { displaySourceNote, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
 import { sortLogsNewestFirst } from './logSort';
 import { formatUbTime } from './formatUbTime';
 import { assemblePhase4 } from './phase4';
@@ -1113,6 +1113,8 @@ for (const key in master) {
     return {
       date: log.date ? ubDay(log.date) : "",
       time: log.date ? formatUbTime(log.date) : "",
+      created_at: log.created_at || log.date || null,
+      logged_at: log.date || null,
       worker: staffDisplayName(log.worker_name || "Систем / Админ"),
       item: ing ? ing.name : (log.non_food_item || "Unknown"),
       qty: log.quantity,
@@ -1124,9 +1126,11 @@ for (const key in master) {
       image_url: log.image_url || null,
       incident_type: log.incident_type || 'normal',
       reported_against_worker: log.reported_against_worker || null,
-      notes: log.notes || ""
+      notes: displaySourceNote(log.notes || "")
     };
   });
+
+  const timelineNewest = sortLogsNewestFirst(timelineLogs);
 
   const formattedShifts = (rawShifts || []).map((s: any) => ({
     worker: s.character_role || "Ерөнхий ажилтан",
@@ -1316,9 +1320,9 @@ logged_spoilage_items: (rawInventoryLogs || [])
     menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
     all_recipes: allRecipesMap,
     opex_details: opexDetails,
-    all_timeline_logs: sortLogsNewestFirst(timelineLogs),
+    all_timeline_logs: timelineNewest,
     recent_shifts: formattedShifts,
-    recent_worker_logs: timelineLogs.slice(0, 40),
+    recent_worker_logs: timelineNewest.slice(0, 40),
     grades,
     fix_list: fixList,
     data_trust: dataTrust,

@@ -84,6 +84,13 @@ function isInvalidArgument(err: unknown) {
 
 const MAX_STEPS = 5;
 
+const TRUNCATED_NOTE = "\n(Хариулт тасарсан тул дээрх нь дутуу байж болно. Үргэлжлэхийг асуугаарай.)";
+
+function isTruncatedFinish(reason: unknown) {
+  const r = String(reason || "").toUpperCase();
+  return r === "MAX_TOKENS" || r === "LENGTH";
+}
+
 export async function runToolAgent(opts: {
   context: AgentContext;
   userMessage: string;
@@ -91,6 +98,9 @@ export async function runToolAgent(opts: {
   tools: FunctionDeclaration[];
   sanitizeArgs?: (args: Record<string, unknown>) => Record<string, unknown>;
   preamble?: string;
+  disableTools?: boolean;
+  historyLimit?: number;
+  maxOutputTokens?: number;
 }): Promise<ReadableStream> {
   const encoder = new TextEncoder();
 
@@ -115,7 +125,7 @@ export async function runToolAgent(opts: {
           const released = prefixGate.flush();
           if (released) enqueue(released);
         };
-        const historyPromise = getConversationThread(opts.context.clientId, 6);
+        const historyPromise = getConversationThread(opts.context.clientId, opts.historyLimit ?? 6);
         const ai = getGenAI();
         const history = sanitizeHistory((await historyPromise) as { role?: string; parts?: ModelPart[] }[]);
         const contents: { role: string; parts: ModelPart[] }[] = [...history];
@@ -139,21 +149,25 @@ export async function runToolAgent(opts: {
         const readModel = async (thinking: boolean) => {
 
           attemptSent = false;
+          const useTools = !opts.disableTools && (opts.tools || []).length > 0;
           const stream = await ai.models.generateContentStream({
             model: MODELS.flash,
             contents,
             config: {
               systemInstruction: opts.systemInstruction + "\n\nДҮРЭМ: Хэрэглэгчид хэзээ ч хэрэгслийн нэр, функцийн нэр, кодын нэр (жишээ нь skill_..., action_...) бүү дурд. Юу хийж чадахаа энгийн монгол хэлээр тайлбарла.\n" + MN_BUSINESS_SPELLING_NOTE,
               temperature: 0.1,
+              maxOutputTokens: opts.maxOutputTokens || 2048,
               ...(thinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-              tools: [{ functionDeclarations: opts.tools }],
+              ...(useTools ? { tools: [{ functionDeclarations: opts.tools }] } : {}),
             },
           });
 
           let text = "";
           let sawCall = false;
+          let truncated = false;
           const modelParts: ModelPart[] = [];
           for await (const chunk of stream) {
+            if (isTruncatedFinish(chunk.candidates?.[0]?.finishReason)) truncated = true;
             const parts = chunk.candidates?.[0]?.content?.parts || [];
             let delta = "";
             let partHadText = false;
@@ -199,7 +213,7 @@ export async function runToolAgent(opts: {
             seen.add(key);
             calls.push({ name: call.name, args: call.args || {} });
           }
-          return { text, modelParts, calls };
+          return { text, modelParts, calls, truncated };
         };
 
         for (let step = 0; step < MAX_STEPS; step++) {
@@ -218,6 +232,7 @@ export async function runToolAgent(opts: {
             finalText = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
             if (!streamed && finalText) enqueue(finalText);
             else flushPrefix();
+            if (outcome.truncated) enqueue(TRUNCATED_NOTE);
             break;
           }
 

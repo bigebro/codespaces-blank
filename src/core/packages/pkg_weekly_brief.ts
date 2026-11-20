@@ -45,7 +45,7 @@ export async function runWeeklyBrief(rawClientId: string): Promise<string> {
     `2. Нийт хаягдал: ${currWaste.toLocaleString()}₮ (Өмнөх 7 хоногт: ${prevWaste.toLocaleString()}₮)`,
     `3. Хамгийн их хаягдсан: ${topWasteItem ? `${topWasteItem[0]} (${topWasteItem[1].toLocaleString()}₮)` : "Бүртгэгдээгүй"}`,
     `4. Идэвхтэй ээлж: ${shiftStatus}`,
-    `5. Шалгах зүйл: ${currWaste > 50000 ? "Хаягдал 50,000₮ давсан. Kiosk бүртгэлээ шалга." : "Хаягдал 50,000₮-өөс доош."}`,
+    `5. Шалгах зүйл: ${currWaste > 50000 ? "Хаягдал 50,000₮ давсан. Таблетын бүртгэлээ шалга." : "Хаягдал 50,000₮-өөс доош."}`,
   ].join("\n");
 
   const weekStart = sevenDaysAgo.split("T")[0];

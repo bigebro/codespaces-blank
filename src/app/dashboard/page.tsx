@@ -6,7 +6,7 @@ import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubD
 import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
 import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
 import { roleLabel } from "../../lib/roleLabel";
-import { staffDisplayName } from "../../lib/shiftCycle";
+import { displaySourceNote, staffDisplayName } from "../../lib/shiftCycle";
 import { planLabel } from "../../lib/planLabel";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
@@ -3215,7 +3215,7 @@ function Home() {
                                           )}
                                         </td>
                                         <td className="py-3 px-2 text-zinc-400 max-w-[200px] truncate">
-                                          {log.notes || "-"}
+                                          {displaySourceNote(log.notes) || "—"}
                                         </td>
                                         <td className="py-3 px-2 text-zinc-400 text-sm font-mono">
                                           {new Date(log.date).toLocaleString(
@@ -3474,7 +3474,7 @@ function Home() {
                             </p>
                             <div className="bg-blue-500/5 border-l-2 border-blue-500 p-2.5 text-sm text-zinc-300/90 rounded-r-lg">
                               <strong>Авах арга хэмжээ:</strong> Ажилтнаас
-                              асуух. Хэрэв асгасан байвал Kiosk руу ороод "1л
+                              асуух. Хэрэв асгасан байвал Таблет руу ороод "1л
                               сүү асгасан" гэж нөхөж оруулахад л системийн энэ
                               алдагдал автоматаар 0 болж засагдана.
                             </div>

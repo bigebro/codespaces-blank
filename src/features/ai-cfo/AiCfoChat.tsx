@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
 import { detectRangeMode, ubDay, type RangeMode } from "@/lib/ubDate";
 import { chatErrorMessage, isTransientChatFailure } from "@/lib/chatError";
+import { fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
 
 interface AiCfoChatProps {
   activeClient: string;
@@ -242,7 +243,7 @@ const fetchChatHistory = useCallback(async () => {
           
           // 🛡️ Immediately strip emojis from the incoming stream chunks
           const chunk = decoder.decode(value, { stream: true });
-          accumulatedText += stripEmojis(chunk);
+          accumulatedText = fixMnBusinessSpelling(accumulatedText + stripEmojis(chunk));
 
           setCfoChatHistory((prev) => {
             const updated = [...prev];
@@ -273,7 +274,7 @@ const fetchChatHistory = useCallback(async () => {
 
   const renderMessageContent = (fullText: string, messageIndex: number) => {
     // 🛡️ Final safeguard: Double check the full text has no emojis before rendering
-    const cleanText = stripEmojis(fullText);
+    const cleanText = fixMnBusinessSpelling(stripEmojis(fullText));
     
     const proposalRegex = /:::PROPOSAL_CARD\n([\s\S]*?)\n:::/g;
     const parts: React.ReactNode[] = [];

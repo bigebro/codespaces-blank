@@ -67,7 +67,7 @@ ${openLessonsText}
 [FORENSIC LEAKAGE LOGIC]:
 1. Proportional multi-item depletion with 0 POS sales -> Flag as potential cash theft / un-rung sales (recommend CCTV audit).
 2. Recurring small deficits per unit -> Overpouring / grinder calibration error.
-3. 1-2 random units missing -> Unlogged staff meal / dropped item on Kiosk.
+3. 1-2 random units missing -> Unlogged staff meal / dropped item on the tablet.
 4. Sudden bulk loss (carton/kg) -> Large spill or physical theft.
 
 [SHIFT CLOSE COUNT]:

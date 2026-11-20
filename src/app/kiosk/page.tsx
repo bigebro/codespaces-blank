@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
 import { sortLogsNewestFirst } from "../../lib/logSort";
 import { chatErrorMessage, isTransientChatFailure } from "../../lib/chatError";
+import { fixMnBusinessSpelling } from "../../ai/runtime/mnSpelling";
 import OwnScore from "../../features/kiosk/OwnScore";
 import CupCheck from "../../features/finance/CupCheck";
 import TeamGoalBar from "../../features/finance/TeamGoalBar";
@@ -785,7 +786,7 @@ function KioskAiChatSection({
         ...prev,
         {
           sender: "ai",
-          text: data.message || "Гүйлгээ боловсруулагдлаа.",
+          text: fixMnBusinessSpelling(data.message || "Гүйлгээ боловсруулагдлаа."),
           logId: data.log_id,
           learnedAliasId: data.learned_alias_id,
         },
@@ -1343,7 +1344,7 @@ const handleKioskBulkSave = async () => {
             quantity: parseFloat(val) || 0,
             type: "count",
             incident_type: "kiosk_count", // 👈 ЗӨВХӨН ЭНЭ Л БАЙНА, ӨӨР ИЛҮҮ ДУТУУ ТААМАГЛАЛ БАЙХГҮЙ
-            notes: `Kiosk Тооллого: ${val}`, 
+            notes: `Таблет Тооллого: ${val}`,
             date: currentDate,
             worker_name: currentWorkerName,
           });
@@ -1761,6 +1762,12 @@ const initKioskContext = async () => {
       })
       .catch(() => {});
     return data;
+  };
+
+  const refreshTodayLogs = () => {
+    kioskTodayLogs()
+      .then((logs) => setTodayLogs(sortLogsNewestFirst(logs)))
+      .catch(() => {});
   };
 
  const loadLiveTodayTasks = async (tenantId: string, worker: any, pre?: any) => {
@@ -3800,7 +3807,7 @@ const handleCloseShift = async () => {
         incident_type: kioskMode === "count" ? "kiosk_count" : null,
         notes: kioskMode === "spoilage" && chosenReason
           ? chosenReason.notes
-          : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
+          : kioskMode === "count" ? `Таблет тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
         input_unit: itemToSave.unit,
       },
     ]);
@@ -3813,7 +3820,7 @@ const handleCloseShift = async () => {
       id: newId || "ok",
       text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
     });
-    fetchKioskData(tenantClientId);
+    refreshTodayLogs();
   } catch (err: any) {
     notify(err?.message || "Хадгалж чадсангүй.");
     console.error("Kiosk save failed:", err);
@@ -4123,7 +4130,7 @@ const handleCloseShift = async () => {
                             id: saved.ids?.[0] || "bulk",
                             text: `${logsToInsert.length} бараа E-Barimt-аар орлогод орлоо.`,
                           });
-                          fetchKioskData(tenantClientId);
+                          refreshTodayLogs();
                         } catch (e: any) {
                           notify(e.message || "E-Barimt хадгалагдсангүй.");
                         }
@@ -5070,7 +5077,7 @@ const handleCloseShift = async () => {
                                 id: saved.ids[0],
                                 text: `Сагсан дахь ${itemsToProcess.length} бараа бүртгэгдлээ.`,
                               });
-                              fetchKioskData(tenantClientId);
+                              refreshTodayLogs();
                             }
                           } catch (err: any) {
                             notify(err.message || "Сагс хадгалагдсангүй.");

@@ -51,7 +51,7 @@ export async function kioskBootstrap() {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.ok === false) {
-    throw new Error(data.message || "Киоск дата татаж чадсангүй.");
+    throw new Error(data.message || "Таблетын өгөгдөл татаж чадсангүй.");
   }
   return data as Record<string, any>;
 }
