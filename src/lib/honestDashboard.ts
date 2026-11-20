@@ -102,7 +102,8 @@ function hasTrustCounts(t?: Partial<DataTrust> | null): t is Partial<DataTrust> 
 
 export const IMPOSSIBLE_TITLE = "Энэ тоо бодит биш байж магадгүй: өгөгдөл дутуу";
 export const SURPLUS_NOTE = "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна";
-export const COMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн";
+export const COMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн байна";
+export const INCOMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн биш байна";
 
 export function trustTone(pct: number): "red" | "yellow" | "green" {
   if (pct < 50) return "red";
@@ -250,4 +251,21 @@ export function purchasePctLabel(trust: { purchase_pct?: number; has_purchase_va
   if (pct == null || !Number.isFinite(Number(pct))) return "—";
   if (Number(pct) === 0 && trust.has_purchase_value !== true) return "—";
   return `${Math.round(Number(pct))}%`;
+}
+
+/** «N бараанаас M нь баталгаажсан». Баталгаажаагүй эсвэл хувь нь «—»/0% үед хаалтыг хасна. */
+export function trustConfirmedLine(trust: {
+  total?: number;
+  verified?: number;
+  purchase_pct?: number;
+  has_purchase_value?: boolean;
+} | null | undefined): string {
+  if (!trust || !Number(trust.total)) return "—";
+  const total = Number(trust.total) || 0;
+  const verified = Number(trust.verified) || 0;
+  const base = `${total} бараанаас ${verified} нь баталгаажсан`;
+  if (verified === 0) return base;
+  const pct = purchasePctLabel(trust);
+  if (pct === "—" || pct === "0%") return base;
+  return `${base} (худалдан авалтын үнийн дүнгийн ${pct})`;
 }

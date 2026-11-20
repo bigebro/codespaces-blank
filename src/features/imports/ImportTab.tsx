@@ -1527,6 +1527,13 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           dbType = "testing";
         else if (rawType.includes("other") || rawType.includes("бусад"))
           dbType = "other";
+        else if (
+          rawType.includes("spoil") ||
+          rawType.includes("хаягдал") ||
+          rawType.includes("асга") ||
+          rawType.includes("мууд")
+        )
+          dbType = "spoilage";
 
         const matchedIng = ingMap.get(cleanNameForMatch(ingName));
         const currentActor =
@@ -1540,7 +1547,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             ingredient_id: matchedIng.id,
             quantity: -Math.abs(qty),
             type: dbType,
-            notes: note || `${dbType} logged in bulk`,
+            notes: note || "Бөөнд хаягдал бүртгэсэн",
             date: dateVal, //  Сонгосон сард заавал багтана!
             worker_name: `${currentActor} (Хаягдал)`,
           });
@@ -2059,7 +2066,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               rows={6}
               value={kitchenPasteText}
               onChange={(e) => setKitchenPasteText(e.target.value)}
-              placeholder="Жишээ:&#10;2026-06-04&#9;spoilage&#9;Цөцгийн крем&#9;500&#9;Асгарч муудсан"
+              placeholder="Жишээ:&#10;2026-06-04&#9;хаягдал&#9;Цөцгийн крем&#9;500&#9;Асгарч муудсан"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
             />
 

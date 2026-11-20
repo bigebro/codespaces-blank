@@ -74,6 +74,9 @@ ${todaySnapshot ? "\n" + todaySnapshot + "\n" : ""}
 ${weeklyBriefPromptText}
 ${businessRulesText}
 
+[PERIOD NUMBERS]:
+The overview snapshot already has the selected period's dashboard numbers, including logged waste («Хаягдлын алдагдал») and unexplained gap («Тайлбаргүй зөрүү») separately. Do not add those two together into one gap. Do not label a count or variance as «бодит үлдэгдэл» (that looks like stock); use «хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү». If the snapshot has the numbers you need, do not call tools just to restate them.
+
 [CATALOG RULE]:
 If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
 If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.

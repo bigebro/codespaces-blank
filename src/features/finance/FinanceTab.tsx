@@ -23,8 +23,9 @@ import UnexplainedGaps from "./UnexplainedGaps";
 import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
-import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, purchasePctLabel, trustEstimateDisplay } from "@/lib/honestDashboard";
+import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustConfirmedLine, trustEstimateDisplay } from "@/lib/honestDashboard";
 import { logTypeLabel, staffDisplayName } from "@/lib/shiftCycle";
+import { sortLogsNewestFirst } from "@/lib/logSort";
 import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
 
 // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
@@ -132,6 +133,7 @@ export default function FinanceTab({
   // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
   const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
   const dataState = periodDataState({ loading, analytics: liveAnalytics });
+  const showMoney = dataState === "ready";
   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
   const verifiedTheo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
   const unverifiedTheo = Number(
@@ -622,21 +624,22 @@ export default function FinanceTab({
               )}
               <span className="text-xs text-zinc-400 mt-2 block">
                 Онолын өртөг, зөвхөн баталгаажсан бараа:{" "}
-                {Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮
+                {showMoney ? `${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮` : ""}
+                {!showMoney && <span className="inline-block h-3 w-16 bg-zinc-800 rounded align-middle" />}
               </span>
               <span className="text-xs text-zinc-300 mt-1 block">
-                {trustReady
-                  ? trustSummary.verified > 0
-                    ? `${trustSummary.total} бараанаас ${trustSummary.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${purchasePctLabel(trustSummary)})`
-                    : trustSummary.total > 0
-                      ? `${trustSummary.total} бараанаас баталгаажсан нь алга`
-                      : "—"
-                  : "—"}
+                {showMoney && trustReady ? trustConfirmedLine(trustSummary) : null}
+                {!showMoney && <span className="inline-block h-3 w-40 bg-zinc-800 rounded align-middle" />}
               </span>
               <span className="text-xs text-amber-200 mt-1 block">
-                Дутуу, шалгах барааны онолын өртөг: {Math.round(unverifiedTheo).toLocaleString()}₮
+                Дутуу, шалгах барааны онолын өртөг:{" "}
+                {showMoney ? `${Math.round(unverifiedTheo).toLocaleString()}₮` : null}
+                {!showMoney && <span className="inline-block h-3 w-16 bg-zinc-800 rounded align-middle" />}
               </span>
-              <span className="text-xs text-zinc-400 mt-1 block">{estimateText}</span>
+              <span className="text-xs text-zinc-400 mt-1 block">
+                {showMoney ? estimateText : null}
+                {!showMoney && <span className="inline-block h-3 w-32 bg-zinc-800 rounded align-middle" />}
+              </span>
             </div>
 
             {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
@@ -653,11 +656,13 @@ export default function FinanceTab({
               )}
               <span className="text-xs text-zinc-400 mt-2 block">
                 Дүн:{" "}
+                {showMoney ? (
                 <strong className="text-zinc-200 font-mono">
-                  {liveAnalytics
-                    ? `${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()}₮`
-                    : "-"}
+                  {`${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()}₮`}
                 </strong>
+                ) : (
+                  <span className="inline-block h-3 w-16 bg-zinc-800 rounded align-middle" />
+                )}
               </span>
             </div>
 
@@ -684,9 +689,13 @@ export default function FinanceTab({
               )}
               <span className="text-xs text-zinc-400 mt-2 block">
                 Цэвэр маржин:{" "}
+                {showMoney ? (
                 <strong className="text-white font-mono">
                   {hasRevenue ? liveAnalytics?.financial_ladder?.net_margin || "0%" : "—"}
                 </strong>
+                ) : (
+                  <span className="inline-block h-3 w-12 bg-zinc-800 rounded align-middle" />
+                )}
               </span>
             </div>
           </div>
@@ -699,7 +708,7 @@ export default function FinanceTab({
             ))}
           </div>
         )}
-        {dataState !== "empty" && (
+        {dataState === "ready" && (
         <>
         <DataGradePanel
           liveAnalytics={liveAnalytics}
@@ -731,7 +740,7 @@ export default function FinanceTab({
                 <span className="font-bold text-white font-mono">
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.revenue || 0).toLocaleString()} ₮`
-                    : "-"}
+                    : ""}
                 </span>
               </div>
 
@@ -748,7 +757,7 @@ export default function FinanceTab({
                   -
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.est_cogs || 0).toLocaleString()} ₮`
-                    : "-"}
+                    : ""}
                 </span>
               </div>
 
@@ -776,7 +785,7 @@ export default function FinanceTab({
                 <span className="font-black text-zinc-200 font-mono">
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()} ₮`
-                    : "-"}
+                    : ""}
                 </span>
               </div>
 
@@ -793,7 +802,7 @@ export default function FinanceTab({
                   -
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.opex || 0).toLocaleString()} ₮`
-                    : "-"}
+                    : ""}
                 </span>
               </div>
 
@@ -804,7 +813,7 @@ export default function FinanceTab({
                 <span className="font-bold text-white font-mono">
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.ebit || 0).toLocaleString()} ₮`
-                    : "-"}
+                    : ""}
                 </span>
               </div>
 
@@ -822,7 +831,7 @@ export default function FinanceTab({
                 >
                   {liveAnalytics
                     ? `${Math.round(liveAnalytics.financial_ladder?.net_profit || 0).toLocaleString()} ₮`
-                    : "-"}
+                    : ""}
                 </span>
               </div>
             </div>
@@ -914,16 +923,11 @@ export default function FinanceTab({
                   Ажилтнуудын Сүүлийн Бүртгэлүүд
                 </p>
 
-                {dataState === "loading" ? (
-                  <div className="space-y-2">
-                    <div className="h-12 bg-zinc-800 rounded-xl" />
-                    <div className="h-12 bg-zinc-800 rounded-xl" />
-                  </div>
-                ) : liveAnalytics?.all_timeline_logs?.filter(
+                {liveAnalytics?.all_timeline_logs?.filter(
                   (l: any) => l.type !== "count" && l.type !== "purchase",
                 ).length > 0 ? (
                   <div className="space-y-3 border-l-2 border-zinc-800 pl-3 ml-1">
-                    {liveAnalytics.all_timeline_logs
+                    {sortLogsNewestFirst(liveAnalytics.all_timeline_logs)
                       .filter(
                         (l: any) => l.type !== "count" && l.type !== "purchase",
                       )

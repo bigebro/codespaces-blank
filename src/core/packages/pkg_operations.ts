@@ -108,15 +108,23 @@ export async function getFraudAndLeakagePackage(
 
     // Ил хаягдал болон далд хорогдлыг Татварын актад оруулах (ТЕХ 14-р зүйл)
     if (knownWasteQty > 0 || unexplainedGap > 0) {
-      const totalLossQty = knownWasteQty + unexplainedGap;
       wasteAuditItems.push({
         name: ing.name,
         unit: ing.unit,
         theo_usage: Math.round(theoUsage * 10) / 10,
         actual_usage: Math.round(actualUsage * 10) / 10,
-        gap_qty: Math.round(totalLossQty * 10) / 10,
-        loss_amount: Math.round(totalLossQty * unitPrice),
-        cause: knownWasteQty > 0 ? "Хугацаа дууссан / Асгарсан хаягдал" : "Технологийн ууршилт, хадгалалтын далд хорогдол"
+        logged_waste_qty: Math.round(knownWasteQty * 10) / 10,
+        logged_waste_amount: Math.round(knownWasteQty * unitPrice),
+        unexplained_qty: Math.round(unexplainedGap * 10) / 10,
+        unexplained_amount: Math.round(unexplainedGap * unitPrice),
+        // Бүртгэгдсэн хаягдал, тайлбаргүй зөрүүг нэг тоо болгон үл нэмнэ.
+        gap_qty: Math.round(unexplainedGap * 10) / 10,
+        loss_amount: Math.round(unexplainedGap * unitPrice),
+        cause: knownWasteQty > 0 && unexplainedGap > 0
+          ? "Бүртгэгдсэн хаягдал болон тайлбаргүй зөрүү тусдаа"
+          : knownWasteQty > 0
+            ? "Бүртгэгдсэн хаягдал"
+            : "Тайлбаргүй зөрүү",
       });
     }
   });

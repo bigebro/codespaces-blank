@@ -1,4 +1,4 @@
-import { getAnalyticsData } from "@/lib/analytics";
+import { getCachedAnalytics } from "@/lib/analyticsCache";
 import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
 import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
@@ -46,14 +46,42 @@ function moneyLine(value: unknown) {
   return `${Math.round(n).toLocaleString("en-US")} ₮`;
 }
 
-/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Тоо байхгүй бол «—». */
+function loggedWasteQty(row: any) {
+  return (
+    Number(row?.waste_spoilage || 0) +
+    Number(row?.waste_testing || 0) +
+    Number(row?.waste_staff_meal || 0) +
+    Number(row?.waste_other || 0)
+  );
+}
+
+function loggedWasteMoney(row: any) {
+  const qty = loggedWasteQty(row);
+  const price = Number(row?.unit_price || row?.price || 0);
+  if (!(qty > 0) || !(price > 0)) return null;
+  return qty * price;
+}
+
+/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Хаягдал, тайлбаргүй зөрүүг нэгтгэхгүй. */
 export function gradeFactLines(grades: any[] = []): string {
   if (!grades.length) return "Барааны зөрүүний мөр алга.";
   return grades.map((row) => {
     const name = String(row?.name || "").trim() || "Нэргүй бараа";
     const status = STATUS_LABEL[normalizeStatus(row?.status)];
     const unit = row?.unit;
-    return `- ${name}: ${status}; бодит: ${qtyLine(row?.actual_qty, unit)}; онол: ${qtyLine(row?.theoretical_qty, unit)}; зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}`;
+    const logged = loggedWasteQty(row);
+    const loggedMoney = loggedWasteMoney(row);
+    const gap = row?.gap_qty;
+    const unexplained = gap == null || !Number.isFinite(Number(gap))
+      ? null
+      : Math.max(0, Number(gap) - logged);
+    const unexplainedMoney = unexplained != null && Number(row?.unit_price || row?.price || 0) > 0
+      ? unexplained * Number(row.unit_price || row.price)
+      : null;
+    return (
+      `- ${name}: ${status}; хэмжсэн тооллого: ${qtyLine(row?.actual_qty, unit)}; онолын тооцоо: ${qtyLine(row?.theoretical_qty, unit)}; тооцоолсон зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}; ` +
+      `бүртгэгдсэн хаягдал: ${qtyLine(logged || null, unit)} / ${moneyLine(loggedMoney)}; тайлбаргүй зөрүү: ${qtyLine(unexplained, unit)} / ${moneyLine(unexplainedMoney)}`
+    );
   }).join("\n");
 }
 
@@ -69,7 +97,7 @@ function mnt(value: unknown) {
 export async function buildOverviewSnapshot(clientId: string, range: OverviewPeriod): Promise<string> {
   const { startDay, endDay, label } = range;
   try {
-    const data: any = await getAnalyticsData(clientId, ubDayStartIso(startDay), ubDayEndIso(endDay));
+    const data: any = await getCachedAnalytics(clientId, ubDayStartIso(startDay), ubDayEndIso(endDay));
     const fin = data?.financial_ladder || {};
     const board = dashboardTrust({
       grades: data?.grades,
@@ -103,7 +131,7 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
       `- Худалдан авалтын үнийн дүнгийн хувь: ${purchasePctLabel(trust)}`,
       "Бараа тус бүрийн тоо (самбартай ижил. Энд байхгүй тоог битгий нэм):",
       gradeFactLines(data?.grades || []),
-      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
+      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Бүртгэгдсэн хаягдал («Хаягдлын алдагдал») болон «Тайлбаргүй зөрүү» хоёрыг хэзээ ч нэг тоо болгон нэмж болохгүй. Самбар дээрх шошго, дүнгээр тусад нь хэл. Хүснэгтэд «бодит үлдэгдэл» гэж битгий нэрлэ (одоогийн нөөцтэй андуурна). «Хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү» гэж бич. Дээрх тоо хангалттай бол tool дахин битгий дууд. Эцэст нь 2-3 богино зөвлөгөө өг.",
       MN_BUSINESS_SPELLING_NOTE,
     ].join("\n");
   } catch (err) {

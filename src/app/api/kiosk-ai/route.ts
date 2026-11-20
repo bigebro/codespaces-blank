@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
-import { getAnalyticsData } from "../../../lib/analytics";
 import { GoogleGenerativeAI } from "@/lib/ai/genai";
 import { createClient } from "@supabase/supabase-js";
 import { saveBusinessRule } from "@/ai/memory/memory.service";
@@ -13,53 +12,15 @@ import { convertToIngredientUnit } from "@/lib/units";
 import { logTypeLabel } from "@/lib/shiftCycle";
 import { CASH_EXPENSE_HINT, looksLikeCashExpense } from "@/lib/cashExpenseHint";
 import { readRequestRange } from "@/lib/analyticsRange";
-// ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
-const analyticsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+import { getCachedAnalytics } from "@/lib/analyticsCache";
+import { chatErrorMessage } from "@/lib/chatError";
 
-async function getCachedAnalytics(
-  clientId: string,
-  start?: string,
-  end?: string,
-) {
-  const cacheKey = `${clientId}_${start || "default"}_${end || "default"}`;
-  const cached = analyticsCache.get(cacheKey);
-
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data; // ⚡ 0.001ms: Бааз руу огт хандахгүй шууд өгнө!
-  }
-
-  const freshData = await getAnalyticsData(clientId, start, end);
-  analyticsCache.set(cacheKey, { data: freshData, timestamp: Date.now() });
-  return freshData;
-}
-
-// 💡 1. 504 GATEWAY TIMEOUT-ООС СЭРГИЙЛЖ СЕРВЕРИЙН ХУГАЦААГ 30 СЕКУНД БОЛГОХ
-export const maxDuration = 30;
+// 💡 504-өөс сэргийлж хугацааг 60с болгож, аналитикийг хуваалцсан кэшээр дахин татахгүй.
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 function getFriendlyErrorMessage(errorMsg: string): string {
-  const errStr = (errorMsg || "").toLowerCase();
-  if (
-    errStr.includes("503") ||
-    errStr.includes("high demand") ||
-    errStr.includes("unavailable") ||
-    errStr.includes("overloaded")
-  ) {
-    return " AI зөвлөхийн ачаалал түр ихэссэн байна. Та хэдхэн секундын дараа дахин асууна уу.";
-  }
-  if (
-    errStr.includes("429") ||
-    errStr.includes("quota") ||
-    errStr.includes("rate limit") ||
-    errStr.includes("too many requests")
-  ) {
-    return "Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
-  }
-  if (errStr.includes("504") || errStr.includes("timeout")) {
-    return "Хариулт боловсруулах хугацаа хэтэрлээ. Та асуултаа арай товчлон дахин илгээнэ үү.";
-  }
-  return " Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
+  return chatErrorMessage(errorMsg);
 }
 
 
@@ -644,11 +605,18 @@ ${JSON.stringify(unmatched)}`;
           .select("phrase, ingredient_id")
           .eq("client_id", clientId);
 
-        const aiAnalysis: any = await parseOperationalText(
+        let aiAnalysis: any = await parseOperationalText(
           text,
           ingredients || [],
           learnedAliases || [],
         );
+        if (aiAnalysis?.ai_failed) {
+          aiAnalysis = await parseOperationalText(
+            text,
+            ingredients || [],
+            learnedAliases || [],
+          );
+        }
 
         if (aiAnalysis?.ai_failed) {
           return NextResponse.json({

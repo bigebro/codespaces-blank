@@ -8,7 +8,7 @@ import { subscriptionBlockMessage } from "@/lib/subscription";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordChatMessage } from "@/ai/memory/thread.manager";
 import { isOverviewQuestion } from "./overview";
-import { MN_BUSINESS_SPELLING_NOTE, fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
+import { MN_BUSINESS_SPELLING_NOTE, createSpellingFixer } from "@/ai/runtime/mnSpelling";
 
 interface RouterDecision {
   route: "CFO" | "COO" | "HR" | "GENERAL";
@@ -166,11 +166,15 @@ ${MN_BUSINESS_SPELLING_NOTE}
           },
         });
         let wrote = false;
+        const spelling = createSpellingFixer();
         for await (const chunk of stream) {
           if (!chunk.text) continue;
           wrote = true;
-          controller.enqueue(encoder.encode(fixMnBusinessSpelling(chunk.text)));
+          const fixed = spelling.push(chunk.text);
+          if (fixed) controller.enqueue(encoder.encode(fixed));
         }
+        const tail = spelling.flush();
+        if (tail) controller.enqueue(encoder.encode(tail));
         if (!wrote) {
           controller.enqueue(encoder.encode("Юу гэж туслах вэ: санхүү, нөөц, эсвэл цалин?"));
         }

@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
 import { detectRangeMode, ubDay, type RangeMode } from "@/lib/ubDate";
+import { chatErrorMessage, isTransientChatFailure } from "@/lib/chatError";
 
 interface AiCfoChatProps {
   activeClient: string;
@@ -198,27 +199,36 @@ const fetchChatHistory = useCallback(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
 
-      const res = await fetch("/api/kiosk-ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+            const payload = {
           tenantClientId: activeClient,
           workerName: "Owner",
           text,
           userRole: "owner",
-          // Самбарын одоогийн хүрээ (tab солилтсоны дараа ч ижил). Асуултад нэрлэсэн хугацаа үүнийг дарна.
           startDate: ubDay(startDate),
           endDate: ubDay(endDate),
           rangeMode: rangeMode || detectRangeMode(ubDay(startDate), ubDay(endDate)),
-        }),
-      });
+        };
+      const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        };
+      let res = await fetch("/api/kiosk-ai", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      if (!res.ok && isTransientChatFailure(`HTTP ${res.status}`)) {
+        res = await fetch("/api/kiosk-ai", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status} алдаа`);
+        throw new Error(`HTTP ${res.status}`);
       }
+
 
       if (res.body) {
         setCfoChatHistory((prev) => [...prev, { id: `ai-${msgId}`, sender: "ai", text: "" }]);
@@ -244,7 +254,7 @@ const fetchChatHistory = useCallback(async () => {
     } catch (err: any) {
       setCfoChatHistory((prev) => [
         ...prev,
-        { id: `err-${msgId}`, sender: "ai", text: `[SYSTEM ERROR]: ${err.message}` },
+        { id: `err-${msgId}`, sender: "ai", text: chatErrorMessage(err) },
       ]);
     } finally {
       const endTime = performance.now();

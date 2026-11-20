@@ -6,6 +6,7 @@ import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubD
 import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
 import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
 import { roleLabel } from "../../lib/roleLabel";
+import { staffDisplayName } from "../../lib/shiftCycle";
 import { planLabel } from "../../lib/planLabel";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
@@ -1574,7 +1575,6 @@ function Home() {
           setActiveTab("operations");
         }
 
-        fetchDatabaseData(realBranch);
       }
       setTabFromUrlReady(true);
       setIsAuthChecking(false);
@@ -1664,6 +1664,7 @@ function Home() {
       setWorkersList([]);
       return;
     }
+    setLoading(true);
     const tabToLoad = targetTab || activeTab;
     const range = selectedRangeRef.current;
     const startDay = ubDay(String(start || range.start));
@@ -1893,6 +1894,14 @@ function Home() {
     if (!rangeReady) return;
     writeDashboardRangeStorage({ mode: rangeMode, startDay: startDate, endDay: endDate });
   }, [rangeReady, rangeMode, startDate, endDate]);
+
+  // Анхны ачаалал болон нэвтрэлт: range, session, салбар бэлэн болсны дараа татана.
+  useEffect(() => {
+    if (!rangeReady || isAuthChecking || !activeClient) return;
+    void fetchDatabaseData(activeClient, startDate, endDate, true);
+    // startDate/endDate changes still go through the range buttons; this effect covers ready-state races.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeReady, isAuthChecking, activeClient]);
 
   const handleSaveCategoryMargins = async () => {
     setLoading(true);
@@ -3152,7 +3161,7 @@ function Home() {
                                         </td>
                                         {/* АЖИЛТАН БАГАНА */}
                                         <td className="py-3 px-2 text-zinc-300 font-medium">
-                                          <div>{workersList.find((w) => w.id === log.staff_id)?.full_name || log.worker_name || "Үл мэдэгдэх"}</div>
+                                          <div>{staffDisplayName(workersList.find((w) => w.id === log.staff_id)?.full_name || log.worker_name || "Үл мэдэгдэх")}</div>
                                           <div className="text-xs text-zinc-500">
                                             {(() => {
                                               const shift = shifts.find((s) => s.id === log.shift_id);
@@ -3183,7 +3192,7 @@ function Home() {
                                                 setSelectedImageModal({
                                                   url: log.image_url,
                                                   title: `Нотлох баримт: ${name}`,
-                                                  subtitle: `${log.worker_name} • ${new Date(log.date).toLocaleString("mn-MN")}`,
+                                                  subtitle: `${staffDisplayName(log.worker_name)} • ${new Date(log.date).toLocaleString("mn-MN")}`,
                                                 })
                                               }
                                               className="bg-zinc-800/60 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 px-2.5 py-1 rounded-lg text-sm font-black transition flex items-center gap-1 mx-auto"

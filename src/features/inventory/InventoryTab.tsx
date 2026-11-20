@@ -245,8 +245,8 @@ export default function InventoryTab({
                 <tr>
                   <th className="py-2.5 px-3">Барааны Нэр</th>
                   <th className="py-2.5 px-2 text-right">Өртөг</th>
-                  <th className="py-2.5 px-2 text-center">PAR</th>
-                  <th className="py-2.5 px-2 text-center">LEAD</th>
+                  <th className="py-2.5 px-2 text-center">Доод хэмжээ</th>
+                  <th className="py-2.5 px-2 text-center">Хүргэлтийн хоног</th>
                   <th className="py-2.5 px-2 text-right">Захиалга</th>
                   <th className="py-2.5 px-2 text-right text-zinc-200">
                     Системд
@@ -419,12 +419,11 @@ export default function InventoryTab({
                               ) : (
                                 <>
                                   <span className="text-xs font-medium text-zinc-300/80 font-mono flex items-center gap-1">
-                                    🇲🇳{" "}
                                     {translationsCache[
                                       ing.name.toLowerCase().trim()
                                     ] || (
                                       <span className="text-zinc-500 italic">
-                                        Орчуулгагүй
+                                        Орчуулга алга
                                       </span>
                                     )}
                                   </span>

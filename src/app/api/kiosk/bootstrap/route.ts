@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireKioskDevice, requireKioskWorker } from "@/lib/kioskAuth";
 import { ubDayStartIso, ubDay } from "@/lib/ubDate";
+import { sortLogsNewestFirst } from "@/lib/logSort";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,11 @@ async function loadTodayLogs(worker: { clientId: string; workerId: string; worke
   const name = worker.workerName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return supabaseAdmin
     .from("inventory_logs")
-    .select("id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
+    .select("id, date, created_at, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
     .eq("client_id", worker.clientId)
     .or(`created_by.eq.${worker.workerId},worker_name.eq."${name}"`)
     .gte("date", today)
+    .order("created_at", { ascending: false })
     .order("date", { ascending: false })
     .limit(200);
 }
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
       const w = await requireKioskWorker(body.deviceToken, body.workerToken);
       if (!w) return NextResponse.json({ ok: false, message: "Киоск нэвтрэлт хүчингүй." }, { status: 401 });
       const logs = await loadTodayLogs(w);
-      return NextResponse.json({ ok: true, todayLogs: logs.data || [] });
+      return NextResponse.json({ ok: true, todayLogs: sortLogsNewestFirst(logs.data || []) });
     }
     const device = await requireKioskDevice(body.deviceToken);
     if (!device) return NextResponse.json({ ok: false, message: "Төхөөрөмж идэвхгүй." }, { status: 401 });
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
           (row: { is_active?: boolean; character_role?: string }) =>
             row.is_active && row.character_role === worker.workerName,
         ) || null,
-      todayLogs: todayLogs.data || [],
+      todayLogs: sortLogsNewestFirst(todayLogs.data || []),
     });
   } catch (err) {
     console.error("[kiosk bootstrap]", err);

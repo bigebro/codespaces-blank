@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   COMPLETE_PERIOD,
+  INCOMPLETE_PERIOD,
+  trustConfirmedLine,
   IMPOSSIBLE_TITLE,
   SURPLUS_NOTE,
   TRUST_EMPTY_LINE,
@@ -111,7 +113,10 @@ assert.deepEqual(impossibleReasons(90, 40, 80), []);
 assert.equal(impossibleReasons(90, 40, 80.01).length, 1);
 
 assert.equal(topFixActions([{ status: "Verified", purchase_value: 10 }]).length, 0);
-assert.equal(COMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн");
+assert.equal(COMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн байна");
+assert.equal(INCOMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн биш байна");
+assert.equal(trustConfirmedLine({ total: 3, verified: 0, purchase_pct: 0, has_purchase_value: true }), "3 бараанаас 0 нь баталгаажсан");
+assert.equal(trustConfirmedLine({ total: 3, verified: 2, purchase_pct: 40, has_purchase_value: true }), "3 бараанаас 2 нь баталгаажсан (худалдан авалтын үнийн дүнгийн 40%)");
 assert.equal(SURPLUS_NOTE, "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна");
 
 assert.equal(trustTone(49), "red");
@@ -138,6 +143,7 @@ assert.match(finance, /unverifiedTheo/);
 const panel = readFileSync("src/features/finance/DataGradePanel.tsx", "utf8");
 assert.match(panel, /SURPLUS_NOTE/);
 assert.match(panel, /COMPLETE_PERIOD/);
+assert.match(panel, /INCOMPLETE_PERIOD/);
 assert.match(panel, /unlockLine/);
 assert.match(panel, /total_waste_loss/);
 assert.match(panel, /total_surplus_savings/);

@@ -456,32 +456,33 @@ export async function parseOperationalText(
   let lastError = "";
 
   if (key) {
-    try {
-      const ai = new GoogleGenerativeAI(key);
-      const model = ai.getGenerativeModel({
-        model: "gemini-3.5-flash-lite",
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingLevel: "MINIMAL" }, // ⚡ Instant JSON extraction
-        } as any,
-      });
-
-      const response = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: `System: ${systemPrompt}\n\nUser Message: "${text}"` },
-            ],
-          },
-        ],
-      });
-
-      responseText = response.response.text();
-    } catch (e: any) {
-      lastError = e.message || String(e);
-      console.error("parseOperationalText Error:", lastError);
+    const ai = new GoogleGenerativeAI(key);
+    const model = ai.getGenerativeModel({
+      model: "gemini-3.5-flash-lite",
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingLevel: "MINIMAL" },
+      } as any,
+    });
+    const request = {
+      contents: [
+        {
+          role: "user" as const,
+          parts: [
+            { text: `System: ${systemPrompt}\n\nUser Message: "${text}"` },
+          ],
+        },
+      ],
+    };
+    for (let attempt = 0; attempt < 2 && !responseText; attempt++) {
+      try {
+        const response = await model.generateContent(request);
+        responseText = response.response.text();
+      } catch (e: any) {
+        lastError = e.message || String(e);
+        console.error("parseOperationalText Error:", lastError);
+      }
     }
   } else {
     lastError = "GEMINI_API_KEY олдсонгүй (.env.local шалгана уу)";

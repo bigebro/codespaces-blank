@@ -1,0 +1,1536 @@
+diff --git a/scripts/check-chat-error.ts b/scripts/check-chat-error.ts
+new file mode 100644
+index 0000000..d7c2076
+--- /dev/null
++++ b/scripts/check-chat-error.ts
+@@ -0,0 +1,11 @@
++import assert from "node:assert/strict";
++import { CHAT_RETRY_MESSAGE, CHAT_TIMEOUT_MESSAGE, chatErrorMessage, isTransientChatFailure } from "../src/lib/chatError";
++
++assert.equal(chatErrorMessage(new Error("HTTP 504 алдаа")), CHAT_TIMEOUT_MESSAGE);
++assert.equal(chatErrorMessage("[SYSTEM ERROR]: HTTP 504 алдаа"), CHAT_TIMEOUT_MESSAGE);
++assert.doesNotMatch(chatErrorMessage("HTTP 500"), /SYSTEM ERROR|HTTP 500/i);
++assert.equal(chatErrorMessage("boom"), CHAT_RETRY_MESSAGE);
++assert.equal(isTransientChatFailure("HTTP 504"), true);
++assert.equal(isTransientChatFailure("AI одоогоор хариу өгсөнгүй. Бүртгэл хадгалагдаагүй."), true);
++assert.equal(isTransientChatFailure("syntax"), false);
++console.log("chat error checks passed");
+diff --git a/scripts/check-honest-dashboard.ts b/scripts/check-honest-dashboard.ts
+index c146d3a..bde729f 100644
+--- a/scripts/check-honest-dashboard.ts
++++ b/scripts/check-honest-dashboard.ts
+@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
+ import { readFileSync } from "node:fs";
+ import {
+   COMPLETE_PERIOD,
++  INCOMPLETE_PERIOD,
++  trustConfirmedLine,
+   IMPOSSIBLE_TITLE,
+   SURPLUS_NOTE,
+   TRUST_EMPTY_LINE,
+@@ -111,7 +113,10 @@ assert.deepEqual(impossibleReasons(90, 40, 80), []);
+ assert.equal(impossibleReasons(90, 40, 80.01).length, 1);
+ 
+ assert.equal(topFixActions([{ status: "Verified", purchase_value: 10 }]).length, 0);
+-assert.equal(COMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн");
++assert.equal(COMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн байна");
++assert.equal(INCOMPLETE_PERIOD, "Энэ хугацааны өгөгдөл бүрэн биш байна");
++assert.equal(trustConfirmedLine({ total: 3, verified: 0, purchase_pct: 0, has_purchase_value: true }), "3 бараанаас 0 нь баталгаажсан");
++assert.equal(trustConfirmedLine({ total: 3, verified: 2, purchase_pct: 40, has_purchase_value: true }), "3 бараанаас 2 нь баталгаажсан (худалдан авалтын үнийн дүнгийн 40%)");
+ assert.equal(SURPLUS_NOTE, "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна");
+ 
+ assert.equal(trustTone(49), "red");
+@@ -138,6 +143,7 @@ assert.match(finance, /unverifiedTheo/);
+ const panel = readFileSync("src/features/finance/DataGradePanel.tsx", "utf8");
+ assert.match(panel, /SURPLUS_NOTE/);
+ assert.match(panel, /COMPLETE_PERIOD/);
++assert.match(panel, /INCOMPLETE_PERIOD/);
+ assert.match(panel, /unlockLine/);
+ assert.match(panel, /total_waste_loss/);
+ assert.match(panel, /total_surplus_savings/);
+diff --git a/scripts/check-log-sort.ts b/scripts/check-log-sort.ts
+new file mode 100644
+index 0000000..4a3d9f0
+--- /dev/null
++++ b/scripts/check-log-sort.ts
+@@ -0,0 +1,10 @@
++import assert from "node:assert/strict";
++import { sortLogsNewestFirst } from "../src/lib/logSort";
++
++const rows = [
++  { id: "old", created_at: "2026-11-20T01:00:00.000Z", date: "2026-11-20T10:00:00.000Z" },
++  { id: "new", created_at: "2026-11-20T03:00:00.000Z", date: "2026-11-20T09:00:00.000Z" },
++  { id: "mid-same-created", created_at: "2026-11-20T03:00:00.000Z", date: "2026-11-20T11:00:00.000Z" },
++];
++assert.deepEqual(sortLogsNewestFirst(rows).map((r) => r.id), ["mid-same-created", "new", "old"]);
++console.log("log sort checks passed");
+diff --git a/scripts/check-waste-labels.ts b/scripts/check-waste-labels.ts
+index a6ddb3b..703fb61 100644
+--- a/scripts/check-waste-labels.ts
++++ b/scripts/check-waste-labels.ts
+@@ -12,6 +12,9 @@ assert.equal(logTypeLabel("mystery"), "Бусад");
+ assert.equal(staffDisplayName("staff (TEST Бариста)"), "Ажилтан: TEST Бариста");
+ assert.equal(staffDisplayName("STAFF (Анхтуул)"), "Ажилтан: Анхтуул");
+ assert.equal(staffDisplayName("TEST Бариста"), "TEST Бариста");
++assert.equal(staffDisplayName("Ажилтан: staff (TEST Бариста)"), "Ажилтан: TEST Бариста");
++assert.equal(staffDisplayName("Kiosk (Хаягдал)"), "Таблет (Хаягдал)");
++assert.equal(staffDisplayName("kiosk"), "Таблет");
+ assert.equal(itemDisplayName("Сүү (ТУРШИЛТ)"), "Сүү");
+ assert.equal(splitItemName("Кофе үр (ТУРШИЛТ)").isTest, true);
+ assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");
+diff --git a/src/ai/agents/cfo.agent.ts b/src/ai/agents/cfo.agent.ts
+index eb9c62d..4928d42 100644
+--- a/src/ai/agents/cfo.agent.ts
++++ b/src/ai/agents/cfo.agent.ts
+@@ -74,6 +74,9 @@ ${todaySnapshot ? "\n" + todaySnapshot + "\n" : ""}
+ ${weeklyBriefPromptText}
+ ${businessRulesText}
+ 
++[PERIOD NUMBERS]:
++The overview snapshot already has the selected period's dashboard numbers, including logged waste («Хаягдлын алдагдал») and unexplained gap («Тайлбаргүй зөрүү») separately. Do not add those two together into one gap. Do not label a count or variance as «бодит үлдэгдэл» (that looks like stock); use «хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү». If the snapshot has the numbers you need, do not call tools just to restate them.
++
+ [CATALOG RULE]:
+ If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
+ If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.
+diff --git a/src/ai/agents/overview.ts b/src/ai/agents/overview.ts
+index 4dffaf6..86bdea0 100644
+--- a/src/ai/agents/overview.ts
++++ b/src/ai/agents/overview.ts
+@@ -1,4 +1,4 @@
+-import { getAnalyticsData } from "@/lib/analytics";
++import { getCachedAnalytics } from "@/lib/analyticsCache";
+ import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
+ import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
+ import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
+@@ -46,14 +46,42 @@ function moneyLine(value: unknown) {
+   return `${Math.round(n).toLocaleString("en-US")} ₮`;
+ }
+ 
+-/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Тоо байхгүй бол «—». */
++function loggedWasteQty(row: any) {
++  return (
++    Number(row?.waste_spoilage || 0) +
++    Number(row?.waste_testing || 0) +
++    Number(row?.waste_staff_meal || 0) +
++    Number(row?.waste_other || 0)
++  );
++}
++
++function loggedWasteMoney(row: any) {
++  const qty = loggedWasteQty(row);
++  const price = Number(row?.unit_price || row?.price || 0);
++  if (!(qty > 0) || !(price > 0)) return null;
++  return qty * price;
++}
++
++/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Хаягдал, тайлбаргүй зөрүүг нэгтгэхгүй. */
+ export function gradeFactLines(grades: any[] = []): string {
+   if (!grades.length) return "Барааны зөрүүний мөр алга.";
+   return grades.map((row) => {
+     const name = String(row?.name || "").trim() || "Нэргүй бараа";
+     const status = STATUS_LABEL[normalizeStatus(row?.status)];
+     const unit = row?.unit;
+-    return `- ${name}: ${status}; бодит: ${qtyLine(row?.actual_qty, unit)}; онол: ${qtyLine(row?.theoretical_qty, unit)}; зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}`;
++    const logged = loggedWasteQty(row);
++    const loggedMoney = loggedWasteMoney(row);
++    const gap = row?.gap_qty;
++    const unexplained = gap == null || !Number.isFinite(Number(gap))
++      ? null
++      : Math.max(0, Number(gap) - logged);
++    const unexplainedMoney = unexplained != null && Number(row?.unit_price || row?.price || 0) > 0
++      ? unexplained * Number(row.unit_price || row.price)
++      : null;
++    return (
++      `- ${name}: ${status}; хэмжсэн тооллого: ${qtyLine(row?.actual_qty, unit)}; онолын тооцоо: ${qtyLine(row?.theoretical_qty, unit)}; тооцоолсон зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}; ` +
++      `бүртгэгдсэн хаягдал: ${qtyLine(logged || null, unit)} / ${moneyLine(loggedMoney)}; тайлбаргүй зөрүү: ${qtyLine(unexplained, unit)} / ${moneyLine(unexplainedMoney)}`
++    );
+   }).join("\n");
+ }
+ 
+@@ -69,7 +97,7 @@ function mnt(value: unknown) {
+ export async function buildOverviewSnapshot(clientId: string, range: OverviewPeriod): Promise<string> {
+   const { startDay, endDay, label } = range;
+   try {
+-    const data: any = await getAnalyticsData(clientId, ubDayStartIso(startDay), ubDayEndIso(endDay));
++    const data: any = await getCachedAnalytics(clientId, ubDayStartIso(startDay), ubDayEndIso(endDay));
+     const fin = data?.financial_ladder || {};
+     const board = dashboardTrust({
+       grades: data?.grades,
+@@ -103,7 +131,7 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
+       `- Худалдан авалтын үнийн дүнгийн хувь: ${purchasePctLabel(trust)}`,
+       "Бараа тус бүрийн тоо (самбартай ижил. Энд байхгүй тоог битгий нэм):",
+       gradeFactLines(data?.grades || []),
+-      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
++      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Бүртгэгдсэн хаягдал («Хаягдлын алдагдал») болон «Тайлбаргүй зөрүү» хоёрыг хэзээ ч нэг тоо болгон нэмж болохгүй. Самбар дээрх шошго, дүнгээр тусад нь хэл. Хүснэгтэд «бодит үлдэгдэл» гэж битгий нэрлэ (одоогийн нөөцтэй андуурна). «Хэмжсэн тооллого», «онолын тооцоо», «тооцоолсон зөрүү» гэж бич. Дээрх тоо хангалттай бол tool дахин битгий дууд. Эцэст нь 2-3 богино зөвлөгөө өг.",
+       MN_BUSINESS_SPELLING_NOTE,
+     ].join("\n");
+   } catch (err) {
+diff --git a/src/ai/agents/router.agent.ts b/src/ai/agents/router.agent.ts
+index c1a7585..af851e0 100644
+--- a/src/ai/agents/router.agent.ts
++++ b/src/ai/agents/router.agent.ts
+@@ -8,7 +8,7 @@ import { subscriptionBlockMessage } from "@/lib/subscription";
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ import { recordChatMessage } from "@/ai/memory/thread.manager";
+ import { isOverviewQuestion } from "./overview";
+-import { MN_BUSINESS_SPELLING_NOTE, fixMnBusinessSpelling } from "@/ai/runtime/mnSpelling";
++import { MN_BUSINESS_SPELLING_NOTE, createSpellingFixer } from "@/ai/runtime/mnSpelling";
+ 
+ interface RouterDecision {
+   route: "CFO" | "COO" | "HR" | "GENERAL";
+@@ -166,11 +166,15 @@ ${MN_BUSINESS_SPELLING_NOTE}
+           },
+         });
+         let wrote = false;
++        const spelling = createSpellingFixer();
+         for await (const chunk of stream) {
+           if (!chunk.text) continue;
+           wrote = true;
+-          controller.enqueue(encoder.encode(fixMnBusinessSpelling(chunk.text)));
++          const fixed = spelling.push(chunk.text);
++          if (fixed) controller.enqueue(encoder.encode(fixed));
+         }
++        const tail = spelling.flush();
++        if (tail) controller.enqueue(encoder.encode(tail));
+         if (!wrote) {
+           controller.enqueue(encoder.encode("Юу гэж туслах вэ: санхүү, нөөц, эсвэл цалин?"));
+         }
+diff --git a/src/app/api/kiosk-ai/route.ts b/src/app/api/kiosk-ai/route.ts
+index a5c22d3..06cc009 100644
+--- a/src/app/api/kiosk-ai/route.ts
++++ b/src/app/api/kiosk-ai/route.ts
+@@ -1,7 +1,6 @@
+ import { NextResponse } from "next/server";
+ import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+ import { parseOperationalText, parseReceiptImage } from "../../../lib/gemini";
+-import { getAnalyticsData } from "../../../lib/analytics";
+ import { GoogleGenerativeAI } from "@/lib/ai/genai";
+ import { createClient } from "@supabase/supabase-js";
+ import { saveBusinessRule } from "@/ai/memory/memory.service";
+@@ -13,53 +12,15 @@ import { convertToIngredientUnit } from "@/lib/units";
+ import { logTypeLabel } from "@/lib/shiftCycle";
+ import { CASH_EXPENSE_HINT, looksLikeCashExpense } from "@/lib/cashExpenseHint";
+ import { readRequestRange } from "@/lib/analyticsRange";
+-// ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
+-const analyticsCache = new Map<string, { data: any; timestamp: number }>();
+-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+-
+-async function getCachedAnalytics(
+-  clientId: string,
+-  start?: string,
+-  end?: string,
+-) {
+-  const cacheKey = `${clientId}_${start || "default"}_${end || "default"}`;
+-  const cached = analyticsCache.get(cacheKey);
+-
+-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+-    return cached.data; // ⚡ 0.001ms: Бааз руу огт хандахгүй шууд өгнө!
+-  }
+-
+-  const freshData = await getAnalyticsData(clientId, start, end);
+-  analyticsCache.set(cacheKey, { data: freshData, timestamp: Date.now() });
+-  return freshData;
+-}
++import { getCachedAnalytics } from "@/lib/analyticsCache";
++import { chatErrorMessage } from "@/lib/chatError";
+ 
+-// 💡 1. 504 GATEWAY TIMEOUT-ООС СЭРГИЙЛЖ СЕРВЕРИЙН ХУГАЦААГ 30 СЕКУНД БОЛГОХ
+-export const maxDuration = 30;
++// 💡 504-өөс сэргийлж хугацааг 60с болгож, аналитикийг хуваалцсан кэшээр дахин татахгүй.
++export const maxDuration = 60;
+ export const dynamic = "force-dynamic";
+ 
+ function getFriendlyErrorMessage(errorMsg: string): string {
+-  const errStr = (errorMsg || "").toLowerCase();
+-  if (
+-    errStr.includes("503") ||
+-    errStr.includes("high demand") ||
+-    errStr.includes("unavailable") ||
+-    errStr.includes("overloaded")
+-  ) {
+-    return " AI зөвлөхийн ачаалал түр ихэссэн байна. Та хэдхэн секундын дараа дахин асууна уу.";
+-  }
+-  if (
+-    errStr.includes("429") ||
+-    errStr.includes("quota") ||
+-    errStr.includes("rate limit") ||
+-    errStr.includes("too many requests")
+-  ) {
+-    return "Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
+-  }
+-  if (errStr.includes("504") || errStr.includes("timeout")) {
+-    return "Хариулт боловсруулах хугацаа хэтэрлээ. Та асуултаа арай товчлон дахин илгээнэ үү.";
+-  }
+-  return " Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
++  return chatErrorMessage(errorMsg);
+ }
+ 
+ 
+@@ -644,11 +605,18 @@ ${JSON.stringify(unmatched)}`;
+           .select("phrase, ingredient_id")
+           .eq("client_id", clientId);
+ 
+-        const aiAnalysis: any = await parseOperationalText(
++        let aiAnalysis: any = await parseOperationalText(
+           text,
+           ingredients || [],
+           learnedAliases || [],
+         );
++        if (aiAnalysis?.ai_failed) {
++          aiAnalysis = await parseOperationalText(
++            text,
++            ingredients || [],
++            learnedAliases || [],
++          );
++        }
+ 
+         if (aiAnalysis?.ai_failed) {
+           return NextResponse.json({
+diff --git a/src/app/api/kiosk/bootstrap/route.ts b/src/app/api/kiosk/bootstrap/route.ts
+index 6d28fb1..8e29f8b 100644
+--- a/src/app/api/kiosk/bootstrap/route.ts
++++ b/src/app/api/kiosk/bootstrap/route.ts
+@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ import { requireKioskDevice, requireKioskWorker } from "@/lib/kioskAuth";
+ import { ubDayStartIso, ubDay } from "@/lib/ubDate";
++import { sortLogsNewestFirst } from "@/lib/logSort";
+ 
+ export const dynamic = "force-dynamic";
+ 
+@@ -11,10 +12,11 @@ async function loadTodayLogs(worker: { clientId: string; workerId: string; worke
+   const name = worker.workerName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+   return supabaseAdmin
+     .from("inventory_logs")
+-    .select("id, date, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
++    .select("id, date, created_at, type, quantity, total_cost, notes, image_url, non_food_item, ingredient_id, ingredients(name, unit)")
+     .eq("client_id", worker.clientId)
+     .or(`created_by.eq.${worker.workerId},worker_name.eq."${name}"`)
+     .gte("date", today)
++    .order("created_at", { ascending: false })
+     .order("date", { ascending: false })
+     .limit(200);
+ }
+@@ -26,7 +28,7 @@ export async function POST(request: Request) {
+       const w = await requireKioskWorker(body.deviceToken, body.workerToken);
+       if (!w) return NextResponse.json({ ok: false, message: "Киоск нэвтрэлт хүчингүй." }, { status: 401 });
+       const logs = await loadTodayLogs(w);
+-      return NextResponse.json({ ok: true, todayLogs: logs.data || [] });
++      return NextResponse.json({ ok: true, todayLogs: sortLogsNewestFirst(logs.data || []) });
+     }
+     const device = await requireKioskDevice(body.deviceToken);
+     if (!device) return NextResponse.json({ ok: false, message: "Төхөөрөмж идэвхгүй." }, { status: 401 });
+@@ -85,7 +87,7 @@ export async function POST(request: Request) {
+           (row: { is_active?: boolean; character_role?: string }) =>
+             row.is_active && row.character_role === worker.workerName,
+         ) || null,
+-      todayLogs: todayLogs.data || [],
++      todayLogs: sortLogsNewestFirst(todayLogs.data || []),
+     });
+   } catch (err) {
+     console.error("[kiosk bootstrap]", err);
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+index 3c52ad8..87e7774 100644
+--- a/src/app/dashboard/page.tsx
++++ b/src/app/dashboard/page.tsx
+@@ -6,6 +6,7 @@ import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubD
+ import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
+ import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
+ import { roleLabel } from "../../lib/roleLabel";
++import { staffDisplayName } from "../../lib/shiftCycle";
+ import { planLabel } from "../../lib/planLabel";
+ import { SignedImg } from "../../components/shared/SignedImg";
+ import Link from "next/link";
+@@ -1574,7 +1575,6 @@ function Home() {
+           setActiveTab("operations");
+         }
+ 
+-        fetchDatabaseData(realBranch);
+       }
+       setTabFromUrlReady(true);
+       setIsAuthChecking(false);
+@@ -1664,6 +1664,7 @@ function Home() {
+       setWorkersList([]);
+       return;
+     }
++    setLoading(true);
+     const tabToLoad = targetTab || activeTab;
+     const range = selectedRangeRef.current;
+     const startDay = ubDay(String(start || range.start));
+@@ -1894,6 +1895,14 @@ function Home() {
+     writeDashboardRangeStorage({ mode: rangeMode, startDay: startDate, endDay: endDate });
+   }, [rangeReady, rangeMode, startDate, endDate]);
+ 
++  // Анхны ачаалал болон нэвтрэлт: range, session, салбар бэлэн болсны дараа татана.
++  useEffect(() => {
++    if (!rangeReady || isAuthChecking || !activeClient) return;
++    void fetchDatabaseData(activeClient, startDate, endDate, true);
++    // startDate/endDate changes still go through the range buttons; this effect covers ready-state races.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [rangeReady, isAuthChecking, activeClient]);
++
+   const handleSaveCategoryMargins = async () => {
+     setLoading(true);
+     try {
+@@ -3152,7 +3161,7 @@ function Home() {
+                                         </td>
+                                         {/* АЖИЛТАН БАГАНА */}
+                                         <td className="py-3 px-2 text-zinc-300 font-medium">
+-                                          <div>{workersList.find((w) => w.id === log.staff_id)?.full_name || log.worker_name || "Үл мэдэгдэх"}</div>
++                                          <div>{staffDisplayName(workersList.find((w) => w.id === log.staff_id)?.full_name || log.worker_name || "Үл мэдэгдэх")}</div>
+                                           <div className="text-xs text-zinc-500">
+                                             {(() => {
+                                               const shift = shifts.find((s) => s.id === log.shift_id);
+@@ -3183,7 +3192,7 @@ function Home() {
+                                                 setSelectedImageModal({
+                                                   url: log.image_url,
+                                                   title: `Нотлох баримт: ${name}`,
+-                                                  subtitle: `${log.worker_name} • ${new Date(log.date).toLocaleString("mn-MN")}`,
++                                                  subtitle: `${staffDisplayName(log.worker_name)} • ${new Date(log.date).toLocaleString("mn-MN")}`,
+                                                 })
+                                               }
+                                               className="bg-zinc-800/60 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 px-2.5 py-1 rounded-lg text-sm font-black transition flex items-center gap-1 mx-auto"
+diff --git a/src/app/kiosk/page.tsx b/src/app/kiosk/page.tsx
+index 040f8fd..b7e2814 100644
+--- a/src/app/kiosk/page.tsx
++++ b/src/app/kiosk/page.tsx
+@@ -1,6 +1,8 @@
+ "use client";
+ import React, { useState, useEffect, useRef } from "react";
+ import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
++import { sortLogsNewestFirst } from "../../lib/logSort";
++import { chatErrorMessage, isTransientChatFailure } from "../../lib/chatError";
+ import OwnScore from "../../features/kiosk/OwnScore";
+ import CupCheck from "../../features/finance/CupCheck";
+ import TeamGoalBar from "../../features/finance/TeamGoalBar";
+@@ -528,7 +530,7 @@ function KioskAiChatSection({
+               ...prev,
+               {
+                 sender: "ai",
+-                text: `Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
++                text: chatErrorMessage(err),
+               },
+             ]);
+           }
+@@ -749,8 +751,8 @@ function KioskAiChatSection({
+       }
+ 
+       const tokens = kioskTokens();
+-      const res = await fetch("/api/kiosk-ai", {
+-        method: "POST",
++      const request = {
++        method: "POST" as const,
+         headers: {
+           "Content-Type": "application/json",
+           "x-kiosk-device": tokens.deviceToken,
+@@ -762,11 +764,21 @@ function KioskAiChatSection({
+           imageUrl: uploadedImageUrl,
+         }),
+         signal: abortControllerRef.current.signal,
+-      });
+-      if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
+-
+-      const data = await res.json();
++      };
++      let res = await fetch("/api/kiosk-ai", request);
++      let data = await res.json().catch(() => ({}));
++      const noReply =
++        !res.ok ||
++        data?.ai_failed ||
++        /хариу өгсөнгүй/i.test(String(data?.message || ""));
++      if (noReply && !isCancelledRef.current && isTransientChatFailure(`HTTP ${res.status} ${data?.message || ""}`)) {
++        res = await fetch("/api/kiosk-ai", request);
++        data = await res.json().catch(() => ({}));
++      }
+       if (isCancelledRef.current) return;
++      if (!res.ok) {
++        throw new Error(`HTTP ${res.status}`);
++      }
+       if (data.log_id) window.dispatchEvent(new Event("kiosk-logs-changed"));
+ 
+       setChatHistory((prev) => [
+@@ -775,16 +787,16 @@ function KioskAiChatSection({
+           sender: "ai",
+           text: data.message || "Гүйлгээ боловсруулагдлаа.",
+           logId: data.log_id,
+-          learnedAliasId: data.learned_alias_id, // 👈 Баазад шинээр сурсан үгийн ID хадгалах
++          learnedAliasId: data.learned_alias_id,
+         },
+       ]);
+     } catch (err: any) {
+-      if (err.name === "AbortError" || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
++      if (err.name === "AbortError" || isCancelledRef.current) return;
+       setChatHistory((prev) => [
+         ...prev,
+         {
+           sender: "ai",
+-          text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
++          text: chatErrorMessage(err),
+         },
+       ]);
+     } finally {
+@@ -1084,6 +1096,7 @@ function KioskPage() {
+   const closeSaveRef = useRef(false);
+   const startSaveRef = useRef(false);
+   const pinCheckRef = useRef(false);
++  const quickSavingRef = useRef(false);
+   const [verifyingPin, setVerifyingPin] = useState(false);
+   const [askText, setAskText] = useState<string | null>(null);
+   useEffect(() => {
+@@ -1546,7 +1559,7 @@ const handleKioskBulkSave = async () => {
+     if (!kioskTokens().workerToken) return;
+     setLogsRefreshing(true);
+     try {
+-      setTodayLogs(await kioskTodayLogs());
++      setTodayLogs(sortLogsNewestFirst(await kioskTodayLogs()));
+     } catch {
+       // Алдаа гарвал одоо байгаа жагсаалтыг устгахгүй.
+     } finally {
+@@ -1730,7 +1743,7 @@ const initKioskContext = async () => {
+     if (data.ingredients) setIngredients(data.ingredients);
+     if (data.aliases) setLearnedAliases(data.aliases);
+     if (data.recipes) setRecipesList(data.recipes);
+-    if (data.todayLogs) setTodayLogs(data.todayLogs);
++    if (data.todayLogs) setTodayLogs(sortLogsNewestFirst(data.todayLogs));
+     if (data.translations) {
+       const map: Record<string, string> = {};
+       data.translations.forEach((row: any) => {
+@@ -1866,7 +1879,7 @@ const initKioskContext = async () => {
+       if (session.ingredients) setIngredients(session.ingredients);
+       if (session.aliases) setLearnedAliases(session.aliases);
+       if (session.recipes) setRecipesList(session.recipes);
+-      if (session.todayLogs) setTodayLogs(session.todayLogs);
++      if (session.todayLogs) setTodayLogs(sortLogsNewestFirst(session.todayLogs));
+       const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker, session);
+       setTasks(liveTasks);
+       if (!session.activeShift) {
+@@ -2252,11 +2265,11 @@ const handleCloseShift = async () => {
+        <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
+         {/* ⚡ 1. CLEAN LOADING SCREEN WHILE VERIFYING (Eliminates the glimpse!) */}
+         {isLoadingKiosk ? (
+-          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950 select-none">
+-            <div className="h-8 w-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin mb-3" />
+-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+-        
+-            </p>
++          <div className="w-full h-full bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-3 select-none">
++            <div className="h-10 w-1/2 rounded-xl bg-zinc-800 animate-pulse" />
++            <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
++            <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
++            <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
+           </div>
+         ) : (
+           <>
+@@ -2590,47 +2603,6 @@ const handleCloseShift = async () => {
+           <div className="w-full h-full bg-zinc-900 p-3 sm:p-4 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
+             {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
+ 
+-            {recentToast && (
+-              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-zinc-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
+-                {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
+-                <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
+-                  <span className="bg-zinc-950 text-zinc-200 px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">
+-                    Бүртгэгдсэн:
+-                  </span>
+-                  <span className="font-black text-xs sm:text-xs leading-snug whitespace-normal break-words">
+-                    {recentToast.text}
+-                  </span>
+-                </div>
+-
+-                <div className="flex items-center gap-1.5 shrink-0">
+-                  <button
+-                    type="button"
+-                    onClick={async () => {
+-                      const idToUndo = recentToast.id;
+-                      setRecentToast(null);
+-                      try {
+-                        await kioskOps("logs.delete", { id: idToUndo });
+-                        await fetchKioskData(tenantClientId);
+-                        setMsg("Бүртгэл цуцлагдлаа.");
+-                      } catch (err: any) {
+-                        setMsg(err.message || "Буцааж чадсангүй.");
+-                      }
+-                      setTimeout(() => setMsg(""), 3000);
+-                    }}
+-                    className="bg-zinc-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-xs sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
+-                  >
+-                    ↩️ Буцаах
+-                  </button>
+-                  <button
+-                    type="button"
+-                    onClick={() => setRecentToast(null)}
+-                    className="text-zinc-900 hover:text-black font-bold p-1 text-sm hidden sm:block"
+-                  >
+-                    ✕
+-                  </button>
+-                </div>
+-              </div>
+-            )}
+ 
+             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
+             <div className="shrink-0 space-y-2">
+@@ -3682,10 +3654,12 @@ const handleCloseShift = async () => {
+                           </label>
+                         </div>
+ 
+-                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-rose-400"}`}>
++                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-zinc-400"}`}>
+                           {noEbarimtFile
+-                            ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
+-                            : "⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
++                            ? `Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
++                            : (parseFloat(purchaseCost) || 0) >= 10000
++                              ? "10,000₮-өөс дээш бол зураг хавсаргана уу"
++                              : "Зураг хавсаргах нь сайн дурынх"}
+                         </p>
+                       </div>
+                     </div>
+@@ -3769,22 +3743,20 @@ const handleCloseShift = async () => {
+                       (kioskMode === "spoilage" && !wasteReason) ||
+                       isAiLoading
+                     }
+-                 onClick={() => {
++                 onClick={async () => {
++  if (quickSavingRef.current || isAiLoading) return;
+   const costVal = parseFloat(purchaseCost) || 0;
+ 
+-  // 💡 1. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ! (Таны бичсэнээр хэвээрээ)
+   if (
+     kioskMode === "purchase" &&
+     costVal >= 10000 &&
+     !noEbarimtFile
+   ) {
+     document.getElementById("single-pur-cam")?.click();
+-    return; // Зураг дартал хадгалахгүй түр хүлээнэ
++    return;
+   }
+ 
+   const qtyNum = parseFloat(quickQty);
+-  
+-  // ⚡ 2. Тооллого болон Орлого бол заавал ЭЕРЭГ (+), хаягдал бол ХАСАХ (-):
+   const finalQty =
+     kioskMode === "purchase" || kioskMode === "count"
+       ? Math.abs(qtyNum)
+@@ -3794,13 +3766,6 @@ const handleCloseShift = async () => {
+   const fileToUpload = noEbarimtFile;
+   const payMethod = purchasePayMethod;
+   const chosenReason = wasteReason;
+-
+-  setQuickItemModal(null);
+-  setQuickQty("");
+-  setPurchaseCost("");
+-  setNoEbarimtFile(null);
+-
+-  // 🏷️ 3. Бүх 5 горимын нэршил (Таны бичсэнээр хэвээрээ):
+   const modeLabel =
+     kioskMode === "spoilage"
+       ? "Хаягдал"
+@@ -3812,43 +3777,50 @@ const handleCloseShift = async () => {
+             ? "Тооллого"
+             : "Орлого";
+ 
+-  (async () => {
+-    try {
+-      let uploadedUrl = null;
+-      if (kioskMode === "purchase" && fileToUpload) {
+-        uploadedUrl = await uploadEvidencePhoto(
+-          fileToUpload,
+-          "purchases_proofs",
+-        );
+-      }
+-
+-      const saved = await kioskSaveLogs([
+-        {
+-          ingredient_id: itemToSave.id,
+-          quantity: finalQty,
+-          total_cost: costVal,
+-          type: kioskMode === "spoilage" && chosenReason ? chosenReason.type : kioskMode,
+-          payment_method: kioskMode === "purchase" ? payMethod : null,
+-          image_url: uploadedUrl,
+-          is_ebarimt: false,
+-          incident_type: kioskMode === "count" ? "kiosk_count" : null,
+-          notes: kioskMode === "spoilage" && chosenReason
+-            ? chosenReason.notes
+-            : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Киоск (${modeLabel})`,
+-          input_unit: itemToSave.unit,
+-        },
+-      ]);
+-      const newId = saved.ids?.[0];
+-      setRecentToast({
+-        id: newId || "ok",
+-        text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
+-      });
+-      fetchKioskData(tenantClientId);
+-    } catch (err: any) {
+-      notify(`Серверийн алдаа: ${err.message || err}`);
+-      console.error("Background save failed:", err);
++  quickSavingRef.current = true;
++  setIsAiLoading(true);
++  try {
++    let uploadedUrl = null;
++    if (kioskMode === "purchase" && fileToUpload) {
++      uploadedUrl = await uploadEvidencePhoto(
++        fileToUpload,
++        "purchases_proofs",
++      );
+     }
+-  })();
++
++    const saved = await kioskSaveLogs([
++      {
++        ingredient_id: itemToSave.id,
++        quantity: finalQty,
++        total_cost: costVal,
++        type: kioskMode === "spoilage" && chosenReason ? chosenReason.type : kioskMode,
++        payment_method: kioskMode === "purchase" ? payMethod : null,
++        image_url: uploadedUrl,
++        is_ebarimt: false,
++        incident_type: kioskMode === "count" ? "kiosk_count" : null,
++        notes: kioskMode === "spoilage" && chosenReason
++          ? chosenReason.notes
++          : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
++        input_unit: itemToSave.unit,
++      },
++    ]);
++    setQuickItemModal(null);
++    setQuickQty("");
++    setPurchaseCost("");
++    setNoEbarimtFile(null);
++    const newId = saved.ids?.[0];
++    setRecentToast({
++      id: newId || "ok",
++      text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
++    });
++    fetchKioskData(tenantClientId);
++  } catch (err: any) {
++    notify(err?.message || "Хадгалж чадсангүй.");
++    console.error("Kiosk save failed:", err);
++  } finally {
++    quickSavingRef.current = false;
++    setIsAiLoading(false);
++  }
+ }}
+                     className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
+                        >
+@@ -3859,7 +3831,7 @@ const handleCloseShift = async () => {
+                           !noEbarimtFile
+                         ? "ЗУРАГ ДАРЖ БАТЛАХ"
+                         : kioskMode === "purchase" && !noEbarimtFile
+-                          ? "БАТЛАХ (Зураггүй оруулах)"
++                          ? "БАТЛАХ"
+                           : "БАТЛАХ"}
+                   </button>
+                   {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
+@@ -4292,11 +4264,13 @@ const handleCloseShift = async () => {
+                     </div>
+ 
+                     <p
+-                      className={`text-xs font-bold text-center ${newItemFile ? "text-zinc-200" : "text-rose-400 "}`}
++                      className={`text-xs font-bold text-center ${newItemFile ? "text-zinc-200" : "text-zinc-400"}`}
+                     >
+                       {newItemFile
+-                        ? ` Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
+-                        : "Зургийг заавал дарна уу!"}
++                        ? `Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
++                        : (parseFloat(newItemCost) || 0) >= 10000
++                          ? "10,000₮-өөс дээш бол зураг хавсаргана уу"
++                          : "Зураг хавсаргах нь сайн дурынх"}
+                     </p>
+                   </div>
+ 
+@@ -4369,7 +4343,7 @@ const handleCloseShift = async () => {
+                       : (parseFloat(newItemCost) || 0) >= 10000 && !newItemFile
+                         ? "ЗУРАГ ДАРЖ ҮҮСГЭХ"
+                         : !newItemFile
+-                          ? "БАТЛАХ (Зураггүй үүсгэх)"
++                          ? "БАТЛАХ"
+                           : "ШИНЭ БАРААГ БАТЛАХ"}
+                   </button>
+                 </div>
+@@ -4444,7 +4418,7 @@ const handleCloseShift = async () => {
+                         Өнөөдөр хараахан ямар нэг бүртгэл хийгдээгүй байна.
+                       </p>
+                     ) : (
+-                      todayLogs.map((log) => {
++                      sortLogsNewestFirst(todayLogs).map((log) => {
+                         const kind = String(log.type || "").toLowerCase();
+                         const isPurchase = kind === "purchase";
+                         const isSpoilage = kind === "spoilage";
+@@ -5043,9 +5017,9 @@ const handleCloseShift = async () => {
+                       className={`text-xs font-bold text-center ${cartFile ? "text-zinc-200" : totalCartCost >= 10000 ? "text-rose-400 " : "text-zinc-500"}`}
+                     >
+                       {cartFile
+-                        ? ` Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
++                        ? `Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
+                         : totalCartCost >= 10000
+-                          ? "баримт/барааны зураг заавал дарна уу!"
++                          ? "Баримт эсвэл барааны зураг хавсаргана уу"
+                           : "Зураг хавсаргах нь сайн дурынх"}
+                     </p>
+ 
+@@ -5060,18 +5034,11 @@ const handleCloseShift = async () => {
+                           return;
+                         }
+ 
++                        if (quickSavingRef.current || isAiLoading) return;
+                         const itemsToProcess = [...purchaseCart];
+                         const fileToUpload = cartFile;
+-
+-                        setShowCartModal(false);
+-                        setPurchaseCart([]);
+-                        setCartFile(null);
+-
+-                        setRecentToast({
+-                          id: "temp-" + Date.now(),
+-                          text: `🛒 Сагсан дахь ${itemsToProcess.length} бараа хадгалагдаж байна...`,
+-                        });
+-
++                        quickSavingRef.current = true;
++                        setIsAiLoading(true);
+                         (async () => {
+                           try {
+                             let uploadedUrl = null;
+@@ -5095,6 +5062,9 @@ const handleCloseShift = async () => {
+                                 notes: "Бөөний сагсаар",
+                               })),
+                             );
++                            setShowCartModal(false);
++                            setPurchaseCart([]);
++                            setCartFile(null);
+                             if (saved.ids?.length) {
+                               setRecentToast({
+                                 id: saved.ids[0],
+@@ -5104,6 +5074,9 @@ const handleCloseShift = async () => {
+                             }
+                           } catch (err: any) {
+                             notify(err.message || "Сагс хадгалагдсангүй.");
++                          } finally {
++                            quickSavingRef.current = false;
++                            setIsAiLoading(false);
+                           }
+                         })();
+                       }}
+@@ -5127,6 +5100,46 @@ const handleCloseShift = async () => {
+               </>
+             )}
+       </main>
++      {recentToast && (
++        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] w-[min(36rem,calc(100%-1.5rem))] bg-white text-zinc-950 px-4 py-3 rounded-2xl font-black text-sm shadow-[0_8px_30px_rgba(0,0,0,0.65)] flex items-center justify-between border-2 border-zinc-900">
++          <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
++            <span className="bg-zinc-950 text-white px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">
++              Бүртгэгдсэн:
++            </span>
++            <span className="font-black text-sm leading-snug whitespace-normal break-words">
++              {recentToast.text}
++            </span>
++          </div>
++          <div className="flex items-center gap-1.5 shrink-0">
++            <button
++              type="button"
++              onClick={async () => {
++                const idToUndo = recentToast.id;
++                setRecentToast(null);
++                try {
++                  await kioskOps("logs.delete", { id: idToUndo });
++                  await fetchKioskData(tenantClientId);
++                  setMsg("Бүртгэл цуцлагдлаа.");
++                } catch (err: any) {
++                  setMsg(err.message || "Буцааж чадсангүй.");
++                }
++                setTimeout(() => setMsg(""), 3000);
++              }}
++              className="bg-zinc-950 text-white hover:bg-zinc-800 px-2.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
++            >
++              Буцаах
++            </button>
++            <button
++              type="button"
++              onClick={() => setRecentToast(null)}
++              className="text-zinc-900 hover:text-black font-bold p-1 text-sm"
++            >
++              Хаах
++            </button>
++          </div>
++        </div>
++      )}
++
+       {noteText && (
+         <div className="fixed inset-0 z-[80] bg-black/80 flex items-end sm:items-center justify-center p-4">
+           <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-md space-y-4">
+diff --git a/src/core/packages/pkg_operations.ts b/src/core/packages/pkg_operations.ts
+index db9aacd..8634e4d 100644
+--- a/src/core/packages/pkg_operations.ts
++++ b/src/core/packages/pkg_operations.ts
+@@ -108,15 +108,23 @@ export async function getFraudAndLeakagePackage(
+ 
+     // Ил хаягдал болон далд хорогдлыг Татварын актад оруулах (ТЕХ 14-р зүйл)
+     if (knownWasteQty > 0 || unexplainedGap > 0) {
+-      const totalLossQty = knownWasteQty + unexplainedGap;
+       wasteAuditItems.push({
+         name: ing.name,
+         unit: ing.unit,
+         theo_usage: Math.round(theoUsage * 10) / 10,
+         actual_usage: Math.round(actualUsage * 10) / 10,
+-        gap_qty: Math.round(totalLossQty * 10) / 10,
+-        loss_amount: Math.round(totalLossQty * unitPrice),
+-        cause: knownWasteQty > 0 ? "Хугацаа дууссан / Асгарсан хаягдал" : "Технологийн ууршилт, хадгалалтын далд хорогдол"
++        logged_waste_qty: Math.round(knownWasteQty * 10) / 10,
++        logged_waste_amount: Math.round(knownWasteQty * unitPrice),
++        unexplained_qty: Math.round(unexplainedGap * 10) / 10,
++        unexplained_amount: Math.round(unexplainedGap * unitPrice),
++        // Бүртгэгдсэн хаягдал, тайлбаргүй зөрүүг нэг тоо болгон үл нэмнэ.
++        gap_qty: Math.round(unexplainedGap * 10) / 10,
++        loss_amount: Math.round(unexplainedGap * unitPrice),
++        cause: knownWasteQty > 0 && unexplainedGap > 0
++          ? "Бүртгэгдсэн хаягдал болон тайлбаргүй зөрүү тусдаа"
++          : knownWasteQty > 0
++            ? "Бүртгэгдсэн хаягдал"
++            : "Тайлбаргүй зөрүү",
+       });
+     }
+   });
+diff --git a/src/features/ai-cfo/AiCfoChat.tsx b/src/features/ai-cfo/AiCfoChat.tsx
+index a57e36e..523d9a0 100644
+--- a/src/features/ai-cfo/AiCfoChat.tsx
++++ b/src/features/ai-cfo/AiCfoChat.tsx
+@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown";
+ import remarkGfm from "remark-gfm";
+ import { supabase } from "@/lib/supabase";
+ import { detectRangeMode, ubDay, type RangeMode } from "@/lib/ubDate";
++import { chatErrorMessage, isTransientChatFailure } from "@/lib/chatError";
+ 
+ interface AiCfoChatProps {
+   activeClient: string;
+@@ -198,28 +199,37 @@ const fetchChatHistory = useCallback(async () => {
+       const { data: { session } } = await supabase.auth.getSession();
+       const token = session?.access_token || "";
+ 
+-      const res = await fetch("/api/kiosk-ai", {
+-        method: "POST",
+-        headers: {
+-          "Content-Type": "application/json",
+-          Authorization: `Bearer ${token}`,
+-        },
+-        body: JSON.stringify({
++            const payload = {
+           tenantClientId: activeClient,
+           workerName: "Owner",
+           text,
+           userRole: "owner",
+-          // Самбарын одоогийн хүрээ (tab солилтсоны дараа ч ижил). Асуултад нэрлэсэн хугацаа үүнийг дарна.
+           startDate: ubDay(startDate),
+           endDate: ubDay(endDate),
+           rangeMode: rangeMode || detectRangeMode(ubDay(startDate), ubDay(endDate)),
+-        }),
+-      });
++        };
++      const headers = {
++          "Content-Type": "application/json",
++          Authorization: `Bearer ${token}`,
++        };
++      let res = await fetch("/api/kiosk-ai", {
++          method: "POST",
++          headers,
++          body: JSON.stringify(payload),
++        });
++      if (!res.ok && isTransientChatFailure(`HTTP ${res.status}`)) {
++        res = await fetch("/api/kiosk-ai", {
++          method: "POST",
++          headers,
++          body: JSON.stringify(payload),
++        });
++      }
+ 
+       if (!res.ok) {
+-        throw new Error(`HTTP ${res.status} алдаа`);
++        throw new Error(`HTTP ${res.status}`);
+       }
+ 
++
+       if (res.body) {
+         setCfoChatHistory((prev) => [...prev, { id: `ai-${msgId}`, sender: "ai", text: "" }]);
+         const reader = res.body.getReader();
+@@ -244,7 +254,7 @@ const fetchChatHistory = useCallback(async () => {
+     } catch (err: any) {
+       setCfoChatHistory((prev) => [
+         ...prev,
+-        { id: `err-${msgId}`, sender: "ai", text: `[SYSTEM ERROR]: ${err.message}` },
++        { id: `err-${msgId}`, sender: "ai", text: chatErrorMessage(err) },
+       ]);
+     } finally {
+       const endTime = performance.now();
+diff --git a/src/features/finance/DataGradePanel.tsx b/src/features/finance/DataGradePanel.tsx
+index 604aef3..9c80264 100644
+--- a/src/features/finance/DataGradePanel.tsx
++++ b/src/features/finance/DataGradePanel.tsx
+@@ -3,7 +3,7 @@
+ import React, { useState } from "react";
+ import { supabase } from "@/lib/supabase";
+ import { ubDay } from "@/lib/ubDate";
+-import { COMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, purchasePctLabel } from "@/lib/honestDashboard";
++import { COMPLETE_PERIOD, INCOMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, dashboardTrust, trustConfirmedLine } from "@/lib/honestDashboard";
+ import { gradeGuide } from "@/lib/gradeGuide";
+ 
+ type Grade = {
+@@ -73,7 +73,8 @@ export default function DataGradePanel({
+   onChanged: () => Promise<void> | void;
+   variant?: "full" | "actions";
+ }) {
+-  const trust = liveAnalytics?.data_trust || liveAnalytics?.financial_ladder?.data_trust;
++  const board = dashboardTrust(liveAnalytics);
++  const trust = board.summary;
+   const gap = Number(liveAnalytics?.verified_gap ?? liveAnalytics?.financial_ladder?.verified_gap ?? 0);
+   const actual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
+   const theo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
+@@ -257,7 +258,7 @@ export default function DataGradePanel({
+       <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
+         <h3 className="text-base font-black text-white">Эхлээд хийх 3 ажил</h3>
+         {topRows.length === 0 ? (
+-          <p className="text-sm text-zinc-300">{COMPLETE_PERIOD}</p>
++          <p className="text-sm text-zinc-300">{trust.total > 0 && trust.verified === trust.total ? COMPLETE_PERIOD : INCOMPLETE_PERIOD}</p>
+         ) : (
+           topRows.map((row) => (
+             <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+@@ -286,7 +287,7 @@ export default function DataGradePanel({
+       <div>
+         <h3 className="text-base font-black text-white">Өгөгдлийн итгэл</h3>
+         <p className="text-sm text-zinc-300 mt-1">
+-          {trust.total} бараанаас {trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн {purchasePctLabel(trust)})
++          {trustConfirmedLine(trust)}
+         </p>
+       </div>
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
+diff --git a/src/features/finance/FinanceTab.tsx b/src/features/finance/FinanceTab.tsx
+index 796388d..0a497d0 100644
+--- a/src/features/finance/FinanceTab.tsx
++++ b/src/features/finance/FinanceTab.tsx
+@@ -23,8 +23,9 @@ import UnexplainedGaps from "./UnexplainedGaps";
+ import CupCheck from "./CupCheck";
+ import TeamBoard from "./TeamBoard";
+ import TruthMeter from "./TruthMeter";
+-import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, purchasePctLabel, trustEstimateDisplay } from "@/lib/honestDashboard";
++import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustConfirmedLine, trustEstimateDisplay } from "@/lib/honestDashboard";
+ import { logTypeLabel, staffDisplayName } from "@/lib/shiftCycle";
++import { sortLogsNewestFirst } from "@/lib/logSort";
+ import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
+ 
+ // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
+@@ -132,6 +133,7 @@ export default function FinanceTab({
+   // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
+   const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
+   const dataState = periodDataState({ loading, analytics: liveAnalytics });
++  const showMoney = dataState === "ready";
+   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
+   const verifiedTheo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
+   const unverifiedTheo = Number(
+@@ -622,21 +624,22 @@ export default function FinanceTab({
+               )}
+               <span className="text-xs text-zinc-400 mt-2 block">
+                 Онолын өртөг, зөвхөн баталгаажсан бараа:{" "}
+-                {Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮
++                {showMoney ? `${Math.round(liveAnalytics?.financial_ladder?.theo_cogs || 0).toLocaleString()}₮` : ""}
++                {!showMoney && <span className="inline-block h-3 w-16 bg-zinc-800 rounded align-middle" />}
+               </span>
+               <span className="text-xs text-zinc-300 mt-1 block">
+-                {trustReady
+-                  ? trustSummary.verified > 0
+-                    ? `${trustSummary.total} бараанаас ${trustSummary.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${purchasePctLabel(trustSummary)})`
+-                    : trustSummary.total > 0
+-                      ? `${trustSummary.total} бараанаас баталгаажсан нь алга`
+-                      : "—"
+-                  : "—"}
++                {showMoney && trustReady ? trustConfirmedLine(trustSummary) : null}
++                {!showMoney && <span className="inline-block h-3 w-40 bg-zinc-800 rounded align-middle" />}
+               </span>
+               <span className="text-xs text-amber-200 mt-1 block">
+-                Дутуу, шалгах барааны онолын өртөг: {Math.round(unverifiedTheo).toLocaleString()}₮
++                Дутуу, шалгах барааны онолын өртөг:{" "}
++                {showMoney ? `${Math.round(unverifiedTheo).toLocaleString()}₮` : null}
++                {!showMoney && <span className="inline-block h-3 w-16 bg-zinc-800 rounded align-middle" />}
++              </span>
++              <span className="text-xs text-zinc-400 mt-1 block">
++                {showMoney ? estimateText : null}
++                {!showMoney && <span className="inline-block h-3 w-32 bg-zinc-800 rounded align-middle" />}
+               </span>
+-              <span className="text-xs text-zinc-400 mt-1 block">{estimateText}</span>
+             </div>
+ 
+             {/* 3. БОХИР АШИГ (GROSS MARGIN) */}
+@@ -653,11 +656,13 @@ export default function FinanceTab({
+               )}
+               <span className="text-xs text-zinc-400 mt-2 block">
+                 Дүн:{" "}
++                {showMoney ? (
+                 <strong className="text-zinc-200 font-mono">
+-                  {liveAnalytics
+-                    ? `${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()}₮`
+-                    : "-"}
++                  {`${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()}₮`}
+                 </strong>
++                ) : (
++                  <span className="inline-block h-3 w-16 bg-zinc-800 rounded align-middle" />
++                )}
+               </span>
+             </div>
+ 
+@@ -684,9 +689,13 @@ export default function FinanceTab({
+               )}
+               <span className="text-xs text-zinc-400 mt-2 block">
+                 Цэвэр маржин:{" "}
++                {showMoney ? (
+                 <strong className="text-white font-mono">
+                   {hasRevenue ? liveAnalytics?.financial_ladder?.net_margin || "0%" : "—"}
+                 </strong>
++                ) : (
++                  <span className="inline-block h-3 w-12 bg-zinc-800 rounded align-middle" />
++                )}
+               </span>
+             </div>
+           </div>
+@@ -699,7 +708,7 @@ export default function FinanceTab({
+             ))}
+           </div>
+         )}
+-        {dataState !== "empty" && (
++        {dataState === "ready" && (
+         <>
+         <DataGradePanel
+           liveAnalytics={liveAnalytics}
+@@ -731,7 +740,7 @@ export default function FinanceTab({
+                 <span className="font-bold text-white font-mono">
+                   {liveAnalytics
+                     ? `${Math.round(liveAnalytics.financial_ladder?.revenue || 0).toLocaleString()} ₮`
+-                    : "-"}
++                    : ""}
+                 </span>
+               </div>
+ 
+@@ -748,7 +757,7 @@ export default function FinanceTab({
+                   -
+                   {liveAnalytics
+                     ? `${Math.round(liveAnalytics.financial_ladder?.est_cogs || 0).toLocaleString()} ₮`
+-                    : "-"}
++                    : ""}
+                 </span>
+               </div>
+ 
+@@ -776,7 +785,7 @@ export default function FinanceTab({
+                 <span className="font-black text-zinc-200 font-mono">
+                   {liveAnalytics
+                     ? `${Math.round(liveAnalytics.financial_ladder?.gross_profit || 0).toLocaleString()} ₮`
+-                    : "-"}
++                    : ""}
+                 </span>
+               </div>
+ 
+@@ -793,7 +802,7 @@ export default function FinanceTab({
+                   -
+                   {liveAnalytics
+                     ? `${Math.round(liveAnalytics.financial_ladder?.opex || 0).toLocaleString()} ₮`
+-                    : "-"}
++                    : ""}
+                 </span>
+               </div>
+ 
+@@ -804,7 +813,7 @@ export default function FinanceTab({
+                 <span className="font-bold text-white font-mono">
+                   {liveAnalytics
+                     ? `${Math.round(liveAnalytics.financial_ladder?.ebit || 0).toLocaleString()} ₮`
+-                    : "-"}
++                    : ""}
+                 </span>
+               </div>
+ 
+@@ -822,7 +831,7 @@ export default function FinanceTab({
+                 >
+                   {liveAnalytics
+                     ? `${Math.round(liveAnalytics.financial_ladder?.net_profit || 0).toLocaleString()} ₮`
+-                    : "-"}
++                    : ""}
+                 </span>
+               </div>
+             </div>
+@@ -914,16 +923,11 @@ export default function FinanceTab({
+                   Ажилтнуудын Сүүлийн Бүртгэлүүд
+                 </p>
+ 
+-                {dataState === "loading" ? (
+-                  <div className="space-y-2">
+-                    <div className="h-12 bg-zinc-800 rounded-xl" />
+-                    <div className="h-12 bg-zinc-800 rounded-xl" />
+-                  </div>
+-                ) : liveAnalytics?.all_timeline_logs?.filter(
++                {liveAnalytics?.all_timeline_logs?.filter(
+                   (l: any) => l.type !== "count" && l.type !== "purchase",
+                 ).length > 0 ? (
+                   <div className="space-y-3 border-l-2 border-zinc-800 pl-3 ml-1">
+-                    {liveAnalytics.all_timeline_logs
++                    {sortLogsNewestFirst(liveAnalytics.all_timeline_logs)
+                       .filter(
+                         (l: any) => l.type !== "count" && l.type !== "purchase",
+                       )
+diff --git a/src/features/finance/UnexplainedGaps.tsx b/src/features/finance/UnexplainedGaps.tsx
+index 669b6ec..6da4c81 100644
+--- a/src/features/finance/UnexplainedGaps.tsx
++++ b/src/features/finance/UnexplainedGaps.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { UNEXPLAINED_LABEL } from "@/lib/shiftCycle";
++import { UNEXPLAINED_LABEL, staffDisplayName } from "@/lib/shiftCycle";
+ 
+ type Gap = {
+   id: string;
+@@ -28,7 +28,7 @@ export default function UnexplainedGaps({ rows }: { rows?: Gap[] | null }) {
+               {row.qty} {row.unit}
+               {row.money != null ? ` / ${Math.round(row.money).toLocaleString()}₮` : " / Үнэ алга"}
+             </p>
+-            <p className="text-xs text-zinc-400 mt-1">Ажилтан: {row.staff}</p>
++            <p className="text-xs text-zinc-400 mt-1">Ажилтан: {staffDisplayName(row.staff)}</p>
+             <p className="text-xs text-zinc-400">Ээлж: {row.shift}</p>
+             <p className="text-sm text-amber-100 mt-2">{row.cause?.title || "Мэдээлэл дутуу"}</p>
+             <p className="text-xs text-zinc-400 mt-1">{row.cause?.why || "Шалтгааныг тогтоогоогүй."}</p>
+diff --git a/src/features/imports/ImportTab.tsx b/src/features/imports/ImportTab.tsx
+index 2073dcb..68654e0 100644
+--- a/src/features/imports/ImportTab.tsx
++++ b/src/features/imports/ImportTab.tsx
+@@ -1527,6 +1527,13 @@ if (cols.length === 2 && costIdx > qtyIdx) {
+           dbType = "testing";
+         else if (rawType.includes("other") || rawType.includes("бусад"))
+           dbType = "other";
++        else if (
++          rawType.includes("spoil") ||
++          rawType.includes("хаягдал") ||
++          rawType.includes("асга") ||
++          rawType.includes("мууд")
++        )
++          dbType = "spoilage";
+ 
+         const matchedIng = ingMap.get(cleanNameForMatch(ingName));
+         const currentActor =
+@@ -1540,7 +1547,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
+             ingredient_id: matchedIng.id,
+             quantity: -Math.abs(qty),
+             type: dbType,
+-            notes: note || `${dbType} logged in bulk`,
++            notes: note || "Бөөнд хаягдал бүртгэсэн",
+             date: dateVal, //  Сонгосон сард заавал багтана!
+             worker_name: `${currentActor} (Хаягдал)`,
+           });
+@@ -2059,7 +2066,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
+               rows={6}
+               value={kitchenPasteText}
+               onChange={(e) => setKitchenPasteText(e.target.value)}
+-              placeholder="Жишээ:&#10;2026-06-04&#9;spoilage&#9;Цөцгийн крем&#9;500&#9;Асгарч муудсан"
++              placeholder="Жишээ:&#10;2026-06-04&#9;хаягдал&#9;Цөцгийн крем&#9;500&#9;Асгарч муудсан"
+               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
+             />
+ 
+diff --git a/src/features/inventory/InventoryTab.tsx b/src/features/inventory/InventoryTab.tsx
+index 91bd72e..efe583a 100644
+--- a/src/features/inventory/InventoryTab.tsx
++++ b/src/features/inventory/InventoryTab.tsx
+@@ -245,8 +245,8 @@ export default function InventoryTab({
+                 <tr>
+                   <th className="py-2.5 px-3">Барааны Нэр</th>
+                   <th className="py-2.5 px-2 text-right">Өртөг</th>
+-                  <th className="py-2.5 px-2 text-center">PAR</th>
+-                  <th className="py-2.5 px-2 text-center">LEAD</th>
++                  <th className="py-2.5 px-2 text-center">Доод хэмжээ</th>
++                  <th className="py-2.5 px-2 text-center">Хүргэлтийн хоног</th>
+                   <th className="py-2.5 px-2 text-right">Захиалга</th>
+                   <th className="py-2.5 px-2 text-right text-zinc-200">
+                     Системд
+@@ -419,12 +419,11 @@ export default function InventoryTab({
+                               ) : (
+                                 <>
+                                   <span className="text-xs font-medium text-zinc-300/80 font-mono flex items-center gap-1">
+-                                    🇲🇳{" "}
+                                     {translationsCache[
+                                       ing.name.toLowerCase().trim()
+                                     ] || (
+                                       <span className="text-zinc-500 italic">
+-                                        Орчуулгагүй
++                                        Орчуулга алга
+                                       </span>
+                                     )}
+                                   </span>
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index f57860d..3be6e90 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -3,6 +3,7 @@ import { calculateMatchScore, transliterate } from './autoReconcile';
+ import { analyticsPeriod, ubDay } from './ubDate';
+ import { buildDataTrust } from './honestDashboard';
+ import { displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
++import { sortLogsNewestFirst } from './logSort';
+ import { formatUbTime } from './formatUbTime';
+ import { assemblePhase4 } from './phase4';
+ 
+@@ -1207,7 +1208,7 @@ for (const key in master) {
+         unit: displayUnit(ing?.unit || ""),
+         qty: Number(log.quantity) || 0,
+         money,
+-        staff: log.worker_name || "Ажилтан алга",
++        staff: staffDisplayName(log.worker_name || "Ажилтан алга"),
+         shift: shiftLabel,
+       };
+     });
+@@ -1315,7 +1316,7 @@ logged_spoilage_items: (rawInventoryLogs || [])
+     menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
+     all_recipes: allRecipesMap,
+     opex_details: opexDetails,
+-    all_timeline_logs: timelineLogs,
++    all_timeline_logs: sortLogsNewestFirst(timelineLogs),
+     recent_shifts: formattedShifts,
+     recent_worker_logs: timelineLogs.slice(0, 40),
+     grades,
+diff --git a/src/lib/analyticsCache.ts b/src/lib/analyticsCache.ts
+new file mode 100644
+index 0000000..5a345ba
+--- /dev/null
++++ b/src/lib/analyticsCache.ts
+@@ -0,0 +1,28 @@
++import { getAnalyticsData } from "./analytics";
++
++const cache = new Map<string, { data: any; timestamp: number }>();
++const CACHE_TTL_MS = 5 * 60 * 1000;
++
++function cacheKey(clientId: string, start?: string, end?: string) {
++  return `${String(clientId || "").trim()}|${start || "default"}|${end || "default"}`;
++}
++
++/** Shared short-lived cache so overview, tools, and /report do not reload the same period twice. */
++export async function getCachedAnalytics(
++  clientId: string,
++  start?: string,
++  end?: string,
++) {
++  const key = cacheKey(clientId, start, end);
++  const cached = cache.get(key);
++  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
++    return cached.data;
++  }
++  const freshData = await getAnalyticsData(clientId, start, end);
++  cache.set(key, { data: freshData, timestamp: Date.now() });
++  return freshData;
++}
++
++export function clearAnalyticsCache() {
++  cache.clear();
++}
+diff --git a/src/lib/chatError.ts b/src/lib/chatError.ts
+new file mode 100644
+index 0000000..1593129
+--- /dev/null
++++ b/src/lib/chatError.ts
+@@ -0,0 +1,55 @@
++/** Owner and kiosk chat: never show raw HTTP/system errors to the user. */
++export const CHAT_RETRY_MESSAGE =
++  "Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.";
++
++export const CHAT_TIMEOUT_MESSAGE =
++  "Хариулт боловсруулах хугацаа хэтэрлээ. Та асуултаа дахин илгээнэ үү.";
++
++export function isTransientChatFailure(error: unknown): boolean {
++  const s = rawChatError(error).toLowerCase();
++  return (
++    /\b(504|503|429|timeout|timed out|econnreset|network|fetch failed|overload|high demand|unavailable|too many requests|quota|rate limit|ai_failed|хариу өгсөнгүй)\b/i.test(
++      s,
++    ) || s.includes("хариу өгсөнгүй")
++  );
++}
++
++export function chatErrorMessage(error: unknown): string {
++  const s = rawChatError(error).toLowerCase();
++  if (
++    s.includes("504") ||
++    s.includes("timeout") ||
++    s.includes("timed out") ||
++    s.includes("хугацаа хэтэр")
++  ) {
++    return CHAT_TIMEOUT_MESSAGE;
++  }
++  if (
++    s.includes("503") ||
++    s.includes("high demand") ||
++    s.includes("unavailable") ||
++    s.includes("overloaded")
++  ) {
++    return "AI зөвлөхийн ачаалал түр ихэссэн байна. Та хэдхэн секундын дараа дахин асууна уу.";
++  }
++  if (
++    s.includes("429") ||
++    s.includes("quota") ||
++    s.includes("rate limit") ||
++    s.includes("too many requests")
++  ) {
++    return "Асуултын өдрийн хязгаар түр хүрсэн байна. Түр хүлээгээд дахин оролдоно уу.";
++  }
++  if (/\[system error\]|http \d{3}|system error/i.test(s)) {
++    return CHAT_RETRY_MESSAGE;
++  }
++  if (s.includes("хариу өгсөнгүй") || s.includes("ai_failed")) {
++    return "AI одоогоор хариу өгсөнгүй. Хэсэг хүлээгээд дахин илгээнэ үү.";
++  }
++  return CHAT_RETRY_MESSAGE;
++}
++
++function rawChatError(error: unknown): string {
++  if (error instanceof Error) return error.message || "";
++  return String(error || "");
++}
+diff --git a/src/lib/gemini.ts b/src/lib/gemini.ts
+index d04a585..cd255f9 100644
+--- a/src/lib/gemini.ts
++++ b/src/lib/gemini.ts
+@@ -456,32 +456,33 @@ export async function parseOperationalText(
+   let lastError = "";
+ 
+   if (key) {
+-    try {
+-      const ai = new GoogleGenerativeAI(key);
+-      const model = ai.getGenerativeModel({
+-        model: "gemini-3.5-flash-lite",
+-        generationConfig: {
+-          temperature: 0.1,
+-          responseMimeType: "application/json",
+-          thinkingConfig: { thinkingLevel: "MINIMAL" }, // ⚡ Instant JSON extraction
+-        } as any,
+-      });
+-
+-      const response = await model.generateContent({
+-        contents: [
+-          {
+-            role: "user",
+-            parts: [
+-              { text: `System: ${systemPrompt}\n\nUser Message: "${text}"` },
+-            ],
+-          },
+-        ],
+-      });
+-
+-      responseText = response.response.text();
+-    } catch (e: any) {
+-      lastError = e.message || String(e);
+-      console.error("parseOperationalText Error:", lastError);
++    const ai = new GoogleGenerativeAI(key);
++    const model = ai.getGenerativeModel({
++      model: "gemini-3.5-flash-lite",
++      generationConfig: {
++        temperature: 0.1,
++        responseMimeType: "application/json",
++        thinkingConfig: { thinkingLevel: "MINIMAL" },
++      } as any,
++    });
++    const request = {
++      contents: [
++        {
++          role: "user" as const,
++          parts: [
++            { text: `System: ${systemPrompt}\n\nUser Message: "${text}"` },
++          ],
++        },
++      ],
++    };
++    for (let attempt = 0; attempt < 2 && !responseText; attempt++) {
++      try {
++        const response = await model.generateContent(request);
++        responseText = response.response.text();
++      } catch (e: any) {
++        lastError = e.message || String(e);
++        console.error("parseOperationalText Error:", lastError);
++      }
+     }
+   } else {
+     lastError = "GEMINI_API_KEY олдсонгүй (.env.local шалгана уу)";
+diff --git a/src/lib/honestDashboard.ts b/src/lib/honestDashboard.ts
+index 56a4cc0..376515a 100644
+--- a/src/lib/honestDashboard.ts
++++ b/src/lib/honestDashboard.ts
+@@ -102,7 +102,8 @@ function hasTrustCounts(t?: Partial<DataTrust> | null): t is Partial<DataTrust>
+ 
+ export const IMPOSSIBLE_TITLE = "Энэ тоо бодит биш байж магадгүй: өгөгдөл дутуу";
+ export const SURPLUS_NOTE = "Илүүдэл: тооллого эсвэл худалдан авалт дутуу байж магадгүй, эсвэл жорын норм бодит хэрэглээнээс их, эсвэл порц бага өгч байна";
+-export const COMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн";
++export const COMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн байна";
++export const INCOMPLETE_PERIOD = "Энэ хугацааны өгөгдөл бүрэн биш байна";
+ 
+ export function trustTone(pct: number): "red" | "yellow" | "green" {
+   if (pct < 50) return "red";
+@@ -251,3 +252,20 @@ export function purchasePctLabel(trust: { purchase_pct?: number; has_purchase_va
+   if (Number(pct) === 0 && trust.has_purchase_value !== true) return "—";
+   return `${Math.round(Number(pct))}%`;
+ }
++
++/** «N бараанаас M нь баталгаажсан». Баталгаажаагүй эсвэл хувь нь «—»/0% үед хаалтыг хасна. */
++export function trustConfirmedLine(trust: {
++  total?: number;
++  verified?: number;
++  purchase_pct?: number;
++  has_purchase_value?: boolean;
++} | null | undefined): string {
++  if (!trust || !Number(trust.total)) return "—";
++  const total = Number(trust.total) || 0;
++  const verified = Number(trust.verified) || 0;
++  const base = `${total} бараанаас ${verified} нь баталгаажсан`;
++  if (verified === 0) return base;
++  const pct = purchasePctLabel(trust);
++  if (pct === "—" || pct === "0%") return base;
++  return `${base} (худалдан авалтын үнийн дүнгийн ${pct})`;
++}
+diff --git a/src/lib/logSort.ts b/src/lib/logSort.ts
+new file mode 100644
+index 0000000..c9f727c
+--- /dev/null
++++ b/src/lib/logSort.ts
+@@ -0,0 +1,16 @@
++function stamp(value: unknown): number {
++  if (value == null || value === "") return 0;
++  const n = Date.parse(String(value));
++  return Number.isFinite(n) ? n : 0;
++}
++
++/** Newest first: created_at desc, then date desc. */
++export function sortLogsNewestFirst<T extends { created_at?: unknown; date?: unknown }>(
++  logs: T[] | null | undefined,
++): T[] {
++  return [...(logs || [])].sort((a, b) => {
++    const created = stamp(b.created_at) - stamp(a.created_at);
++    if (created !== 0) return created;
++    return stamp(b.date) - stamp(a.date);
++  });
++}
+diff --git a/src/lib/shiftCycle.ts b/src/lib/shiftCycle.ts
+index bfc2be3..746b36a 100644
+--- a/src/lib/shiftCycle.ts
++++ b/src/lib/shiftCycle.ts
+@@ -50,17 +50,23 @@ export function logTypeLabel(type: string, text?: string | null) {
+   return TYPE_LABEL[key] || "Бусад";
+ }
+ 
+-/** «staff (Нэр)» хэлбэрийг «Ажилтан: Нэр» болгоно. */
++const ROLE_PREFIX = /^(staff|barista|worker|менежер|ажилтан|тогооч|бариста)$/i;
++
++/** «staff (Нэр)» -> «Ажилтан: Нэр». «Kiosk (Хаягдал)» -> «Таблет (Хаягдал)». */
+ export function staffDisplayName(raw: string | null | undefined): string {
+-  const s = String(raw || "").trim();
++  let s = String(raw || "").trim();
++  if (!s) return "Ажилтан";
++  s = s.replace(/^ажилтан\s*:\s*/i, "").trim();
+   if (!s) return "Ажилтан";
++  // Төхөөрөмжийн нэр: Kiosk / kiosk -> Таблет (өгөгдлийн хуучин бичлэгт үлдсэн).
++  s = s.replace(/\bkiosk\b/gi, "Таблет");
+   const wrapped = s.match(/^\s*(staff|barista|worker|менежер|ажилтан|тогооч|бариста)\s*\((.+)\)\s*$/i);
+   if (wrapped) {
+-    const name = wrapped[2].trim();
++    const inner = staffDisplayName(wrapped[2].trim());
++    const name = inner.replace(/^Ажилтан:\s*/i, "").trim();
+     return name ? `Ажилтан: ${name}` : "Ажилтан";
+   }
+-  if (/^(staff|barista|worker)$/i.test(s)) return "Ажилтан";
+-  if (/^ажилтан\s*:/i.test(s)) return s;
++  if (ROLE_PREFIX.test(s)) return "Ажилтан";
+   return s;
+ }
+ 

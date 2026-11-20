@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+import { sortLogsNewestFirst } from "../../lib/logSort";
+import { chatErrorMessage, isTransientChatFailure } from "../../lib/chatError";
 import OwnScore from "../../features/kiosk/OwnScore";
 import CupCheck from "../../features/finance/CupCheck";
 import TeamGoalBar from "../../features/finance/TeamGoalBar";
@@ -528,7 +530,7 @@ function KioskAiChatSection({
               ...prev,
               {
                 sender: "ai",
-                text: `Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+                text: chatErrorMessage(err),
               },
             ]);
           }
@@ -749,8 +751,8 @@ function KioskAiChatSection({
       }
 
       const tokens = kioskTokens();
-      const res = await fetch("/api/kiosk-ai", {
-        method: "POST",
+      const request = {
+        method: "POST" as const,
         headers: {
           "Content-Type": "application/json",
           "x-kiosk-device": tokens.deviceToken,
@@ -762,11 +764,21 @@ function KioskAiChatSection({
           imageUrl: uploadedImageUrl,
         }),
         signal: abortControllerRef.current.signal,
-      });
-      if (isCancelledRef.current) return; // ⚡ Exit instantly if canceled!
-
-      const data = await res.json();
+      };
+      let res = await fetch("/api/kiosk-ai", request);
+      let data = await res.json().catch(() => ({}));
+      const noReply =
+        !res.ok ||
+        data?.ai_failed ||
+        /хариу өгсөнгүй/i.test(String(data?.message || ""));
+      if (noReply && !isCancelledRef.current && isTransientChatFailure(`HTTP ${res.status} ${data?.message || ""}`)) {
+        res = await fetch("/api/kiosk-ai", request);
+        data = await res.json().catch(() => ({}));
+      }
       if (isCancelledRef.current) return;
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       if (data.log_id) window.dispatchEvent(new Event("kiosk-logs-changed"));
 
       setChatHistory((prev) => [
@@ -775,16 +787,16 @@ function KioskAiChatSection({
           sender: "ai",
           text: data.message || "Гүйлгээ боловсруулагдлаа.",
           logId: data.log_id,
-          learnedAliasId: data.learned_alias_id, // 👈 Баазад шинээр сурсан үгийн ID хадгалах
+          learnedAliasId: data.learned_alias_id,
         },
       ]);
     } catch (err: any) {
-      if (err.name === "AbortError" || isCancelledRef.current) return; // ⚡ Stay completely silent if user clicked cancel!
+      if (err.name === "AbortError" || isCancelledRef.current) return;
       setChatHistory((prev) => [
         ...prev,
         {
           sender: "ai",
-          text: `❌ Алдаа: ${err.message || "Сервертэй холбогдож чадсангүй."}`,
+          text: chatErrorMessage(err),
         },
       ]);
     } finally {
@@ -1084,6 +1096,7 @@ function KioskPage() {
   const closeSaveRef = useRef(false);
   const startSaveRef = useRef(false);
   const pinCheckRef = useRef(false);
+  const quickSavingRef = useRef(false);
   const [verifyingPin, setVerifyingPin] = useState(false);
   const [askText, setAskText] = useState<string | null>(null);
   useEffect(() => {
@@ -1546,7 +1559,7 @@ const handleKioskBulkSave = async () => {
     if (!kioskTokens().workerToken) return;
     setLogsRefreshing(true);
     try {
-      setTodayLogs(await kioskTodayLogs());
+      setTodayLogs(sortLogsNewestFirst(await kioskTodayLogs()));
     } catch {
       // Алдаа гарвал одоо байгаа жагсаалтыг устгахгүй.
     } finally {
@@ -1730,7 +1743,7 @@ const initKioskContext = async () => {
     if (data.ingredients) setIngredients(data.ingredients);
     if (data.aliases) setLearnedAliases(data.aliases);
     if (data.recipes) setRecipesList(data.recipes);
-    if (data.todayLogs) setTodayLogs(data.todayLogs);
+    if (data.todayLogs) setTodayLogs(sortLogsNewestFirst(data.todayLogs));
     if (data.translations) {
       const map: Record<string, string> = {};
       data.translations.forEach((row: any) => {
@@ -1866,7 +1879,7 @@ const initKioskContext = async () => {
       if (session.ingredients) setIngredients(session.ingredients);
       if (session.aliases) setLearnedAliases(session.aliases);
       if (session.recipes) setRecipesList(session.recipes);
-      if (session.todayLogs) setTodayLogs(session.todayLogs);
+      if (session.todayLogs) setTodayLogs(sortLogsNewestFirst(session.todayLogs));
       const liveTasks = await loadLiveTodayTasks(tenantClientId, selectedWorker, session);
       setTasks(liveTasks);
       if (!session.activeShift) {
@@ -2252,11 +2265,11 @@ const handleCloseShift = async () => {
        <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* ⚡ 1. CLEAN LOADING SCREEN WHILE VERIFYING (Eliminates the glimpse!) */}
         {isLoadingKiosk ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950 select-none">
-            <div className="h-8 w-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin mb-3" />
-            <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-        
-            </p>
+          <div className="w-full h-full bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-3 select-none">
+            <div className="h-10 w-1/2 rounded-xl bg-zinc-800 animate-pulse" />
+            <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
+            <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
+            <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
           </div>
         ) : (
           <>
@@ -2590,47 +2603,6 @@ const handleCloseShift = async () => {
           <div className="w-full h-full bg-zinc-900 p-3 sm:p-4 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
             {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
 
-            {recentToast && (
-              <div className="absolute bottom-20 left-3 right-3 z-30 bg-white text-zinc-950 px-3.5 py-2.5 rounded-2xl font-black text-xs shadow-2xl flex items-center justify-between border-2 border-zinc-700 animate-in fade-in duration-150">
-                {/* 👈 ЭНДӨӨС truncate-ИЙГ УСТГАЖ flex-wrap НЭМЛЭЭ */}
-                <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
-                  <span className="bg-zinc-950 text-zinc-200 px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">
-                    Бүртгэгдсэн:
-                  </span>
-                  <span className="font-black text-xs sm:text-xs leading-snug whitespace-normal break-words">
-                    {recentToast.text}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const idToUndo = recentToast.id;
-                      setRecentToast(null);
-                      try {
-                        await kioskOps("logs.delete", { id: idToUndo });
-                        await fetchKioskData(tenantClientId);
-                        setMsg("Бүртгэл цуцлагдлаа.");
-                      } catch (err: any) {
-                        setMsg(err.message || "Буцааж чадсангүй.");
-                      }
-                      setTimeout(() => setMsg(""), 3000);
-                    }}
-                    className="bg-zinc-950 text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-xl text-xs sm:text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
-                  >
-                    ↩️ Буцаах
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRecentToast(null)}
-                    className="text-zinc-900 hover:text-black font-bold p-1 text-sm hidden sm:block"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
@@ -3682,10 +3654,12 @@ const handleCloseShift = async () => {
                           </label>
                         </div>
 
-                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-rose-400"}`}>
+                        <p className={`text-xs font-bold text-center ${noEbarimtFile ? "text-zinc-200" : "text-zinc-400"}`}>
                           {noEbarimtFile
-                            ? `✅ Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
-                            : "⚠️ Баримт эсвэл барааны зургийг заавал хийнэ үү!"}
+                            ? `Зураг бэлэн: ${noEbarimtFile.name.substring(0, 15)}...`
+                            : (parseFloat(purchaseCost) || 0) >= 10000
+                              ? "10,000₮-өөс дээш бол зураг хавсаргана уу"
+                              : "Зураг хавсаргах нь сайн дурынх"}
                         </p>
                       </div>
                     </div>
@@ -3769,22 +3743,20 @@ const handleCloseShift = async () => {
                       (kioskMode === "spoilage" && !wasteReason) ||
                       isAiLoading
                     }
-                 onClick={() => {
+                 onClick={async () => {
+  if (quickSavingRef.current || isAiLoading) return;
   const costVal = parseFloat(purchaseCost) || 0;
 
-  // 💡 1. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ! (Таны бичсэнээр хэвээрээ)
   if (
     kioskMode === "purchase" &&
     costVal >= 10000 &&
     !noEbarimtFile
   ) {
     document.getElementById("single-pur-cam")?.click();
-    return; // Зураг дартал хадгалахгүй түр хүлээнэ
+    return;
   }
 
   const qtyNum = parseFloat(quickQty);
-  
-  // ⚡ 2. Тооллого болон Орлого бол заавал ЭЕРЭГ (+), хаягдал бол ХАСАХ (-):
   const finalQty =
     kioskMode === "purchase" || kioskMode === "count"
       ? Math.abs(qtyNum)
@@ -3794,13 +3766,6 @@ const handleCloseShift = async () => {
   const fileToUpload = noEbarimtFile;
   const payMethod = purchasePayMethod;
   const chosenReason = wasteReason;
-
-  setQuickItemModal(null);
-  setQuickQty("");
-  setPurchaseCost("");
-  setNoEbarimtFile(null);
-
-  // 🏷️ 3. Бүх 5 горимын нэршил (Таны бичсэнээр хэвээрээ):
   const modeLabel =
     kioskMode === "spoilage"
       ? "Хаягдал"
@@ -3812,43 +3777,50 @@ const handleCloseShift = async () => {
             ? "Тооллого"
             : "Орлого";
 
-  (async () => {
-    try {
-      let uploadedUrl = null;
-      if (kioskMode === "purchase" && fileToUpload) {
-        uploadedUrl = await uploadEvidencePhoto(
-          fileToUpload,
-          "purchases_proofs",
-        );
-      }
-
-      const saved = await kioskSaveLogs([
-        {
-          ingredient_id: itemToSave.id,
-          quantity: finalQty,
-          total_cost: costVal,
-          type: kioskMode === "spoilage" && chosenReason ? chosenReason.type : kioskMode,
-          payment_method: kioskMode === "purchase" ? payMethod : null,
-          image_url: uploadedUrl,
-          is_ebarimt: false,
-          incident_type: kioskMode === "count" ? "kiosk_count" : null,
-          notes: kioskMode === "spoilage" && chosenReason
-            ? chosenReason.notes
-            : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Киоск (${modeLabel})`,
-          input_unit: itemToSave.unit,
-        },
-      ]);
-      const newId = saved.ids?.[0];
-      setRecentToast({
-        id: newId || "ok",
-        text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
-      });
-      fetchKioskData(tenantClientId);
-    } catch (err: any) {
-      notify(`Серверийн алдаа: ${err.message || err}`);
-      console.error("Background save failed:", err);
+  quickSavingRef.current = true;
+  setIsAiLoading(true);
+  try {
+    let uploadedUrl = null;
+    if (kioskMode === "purchase" && fileToUpload) {
+      uploadedUrl = await uploadEvidencePhoto(
+        fileToUpload,
+        "purchases_proofs",
+      );
     }
-  })();
+
+    const saved = await kioskSaveLogs([
+      {
+        ingredient_id: itemToSave.id,
+        quantity: finalQty,
+        total_cost: costVal,
+        type: kioskMode === "spoilage" && chosenReason ? chosenReason.type : kioskMode,
+        payment_method: kioskMode === "purchase" ? payMethod : null,
+        image_url: uploadedUrl,
+        is_ebarimt: false,
+        incident_type: kioskMode === "count" ? "kiosk_count" : null,
+        notes: kioskMode === "spoilage" && chosenReason
+          ? chosenReason.notes
+          : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
+        input_unit: itemToSave.unit,
+      },
+    ]);
+    setQuickItemModal(null);
+    setQuickQty("");
+    setPurchaseCost("");
+    setNoEbarimtFile(null);
+    const newId = saved.ids?.[0];
+    setRecentToast({
+      id: newId || "ok",
+      text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
+    });
+    fetchKioskData(tenantClientId);
+  } catch (err: any) {
+    notify(err?.message || "Хадгалж чадсангүй.");
+    console.error("Kiosk save failed:", err);
+  } finally {
+    quickSavingRef.current = false;
+    setIsAiLoading(false);
+  }
 }}
                     className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3.5 rounded-2xl text-[13px] sm:text-sm transition shadow-lg active:scale-95"
                        >
@@ -3859,7 +3831,7 @@ const handleCloseShift = async () => {
                           !noEbarimtFile
                         ? "ЗУРАГ ДАРЖ БАТЛАХ"
                         : kioskMode === "purchase" && !noEbarimtFile
-                          ? "БАТЛАХ (Зураггүй оруулах)"
+                          ? "БАТЛАХ"
                           : "БАТЛАХ"}
                   </button>
                   {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
@@ -4292,11 +4264,13 @@ const handleCloseShift = async () => {
                     </div>
 
                     <p
-                      className={`text-xs font-bold text-center ${newItemFile ? "text-zinc-200" : "text-rose-400 "}`}
+                      className={`text-xs font-bold text-center ${newItemFile ? "text-zinc-200" : "text-zinc-400"}`}
                     >
                       {newItemFile
-                        ? ` Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
-                        : "Зургийг заавал дарна уу!"}
+                        ? `Зураг бэлэн: ${newItemFile.name.substring(0, 15)}...`
+                        : (parseFloat(newItemCost) || 0) >= 10000
+                          ? "10,000₮-өөс дээш бол зураг хавсаргана уу"
+                          : "Зураг хавсаргах нь сайн дурынх"}
                     </p>
                   </div>
 
@@ -4369,7 +4343,7 @@ const handleCloseShift = async () => {
                       : (parseFloat(newItemCost) || 0) >= 10000 && !newItemFile
                         ? "ЗУРАГ ДАРЖ ҮҮСГЭХ"
                         : !newItemFile
-                          ? "БАТЛАХ (Зураггүй үүсгэх)"
+                          ? "БАТЛАХ"
                           : "ШИНЭ БАРААГ БАТЛАХ"}
                   </button>
                 </div>
@@ -4444,7 +4418,7 @@ const handleCloseShift = async () => {
                         Өнөөдөр хараахан ямар нэг бүртгэл хийгдээгүй байна.
                       </p>
                     ) : (
-                      todayLogs.map((log) => {
+                      sortLogsNewestFirst(todayLogs).map((log) => {
                         const kind = String(log.type || "").toLowerCase();
                         const isPurchase = kind === "purchase";
                         const isSpoilage = kind === "spoilage";
@@ -5043,9 +5017,9 @@ const handleCloseShift = async () => {
                       className={`text-xs font-bold text-center ${cartFile ? "text-zinc-200" : totalCartCost >= 10000 ? "text-rose-400 " : "text-zinc-500"}`}
                     >
                       {cartFile
-                        ? ` Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
+                        ? `Зураг бэлэн: ${cartFile.name.substring(0, 15)}...`
                         : totalCartCost >= 10000
-                          ? "баримт/барааны зураг заавал дарна уу!"
+                          ? "Баримт эсвэл барааны зураг хавсаргана уу"
                           : "Зураг хавсаргах нь сайн дурынх"}
                     </p>
 
@@ -5060,18 +5034,11 @@ const handleCloseShift = async () => {
                           return;
                         }
 
+                        if (quickSavingRef.current || isAiLoading) return;
                         const itemsToProcess = [...purchaseCart];
                         const fileToUpload = cartFile;
-
-                        setShowCartModal(false);
-                        setPurchaseCart([]);
-                        setCartFile(null);
-
-                        setRecentToast({
-                          id: "temp-" + Date.now(),
-                          text: `🛒 Сагсан дахь ${itemsToProcess.length} бараа хадгалагдаж байна...`,
-                        });
-
+                        quickSavingRef.current = true;
+                        setIsAiLoading(true);
                         (async () => {
                           try {
                             let uploadedUrl = null;
@@ -5095,6 +5062,9 @@ const handleCloseShift = async () => {
                                 notes: "Бөөний сагсаар",
                               })),
                             );
+                            setShowCartModal(false);
+                            setPurchaseCart([]);
+                            setCartFile(null);
                             if (saved.ids?.length) {
                               setRecentToast({
                                 id: saved.ids[0],
@@ -5104,6 +5074,9 @@ const handleCloseShift = async () => {
                             }
                           } catch (err: any) {
                             notify(err.message || "Сагс хадгалагдсангүй.");
+                          } finally {
+                            quickSavingRef.current = false;
+                            setIsAiLoading(false);
                           }
                         })();
                       }}
@@ -5127,6 +5100,46 @@ const handleCloseShift = async () => {
               </>
             )}
       </main>
+      {recentToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] w-[min(36rem,calc(100%-1.5rem))] bg-white text-zinc-950 px-4 py-3 rounded-2xl font-black text-sm shadow-[0_8px_30px_rgba(0,0,0,0.65)] flex items-center justify-between border-2 border-zinc-900">
+          <div className="flex flex-wrap items-center gap-1.5 pr-2 flex-1 min-w-0">
+            <span className="bg-zinc-950 text-white px-2 py-0.5 rounded-lg text-xs font-mono shrink-0">
+              Бүртгэгдсэн:
+            </span>
+            <span className="font-black text-sm leading-snug whitespace-normal break-words">
+              {recentToast.text}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={async () => {
+                const idToUndo = recentToast.id;
+                setRecentToast(null);
+                try {
+                  await kioskOps("logs.delete", { id: idToUndo });
+                  await fetchKioskData(tenantClientId);
+                  setMsg("Бүртгэл цуцлагдлаа.");
+                } catch (err: any) {
+                  setMsg(err.message || "Буцааж чадсангүй.");
+                }
+                setTimeout(() => setMsg(""), 3000);
+              }}
+              className="bg-zinc-950 text-white hover:bg-zinc-800 px-2.5 py-1.5 rounded-xl text-xs font-black transition active:scale-95 shadow cursor-pointer shrink-0"
+            >
+              Буцаах
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecentToast(null)}
+              className="text-zinc-900 hover:text-black font-bold p-1 text-sm"
+            >
+              Хаах
+            </button>
+          </div>
+        </div>
+      )}
+
       {noteText && (
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-end sm:items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 w-full max-w-md space-y-4">

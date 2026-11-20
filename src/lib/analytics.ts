@@ -3,6 +3,7 @@ import { calculateMatchScore, transliterate } from './autoReconcile';
 import { analyticsPeriod, ubDay } from './ubDate';
 import { buildDataTrust } from './honestDashboard';
 import { displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+import { sortLogsNewestFirst } from './logSort';
 import { formatUbTime } from './formatUbTime';
 import { assemblePhase4 } from './phase4';
 
@@ -1207,7 +1208,7 @@ for (const key in master) {
         unit: displayUnit(ing?.unit || ""),
         qty: Number(log.quantity) || 0,
         money,
-        staff: log.worker_name || "Ажилтан алга",
+        staff: staffDisplayName(log.worker_name || "Ажилтан алга"),
         shift: shiftLabel,
       };
     });
@@ -1315,7 +1316,7 @@ logged_spoilage_items: (rawInventoryLogs || [])
     menu_performance: menuPerformance.sort((a,b) => b.sold - a.sold),
     all_recipes: allRecipesMap,
     opex_details: opexDetails,
-    all_timeline_logs: timelineLogs,
+    all_timeline_logs: sortLogsNewestFirst(timelineLogs),
     recent_shifts: formattedShifts,
     recent_worker_logs: timelineLogs.slice(0, 40),
     grades,

@@ -50,17 +50,23 @@ export function logTypeLabel(type: string, text?: string | null) {
   return TYPE_LABEL[key] || "Бусад";
 }
 
-/** «staff (Нэр)» хэлбэрийг «Ажилтан: Нэр» болгоно. */
+const ROLE_PREFIX = /^(staff|barista|worker|менежер|ажилтан|тогооч|бариста)$/i;
+
+/** «staff (Нэр)» -> «Ажилтан: Нэр». «Kiosk (Хаягдал)» -> «Таблет (Хаягдал)». */
 export function staffDisplayName(raw: string | null | undefined): string {
-  const s = String(raw || "").trim();
+  let s = String(raw || "").trim();
   if (!s) return "Ажилтан";
+  s = s.replace(/^ажилтан\s*:\s*/i, "").trim();
+  if (!s) return "Ажилтан";
+  // Төхөөрөмжийн нэр: Kiosk / kiosk -> Таблет (өгөгдлийн хуучин бичлэгт үлдсэн).
+  s = s.replace(/\bkiosk\b/gi, "Таблет");
   const wrapped = s.match(/^\s*(staff|barista|worker|менежер|ажилтан|тогооч|бариста)\s*\((.+)\)\s*$/i);
   if (wrapped) {
-    const name = wrapped[2].trim();
+    const inner = staffDisplayName(wrapped[2].trim());
+    const name = inner.replace(/^Ажилтан:\s*/i, "").trim();
     return name ? `Ажилтан: ${name}` : "Ажилтан";
   }
-  if (/^(staff|barista|worker)$/i.test(s)) return "Ажилтан";
-  if (/^ажилтан\s*:/i.test(s)) return s;
+  if (ROLE_PREFIX.test(s)) return "Ажилтан";
   return s;
 }
 

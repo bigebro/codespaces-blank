@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
-import { COMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, purchasePctLabel } from "@/lib/honestDashboard";
+import { COMPLETE_PERIOD, INCOMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, dashboardTrust, trustConfirmedLine } from "@/lib/honestDashboard";
 import { gradeGuide } from "@/lib/gradeGuide";
 
 type Grade = {
@@ -73,7 +73,8 @@ export default function DataGradePanel({
   onChanged: () => Promise<void> | void;
   variant?: "full" | "actions";
 }) {
-  const trust = liveAnalytics?.data_trust || liveAnalytics?.financial_ladder?.data_trust;
+  const board = dashboardTrust(liveAnalytics);
+  const trust = board.summary;
   const gap = Number(liveAnalytics?.verified_gap ?? liveAnalytics?.financial_ladder?.verified_gap ?? 0);
   const actual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
   const theo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
@@ -257,7 +258,7 @@ export default function DataGradePanel({
       <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
         <h3 className="text-base font-black text-white">Эхлээд хийх 3 ажил</h3>
         {topRows.length === 0 ? (
-          <p className="text-sm text-zinc-300">{COMPLETE_PERIOD}</p>
+          <p className="text-sm text-zinc-300">{trust.total > 0 && trust.verified === trust.total ? COMPLETE_PERIOD : INCOMPLETE_PERIOD}</p>
         ) : (
           topRows.map((row) => (
             <div key={row.ingredient_id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
@@ -286,7 +287,7 @@ export default function DataGradePanel({
       <div>
         <h3 className="text-base font-black text-white">Өгөгдлийн итгэл</h3>
         <p className="text-sm text-zinc-300 mt-1">
-          {trust.total} бараанаас {trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн {purchasePctLabel(trust)})
+          {trustConfirmedLine(trust)}
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
