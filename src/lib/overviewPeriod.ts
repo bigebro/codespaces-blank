@@ -103,26 +103,96 @@ function escapeRe(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Зөвхөн тусдаа гарчгийн мөр: «Өнөөдөр (YYYY-MM-DD)». Өгүүлбэр доторх «өнөөдөр»-ийг үл эмчилнэ. */
+export const TODAY_HEADING_RE = /^Өнөөдөр \(\d{4}-\d{2}-\d{2}\)$/;
+
+export function isTodayHeading(line: string) {
+  return TODAY_HEADING_RE.test(String(line || "").trim());
+}
+
+/** Сонгосон хугацаа өнөөдөр биш үед моделийн давхар «Өнөөдөр (...)» гарчгийг хасна. */
+export function stripStrayTodayHeadings(text: string, allowedLabel: string): string {
+  const allowed = String(allowedLabel || "").trim();
+  if (isTodayHeading(allowed)) return String(text ?? "");
+  return String(text ?? "")
+    .split("\n")
+    .filter((row) => !isTodayHeading(row))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+function maybeTodayHeading(row: string) {
+  const t = row.trim();
+  if (!t) return false;
+  if (isTodayHeading(t)) return true;
+  return "Өнөөдөр".startsWith(t) || /^Өнөөдөр( \((\d{0,4}(-(\d{0,2}(-(\d{0,2}\)?)?)?)?)?)?)?$/.test(t);
+}
+
+function createTodayHeadingFilter(allowedLabel: string) {
+  const keepToday = isTodayHeading(allowedLabel);
+  let pending = "";
+  return {
+    push(chunk: string): string {
+      if (keepToday) return chunk;
+      pending += chunk;
+      const nl = pending.lastIndexOf("\n");
+      if (nl === -1) {
+        if (isTodayHeading(pending)) {
+          pending = "";
+          return "";
+        }
+        if (!maybeTodayHeading(pending)) {
+          const out = pending;
+          pending = "";
+          return out;
+        }
+        return "";
+      }
+      const complete = pending.slice(0, nl + 1);
+      pending = pending.slice(nl + 1);
+      let cleaned = stripStrayTodayHeadings(complete, allowedLabel);
+      if (isTodayHeading(pending)) pending = "";
+      else if (pending && !maybeTodayHeading(pending)) {
+        cleaned += pending;
+        pending = "";
+      }
+      return cleaned;
+    },
+    flush(): string {
+      if (keepToday) {
+        const out = pending;
+        pending = "";
+        return out;
+      }
+      const out = isTodayHeading(pending) ? "" : pending;
+      pending = "";
+      return out;
+    },
+  };
+}
+
 /** Хариултын эхэнд хугацааны мөрийг нэг л удаа үлдээнэ (систем эсвэл модель давхар бичсэн ч). */
 export function ensureSinglePeriodPrefix(text: string, label: string): string {
   const line = String(label || "").trim();
   const body = String(text ?? "");
-  if (!line) return body;
+  if (!line) return stripStrayTodayHeadings(body, "");
   const leading = new RegExp(`^(?:\\s*${escapeRe(line)}\\s*)+`);
-  const rest = body.replace(leading, "").replace(/^\s+/, "");
+  let rest = body.replace(leading, "").replace(/^\s+/, "");
+  rest = stripStrayTodayHeadings(rest, line).replace(/^\s+/, "");
   return rest ? `${line}\n\n${rest}` : `${line}\n\n`;
 }
 
 /** Стрим дээр хугацааны мөрийг нэг удаа нэмж, модель давхар бичвэл хасна. */
 export function createPeriodPrefixGate(label: string) {
   const line = String(label || "").trim();
+  const todayFilter = createTodayHeadingFilter(line);
   let buf = "";
   let done = false;
 
   return {
     push(chunk: string): string {
-      if (!line) return chunk;
-      if (done) return chunk;
+      if (!line) return todayFilter.push(chunk);
+      if (done) return todayFilter.push(chunk);
       buf += chunk;
       const trimmed = buf.replace(/^\s+/, "");
       if (!trimmed) return "";
@@ -133,13 +203,9 @@ export function createPeriodPrefixGate(label: string) {
       return out;
     },
     flush(): string {
-      if (done) {
-        const out = buf;
-        buf = "";
-        return out;
-      }
+      if (done) return todayFilter.flush();
       if (!line) {
-        const out = buf;
+        const out = todayFilter.push(buf) + todayFilter.flush();
         buf = "";
         done = true;
         return out;

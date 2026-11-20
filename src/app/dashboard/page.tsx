@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, startTransition } from "react";
 import { supabase } from "../../lib/supabase";
 import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubDate";
 import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
+import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
 // @ts-ignore
@@ -334,6 +335,8 @@ function Home() {
     return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   });
   const [rangeMode, setRangeMode] = useState<RangeMode>("month");
+  // localStorage-ийг effect-д уншина (SSR/hydration зөрөхгүй).
+  const [rangeReady, setRangeReady] = useState(false);
 
   const [workerSearchQuery, setWorkerSearchQuery] = useState("");
   // Database States
@@ -1872,6 +1875,22 @@ function Home() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const stored = readDashboardRangeStorage(new Date());
+    if (stored) {
+      setRangeMode(stored.mode);
+      setStartDate(stored.startDay);
+      setEndDate(stored.endDay);
+      selectedRangeRef.current = { start: stored.startDay, end: stored.endDay, mode: stored.mode };
+    }
+    setRangeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!rangeReady) return;
+    writeDashboardRangeStorage({ mode: rangeMode, startDay: startDate, endDay: endDate });
+  }, [rangeReady, rangeMode, startDate, endDate]);
 
   const handleSaveCategoryMargins = async () => {
     setLoading(true);

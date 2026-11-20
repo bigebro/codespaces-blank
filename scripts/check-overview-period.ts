@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createPeriodPrefixGate, ensureSinglePeriodPrefix, resolveOverviewPeriod } from "../src/lib/overviewPeriod";
+import { createPeriodPrefixGate, ensureSinglePeriodPrefix, resolveOverviewPeriod, stripStrayTodayHeadings } from "../src/lib/overviewPeriod";
 import { currentWeekBounds, monthEndDay, monthStartDay, ubDayEndIso, ubDayStartIso } from "../src/lib/ubDate";
 
 const now = new Date("2026-11-20T07:15:00+08:00");
@@ -84,4 +84,24 @@ const gate3 = createPeriodPrefixGate(label);
 assert.equal(gate3.push("Ө"), "");
 assert.equal(gate3.flush(), `${label}\n\nӨ`);
 
+const monthLabel = "Энэ сар (2026-11-01 – 2026-11-30)";
+const todayLine = "Өнөөдөр (2026-11-20)";
+assert.equal(
+  ensureSinglePeriodPrefix(`${monthLabel}\n\n${todayLine}\n\nОрлого 1`, monthLabel),
+  `${monthLabel}\n\nОрлого 1`,
+);
+assert.equal(ensureSinglePeriodPrefix(`${todayLine}\n\nОрлого 1`, monthLabel), `${monthLabel}\n\nОрлого 1`);
+assert.equal(
+  stripStrayTodayHeadings(`${monthLabel}\n${todayLine}\nОрлого, өнөөдөр тооллого хийнэ.`, monthLabel),
+  `${monthLabel}\nОрлого, өнөөдөр тооллого хийнэ.`,
+);
+assert.equal(stripStrayTodayHeadings(`${todayLine}\nДүн`, todayLine), `${todayLine}\nДүн`);
+
+const monthGate = createPeriodPrefixGate(monthLabel);
+assert.equal(monthGate.push(`${todayLine}\n\nОрлого 1`), `${monthLabel}\n\nОрлого 1`);
+assert.equal(monthGate.push("\nөнөөдөр тооллого хийнэ."), "\nөнөөдөр тооллого хийнэ.");
+assert.equal(monthGate.flush(), "");
+
+const overviewSrc = require("node:fs").readFileSync("src/ai/agents/overview.ts", "utf8");
+assert.match(overviewSrc, /Сонгосон хугацаа өнөөдөр биш бол/);
 console.log("overview period checks passed");

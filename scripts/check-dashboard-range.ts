@@ -7,6 +7,14 @@ import {
   readRequestRange,
   shouldApplyAnalytics,
 } from "../src/lib/analyticsRange";
+import {
+  DASHBOARD_RANGE_STORAGE_KEY,
+  boundsForMode,
+  parseStoredDashboardRange,
+  readDashboardRangeStorage,
+  restoreDashboardRange,
+  writeDashboardRangeStorage,
+} from "../src/lib/dashboardRangeStore";
 import { resolveOverviewPeriod } from "../src/lib/overviewPeriod";
 import { ubDayEndIso, ubDayStartIso } from "../src/lib/ubDate";
 
@@ -115,5 +123,66 @@ assert.match(route, /readRequestRange\(body\)/);
 assert.match(route, /activeStartDate: dashboardRange\?\.startDay/);
 assert.match(route, /activeEndDate: dashboardRange\?\.endDay/);
 assert.match(route, /rangeMode: dashboardRange\?\.mode/);
+
+const persistNow = new Date("2026-11-21T07:15:00+08:00");
+assert.deepEqual(restoreDashboardRange(null, persistNow), {
+  mode: "month",
+  startDay: "2026-11-01",
+  endDay: "2026-11-30",
+});
+assert.deepEqual(
+  restoreDashboardRange({ mode: "day", startDay: "2026-11-20", endDay: "2026-11-20", asOfDay: "2026-11-20" }, persistNow),
+  { mode: "day", startDay: "2026-11-21", endDay: "2026-11-21" },
+);
+assert.deepEqual(
+  restoreDashboardRange({ mode: "day", startDay: "2026-11-18", endDay: "2026-11-18", asOfDay: "2026-11-20" }, persistNow),
+  { mode: "day", startDay: "2026-11-18", endDay: "2026-11-18" },
+);
+assert.deepEqual(
+  restoreDashboardRange({ mode: "week", startDay: "2026-11-16", endDay: "2026-11-20", asOfDay: "2026-11-20" }, persistNow),
+  { mode: "week", startDay: "2026-11-16", endDay: "2026-11-21" },
+);
+assert.deepEqual(
+  restoreDashboardRange({ mode: "week", startDay: "2026-11-09", endDay: "2026-11-15", asOfDay: "2026-11-20" }, persistNow),
+  { mode: "week", startDay: "2026-11-09", endDay: "2026-11-15" },
+);
+assert.deepEqual(
+  restoreDashboardRange({ mode: "month", startDay: "2026-11-01", endDay: "2026-11-30", asOfDay: "2026-11-20" }, persistNow),
+  { mode: "month", startDay: "2026-11-01", endDay: "2026-11-30" },
+);
+assert.deepEqual(
+  restoreDashboardRange({ mode: "month", startDay: "2026-10-01", endDay: "2026-10-31", asOfDay: "2026-11-20" }, persistNow),
+  { mode: "month", startDay: "2026-10-01", endDay: "2026-10-31" },
+);
+assert.deepEqual(
+  restoreDashboardRange({ mode: "month", startDay: "2026-11-01", endDay: "2026-11-30", asOfDay: "2026-11-30" }, new Date("2026-12-01T08:00:00+08:00")),
+  { mode: "month", startDay: "2026-12-01", endDay: "2026-12-31" },
+);
+assert.equal(restoreDashboardRange({ mode: "day", startDay: "nope" }, persistNow).startDay, "2026-11-21");
+assert.equal(parseStoredDashboardRange("{not json", persistNow).mode, "month");
+assert.equal(readDashboardRangeStorage(persistNow, null), null);
+
+const mem: Record<string, string> = {};
+const fake = {
+  getItem: (k: string) => mem[k] ?? null,
+  setItem: (k: string, v: string) => {
+    mem[k] = v;
+  },
+};
+writeDashboardRangeStorage(
+  { mode: "day", startDay: "2026-11-20", endDay: "2026-11-20" },
+  new Date("2026-11-20T10:00:00+08:00"),
+  fake,
+);
+assert.ok(mem[DASHBOARD_RANGE_STORAGE_KEY]);
+const reread = readDashboardRangeStorage(persistNow, fake);
+assert.deepEqual(reread, { mode: "day", startDay: "2026-11-21", endDay: "2026-11-21" });
+assert.deepEqual(boundsForMode("day", "2026-11-21"), { startDay: "2026-11-21", endDay: "2026-11-21" });
+
+assert.match(page, /readDashboardRangeStorage/);
+assert.match(page, /writeDashboardRangeStorage/);
+assert.match(page, /setRangeReady\(true\)/);
+assert.equal(page.includes("operlink.dashboard.range"), false);
+assert.match(page, /if \(!rangeReady\) return;/);
 
 console.log("dashboard range checks passed");

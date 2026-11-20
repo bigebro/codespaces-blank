@@ -71,6 +71,7 @@ ${MN_BUSINESS_SPELLING_NOTE}
 [FINANCIAL VITALS]:
 - (MTD = сарын эхнээс өнөөдрийг хүртэл. Сонгосон хугацааны тоог MTD-тай бүү холь. «Өнөөдөр» гэсэн асуултад MTD-г өнөөдрийн тоо гэж хэлж болохгүй.)
 - OVERVIEW PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar)
+- If OVERVIEW PERIOD is not today, do not write a «Өнөөдөр (YYYY-MM-DD)» heading. The system already prepends the period.
 - MTD Revenue: ${vitals.monthToDateRevenue.toLocaleString()} ₮
 - Est. Net Profit: ${vitals.estimatedNetProfit.toLocaleString()} ₮ (WARNING: Rough 15% margin guess, NOT actual audited profit)
 - Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
