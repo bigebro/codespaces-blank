@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { analyticsPeriod, ubDay } from './ubDate';
 import { buildDataTrust } from './honestDashboard';
-import { displaySourceNote, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+import { cleanLogNotes, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
 import { sortLogsNewestFirst } from './logSort';
 import { formatUbTime } from './formatUbTime';
 import { assemblePhase4 } from './phase4';
@@ -770,6 +770,8 @@ for (const key in master) {
     grade.waste_testing = wasteTesting;
     grade.waste_staff_meal = wasteStaffMeal;
     grade.waste_other = wasteOther;
+    grade.unit_price = weightedForMoney;
+    grade.price = weightedForMoney;
     grades.push(grade);
 
     if (grade.status === "Missing") {
@@ -1126,7 +1128,7 @@ for (const key in master) {
       image_url: log.image_url || null,
       incident_type: log.incident_type || 'normal',
       reported_against_worker: log.reported_against_worker || null,
-      notes: displaySourceNote(log.notes || "")
+      notes: cleanLogNotes(log.notes || "")
     };
   });
 

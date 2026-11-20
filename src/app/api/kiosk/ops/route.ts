@@ -5,6 +5,7 @@ import { requireKioskWorker } from "@/lib/kioskAuth";
 import { buildCyclePlan } from "@/lib/cyclePlan";
 import { loadKioskPhase4 } from "@/lib/phase4Load";
 import { buildCountLog, displaySourceNote, openingInsertDecision } from "@/lib/shiftCycle";
+import { clearAnalyticsCache } from "@/lib/analyticsCache";
 import { convertToIngredientUnit } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,22 @@ export async function POST(request: Request) {
 
     const action = String(body.action || "");
     const nowIso = new Date().toISOString();
+
+    if (action === "logs.checkDuplicate") {
+      const ingredientId = String(body.ingredient_id || body.ingredientId || "");
+      if (!ingredientId) return fail("Бараа олдсонгүй.");
+      const { data: ing } = await supabaseAdmin
+        .from("ingredients")
+        .select("id, unit, client_id")
+        .eq("id", ingredientId)
+        .maybeSingle();
+      if (!ing || ing.client_id !== worker.clientId) return fail("Бараа олдсонгүй.");
+      const qty = convertToIngredientUnit(Number(body.quantity), body.input_unit, ing.unit || "");
+      if (!Number.isFinite(qty)) return fail("Тоо хэмжээ буруу байна. Хоосон эсвэл үсэг бичсэн байна.");
+      const existing = await duplicatePurchase(worker.clientId, ingredientId, Math.abs(qty), Number(body.total_cost) || 0);
+      return NextResponse.json({ ok: true, duplicate: Boolean(existing) });
+    }
+
     const needsShift = action === "logs.insert" || action === "ingredient.create" || action === "cycle.plan";
     const { data: openShiftRow } = needsShift
   ? await supabaseAdmin
@@ -153,6 +170,7 @@ export async function POST(request: Request) {
       const { data, error } = await supabaseAdmin.from("inventory_logs").insert(prepared).select("id");
       if (error) return fail(error.message, 500);
       const aliases = Array.isArray(body.aliases) ? body.aliases : [];
+      clearAnalyticsCache(worker.clientId);
       after(async () => {
         try {
           for (const row of prepared) {

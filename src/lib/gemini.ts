@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@/lib/ai/genai";
+import { tabletSourceNote } from "@/lib/shiftCycle";
 
 // =========================================================================
 // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
@@ -245,6 +246,7 @@ const EN_TO_MN_DICT: Record<string, string[]> = {
 // =========================================================================
 // 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
+
 export function advancedMongolianVoiceParser(
   rawText: string,
   ingredients: any[],
@@ -294,7 +296,7 @@ export function advancedMongolianVoiceParser(
           unit: matched.unit,
           quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
           type: type,
-          notes: `${rawText} (🧠 Суралцсан үг)`,
+          notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
         };
       }
     }
@@ -356,7 +358,7 @@ export function advancedMongolianVoiceParser(
     unit: bestMatch.unit,
     quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
     type: type,
-    notes: `${rawText} (⚡ Local Parser)`,
+    notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
   };
 }
 

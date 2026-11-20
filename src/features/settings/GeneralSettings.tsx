@@ -495,7 +495,7 @@ export default function GeneralSettings({
                   Зураг солих
                 </label>
                 <p className="text-xs text-zinc-500 mt-0.5 truncate">
-                  Зөвхөн киоск таблет дээр харагдана
+                  Зөвхөн таблет дээр харагдана
                 </p>
               </div>
             </div>

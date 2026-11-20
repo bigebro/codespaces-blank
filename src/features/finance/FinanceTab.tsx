@@ -24,7 +24,7 @@ import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
 import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustConfirmedLine, trustEstimateDisplay } from "@/lib/honestDashboard";
-import { logTypeLabel, staffDisplayName, displaySourceNote} from "@/lib/shiftCycle";
+import { staffDisplayName, wasteFeedDetail } from "@/lib/shiftCycle";
 import { sortLogsNewestFirst } from "@/lib/logSort";
 import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
 
@@ -948,17 +948,13 @@ export default function FinanceTab({
                               {log.unit})
                             </span>
                           </p>
-                          <p className="text-xs text-zinc-500 mt-0.5 flex gap-2">
-                            <span
-                              className={`font-bold ${
+                          <p className={`text-xs mt-0.5 font-bold ${
                                 String(log.type || "").toLowerCase() === "spoilage"
                                   ? "text-rose-400"
-                                  : "text-zinc-300"
+                                  : "text-zinc-400"
                               }`}
                             >
-                              {logTypeLabel(log.type, log.notes)}
-                            </span>
-                            <span>• {displaySourceNote(log.notes)}</span>
+                              {wasteFeedDetail(log)}
                           </p>
                         </div>
                       ))}

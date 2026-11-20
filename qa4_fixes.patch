@@ -1,0 +1,1137 @@
+diff --git a/scripts/check-ai-dashboard-facts.ts b/scripts/check-ai-dashboard-facts.ts
+index 46422b6..ee81337 100644
+--- a/scripts/check-ai-dashboard-facts.ts
++++ b/scripts/check-ai-dashboard-facts.ts
+@@ -1,7 +1,12 @@
+ import assert from "node:assert/strict";
+ import { dashboardItemFactsText, gradeFactLines, gradeGuide, itemVarianceFacts } from "../src/lib/gradeGuide";
++import {
++  officialNumberTokens,
++  renderItemFactsBlock,
++  stripContradictingNumberLines,
++} from "../src/lib/dashboardFactsBlock";
+ 
+-/** Самбарт гарсан сүүний жишээ: бүртгэгдсэн хаягдал 2100, тайлбаргүй 3800, эхлэх 10000, эцэс 8800. */
++/** Retest numbers: logged 2200 (Муудсан 1000, Туршилт 1200), unexplained 3800 / 19,000₮, start 10000, end 8800. */
+ const milk = {
+   name: "Сүү",
+   status: "Check",
+@@ -11,12 +16,14 @@ const milk = {
+   has_end: true,
+   start_qty: 10000,
+   end_qty: 8800,
+-  purchased_qty: 4700,
++  purchased_qty: 4800,
+   theoretical_qty: 0,
+-  actual_qty: 5900,
+-  gap_qty: 5900,
+-  gap_money: 29500,
+-  waste_spoilage: 900,
++  actual_qty: 6000,
++  gap_qty: 6000,
++  gap_money: 6000,
++  unit_price: 5,
++  price: 5,
++  waste_spoilage: 1000,
+   waste_testing: 1200,
+   waste_staff_meal: 0,
+   waste_other: 0,
+@@ -25,27 +32,56 @@ const milk = {
+ const facts = itemVarianceFacts(milk);
+ assert.equal(facts.start, 10000);
+ assert.equal(facts.end, 8800);
+-assert.equal(facts.logged, 2100);
+-assert.equal(facts.spoilage, 900);
++assert.equal(facts.logged, 2200);
++assert.equal(facts.spoilage, 1000);
+ assert.equal(facts.testing, 1200);
+ assert.equal(facts.unexplainedQty, 3800);
+ 
+ const dashboard = dashboardItemFactsText(milk);
+ assert.match(dashboard, /Эхлэх тоо 10000 мл/);
+ assert.match(dashboard, /эцсийн тоо 8800 мл/);
+-assert.match(dashboard, /Хаягдал бүртгэгдсэн 2100 мл/);
+-assert.match(dashboard, /Муудсан 900/);
++assert.match(dashboard, /Хаягдал бүртгэгдсэн 2200 мл/);
++assert.match(dashboard, /Муудсан 1000/);
+ assert.match(dashboard, /Туршилт 1200/);
+ assert.match(dashboard, /Тайлбаргүй 3800 мл/);
+ assert.doesNotMatch(dashboard, /Тайлбаргүй 0/);
++assert.doesNotMatch(dashboard, /2100/);
+ 
+-const ai = gradeFactLines([milk]);
+-assert.equal(ai.includes(dashboard), true);
+-assert.match(ai, /Хаягдал бүртгэгдсэн 2100 мл/);
+-assert.match(ai, /Тайлбаргүй 3800 мл/);
+-assert.doesNotMatch(ai, /тайлбаргүй зөрүү: 0/i);
++const serverBlock = renderItemFactsBlock(milk);
++assert.equal(serverBlock.includes(dashboard), true);
++assert.match(serverBlock, /Хаягдал бүртгэгдсэн 2200 мл/);
++assert.match(serverBlock, /Тайлбаргүй 3800 мл/);
++assert.match(serverBlock, /19,000₮/);
++assert.doesNotMatch(serverBlock, /Тайлбаргүй зөрүү 0/);
++assert.doesNotMatch(serverBlock, /2100/);
++
++const aiLines = gradeFactLines([milk]);
++assert.equal(aiLines.includes(dashboard), true);
++
++const official = officialNumberTokens(serverBlock);
++for (const n of ["2200", "1000", "1200", "3800", "19000", "10000", "8800"]) {
++  assert.equal(official.has(n), true, `missing official number ${n}`);
++}
++
++const modelWrong = [
++  "Хаягдлын алдагдал 2100 мл",
++  "Тайлбаргүй зөрүү 0 мл",
++  "Нийт 4,200 мл",
++  "5,400 мл / 28,000₮",
++  "4,800 мл",
++  "Шалгах шалтгаан нь тооллого болон хаягдал зөрсөн явдал.",
++].join("\n");
++const cleaned = stripContradictingNumberLines(modelWrong, serverBlock, "Сүү");
++assert.doesNotMatch(cleaned, /2100/);
++assert.doesNotMatch(cleaned, /4,200|4200/);
++assert.doesNotMatch(cleaned, /5,400|5400/);
++assert.doesNotMatch(cleaned, /28,000|28000/);
++assert.doesNotMatch(cleaned, /Тайлбаргүй зөрүү 0/);
++assert.match(cleaned, /Шалгах шалтгаан/);
++
++const modelRestate = "Хаягдал бүртгэгдсэн 2200 мл, тайлбаргүй 3800 мл.";
++assert.equal(stripContradictingNumberLines(modelRestate, serverBlock, "Сүү"), "");
+ 
+-// Нийт дүн шар мөрийг оруулдаггүй. Барааны мөр 0 болох ёсгүй.
+ const board = gradeGuide(milk);
+ assert.match(board.facts.join(" "), /нийт дүнд ороогүй/);
+ assert.equal(facts.unexplainedQty, 3800);
+diff --git a/scripts/check-honest-dashboard.ts b/scripts/check-honest-dashboard.ts
+index bde729f..6454be6 100644
+--- a/scripts/check-honest-dashboard.ts
++++ b/scripts/check-honest-dashboard.ts
+@@ -173,7 +173,8 @@ assert.match(overview, /buildOverviewSnapshot/);
+ assert.match(overview, /overviewDateLine/);
+ 
+ const cfo = readFileSync("src/ai/agents/cfo.agent.ts", "utf8");
+-assert.match(cfo, /preamble: `\$\{overviewDateLine\(overviewPeriod\)\}/);
++assert.match(cfo, /const periodLine = overviewDateLine\(overviewPeriod\)/);
++assert.match(cfo, /prepareLeadingText/);
+ assert.match(cfo, /resolveOverviewPeriod/);
+ assert.match(cfo, /MN_BUSINESS_SPELLING_NOTE/);
+ assert.match(cfo, /overviewDateLine\(overviewPeriod\)/);
+diff --git a/scripts/check-mn-spelling.ts b/scripts/check-mn-spelling.ts
+index 1ca0fc1..bda7302 100644
+--- a/scripts/check-mn-spelling.ts
++++ b/scripts/check-mn-spelling.ts
+@@ -19,4 +19,11 @@ const fixer2 = createSpellingFixer();
+ let out2 = fixer2.push("Тайбар") + fixer2.push("гүй зөрүү");
+ out2 += fixer2.flush();
+ assert.equal(out2, "Тайлбаргүй зөрүү");
++
++// The typo filter must only replace wrong stems (бизнис / бизнс), never the correct бизнес / бизнесийн.
++assert.equal(fixMnBusinessSpelling("бизнес"), "бизнес");
++assert.equal(fixMnBusinessSpelling("бизнесийн"), "бизнесийн");
++assert.equal(fixMnBusinessSpelling("Бизнесийн байдал"), "Бизнесийн байдал");
++assert.equal(fixMnBusinessSpelling("бизнес ба бизнис"), "бизнес ба бизнес");
++assert.equal(fixMnBusinessSpelling("бизнисийн"), "бизнесийн");
+ console.log("mn spelling checks passed");
+diff --git a/scripts/check-waste-labels.ts b/scripts/check-waste-labels.ts
+index 14ebac9..aff0690 100644
+--- a/scripts/check-waste-labels.ts
++++ b/scripts/check-waste-labels.ts
+@@ -1,5 +1,5 @@
+ import assert from "node:assert/strict";
+-import { displaySourceNote, logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
++import { cleanLogNotes, displaySourceNote, logTypeLabel, staffDisplayName, tabletSourceNote, wasteFeedDetail } from "../src/lib/shiftCycle";
+ import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
+ 
+ assert.equal(logTypeLabel("TESTING"), "Туршилт");
+@@ -24,4 +24,11 @@ assert.equal(splitItemName("Кофе үр (ТУРШИЛТ)").isTest, true);
+ assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");
+ assert.equal(localizedItemName("Milk (Сүү)", "mn"), "Сүү");
+ assert.equal(localizedItemName("Milk (Сүү) (ТУРШИЛТ)", "mn"), "Сүү");
++
++assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Kiosk (Хаягдал)", worker: "Kiosk (Хаягдал)" }), "Таблет (Хаягдал) · Асгарсан/Муудсан");
++assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан");
++assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Таблет (Хаягдал) · Муудсан" }), "Таблет (Хаягдал) · Муудсан");
++assert.equal(cleanLogNotes("сүү 200мл асгасан (🧠 Суралцсан үг)"), "сүү 200мл асгасан");
++assert.doesNotMatch(cleanLogNotes("foo (⚡ Local Parser)"), /Local Parser|Суралцсан/);
++assert.equal(tabletSourceNote("Хаягдал", "Асгарсан"), "Таблет (Хаягдал) · Асгарсан");
+ console.log("waste and item label checks passed");
+diff --git a/src/ai/agents/cfo.agent.ts b/src/ai/agents/cfo.agent.ts
+index d587032..24f5bd0 100644
+--- a/src/ai/agents/cfo.agent.ts
++++ b/src/ai/agents/cfo.agent.ts
+@@ -4,13 +4,20 @@ import { getVitals } from "@/core/packages/pkg_vitals";
+ import { AgentContext } from "@/types/agent.types";
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ import { runToolAgent } from "@/ai/runtime/agentLoop";
+-import { buildOverviewSnapshot, isOverviewQuestion, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
++import { isOverviewQuestion, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
+ import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
+-
++import { getCachedAnalytics } from "@/lib/analyticsCache";
++import {
++  findNamedGrade,
++  isGradeStatusQuestion,
++  renderItemFactsBlock,
++  renderOverviewFactsBlock,
++  stripContradictingNumberLines,
++} from "@/lib/dashboardFactsBlock";
+ 
+ export async function runCfoAgent(context: AgentContext, userMessage: string): Promise<ReadableStream> {
+   const now = new Date();
+-  const currentIsoDate = ubDay(now); // Asia/Ulaanbaatar өдөр, UTC биш
++  const currentIsoDate = ubDay(now);
+   const targetYear = context.activeStartDate
+     ? context.activeStartDate.split("-")[0]
+     : String(currentIsoDate.slice(0, 4));
+@@ -21,61 +28,80 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
+     context.activeEndDate,
+     now,
+   );
+-  const overviewOnly = isOverviewQuestion(userMessage);
+-  const todaySnapshot = await buildOverviewSnapshot(context.clientId, overviewPeriod);
++  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage);
++  const periodLine = overviewDateLine(overviewPeriod);
+ 
+-  let businessRulesText = "";
+-  let weeklyBriefPromptText = "";
+-  let vitalsBlock = "";
+-  if (!overviewOnly) {
+-    const [vitals, rulesResult, briefResult] = await Promise.all([
+-      getVitals(context.clientId),
+-      supabaseAdmin
+-        .from("business_memory")
+-        .select("topic, fact")
+-        .eq("client_id", context.clientId.trim())
+-        .order("updated_at", { ascending: false })
+-        .limit(8),
+-      supabaseAdmin
+-        .from("weekly_briefs")
+-        .select("body")
+-        .eq("client_id", context.clientId.trim())
+-        .order("created_at", { ascending: false })
+-        .limit(1)
+-        .maybeSingle(),
+-    ]);
+-    const rules = rulesResult.data;
+-    businessRulesText = rules && rules.length > 0
+-      ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" +
+-        rules.map((r) => `- ${r.topic}: ${r.fact}`).join("\n") +
+-        "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
+-      : "";
+-    const briefBody = briefResult.data?.body || "";
+-    weeklyBriefPromptText = briefBody
+-      ? `\n[LAST SAVED WEEK BRIEF (Note: Saved operational snapshot, NOT live numbers)]:\n${briefBody}\n`
+-      : "";
+-    vitalsBlock = `
+-[FINANCIAL VITALS]:
+-- (MTD = сарын эхнээс өнөөдрийг хүртэл. Сонгосон хугацааны тоог MTD-тай бүү холь. «Өнөөдөр» гэсэн асуултад MTD-г өнөөдрийн тоо гэж хэлж болохгүй.)
+-- MTD figures below are NOT the selected period. Do not quote them as facts for the question.
+-- MTD Revenue (сарын эхнээс өнөөдрийг хүртэл, жишиг биш): ${vitals.monthToDateRevenue.toLocaleString()} ₮
+-- Est. Net Profit (WARNING: Rough 15% margin guess, NOT actual audited profit): ${vitals.estimatedNetProfit.toLocaleString()} ₮
+-- Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
+-`;
++  const official = { text: "", itemName: "" };
++
++  if (factsFirst) {
++    return runToolAgent({
++      context,
++      userMessage,
++      disableTools: true,
++      historyLimit: 0,
++      maxOutputTokens: 256,
++      modelTimeoutMs: 15000,
++      tools: [],
++      preamble: "",
++      numberGuard: (modelText) => stripContradictingNumberLines(modelText, official.text, official.itemName),
++      prepareLeadingText: async () => {
++        const data: any = await getCachedAnalytics(
++          context.clientId,
++          ubDayStartIso(overviewPeriod.startDay),
++          ubDayEndIso(overviewPeriod.endDay),
++        );
++        const named = findNamedGrade(data?.grades || [], userMessage);
++        official.itemName = named?.name || "";
++        const body = named
++          ? renderItemFactsBlock(named)
++          : renderOverviewFactsBlock(data, overviewPeriod.label);
++        official.text = `${periodLine}\n\n${body}`;
++        return official.text;
++      },
++      systemInstruction: `
++You are the Operlink AI Chief Financial Officer for "${context.clientId}".
++[ABSOLUTE CONSTRAINT: NO EMOJIS]. The user already sees the period's dashboard numbers above your reply. Do not repeat any figure, table, quantity, percent, or money amount. Do not write the item's start, end, waste, or unexplained gap again. Write at most two short Mongolian advice sentences. If you have nothing to add, write nothing.
++${MN_BUSINESS_SPELLING_NOTE}
++[TEMPORAL CONTEXT]: TODAY: ${currentIsoDate}. PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar).
++`.trim(),
++      sanitizeArgs: (raw) => ({
++        ...raw,
++        startDate: ubDayStartIso(overviewPeriod.startDay),
++        endDate: ubDayEndIso(overviewPeriod.endDay),
++      }),
++    });
+   }
+ 
+-  const catalogRule = overviewOnly
+-    ? ""
+-    : `
+-[CATALOG RULE]:
+-If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
+-If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.
+-openingQty null means no count was logged. Never use currentStock as the opening count.
+-`;
++  const [vitals, rulesResult, briefResult] = await Promise.all([
++    getVitals(context.clientId),
++    supabaseAdmin
++      .from("business_memory")
++      .select("topic, fact")
++      .eq("client_id", context.clientId.trim())
++      .order("updated_at", { ascending: false })
++      .limit(8),
++    supabaseAdmin
++      .from("weekly_briefs")
++      .select("body")
++      .eq("client_id", context.clientId.trim())
++      .order("created_at", { ascending: false })
++      .limit(1)
++      .maybeSingle(),
++  ]);
++  const rules = rulesResult.data;
++  const businessRulesText = rules && rules.length > 0
++    ? "\n[UNVERIFIED STORED CLAIMS (Auto-observed)]:\n" +
++      rules.map((r) => `- ${r.topic}: ${r.fact}`).join("\n") +
++      "\n*CONFLICT RULE: If a stored claim conflicts with a tool result or the numbers above, trust the tool and the numbers. State that the stored claim may be outdated.*"
++    : "";
++  const briefBody = briefResult.data?.body || "";
++  const weeklyBriefPromptText = briefBody
++    ? `\n[LAST SAVED WEEK BRIEF (Note: Saved operational snapshot, NOT live numbers)]:\n${briefBody}\n`
++    : "";
+ 
+   const cfoSystemPrompt = `
+ You are the Operlink AI Chief Financial Officer for "${context.clientId}".
+-[ABSOLUTE CONSTRAINT: NO EMOJIS]. You analyze revenue, profitability, and margins. Use 'MNT' or '₮' for currency. Translate raw JSON keys into professional Mongolian text. Keep responses clinical, analytical, and highly structured using Markdown tables. ${overviewOnly ? "Do not call tools. Answer only from the snapshot. Keep the answer short." : "If a price change is needed, call action_propose_price_change."}
++[ABSOLUTE CONSTRAINT: NO EMOJIS]. You analyze revenue, profitability, and margins. Use 'MNT' or '₮' for currency. Translate raw JSON keys into professional Mongolian text. Keep responses clinical, analytical, and highly structured using Markdown tables. If a price change is needed, call action_propose_price_change.
+ ${MN_BUSINESS_SPELLING_NOTE}
+ 
+ [TEMPORAL CONTEXT]:
+@@ -83,30 +109,31 @@ ${MN_BUSINESS_SPELLING_NOTE}
+ - CURRENT YEAR: ${targetYear}
+ - OVERVIEW PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar)
+ - If OVERVIEW PERIOD is not today, do not write a «Өнөөдөр (YYYY-MM-DD)» heading. The system already prepends the period.
+-- Cite only the OVERVIEW PERIOD. Never name a second period (do not write both «Өнөөдөр» and «энэ сар»).
+-${vitalsBlock}
+-${todaySnapshot ? "\n" + todaySnapshot + "\n" : ""}
+ ${weeklyBriefPromptText}
+ ${businessRulesText}
+ 
+-[PERIOD NUMBERS]:
+-The overview snapshot already has the selected period's dashboard numbers, including logged waste and unexplained gap separately, plus start/end stock from the same function the dashboard uses. Do not add those two together into one gap. Do not label a count or variance as «бодит үлдэгдэл». If the snapshot has the numbers you need, do not call tools just to restate them. Period totals in төгрөг exclude Check/Missing (yellow) rows; read the item line for a yellow item instead of treating the period total as 0.
+-${catalogRule}
++[FINANCIAL VITALS]:
++- MTD figures below are NOT the selected period. Do not quote them as facts for the question.
++- MTD Revenue: ${vitals.monthToDateRevenue.toLocaleString()} ₮
++- Est. Net Profit (WARNING: Rough 15% margin guess): ${vitals.estimatedNetProfit.toLocaleString()} ₮
++- Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
++
++[CATALOG RULE]:
++If asked for a recipe, menu, selling price, ingredient unit price, current stock, or stock at the start of the month, call the tool first: action_get_recipes, action_get_menu, action_get_current_stock, or action_get_opening_counts.
++If the tool returns [], say that list is empty. Never say the table is missing before the tool runs.
++openingQty null means no count was logged. Never use currentStock as the opening count.
+ `.trim();
+ 
+   return runToolAgent({
+     context,
+     userMessage,
+     systemInstruction: cfoSystemPrompt,
+-    tools: overviewOnly ? [] : cfoSkills as never,
+-    disableTools: overviewOnly,
+-    historyLimit: overviewOnly ? 2 : 6,
+-    maxOutputTokens: overviewOnly ? 2048 : 3072,
++    tools: cfoSkills as never,
+     sanitizeArgs: (raw) => ({
+       ...raw,
+       startDate: ubDayStartIso(overviewPeriod.startDay),
+       endDate: ubDayEndIso(overviewPeriod.endDay),
+     }),
+-    preamble: `${overviewDateLine(overviewPeriod)}\n\n`,
++    preamble: `${periodLine}\n\n`,
+   });
+ }
+diff --git a/src/ai/agents/router.agent.ts b/src/ai/agents/router.agent.ts
+index af851e0..bc88e2f 100644
+--- a/src/ai/agents/router.agent.ts
++++ b/src/ai/agents/router.agent.ts
+@@ -1,3 +1,4 @@
++import { after } from "next/server";
+ import { AgentContext } from "@/types/agent.types";
+ import { runCfoAgent } from "./cfo.agent";
+ import { runCooAgent } from "./coo.agent";
+@@ -8,6 +9,7 @@ import { subscriptionBlockMessage } from "@/lib/subscription";
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ import { recordChatMessage } from "@/ai/memory/thread.manager";
+ import { isOverviewQuestion } from "./overview";
++import { isGradeStatusQuestion } from "@/lib/dashboardFactsBlock";
+ import { MN_BUSINESS_SPELLING_NOTE, createSpellingFixer } from "@/ai/runtime/mnSpelling";
+ 
+ interface RouterDecision {
+@@ -73,6 +75,7 @@ function fastRoute(userText: string): RouterDecision["route"] | null {
+   if (text.length <= 24 && /^(hi|hello|hey|thanks|сайн уу|сайн байн|баярлалаа)\b/.test(text)) {
+     return "GENERAL";
+   }
++  if (isOverviewQuestion(text) || isGradeStatusQuestion(text)) return "CFO";
+   if (forcesCoo(text)) return "COO";
+   const scores = routeScores(text);
+   const ranked = (Object.entries(scores) as [RouterDecision["route"], number][]).sort((a, b) => b[1] - a[1]);
+@@ -200,7 +203,7 @@ export async function routeAiRequest(
+   if (blocked) return textStream(blocked);
+ 
+   if (!departmentOnly(payload.text)) {
+-    await recordChatMessage(context.clientId, "owner", payload.text);
++    after(() => recordChatMessage(context.clientId, "owner", payload.text).catch(console.error));
+   }
+ 
+   let route: RouterDecision["route"] | null = fastRoute(payload.text);
+diff --git a/src/ai/runtime/agentLoop.ts b/src/ai/runtime/agentLoop.ts
+index 98674a4..28ef57e 100644
+--- a/src/ai/runtime/agentLoop.ts
++++ b/src/ai/runtime/agentLoop.ts
+@@ -91,6 +91,19 @@ function isTruncatedFinish(reason: unknown) {
+   return r === "MAX_TOKENS" || r === "LENGTH";
+ }
+ 
++const MODEL_TIMEOUT_NOTE = "\nЗөвлөмжийг одоогоор нэмж чадсангүй. Дээрх тоо самбартай ижил.";
++
++function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
++  if (!ms || ms <= 0) return promise;
++  return new Promise((resolve, reject) => {
++    const timer = setTimeout(() => reject(new Error("MODEL_TIMEOUT")), ms);
++    promise.then(
++      (value) => { clearTimeout(timer); resolve(value); },
++      (err) => { clearTimeout(timer); reject(err); },
++    );
++  });
++}
++
+ export async function runToolAgent(opts: {
+   context: AgentContext;
+   userMessage: string;
+@@ -101,6 +114,11 @@ export async function runToolAgent(opts: {
+   disableTools?: boolean;
+   historyLimit?: number;
+   maxOutputTokens?: number;
++  /** Server-rendered facts, flushed before the model runs. */
++  prepareLeadingText?: () => Promise<string>;
++  /** Drop model lines whose numbers contradict or restate the leading block. */
++  numberGuard?: (modelText: string) => string;
++  modelTimeoutMs?: number;
+ }): Promise<ReadableStream> {
+   const encoder = new TextEncoder();
+ 
+@@ -114,8 +132,16 @@ export async function runToolAgent(opts: {
+         if (text) enqueueRaw(spelling.push(text));
+       };
+       const flushSpelling = () => enqueueRaw(spelling.flush());
++      let sentLead = false;
+       try {
+-        const periodLabel = String(opts.preamble || "").trim();
++        if (opts.prepareLeadingText) {
++          const lead = String(await opts.prepareLeadingText() || "").trim();
++          if (lead) {
++            enqueueRaw(lead.endsWith("\n") ? lead : `${lead}\n\n`);
++            sentLead = true;
++          }
++        }
++        const periodLabel = sentLead ? "" : String(opts.preamble || "").trim();
+         const prefixGate = createPeriodPrefixGate(periodLabel);
+         const enqueueModel = (piece: string) => {
+           const released = prefixGate.push(piece);
+@@ -191,7 +217,8 @@ export async function runToolAgent(opts: {
+               });
+             }
+             if (delta) text += delta;
+-            if (delta && !sawCall) {
++            // Leading facts already sent: buffer the model so we can drop contradicting numbers before the user sees them.
++            if (delta && !sawCall && !opts.numberGuard) {
+               if (!streamed) streamed = true;
+               else if (text === delta) enqueueModel("\n");
+               attemptSent = true;
+@@ -219,17 +246,20 @@ export async function runToolAgent(opts: {
+         for (let step = 0; step < MAX_STEPS; step++) {
+           let outcome: Awaited<ReturnType<typeof readModel>> | undefined;
+           try {
+-            outcome = await readModel(useThinking);
++            outcome = await withTimeout(readModel(useThinking), opts.modelTimeoutMs || 0);
+           } catch (err) {
++            if (err instanceof Error && err.message === "MODEL_TIMEOUT") throw err;
+             if (!useThinking || !isInvalidArgument(err) || attemptSent) throw err;
+             console.error("[agent] INVALID_ARGUMENT, removing thinkingConfig");
+             useThinking = false;
+-            outcome = await readModel(false);
++            outcome = await withTimeout(readModel(false), opts.modelTimeoutMs || 0);
+           }
+           const { text, modelParts, calls } = outcome;
+ 
+           if (calls.length === 0) {
+-            finalText = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
++            let cleaned = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
++            if (opts.numberGuard) cleaned = opts.numberGuard(cleaned);
++            finalText = cleaned;
+             if (!streamed && finalText) enqueue(finalText);
+             else flushPrefix();
+             if (outcome.truncated) enqueue(TRUNCATED_NOTE);
+@@ -288,7 +318,10 @@ export async function runToolAgent(opts: {
+         controller.close();
+       } catch (err: unknown) {
+         console.error("[agent]", err);
+-        enqueue("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.");
++        const timedOut = err instanceof Error && err.message === "MODEL_TIMEOUT";
++        if (sentLead) enqueueRaw(MODEL_TIMEOUT_NOTE);
++        else if (timedOut) enqueueRaw(MODEL_TIMEOUT_NOTE);
++        else enqueue("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.");
+         flushSpelling();
+         controller.close();
+       }
+diff --git a/src/app/api/analytics/route.ts b/src/app/api/analytics/route.ts
+index d104eb7..ef8a6a8 100644
+--- a/src/app/api/analytics/route.ts
++++ b/src/app/api/analytics/route.ts
+@@ -1,6 +1,6 @@
+ // src/app/api/analytics/route.ts
+ import { NextResponse } from 'next/server';
+-import { getAnalyticsData } from '../../../lib/analytics';
++import { getCachedAnalytics } from '../../../lib/analyticsCache';
+ import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+ import { createServerSupabase } from '../../../lib/supabaseServer';
+ 
+@@ -34,7 +34,7 @@ export async function GET(request: Request) {
+     }
+ 
+     const { searchParams } = new URL(request.url);
+-    const data = await getAnalyticsData(
++    const data = await getCachedAnalytics(
+       profile.client_id,
+       searchParams.get('startDate') || undefined,
+       searchParams.get('endDate') || undefined
+diff --git a/src/app/api/kiosk-ai/route.ts b/src/app/api/kiosk-ai/route.ts
+index ef104ac..e99e376 100644
+--- a/src/app/api/kiosk-ai/route.ts
++++ b/src/app/api/kiosk-ai/route.ts
+@@ -794,7 +794,8 @@ ${JSON.stringify(unmatched)}`;
+           return new Response(stream, {
+             headers: {
+               "Content-Type": "text/plain; charset=utf-8",
+-              "Cache-Control": "no-cache",
++              "Cache-Control": "no-cache, no-transform",
++              "X-Accel-Buffering": "no",
+             },
+           });
+         } catch (agentErr: any) {
+diff --git a/src/app/api/kiosk/ops/route.ts b/src/app/api/kiosk/ops/route.ts
+index cd9f782..d958ee4 100644
+--- a/src/app/api/kiosk/ops/route.ts
++++ b/src/app/api/kiosk/ops/route.ts
+@@ -5,6 +5,7 @@ import { requireKioskWorker } from "@/lib/kioskAuth";
+ import { buildCyclePlan } from "@/lib/cyclePlan";
+ import { loadKioskPhase4 } from "@/lib/phase4Load";
+ import { buildCountLog, displaySourceNote, openingInsertDecision } from "@/lib/shiftCycle";
++import { clearAnalyticsCache } from "@/lib/analyticsCache";
+ import { convertToIngredientUnit } from "@/lib/units";
+ 
+ export const dynamic = "force-dynamic";
+@@ -65,6 +66,22 @@ export async function POST(request: Request) {
+ 
+     const action = String(body.action || "");
+     const nowIso = new Date().toISOString();
++
++    if (action === "logs.checkDuplicate") {
++      const ingredientId = String(body.ingredient_id || body.ingredientId || "");
++      if (!ingredientId) return fail("Бараа олдсонгүй.");
++      const { data: ing } = await supabaseAdmin
++        .from("ingredients")
++        .select("id, unit, client_id")
++        .eq("id", ingredientId)
++        .maybeSingle();
++      if (!ing || ing.client_id !== worker.clientId) return fail("Бараа олдсонгүй.");
++      const qty = convertToIngredientUnit(Number(body.quantity), body.input_unit, ing.unit || "");
++      if (!Number.isFinite(qty)) return fail("Тоо хэмжээ буруу байна. Хоосон эсвэл үсэг бичсэн байна.");
++      const existing = await duplicatePurchase(worker.clientId, ingredientId, Math.abs(qty), Number(body.total_cost) || 0);
++      return NextResponse.json({ ok: true, duplicate: Boolean(existing) });
++    }
++
+     const needsShift = action === "logs.insert" || action === "ingredient.create" || action === "cycle.plan";
+     const { data: openShiftRow } = needsShift
+   ? await supabaseAdmin
+@@ -153,6 +170,7 @@ export async function POST(request: Request) {
+       const { data, error } = await supabaseAdmin.from("inventory_logs").insert(prepared).select("id");
+       if (error) return fail(error.message, 500);
+       const aliases = Array.isArray(body.aliases) ? body.aliases : [];
++      clearAnalyticsCache(worker.clientId);
+       after(async () => {
+         try {
+           for (const row of prepared) {
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+index 272c8a9..7a9ec0c 100644
+--- a/src/app/dashboard/page.tsx
++++ b/src/app/dashboard/page.tsx
+@@ -2376,7 +2376,7 @@ function Home() {
+               href="/kiosk"
+               className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-200 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+             >
+-              📱 Гал тогооны киоск руу буцах
++              Гал тогооны таблет руу буцах
+             </Link>
+           </div>
+         </div>
+@@ -2513,7 +2513,7 @@ function Home() {
+                   onClick={() => router.push("/kiosk")}
+                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-300 hover:bg-zinc-800/60 transition-all mt-1"
+                 >
+-                  <Smartphone className="h-4 w-4" /> Гал тогооны киоск
++                  <Smartphone className="h-4 w-4" /> Гал тогооны таблет
+                 </button>
+               )}
+ 
+diff --git a/src/app/kiosk/page.tsx b/src/app/kiosk/page.tsx
+index 9714e01..63e137b 100644
+--- a/src/app/kiosk/page.tsx
++++ b/src/app/kiosk/page.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ import React, { useState, useEffect, useRef } from "react";
+-import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
++import { kioskBootstrap, kioskCheckDuplicatePurchase, kioskConfirm, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+ import { sortLogsNewestFirst } from "../../lib/logSort";
+ import { chatErrorMessage, isTransientChatFailure } from "../../lib/chatError";
+ import { fixMnBusinessSpelling } from "../../ai/runtime/mnSpelling";
+@@ -8,7 +8,7 @@ import OwnScore from "../../features/kiosk/OwnScore";
+ import CupCheck from "../../features/finance/CupCheck";
+ import TeamGoalBar from "../../features/finance/TeamGoalBar";
+ import CycleCount, { type CycleResult } from "../../features/kiosk/CycleCount";
+-import { displayUnit, logTypeLabel, releaseSaveLock, streakText, takeSaveLock, KIOSK_WASTE_REASONS, type CycleItem } from "../../lib/shiftCycle";
++import { displayUnit, logTypeLabel, releaseSaveLock, streakText, tabletSourceNote, takeSaveLock, KIOSK_WASTE_REASONS, type CycleItem } from "../../lib/shiftCycle";
+ import { roleLabel } from "../../lib/roleLabel";
+ import { formatUbTime } from "../../lib/formatUbTime";
+ import { localizedItemName, splitItemName } from "../../lib/itemDisplayName";
+@@ -182,7 +182,7 @@ function advancedMongolianVoiceParser(
+           unit: matched.unit,
+           quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
+           type: type,
+-          notes: `${rawText} (🧠 Суралцсан үг)`,
++          notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
+         };
+       }
+     }
+@@ -243,7 +243,7 @@ function advancedMongolianVoiceParser(
+     unit: bestMatch.unit,
+     quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
+     type: type,
+-    notes: `${rawText} (⚡ Local Parser)`,
++    notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
+   };
+ }
+ 
+@@ -3787,6 +3787,21 @@ const handleCloseShift = async () => {
+   quickSavingRef.current = true;
+   setIsAiLoading(true);
+   try {
++    let confirmedDup = false;
++    if (kioskMode === "purchase" && itemToSave.id) {
++      const isDup = await kioskCheckDuplicatePurchase({
++        ingredient_id: itemToSave.id,
++        quantity: finalQty,
++        total_cost: costVal,
++        input_unit: itemToSave.unit,
++      });
++      if (isDup) {
++        const ok = await kioskConfirm("Сүүлийн 45 хоногт ийм орлого бүртгэгдсэн байна. Давхардаж байвал баталгаажуулна уу.\n\nДавхардаж хадгалах уу?");
++        if (!ok) return;
++        confirmedDup = true;
++      }
++    }
++
+     let uploadedUrl = null;
+     if (kioskMode === "purchase" && fileToUpload) {
+       uploadedUrl = await uploadEvidencePhoto(
+@@ -3805,12 +3820,12 @@ const handleCloseShift = async () => {
+         image_url: uploadedUrl,
+         is_ebarimt: false,
+         incident_type: kioskMode === "count" ? "kiosk_count" : null,
+-        notes: kioskMode === "spoilage" && chosenReason
+-          ? chosenReason.notes
+-          : kioskMode === "count" ? `Таблет тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
++        notes: kioskMode === "count"
++          ? `Таблет тооллого: ${itemToSave.name}`
++          : tabletSourceNote(modeLabel, chosenReason?.label || chosenReason?.notes),
+         input_unit: itemToSave.unit,
+       },
+-    ]);
++    ], [], confirmedDup);
+     setQuickItemModal(null);
+     setQuickQty("");
+     setPurchaseCost("");
+diff --git a/src/features/finance/DataGradePanel.tsx b/src/features/finance/DataGradePanel.tsx
+index 9c80264..fa4428f 100644
+--- a/src/features/finance/DataGradePanel.tsx
++++ b/src/features/finance/DataGradePanel.tsx
+@@ -114,7 +114,7 @@ export default function DataGradePanel({
+     setBusy(key);
+     try {
+       await callFix(body);
+-      if (body.action === "count_task") { setNotice("Тоолох даалгавар киоск руу илгээгдлээ."); setSent((s) => [...s, ...((body.ingredientIds as string[]) || [])]); }
++      if (body.action === "count_task") { setNotice("Тоолох даалгавар таблет руу илгээгдлээ."); setSent((s) => [...s, ...((body.ingredientIds as string[]) || [])]); }
+       setPriceFor(null);
+       setDateFor(null);
+       setPairFor(null);
+diff --git a/src/features/finance/FinanceTab.tsx b/src/features/finance/FinanceTab.tsx
+index 1aed038..4131fa4 100644
+--- a/src/features/finance/FinanceTab.tsx
++++ b/src/features/finance/FinanceTab.tsx
+@@ -24,7 +24,7 @@ import CupCheck from "./CupCheck";
+ import TeamBoard from "./TeamBoard";
+ import TruthMeter from "./TruthMeter";
+ import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustConfirmedLine, trustEstimateDisplay } from "@/lib/honestDashboard";
+-import { logTypeLabel, staffDisplayName, displaySourceNote} from "@/lib/shiftCycle";
++import { staffDisplayName, wasteFeedDetail } from "@/lib/shiftCycle";
+ import { sortLogsNewestFirst } from "@/lib/logSort";
+ import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
+ 
+@@ -948,17 +948,13 @@ export default function FinanceTab({
+                               {log.unit})
+                             </span>
+                           </p>
+-                          <p className="text-xs text-zinc-500 mt-0.5 flex gap-2">
+-                            <span
+-                              className={`font-bold ${
++                          <p className={`text-xs mt-0.5 font-bold ${
+                                 String(log.type || "").toLowerCase() === "spoilage"
+                                   ? "text-rose-400"
+-                                  : "text-zinc-300"
++                                  : "text-zinc-400"
+                               }`}
+                             >
+-                              {logTypeLabel(log.type, log.notes)}
+-                            </span>
+-                            <span>• {displaySourceNote(log.notes)}</span>
++                              {wasteFeedDetail(log)}
+                           </p>
+                         </div>
+                       ))}
+diff --git a/src/features/settings/GeneralSettings.tsx b/src/features/settings/GeneralSettings.tsx
+index 4c0444b..18287f3 100644
+--- a/src/features/settings/GeneralSettings.tsx
++++ b/src/features/settings/GeneralSettings.tsx
+@@ -495,7 +495,7 @@ export default function GeneralSettings({
+                   Зураг солих
+                 </label>
+                 <p className="text-xs text-zinc-500 mt-0.5 truncate">
+-                  Зөвхөн киоск таблет дээр харагдана
++                  Зөвхөн таблет дээр харагдана
+                 </p>
+               </div>
+             </div>
+diff --git a/src/features/settings/Phase4Settings.tsx b/src/features/settings/Phase4Settings.tsx
+index 3a67a92..9e425c8 100644
+--- a/src/features/settings/Phase4Settings.tsx
++++ b/src/features/settings/Phase4Settings.tsx
+@@ -64,7 +64,7 @@ export default function Phase4Settings({ activeClient }: { activeClient: string
+     <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+       <div>
+         <h3 className="text-base font-black text-white">Аяга шалгах</h3>
+-        <p className="text-xs text-zinc-400 mt-1">Анхдагчаар унтраалттай. Асаасан үед л санхүү болон киоск дээр харагдана.</p>
++        <p className="text-xs text-zinc-400 mt-1">Анхдагчаар унтраалттай. Асаасан үед л санхүү болон таблет дээр харагдана.</p>
+       </div>
+       <button
+         type="button"
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index de335da..b9124cb 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
+ import { calculateMatchScore, transliterate } from './autoReconcile';
+ import { analyticsPeriod, ubDay } from './ubDate';
+ import { buildDataTrust } from './honestDashboard';
+-import { displaySourceNote, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
++import { cleanLogNotes, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+ import { sortLogsNewestFirst } from './logSort';
+ import { formatUbTime } from './formatUbTime';
+ import { assemblePhase4 } from './phase4';
+@@ -770,6 +770,8 @@ for (const key in master) {
+     grade.waste_testing = wasteTesting;
+     grade.waste_staff_meal = wasteStaffMeal;
+     grade.waste_other = wasteOther;
++    grade.unit_price = weightedForMoney;
++    grade.price = weightedForMoney;
+     grades.push(grade);
+ 
+     if (grade.status === "Missing") {
+@@ -1126,7 +1128,7 @@ for (const key in master) {
+       image_url: log.image_url || null,
+       incident_type: log.incident_type || 'normal',
+       reported_against_worker: log.reported_against_worker || null,
+-      notes: displaySourceNote(log.notes || "")
++      notes: cleanLogNotes(log.notes || "")
+     };
+   });
+ 
+diff --git a/src/lib/analyticsCache.ts b/src/lib/analyticsCache.ts
+index 5a345ba..356a324 100644
+--- a/src/lib/analyticsCache.ts
++++ b/src/lib/analyticsCache.ts
+@@ -1,28 +1,52 @@
+ import { getAnalyticsData } from "./analytics";
++import { supabaseAdmin } from "./supabaseAdmin";
+ 
+-const cache = new Map<string, { data: any; timestamp: number }>();
+-const CACHE_TTL_MS = 5 * 60 * 1000;
++const cache = new Map<string, { data: any; timestamp: number; stamp: string }>();
++/** Short backup only. Freshness is decided by the latest inventory log, so a new row cannot stay hidden for minutes. */
++const CACHE_TTL_MS = 20 * 1000;
+ 
+ function cacheKey(clientId: string, start?: string, end?: string) {
+   return `${String(clientId || "").trim()}|${start || "default"}|${end || "default"}`;
+ }
+ 
+-/** Shared short-lived cache so overview, tools, and /report do not reload the same period twice. */
++async function latestLogStamp(clientId: string): Promise<string> {
++  const { data } = await supabaseAdmin
++    .from("inventory_logs")
++    .select("created_at")
++    .eq("client_id", String(clientId || "").trim())
++    .order("created_at", { ascending: false })
++    .limit(1)
++    .maybeSingle();
++  return data?.created_at ? String(data.created_at) : "";
++}
++
++/**
++ * Same numbers as the dashboard: reuse a result only when the latest inventory log
++ * is unchanged. A 5-minute cache was serving stale milk waste (2100 vs 2200).
++ */
+ export async function getCachedAnalytics(
+   clientId: string,
+   start?: string,
+   end?: string,
+ ) {
+   const key = cacheKey(clientId, start, end);
++  const stamp = await latestLogStamp(clientId);
+   const cached = cache.get(key);
+-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
++  if (cached && cached.stamp === stamp && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+     return cached.data;
+   }
+   const freshData = await getAnalyticsData(clientId, start, end);
+-  cache.set(key, { data: freshData, timestamp: Date.now() });
++  cache.set(key, { data: freshData, timestamp: Date.now(), stamp });
+   return freshData;
+ }
+ 
+-export function clearAnalyticsCache() {
+-  cache.clear();
++export function clearAnalyticsCache(clientId?: string) {
++  const id = String(clientId || "").trim();
++  if (!id) {
++    cache.clear();
++    return;
++  }
++  for (const key of [...cache.keys()]) {
++    if (key.startsWith(`${id}|`)) cache.delete(key);
++  }
+ }
+diff --git a/src/lib/dashboardFactsBlock.ts b/src/lib/dashboardFactsBlock.ts
+new file mode 100644
+index 0000000..12abf75
+--- /dev/null
++++ b/src/lib/dashboardFactsBlock.ts
+@@ -0,0 +1,138 @@
++import { dashboardItemFactsText, gradeFactLines, itemVarianceFacts, type GradeGuideInput } from "@/lib/gradeGuide";
++import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
++
++export type GradeRow = GradeGuideInput & {
++  name?: string;
++  unit_price?: number;
++  price?: number;
++  status?: string;
++};
++
++function money(value: number | null | undefined) {
++  if (value == null || !Number.isFinite(Number(value))) return "—";
++  const rounded = Math.round(Number(value));
++  const sign = rounded > 0 ? "+" : "";
++  return `${sign}${rounded.toLocaleString("en-US")}₮`;
++}
++
++function qty(value: number | null | undefined, unitText = "") {
++  if (value == null || !Number.isFinite(Number(value))) return "—";
++  const rounded = Math.round((Number(value) || 0) * 1000) / 1000;
++  const n = Math.abs(rounded - Math.round(rounded)) < 1e-9 ? String(Math.round(rounded)) : String(rounded);
++  return `${n}${unitText}`;
++}
++
++export function unexplainedMoney(row: GradeRow) {
++  const v = itemVarianceFacts(row);
++  if (v.unexplainedQty == null) return null;
++  const price = Number(row.unit_price || row.price || 0);
++  if (!(price > 0)) return null;
++  return v.unexplainedQty * price;
++}
++
++/** Самбарын барааны картыг сервер дээр бэлэн текст болгоно. Загварчлалгүй, тоо таамаглахгүй. */
++export function renderItemFactsBlock(row: GradeRow): string {
++  const name = String(row?.name || "").trim() || "Нэргүй бараа";
++  const status = STATUS_LABEL[normalizeStatus(row?.status)];
++  const v = itemVarianceFacts(row);
++  const unitText = v.unitText;
++  const unexplainedMnt = unexplainedMoney(row);
++  const lines = [
++    `${name} (${status})`,
++    dashboardItemFactsText(row),
++  ];
++  if (v.unexplainedQty != null && v.unexplainedQty > 0.05 && unexplainedMnt != null) {
++    const extra = `Тайлбаргүй зөрүү ${qty(v.unexplainedQty, unitText)} / ${money(unexplainedMnt)}.`;
++    if (!lines[1].includes(String(Math.round(unexplainedMnt)))) lines.push(extra);
++  }
++  return lines.filter(Boolean).join("\n");
++}
++
++function mnt(value: unknown) {
++  const n = Number(value);
++  return Number.isFinite(n) ? `${Math.round(n).toLocaleString("en-US")} ₮` : "—";
++}
++
++/** Хугацааны баталгаажсан нийт дүн + барааны мөр. Шар мөрийг нийт дүнгээс 0 гэж үзэхгүй. */
++export function renderOverviewFactsBlock(data: any, label: string): string {
++  const fin = data?.financial_ladder || {};
++  const board = dashboardTrust({
++    grades: data?.grades,
++    data_trust: data?.data_trust || fin.data_trust,
++  });
++  const waste = Number(data?.total_waste_loss);
++  const unexplained = Number(data?.total_unexplained_waste);
++  const lines = [
++    `Самбарын тоо (${label}, Asia/Ulaanbaatar)`,
++    `Орлого: ${mnt(fin.revenue)}`,
++    `Өртөг (баталгаажсан барааны бодит): ${mnt(fin.actual_cogs)}; онолын өртөг: ${mnt(fin.theo_cogs)}`,
++    `Баталгаажсан барааны цэвэр зөрүү: ${mnt(fin.verified_gap)}`,
++    `Баталгаажсан барааны хаягдлын алдагдал (шар болон дутуу мөр ороогүй, төгрөг): ${Number.isFinite(waste) ? mnt(waste) : "—"}`,
++    `Баталгаажсан барааны тайлбаргүй зөрүү (шар болон дутуу мөр ороогүй, төгрөг): ${Number.isFinite(unexplained) ? mnt(unexplained) : "—"}`,
++    overviewStatusBlock(board),
++    `Худалдан авалтын үнийн дүнгийн хувь: ${purchasePctLabel(board.summary)}`,
++    "Бараа тус бүрийн тоо (самбарын картай ижил):",
++    gradeFactLines(data?.grades || []),
++  ];
++  return lines.filter(Boolean).join("\n");
++}
++
++export function findNamedGrade(grades: GradeRow[] = [], userMessage: string): GradeRow | null {
++  const text = String(userMessage || "").toLowerCase();
++  if (!text) return null;
++  const named = (grades || [])
++    .map((row) => ({ row, name: String(row?.name || "").trim() }))
++    .filter((item) => item.name && text.includes(item.name.toLowerCase()))
++    .sort((a, b) => b.name.length - a.name.length);
++  return named[0]?.row || null;
++}
++
++export function isGradeStatusQuestion(text: string) {
++  const t = String(text || "").toLowerCase();
++  return /шалгах|тайлбаргүй|тооны зөрүү|яагаад шар|мянгэн зөрүү|мөнгөн зөрүү/.test(t);
++}
++
++function normalizeNumberToken(raw: string) {
++  const s = String(raw || "").replace(/[₮\s]/gi, "").replace(/,/g, "");
++  const n = Number(s.replace(/[^\d.-]/g, ""));
++  return Number.isFinite(n) ? String(Math.round(n)) : "";
++}
++
++export function officialNumberTokens(text: string): Set<string> {
++  const found = new Set<string>();
++  const matches = String(text || "").match(/[+-]?\d[\d\s,]*\.?\d*/g) || [];
++  for (const m of matches) {
++    const n = normalizeNumberToken(m);
++    if (n) found.add(n);
++  }
++  return found;
++}
++
++/**
++ * Моделийн тоотой мөрийг самбарын блоктой зөрсөн үед хасна.
++ * Зөвхөн зөвлөмж үлдэнэ. Тоо дахин бичихийг зөвшөөрөхгүй.
++ */
++export function stripContradictingNumberLines(
++  modelText: string,
++  officialText: string,
++  itemName?: string,
++): string {
++  const official = officialNumberTokens(officialText);
++  const item = String(itemName || "").trim().toLowerCase();
++  return String(modelText || "")
++    .split("\n")
++    .filter((line) => {
++      const tokens = officialNumberTokens(line);
++      if (tokens.size === 0) return true;
++      const talksAboutItem = !item || line.toLowerCase().includes(item) || /хаягдал|тайлбаргүй|зөрүү|мл|₮|эхлэх|эцсийн|муудсан|туршилт/.test(line.toLowerCase());
++      if (!talksAboutItem) return true;
++      for (const token of tokens) {
++        if (!official.has(token)) return false;
++      }
++      // Самбартай ижил тоо ч моделийн дахин бичилт хэрэггүй.
++      return false;
++    })
++    .join("\n")
++    .replace(/\n{3,}/g, "\n\n")
++    .trim();
++}
+diff --git a/src/lib/gemini.ts b/src/lib/gemini.ts
+index cd255f9..92d285b 100644
+--- a/src/lib/gemini.ts
++++ b/src/lib/gemini.ts
+@@ -1,4 +1,5 @@
+ import { GoogleGenerativeAI } from "@/lib/ai/genai";
++import { tabletSourceNote } from "@/lib/shiftCycle";
+ 
+ // =========================================================================
+ // 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
+@@ -245,6 +246,7 @@ const EN_TO_MN_DICT: Record<string, string[]> = {
+ // =========================================================================
+ // 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
+ // =========================================================================
++
+ export function advancedMongolianVoiceParser(
+   rawText: string,
+   ingredients: any[],
+@@ -294,7 +296,7 @@ export function advancedMongolianVoiceParser(
+           unit: matched.unit,
+           quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
+           type: type,
+-          notes: `${rawText} (🧠 Суралцсан үг)`,
++          notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
+         };
+       }
+     }
+@@ -356,7 +358,7 @@ export function advancedMongolianVoiceParser(
+     unit: bestMatch.unit,
+     quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
+     type: type,
+-    notes: `${rawText} (⚡ Local Parser)`,
++    notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
+   };
+ }
+ 
+diff --git a/src/lib/kioskClient.ts b/src/lib/kioskClient.ts
+index 35cc777..326c318 100644
+--- a/src/lib/kioskClient.ts
++++ b/src/lib/kioskClient.ts
+@@ -13,7 +13,7 @@ export async function kioskOps(action: string, payload: Record<string, unknown>
+     body: JSON.stringify({ ...kioskTokens(), action, ...payload }),
+   });
+   const data = await res.json().catch(() => ({}));
+-  if (res.ok && data.ok !== false && action.startsWith("logs.") && typeof window !== "undefined") {
++  if (res.ok && data.ok !== false && (action === "logs.insert" || action === "logs.delete") && typeof window !== "undefined") {
+     window.dispatchEvent(new Event("kiosk-logs-changed"));
+   }
+   if (!res.ok || data.ok === false) {
+@@ -31,9 +31,27 @@ export function setKioskConfirm(fn: (message: string) => Promise<boolean>) {
+   confirmDuplicate = fn;
+ }
+ 
+-export async function kioskSaveLogs(logs: Record<string, unknown>[], aliases: Record<string, unknown>[] = []) {
++export async function kioskConfirm(message: string) {
++  return confirmDuplicate(message);
++}
++
++export async function kioskCheckDuplicatePurchase(opts: {
++  ingredient_id: string;
++  quantity: number;
++  total_cost: number;
++  input_unit?: string | null;
++}) {
++  const data = await kioskOps("logs.checkDuplicate", opts);
++  return Boolean(data.duplicate);
++}
++
++export async function kioskSaveLogs(
++  logs: Record<string, unknown>[],
++  aliases: Record<string, unknown>[] = [],
++  alreadyConfirmed = false,
++) {
+   try {
+-    return await kioskOps("logs.insert", { logs, aliases });
++    return await kioskOps("logs.insert", { logs, aliases, confirmDuplicate: alreadyConfirmed || undefined });
+   } catch (error) {
+     const err = error as Error & { status?: number; data?: { code?: string } };
+     if (err.status === 409 && err.data?.code === "duplicate" && await confirmDuplicate(`${err.message}\n\nДавхардаж хадгалах уу?`)) {
+diff --git a/src/lib/shiftCycle.ts b/src/lib/shiftCycle.ts
+index ad293b4..855ac50 100644
+--- a/src/lib/shiftCycle.ts
++++ b/src/lib/shiftCycle.ts
+@@ -86,6 +86,53 @@ export function staffDisplayName(raw: string | null | undefined): string {
+   return s;
+ }
+ 
++
++const TABLET_REASON_NOTES = new Set(["Асгарсан", "Муудсан", "Хугацаа дууссан", "Бусад", "Туршилт", "Ажилтны хоол"]);
++
++/** Chat/local-parser tags must not appear in the owner feed. */
++export function cleanLogNotes(raw: string | null | undefined): string {
++  let s = displaySourceNote(raw);
++  s = s.replace(/\s*\((?:🧠\s*)?Суралцсан үг\)\s*/gi, " ");
++  s = s.replace(/\s*\((?:⚡\s*)?Local Parser\)\s*/gi, " ");
++  s = s.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "");
++  return s.replace(/\s+/g, " ").trim();
++}
++
++function isWasteType(type: string) {
++  const key = normalizeLogType(type);
++  return key === "spoilage" || key === "spoil" || key === "testing" || key === "test" || key === "staff_meal" || key === "staffmeal" || key === "other" || key === "waste" || key === "spill" || key === "spilled";
++}
++
++/** Old «Таблет (Хаягдал)» and new «Асгарсан» rows use the same source · reason line. */
++export function wasteFeedDetail(log: { type?: string; notes?: string | null; worker?: string | null }): string {
++  const notes = cleanLogNotes(log.notes || "");
++  const reason = logTypeLabel(String(log.type || ""), notes);
++  const worker = displaySourceNote(log.worker || "");
++  const looksTablet =
++    /таблет/i.test(notes) ||
++    /таблет/i.test(worker) ||
++    /\(Хаягдал\)/i.test(notes) ||
++    /\(Хаягдал\)/i.test(worker) ||
++    TABLET_REASON_NOTES.has(notes) ||
++    /^Таблет\s*\(/i.test(notes);
++  let source = "";
++  const sourceMatch = notes.match(/Таблет\s*\([^)]+\)/i) || worker.match(/Таблет\s*\([^)]+\)/i);
++  if (sourceMatch) source = sourceMatch[0].replace(/^таблет/i, "Таблет");
++  else if (looksTablet && isWasteType(String(log.type || ""))) source = "Таблет (Хаягдал)";
++  const dotted = notes.split("·").map((part) => part.trim()).filter(Boolean);
++  const reasonFromNotes = dotted.length > 1 ? dotted[dotted.length - 1] : TABLET_REASON_NOTES.has(notes) ? notes : "";
++  const shownReason = reasonFromNotes && reasonFromNotes !== source ? reasonFromNotes : reason;
++  if (source && shownReason && !source.includes(shownReason)) return `${source} · ${shownReason}`;
++  if (source) return source;
++  return shownReason || notes;
++}
++
++export function tabletSourceNote(modeLabel: string, reason?: string | null) {
++  const source = `Таблет (${modeLabel || "Хаягдал"})`;
++  const r = String(reason || "").trim();
++  return r && r !== source ? `${source} · ${r}` : source;
++}
++
+ export function displayUnit(unit: string) {
+   const key = String(unit || "").trim().toLowerCase();
+   if (key === "ш" || key === "ширхэг" || key === "pc" || key === "piece" || key === "item") return "ширхэг";
+diff --git a/supabase/migrations/20261120234500_inventory_logs_purchase_dup_idx.sql b/supabase/migrations/20261120234500_inventory_logs_purchase_dup_idx.sql
+new file mode 100644
+index 0000000..53696db
+--- /dev/null
++++ b/supabase/migrations/20261120234500_inventory_logs_purchase_dup_idx.sql
+@@ -0,0 +1,11 @@
++-- Suggested only. Do not apply automatically in this QA round.
++-- Same SQL as /workspace/qa4_index.sql
++-- Speeds up logs.checkDuplicate / duplicatePurchase:
++--   (client_id, ingredient_id, type, date) for type = 'purchase'.
++--
++-- Prefer CREATE INDEX CONCURRENTLY in a maintenance window if this file
++-- would otherwise run inside a transaction.
++
++CREATE INDEX IF NOT EXISTS idx_inventory_logs_purchase_dup
++  ON public.inventory_logs (client_id, ingredient_id, type, date DESC)
++  WHERE type = 'purchase';

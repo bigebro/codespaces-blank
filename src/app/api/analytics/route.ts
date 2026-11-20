@@ -1,6 +1,6 @@
 // src/app/api/analytics/route.ts
 import { NextResponse } from 'next/server';
-import { getAnalyticsData } from '../../../lib/analytics';
+import { getCachedAnalytics } from '../../../lib/analyticsCache';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { createServerSupabase } from '../../../lib/supabaseServer';
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const data = await getAnalyticsData(
+    const data = await getCachedAnalytics(
       profile.client_id,
       searchParams.get('startDate') || undefined,
       searchParams.get('endDate') || undefined

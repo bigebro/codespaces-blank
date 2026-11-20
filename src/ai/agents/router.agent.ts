@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { AgentContext } from "@/types/agent.types";
 import { runCfoAgent } from "./cfo.agent";
 import { runCooAgent } from "./coo.agent";
@@ -8,6 +9,7 @@ import { subscriptionBlockMessage } from "@/lib/subscription";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordChatMessage } from "@/ai/memory/thread.manager";
 import { isOverviewQuestion } from "./overview";
+import { isGradeStatusQuestion } from "@/lib/dashboardFactsBlock";
 import { MN_BUSINESS_SPELLING_NOTE, createSpellingFixer } from "@/ai/runtime/mnSpelling";
 
 interface RouterDecision {
@@ -73,6 +75,7 @@ function fastRoute(userText: string): RouterDecision["route"] | null {
   if (text.length <= 24 && /^(hi|hello|hey|thanks|сайн уу|сайн байн|баярлалаа)\b/.test(text)) {
     return "GENERAL";
   }
+  if (isOverviewQuestion(text) || isGradeStatusQuestion(text)) return "CFO";
   if (forcesCoo(text)) return "COO";
   const scores = routeScores(text);
   const ranked = (Object.entries(scores) as [RouterDecision["route"], number][]).sort((a, b) => b[1] - a[1]);
@@ -200,7 +203,7 @@ export async function routeAiRequest(
   if (blocked) return textStream(blocked);
 
   if (!departmentOnly(payload.text)) {
-    await recordChatMessage(context.clientId, "owner", payload.text);
+    after(() => recordChatMessage(context.clientId, "owner", payload.text).catch(console.error));
   }
 
   let route: RouterDecision["route"] | null = fastRoute(payload.text);

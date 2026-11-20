@@ -86,6 +86,53 @@ export function staffDisplayName(raw: string | null | undefined): string {
   return s;
 }
 
+
+const TABLET_REASON_NOTES = new Set(["Асгарсан", "Муудсан", "Хугацаа дууссан", "Бусад", "Туршилт", "Ажилтны хоол"]);
+
+/** Chat/local-parser tags must not appear in the owner feed. */
+export function cleanLogNotes(raw: string | null | undefined): string {
+  let s = displaySourceNote(raw);
+  s = s.replace(/\s*\((?:🧠\s*)?Суралцсан үг\)\s*/gi, " ");
+  s = s.replace(/\s*\((?:⚡\s*)?Local Parser\)\s*/gi, " ");
+  s = s.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+function isWasteType(type: string) {
+  const key = normalizeLogType(type);
+  return key === "spoilage" || key === "spoil" || key === "testing" || key === "test" || key === "staff_meal" || key === "staffmeal" || key === "other" || key === "waste" || key === "spill" || key === "spilled";
+}
+
+/** Old «Таблет (Хаягдал)» and new «Асгарсан» rows use the same source · reason line. */
+export function wasteFeedDetail(log: { type?: string; notes?: string | null; worker?: string | null }): string {
+  const notes = cleanLogNotes(log.notes || "");
+  const reason = logTypeLabel(String(log.type || ""), notes);
+  const worker = displaySourceNote(log.worker || "");
+  const looksTablet =
+    /таблет/i.test(notes) ||
+    /таблет/i.test(worker) ||
+    /\(Хаягдал\)/i.test(notes) ||
+    /\(Хаягдал\)/i.test(worker) ||
+    TABLET_REASON_NOTES.has(notes) ||
+    /^Таблет\s*\(/i.test(notes);
+  let source = "";
+  const sourceMatch = notes.match(/Таблет\s*\([^)]+\)/i) || worker.match(/Таблет\s*\([^)]+\)/i);
+  if (sourceMatch) source = sourceMatch[0].replace(/^таблет/i, "Таблет");
+  else if (looksTablet && isWasteType(String(log.type || ""))) source = "Таблет (Хаягдал)";
+  const dotted = notes.split("·").map((part) => part.trim()).filter(Boolean);
+  const reasonFromNotes = dotted.length > 1 ? dotted[dotted.length - 1] : TABLET_REASON_NOTES.has(notes) ? notes : "";
+  const shownReason = reasonFromNotes && reasonFromNotes !== source ? reasonFromNotes : reason;
+  if (source && shownReason && !source.includes(shownReason)) return `${source} · ${shownReason}`;
+  if (source) return source;
+  return shownReason || notes;
+}
+
+export function tabletSourceNote(modeLabel: string, reason?: string | null) {
+  const source = `Таблет (${modeLabel || "Хаягдал"})`;
+  const r = String(reason || "").trim();
+  return r && r !== source ? `${source} · ${r}` : source;
+}
+
 export function displayUnit(unit: string) {
   const key = String(unit || "").trim().toLowerCase();
   if (key === "ш" || key === "ширхэг" || key === "pc" || key === "piece" || key === "item") return "ширхэг";

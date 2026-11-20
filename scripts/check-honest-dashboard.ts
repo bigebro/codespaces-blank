@@ -173,7 +173,8 @@ assert.match(overview, /buildOverviewSnapshot/);
 assert.match(overview, /overviewDateLine/);
 
 const cfo = readFileSync("src/ai/agents/cfo.agent.ts", "utf8");
-assert.match(cfo, /preamble: `\$\{overviewDateLine\(overviewPeriod\)\}/);
+assert.match(cfo, /const periodLine = overviewDateLine\(overviewPeriod\)/);
+assert.match(cfo, /prepareLeadingText/);
 assert.match(cfo, /resolveOverviewPeriod/);
 assert.match(cfo, /MN_BUSINESS_SPELLING_NOTE/);
 assert.match(cfo, /overviewDateLine\(overviewPeriod\)/);

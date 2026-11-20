@@ -91,6 +91,19 @@ function isTruncatedFinish(reason: unknown) {
   return r === "MAX_TOKENS" || r === "LENGTH";
 }
 
+const MODEL_TIMEOUT_NOTE = "\nЗөвлөмжийг одоогоор нэмж чадсангүй. Дээрх тоо самбартай ижил.";
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  if (!ms || ms <= 0) return promise;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("MODEL_TIMEOUT")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 export async function runToolAgent(opts: {
   context: AgentContext;
   userMessage: string;
@@ -101,6 +114,11 @@ export async function runToolAgent(opts: {
   disableTools?: boolean;
   historyLimit?: number;
   maxOutputTokens?: number;
+  /** Server-rendered facts, flushed before the model runs. */
+  prepareLeadingText?: () => Promise<string>;
+  /** Drop model lines whose numbers contradict or restate the leading block. */
+  numberGuard?: (modelText: string) => string;
+  modelTimeoutMs?: number;
 }): Promise<ReadableStream> {
   const encoder = new TextEncoder();
 
@@ -114,8 +132,16 @@ export async function runToolAgent(opts: {
         if (text) enqueueRaw(spelling.push(text));
       };
       const flushSpelling = () => enqueueRaw(spelling.flush());
+      let sentLead = false;
       try {
-        const periodLabel = String(opts.preamble || "").trim();
+        if (opts.prepareLeadingText) {
+          const lead = String(await opts.prepareLeadingText() || "").trim();
+          if (lead) {
+            enqueueRaw(lead.endsWith("\n") ? lead : `${lead}\n\n`);
+            sentLead = true;
+          }
+        }
+        const periodLabel = sentLead ? "" : String(opts.preamble || "").trim();
         const prefixGate = createPeriodPrefixGate(periodLabel);
         const enqueueModel = (piece: string) => {
           const released = prefixGate.push(piece);
@@ -191,7 +217,8 @@ export async function runToolAgent(opts: {
               });
             }
             if (delta) text += delta;
-            if (delta && !sawCall) {
+            // Leading facts already sent: buffer the model so we can drop contradicting numbers before the user sees them.
+            if (delta && !sawCall && !opts.numberGuard) {
               if (!streamed) streamed = true;
               else if (text === delta) enqueueModel("\n");
               attemptSent = true;
@@ -219,17 +246,20 @@ export async function runToolAgent(opts: {
         for (let step = 0; step < MAX_STEPS; step++) {
           let outcome: Awaited<ReturnType<typeof readModel>> | undefined;
           try {
-            outcome = await readModel(useThinking);
+            outcome = await withTimeout(readModel(useThinking), opts.modelTimeoutMs || 0);
           } catch (err) {
+            if (err instanceof Error && err.message === "MODEL_TIMEOUT") throw err;
             if (!useThinking || !isInvalidArgument(err) || attemptSent) throw err;
             console.error("[agent] INVALID_ARGUMENT, removing thinkingConfig");
             useThinking = false;
-            outcome = await readModel(false);
+            outcome = await withTimeout(readModel(false), opts.modelTimeoutMs || 0);
           }
           const { text, modelParts, calls } = outcome;
 
           if (calls.length === 0) {
-            finalText = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
+            let cleaned = periodLabel ? ensureSinglePeriodPrefix(text, periodLabel) : text;
+            if (opts.numberGuard) cleaned = opts.numberGuard(cleaned);
+            finalText = cleaned;
             if (!streamed && finalText) enqueue(finalText);
             else flushPrefix();
             if (outcome.truncated) enqueue(TRUNCATED_NOTE);
@@ -288,7 +318,10 @@ export async function runToolAgent(opts: {
         controller.close();
       } catch (err: unknown) {
         console.error("[agent]", err);
-        enqueue("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.");
+        const timedOut = err instanceof Error && err.message === "MODEL_TIMEOUT";
+        if (sentLead) enqueueRaw(MODEL_TIMEOUT_NOTE);
+        else if (timedOut) enqueueRaw(MODEL_TIMEOUT_NOTE);
+        else enqueue("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.");
         flushSpelling();
         controller.close();
       }

@@ -64,7 +64,7 @@ export default function Phase4Settings({ activeClient }: { activeClient: string 
     <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
       <div>
         <h3 className="text-base font-black text-white">Аяга шалгах</h3>
-        <p className="text-xs text-zinc-400 mt-1">Анхдагчаар унтраалттай. Асаасан үед л санхүү болон киоск дээр харагдана.</p>
+        <p className="text-xs text-zinc-400 mt-1">Анхдагчаар унтраалттай. Асаасан үед л санхүү болон таблет дээр харагдана.</p>
       </div>
       <button
         type="button"

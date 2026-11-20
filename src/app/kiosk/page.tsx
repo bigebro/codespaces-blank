@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { kioskBootstrap, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
+import { kioskBootstrap, kioskCheckDuplicatePurchase, kioskConfirm, kioskOps, kioskSaveLogs, kioskTodayLogs, kioskTokens, kioskTrust, setKioskConfirm } from "../../lib/kioskClient";
 import { sortLogsNewestFirst } from "../../lib/logSort";
 import { chatErrorMessage, isTransientChatFailure } from "../../lib/chatError";
 import { fixMnBusinessSpelling } from "../../ai/runtime/mnSpelling";
@@ -8,7 +8,7 @@ import OwnScore from "../../features/kiosk/OwnScore";
 import CupCheck from "../../features/finance/CupCheck";
 import TeamGoalBar from "../../features/finance/TeamGoalBar";
 import CycleCount, { type CycleResult } from "../../features/kiosk/CycleCount";
-import { displayUnit, logTypeLabel, releaseSaveLock, streakText, takeSaveLock, KIOSK_WASTE_REASONS, type CycleItem } from "../../lib/shiftCycle";
+import { displayUnit, logTypeLabel, releaseSaveLock, streakText, tabletSourceNote, takeSaveLock, KIOSK_WASTE_REASONS, type CycleItem } from "../../lib/shiftCycle";
 import { roleLabel } from "../../lib/roleLabel";
 import { formatUbTime } from "../../lib/formatUbTime";
 import { localizedItemName, splitItemName } from "../../lib/itemDisplayName";
@@ -182,7 +182,7 @@ function advancedMongolianVoiceParser(
           unit: matched.unit,
           quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
           type: type,
-          notes: `${rawText} (🧠 Суралцсан үг)`,
+          notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
         };
       }
     }
@@ -243,7 +243,7 @@ function advancedMongolianVoiceParser(
     unit: bestMatch.unit,
     quantity: type === "purchase" ? Math.abs(qty) : -Math.abs(qty),
     type: type,
-    notes: `${rawText} (⚡ Local Parser)`,
+    notes: tabletSourceNote(type === "purchase" ? "Орлого" : type === "testing" ? "Туршилт" : type === "staff_meal" ? "Хоол" : "Хаягдал", rawText),
   };
 }
 
@@ -3787,6 +3787,21 @@ const handleCloseShift = async () => {
   quickSavingRef.current = true;
   setIsAiLoading(true);
   try {
+    let confirmedDup = false;
+    if (kioskMode === "purchase" && itemToSave.id) {
+      const isDup = await kioskCheckDuplicatePurchase({
+        ingredient_id: itemToSave.id,
+        quantity: finalQty,
+        total_cost: costVal,
+        input_unit: itemToSave.unit,
+      });
+      if (isDup) {
+        const ok = await kioskConfirm("Сүүлийн 45 хоногт ийм орлого бүртгэгдсэн байна. Давхардаж байвал баталгаажуулна уу.\n\nДавхардаж хадгалах уу?");
+        if (!ok) return;
+        confirmedDup = true;
+      }
+    }
+
     let uploadedUrl = null;
     if (kioskMode === "purchase" && fileToUpload) {
       uploadedUrl = await uploadEvidencePhoto(
@@ -3805,12 +3820,12 @@ const handleCloseShift = async () => {
         image_url: uploadedUrl,
         is_ebarimt: false,
         incident_type: kioskMode === "count" ? "kiosk_count" : null,
-        notes: kioskMode === "spoilage" && chosenReason
-          ? chosenReason.notes
-          : kioskMode === "count" ? `Таблет тооллого: ${itemToSave.name}` : `Таблет (${modeLabel})`,
+        notes: kioskMode === "count"
+          ? `Таблет тооллого: ${itemToSave.name}`
+          : tabletSourceNote(modeLabel, chosenReason?.label || chosenReason?.notes),
         input_unit: itemToSave.unit,
       },
-    ]);
+    ], [], confirmedDup);
     setQuickItemModal(null);
     setQuickQty("");
     setPurchaseCost("");

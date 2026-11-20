@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { displaySourceNote, logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
+import { cleanLogNotes, displaySourceNote, logTypeLabel, staffDisplayName, tabletSourceNote, wasteFeedDetail } from "../src/lib/shiftCycle";
 import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
 
 assert.equal(logTypeLabel("TESTING"), "Туршилт");
@@ -24,4 +24,11 @@ assert.equal(splitItemName("Кофе үр (ТУРШИЛТ)").isTest, true);
 assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");
 assert.equal(localizedItemName("Milk (Сүү)", "mn"), "Сүү");
 assert.equal(localizedItemName("Milk (Сүү) (ТУРШИЛТ)", "mn"), "Сүү");
+
+assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Kiosk (Хаягдал)", worker: "Kiosk (Хаягдал)" }), "Таблет (Хаягдал) · Асгарсан/Муудсан");
+assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан");
+assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Таблет (Хаягдал) · Муудсан" }), "Таблет (Хаягдал) · Муудсан");
+assert.equal(cleanLogNotes("сүү 200мл асгасан (🧠 Суралцсан үг)"), "сүү 200мл асгасан");
+assert.doesNotMatch(cleanLogNotes("foo (⚡ Local Parser)"), /Local Parser|Суралцсан/);
+assert.equal(tabletSourceNote("Хаягдал", "Асгарсан"), "Таблет (Хаягдал) · Асгарсан");
 console.log("waste and item label checks passed");

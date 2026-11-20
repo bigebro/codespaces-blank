@@ -114,7 +114,7 @@ export default function DataGradePanel({
     setBusy(key);
     try {
       await callFix(body);
-      if (body.action === "count_task") { setNotice("Тоолох даалгавар киоск руу илгээгдлээ."); setSent((s) => [...s, ...((body.ingredientIds as string[]) || [])]); }
+      if (body.action === "count_task") { setNotice("Тоолох даалгавар таблет руу илгээгдлээ."); setSent((s) => [...s, ...((body.ingredientIds as string[]) || [])]); }
       setPriceFor(null);
       setDateFor(null);
       setPairFor(null);

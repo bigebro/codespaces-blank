@@ -13,7 +13,7 @@ export async function kioskOps(action: string, payload: Record<string, unknown> 
     body: JSON.stringify({ ...kioskTokens(), action, ...payload }),
   });
   const data = await res.json().catch(() => ({}));
-  if (res.ok && data.ok !== false && action.startsWith("logs.") && typeof window !== "undefined") {
+  if (res.ok && data.ok !== false && (action === "logs.insert" || action === "logs.delete") && typeof window !== "undefined") {
     window.dispatchEvent(new Event("kiosk-logs-changed"));
   }
   if (!res.ok || data.ok === false) {
@@ -31,9 +31,27 @@ export function setKioskConfirm(fn: (message: string) => Promise<boolean>) {
   confirmDuplicate = fn;
 }
 
-export async function kioskSaveLogs(logs: Record<string, unknown>[], aliases: Record<string, unknown>[] = []) {
+export async function kioskConfirm(message: string) {
+  return confirmDuplicate(message);
+}
+
+export async function kioskCheckDuplicatePurchase(opts: {
+  ingredient_id: string;
+  quantity: number;
+  total_cost: number;
+  input_unit?: string | null;
+}) {
+  const data = await kioskOps("logs.checkDuplicate", opts);
+  return Boolean(data.duplicate);
+}
+
+export async function kioskSaveLogs(
+  logs: Record<string, unknown>[],
+  aliases: Record<string, unknown>[] = [],
+  alreadyConfirmed = false,
+) {
   try {
-    return await kioskOps("logs.insert", { logs, aliases });
+    return await kioskOps("logs.insert", { logs, aliases, confirmDuplicate: alreadyConfirmed || undefined });
   } catch (error) {
     const err = error as Error & { status?: number; data?: { code?: string } };
     if (err.status === 409 && err.data?.code === "duplicate" && await confirmDuplicate(`${err.message}\n\nДавхардаж хадгалах уу?`)) {

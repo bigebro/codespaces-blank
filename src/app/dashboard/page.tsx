@@ -2376,7 +2376,7 @@ function Home() {
               href="/kiosk"
               className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-200 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
-              📱 Гал тогооны киоск руу буцах
+              Гал тогооны таблет руу буцах
             </Link>
           </div>
         </div>
@@ -2513,7 +2513,7 @@ function Home() {
                   onClick={() => router.push("/kiosk")}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-300 hover:bg-zinc-800/60 transition-all mt-1"
                 >
-                  <Smartphone className="h-4 w-4" /> Гал тогооны киоск
+                  <Smartphone className="h-4 w-4" /> Гал тогооны таблет
                 </button>
               )}
 
