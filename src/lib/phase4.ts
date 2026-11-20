@@ -1,9 +1,9 @@
-import { countStreak } from "@/lib/shiftCycle";
+import { countStreak, UNEXPLAINED_GAP_HINT } from "@/lib/shiftCycle";
 import { ubDay } from "@/lib/ubDate";
 
 export const CAUSE_PURCHASE = "Худалдан авалт бүртгээгүй байж магадгүй";
 export const CAUSE_RECIPE = "Жор буруу байж магадгүй";
-export const CAUSE_WASTE = "Хаягдал бүртгээгүй байж магадгүй";
+export const CAUSE_WASTE = "Жороос илүү зарцуулсан, жор буруу, эсвэл борлуулалт бүртгэгдээгүй байж магадгүй";
 export const CAUSE_COUNT = "Тооллогын алдаа байж магадгүй";
 export const CAUSE_MISSING = "Мэдээлэл дутуу";
 export const CUP_LINE = (cups: number, drinks: number) =>
@@ -107,7 +107,7 @@ export function likelyCause(input: {
       const priorText = prior ? `${formatQty(prior.qty)} ${unit}` : "алга";
       return {
         title: CAUSE_WASTE,
-        why: `Энэ ээлжинд ${formatQty(input.gap.qty)} ${unit} дутсан. Өмнөх зөрүү ${priorText}. Хаягдал бүртгээгүй байж магадгүй.`.replace(/\s+/g, " ").trim(),
+        why: `Энэ ээлжинд ${formatQty(input.gap.qty)} ${unit} тайлбаргүй дутсан. Өмнөх зөрүү ${priorText}. ${UNEXPLAINED_GAP_HINT}`.replace(/\s+/g, " ").trim(),
       };
     }
   }

@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { dashboardItemFactsText, gradeFactLines, gradeGuide, itemVarianceFacts } from "../src/lib/gradeGuide";
 import {
+  findNamedGrade,
   officialNumberTokens,
   renderItemFactsBlock,
+  renderOverviewFactsBlock,
+  stripAllItemBoardTotals,
   stripContradictingNumberLines,
 } from "../src/lib/dashboardFactsBlock";
 
-/** Retest numbers: logged 2200 (Муудсан 1000, Туршилт 1200), unexplained 3800 / 19,000₮, start 10000, end 8800. */
+/** Start+end case: logged 2200 (Муудсан 1000, Туршилт 1200), unexplained 3800 / 19,000₮. */
 const milk = {
-  name: "Сүү",
+  name: "Milk (Сүү)",
   status: "Check",
   unit: "мл",
   action: "count",
@@ -24,6 +27,7 @@ const milk = {
   unit_price: 5,
   price: 5,
   waste_spoilage: 1000,
+  waste_spill: 0,
   waste_testing: 1200,
   waste_staff_meal: 0,
   waste_other: 0,
@@ -34,6 +38,7 @@ assert.equal(facts.start, 10000);
 assert.equal(facts.end, 8800);
 assert.equal(facts.logged, 2200);
 assert.equal(facts.spoilage, 1000);
+assert.equal(facts.spill, 0);
 assert.equal(facts.testing, 1200);
 assert.equal(facts.unexplainedQty, 3800);
 
@@ -42,6 +47,7 @@ assert.match(dashboard, /Эхлэх тоо 10000 мл/);
 assert.match(dashboard, /эцсийн тоо 8800 мл/);
 assert.match(dashboard, /Хаягдал бүртгэгдсэн 2200 мл/);
 assert.match(dashboard, /Муудсан 1000/);
+assert.match(dashboard, /Асгарсан\/Алдаа 0/);
 assert.match(dashboard, /Туршилт 1200/);
 assert.match(dashboard, /Тайлбаргүй 3800 мл/);
 assert.doesNotMatch(dashboard, /Тайлбаргүй 0/);
@@ -53,6 +59,8 @@ assert.match(serverBlock, /Хаягдал бүртгэгдсэн 2200 мл/);
 assert.match(serverBlock, /Тайлбаргүй 3800 мл/);
 assert.match(serverBlock, /19,000₮/);
 assert.doesNotMatch(serverBlock, /Тайлбаргүй зөрүү 0/);
+assert.doesNotMatch(serverBlock, /Самбарын тоо/);
+assert.doesNotMatch(serverBlock, /Баталгаажсан барааны/);
 assert.doesNotMatch(serverBlock, /2100/);
 
 const aiLines = gradeFactLines([milk]);
@@ -85,5 +93,94 @@ assert.equal(stripContradictingNumberLines(modelRestate, serverBlock, "Сүү"),
 const board = gradeGuide(milk);
 assert.match(board.facts.join(" "), /нийт дүнд ороогүй/);
 assert.equal(facts.unexplainedQty, 3800);
+
+/** Spill is its own bucket: 100 мл Асгарсан does not increase Муудсан. Logged total stays the sum. */
+const milkWithSpill = {
+  ...milk,
+  waste_spoilage: 1100,
+  waste_spill: 100,
+  waste_testing: 1200,
+  gap_qty: 6000,
+};
+const spillFacts = itemVarianceFacts(milkWithSpill);
+assert.equal(spillFacts.spoilage, 1100);
+assert.equal(spillFacts.spill, 100);
+assert.equal(spillFacts.logged, 2400);
+assert.equal(spillFacts.unexplainedQty, 3600);
+const spillText = dashboardItemFactsText(milkWithSpill);
+assert.match(spillText, /Хаягдал бүртгэгдсэн 2400 мл/);
+assert.match(spillText, /Муудсан 1100/);
+assert.match(spillText, /Асгарсан\/Алдаа 100/);
+assert.match(spillText, /Туршилт 1200/);
+assert.doesNotMatch(spillText, /Муудсан 1200/);
+
+/** Unknown end: card keeps missing-end lines and still quotes the unexplained event line. */
+const milkUnknownEnd = {
+  name: "Milk (Сүү)",
+  status: "Missing",
+  unit: "мл",
+  action: "count",
+  has_start: true,
+  has_end: false,
+  start_qty: 10000,
+  end_qty: null,
+  purchased_qty: 4800,
+  theoretical_qty: 0,
+  actual_qty: null,
+  gap_qty: null,
+  gap_money: null,
+  unit_price: 5,
+  price: 5,
+  waste_spoilage: 1100,
+  waste_spill: 0,
+  waste_testing: 1200,
+  waste_staff_meal: 0,
+  waste_other: 0,
+  unexplained_event_qty: 3800,
+  unexplained_event_money: 19000,
+};
+const unknownFacts = itemVarianceFacts(milkUnknownEnd);
+assert.equal(unknownFacts.hasEnd, false);
+assert.equal(unknownFacts.logged, 2300);
+assert.equal(unknownFacts.spoilage, 1100);
+assert.equal(unknownFacts.unexplainedQty, null);
+const unknownDash = dashboardItemFactsText(milkUnknownEnd);
+assert.match(unknownDash, /Эхлэх тоо 10000 мл/);
+assert.match(unknownDash, /Эцсийн тоо алга/);
+assert.match(unknownDash, /Тооны зөрүүг тооцоолоогүй/);
+assert.match(unknownDash, /Хаягдал бүртгэгдсэн 2300 мл/);
+assert.match(unknownDash, /Муудсан 1100/);
+assert.match(unknownDash, /Асгарсан\/Алдаа 0/);
+assert.match(unknownDash, /Туршилт 1200/);
+assert.match(unknownDash, /Ажилтны хоол 0/);
+assert.match(unknownDash, /Бусад 0/);
+assert.match(unknownDash, /3800 мл/);
+assert.match(unknownDash, /19,000₮/);
+const unknownBlock = renderItemFactsBlock(milkUnknownEnd);
+assert.equal(unknownBlock.includes(unknownDash), true);
+assert.match(unknownBlock, /Эцсийн тоо алга/);
+assert.match(unknownBlock, /Тооны зөрүүг тооцоолоогүй/);
+assert.match(unknownBlock, /3800 мл/);
+assert.match(unknownBlock, /19,000₮/);
+assert.doesNotMatch(unknownBlock, /Самбарын тоо/);
+assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны/);
+assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны тайлбаргүй зөрүү/);
+
+const overview = renderOverviewFactsBlock({
+  financial_ladder: { revenue: 0, actual_cogs: 0, theo_cogs: 0, verified_gap: 0, data_trust: { grades: [] } },
+  total_waste_loss: 0,
+  total_unexplained_waste: 0,
+  grades: [milkUnknownEnd],
+}, "11-р сар");
+assert.match(overview, /Самбарын тоо/);
+const strippedOverview = stripAllItemBoardTotals(
+  `${overview}\nЖорын нэг порцыг шалга.`,
+);
+assert.doesNotMatch(strippedOverview, /Самбарын тоо/);
+assert.doesNotMatch(strippedOverview, /Баталгаажсан барааны/);
+assert.match(strippedOverview, /Жорын нэг порцыг шалга/);
+
+assert.equal(findNamedGrade([milkUnknownEnd], "Сүү яагаад шалгах гэж байна?")?.name, "Milk (Сүү)");
+assert.equal(findNamedGrade([milkUnknownEnd], "milk waste")?.name, "Milk (Сүү)");
 
 console.log("ai dashboard facts checks passed");

@@ -8,14 +8,29 @@ export const WASTE_QUESTION = "Энэ хаягдал байсан уу?";
 
 export const WASTE_REASONS: { label: string; type: "spoilage" | "testing" | "staff_meal" | "other" }[] = [
   { label: "Муудсан", type: "spoilage" },
+  { label: "Хугацаа дууссан", type: "spoilage" },
+  { label: "Асгарсан/Алдаа", type: "spoilage" },
   { label: "Туршилт", type: "testing" },
   { label: "Ажилтны хоол", type: "staff_meal" },
-  { label: "Асгарсан", type: "other" },
   { label: "Бусад", type: "other" },
 ];
 
+/** Тайлбаргүй зөрүүг шалтгаан болгон бүртгэхгүй. Ихэвчлэн жороос илүү зарцуулалт, буруу жор, эсвэл бүртгэгдээгүй борлуулалт. */
+export const UNEXPLAINED_GAP_HINT =
+  "Тайлбаргүй зөрүү нь ихэвчлэн жороос илүү хийсэн, жорын хэмжээ буруу, эсвэл борлуулалт бүртгэгдээгүйтэй холбоотой. Жорын нэг порцыг шалга.";
+
+export const WASTE_BUCKET_LABEL = {
+  spoilage: "Муудсан",
+  spill: "Асгарсан/Алдаа",
+  testing: "Туршилт",
+  staff_meal: "Ажилтны хоол",
+  other: "Бусад",
+} as const;
+
+export type WasteBucket = keyof typeof WASTE_BUCKET_LABEL;
+
 const TYPE_LABEL: Record<string, string> = {
-  spoilage: "Асгарсан/Муудсан",
+  spoilage: "Муудсан",
   staff_meal: "Ажилтны хоол",
   staffmeal: "Ажилтны хоол",
   testing: "Туршилт",
@@ -26,8 +41,8 @@ const TYPE_LABEL: Record<string, string> = {
   sales: "Борлуулалт",
   other: "Бусад",
   waste: "Хаягдал",
-  spill: "Асгарсан",
-  spilled: "Асгарсан",
+  spill: "Асгарсан/Алдаа",
+  spilled: "Асгарсан/Алдаа",
 };
 
 function normalizeLogType(type: string) {
@@ -37,15 +52,35 @@ function normalizeLogType(type: string) {
     .replace(/[\s-]+/g, "_");
 }
 
-// Хадгалагдсан төрөл (spoilage гэх мэт) өөрчлөгдөхгүй, зөвхөн харуулах нэр.
-// Код том/жижиг үсэг үл харгалзана. spoilage: бичвэрт «асга»/«мууд» байвал ялгана, үгүй бол «Асгарсан/Муудсан».
+// Хадгалагдсан төрөл (spoilage гэх мэт) өөрчлөгдөхгүй. Асгарсан мөрийг тооцоолол/харуулалтад тусад нь ялгана, өгөгдлийг засаж бичихгүй.
+export function notesPointToSpill(text?: string | null) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+  if (/мууд|хугацаа\s*дуус|expired/.test(t) && !/асга|spill|алдаа|унага|дахин\s*хий|remake|dropped/.test(t)) return false;
+  return /асга|spill|spillage|алдаа|унагасан|унагаад|дахин\s*хий|remake|dropped/.test(t);
+}
+
+export function wasteBucket(type: string, notes?: string | null): WasteBucket {
+  const key = normalizeLogType(type);
+  if (key === "testing" || key === "test") return "testing";
+  if (key === "staff_meal" || key === "staffmeal") return "staff_meal";
+  if (key === "spill" || key === "spilled" || notesPointToSpill(notes)) return "spill";
+  if (key === "spoilage" || key === "spoil") return "spoilage";
+  return "other";
+}
+
+export function wasteReasonLabel(type: string, notes?: string | null) {
+  return WASTE_BUCKET_LABEL[wasteBucket(type, notes)];
+}
+
 export function logTypeLabel(type: string, text?: string | null) {
   const key = normalizeLogType(type);
-  if (key === "spoilage" || key === "spoil") {
-    const t = String(text || "").toLowerCase();
-    if (t.includes("асга") && !t.includes("мууд")) return "Асгарсан";
-    if (t.includes("мууд") && !t.includes("асга")) return "Муудсан";
-    return "Асгарсан/Муудсан";
+  if (
+    key === "spoilage" || key === "spoil" || key === "spill" || key === "spilled" ||
+    key === "testing" || key === "test" || key === "staff_meal" || key === "staffmeal" ||
+    key === "other" || key === "waste"
+  ) {
+    return wasteReasonLabel(type, text);
   }
   return TYPE_LABEL[key] || "Бусад";
 }
@@ -87,7 +122,7 @@ export function staffDisplayName(raw: string | null | undefined): string {
 }
 
 
-const TABLET_REASON_NOTES = new Set(["Асгарсан", "Муудсан", "Хугацаа дууссан", "Бусад", "Туршилт", "Ажилтны хоол"]);
+const TABLET_REASON_NOTES = new Set(["Асгарсан", "Асгарсан/Алдаа", "Муудсан", "Хугацаа дууссан", "Бусад", "Туршилт", "Ажилтны хоол"]);
 
 /** Chat/local-parser tags must not appear in the owner feed. */
 export function cleanLogNotes(raw: string | null | undefined): string {
@@ -106,7 +141,7 @@ function isWasteType(type: string) {
 /** Old «Таблет (Хаягдал)» and new «Асгарсан» rows use the same source · reason line. */
 export function wasteFeedDetail(log: { type?: string; notes?: string | null; worker?: string | null }): string {
   const notes = cleanLogNotes(log.notes || "");
-  const reason = logTypeLabel(String(log.type || ""), notes);
+  const reason = wasteReasonLabel(String(log.type || ""), notes);
   const worker = displaySourceNote(log.worker || "");
   const looksTablet =
     /таблет/i.test(notes) ||
@@ -121,7 +156,10 @@ export function wasteFeedDetail(log: { type?: string; notes?: string | null; wor
   else if (looksTablet && isWasteType(String(log.type || ""))) source = "Таблет (Хаягдал)";
   const dotted = notes.split("·").map((part) => part.trim()).filter(Boolean);
   const reasonFromNotes = dotted.length > 1 ? dotted[dotted.length - 1] : TABLET_REASON_NOTES.has(notes) ? notes : "";
-  const shownReason = reasonFromNotes && reasonFromNotes !== source ? reasonFromNotes : reason;
+  const mappedFromNotes = reasonFromNotes && reasonFromNotes !== source
+    ? wasteReasonLabel(String(log.type || ""), reasonFromNotes)
+    : "";
+  const shownReason = mappedFromNotes || reason;
   if (source && shownReason && !source.includes(shownReason)) return `${source} · ${shownReason}`;
   if (source) return source;
   return shownReason || notes;
@@ -380,9 +418,11 @@ export function isImplausibleIncrease(item: CycleItem, qty: number): boolean {
 export const IMPLAUSIBLE_COUNT_MESSAGE =
   "Энэ тоо өмнөх тооллого болон бүртгэгдсэн орлогоос хэт өндөр байна. Орлого бүртгэгдээгүй байж магадгүй. Зөв гэдгээ батална уу, эсвэл тоогоо дахин оруулна уу.";
 
-export const KIOSK_WASTE_REASONS: { label: string; type: "spoilage" | "other"; notes: string }[] = [
-  { label: "Асгарсан", type: "spoilage", notes: "Асгарсан" },
+export const KIOSK_WASTE_REASONS: { label: string; type: "spoilage" | "testing" | "staff_meal" | "other"; notes: string }[] = [
   { label: "Муудсан", type: "spoilage", notes: "Муудсан" },
   { label: "Хугацаа дууссан", type: "spoilage", notes: "Хугацаа дууссан" },
+  { label: "Асгарсан/Алдаа", type: "spoilage", notes: "Асгарсан/Алдаа" },
+  { label: "Туршилт", type: "testing", notes: "Туршилт" },
+  { label: "Ажилтны хоол", type: "staff_meal", notes: "Ажилтны хоол" },
   { label: "Бусад", type: "other", notes: "Бусад" },
 ];

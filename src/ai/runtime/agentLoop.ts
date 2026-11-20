@@ -91,7 +91,7 @@ function isTruncatedFinish(reason: unknown) {
   return r === "MAX_TOKENS" || r === "LENGTH";
 }
 
-const MODEL_TIMEOUT_NOTE = "\nЗөвлөмжийг одоогоор нэмж чадсангүй. Дээрх тоо самбартай ижил.";
+const MODEL_TIMEOUT_NOTE = "\nЗөвлөмжийг одоогоор нэмж чадсангүй. Дээрх тоо самбар дээрхтэй ижил.";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   if (!ms || ms <= 0) return promise;
@@ -243,16 +243,45 @@ export async function runToolAgent(opts: {
           return { text, modelParts, calls, truncated };
         };
 
+        const modelTimeoutMs = opts.modelTimeoutMs || 0;
+        const retryTimeoutMs = modelTimeoutMs ? Math.min(8000, modelTimeoutMs) : 0;
+        const modelFailReason = (err: unknown) => {
+          if (err instanceof Error && err.message === "MODEL_TIMEOUT") return "MODEL_TIMEOUT";
+          if (err instanceof Error) return err.message || err.name || "Error";
+          return String(err || "unknown");
+        };
+        const callModel = async (thinking: boolean, timeoutMs: number, attempt: number) => {
+          try {
+            return await withTimeout(readModel(thinking), timeoutMs);
+          } catch (err) {
+            console.error("[agent] model call failed", {
+              reason: modelFailReason(err),
+              attempt,
+              timeoutMs,
+              thinking,
+            });
+            throw err;
+          }
+        };
+
         for (let step = 0; step < MAX_STEPS; step++) {
           let outcome: Awaited<ReturnType<typeof readModel>> | undefined;
           try {
-            outcome = await withTimeout(readModel(useThinking), opts.modelTimeoutMs || 0);
+            outcome = await callModel(useThinking, modelTimeoutMs, 1);
           } catch (err) {
-            if (err instanceof Error && err.message === "MODEL_TIMEOUT") throw err;
-            if (!useThinking || !isInvalidArgument(err) || attemptSent) throw err;
-            console.error("[agent] INVALID_ARGUMENT, removing thinkingConfig");
-            useThinking = false;
-            outcome = await withTimeout(readModel(false), opts.modelTimeoutMs || 0);
+            if (!useThinking || !isInvalidArgument(err) || attemptSent) {
+              // Нэг удаагийн богино дахин оролдлого. Нийт хугацаа хязгаартай (анхны timeout + хамгийн ихдээ 8с).
+              try {
+                outcome = await callModel(useThinking, retryTimeoutMs || modelTimeoutMs, 2);
+              } catch (retryErr) {
+                console.error("[agent] model retry failed", { reason: modelFailReason(retryErr), timeoutMs: retryTimeoutMs || modelTimeoutMs });
+                throw retryErr;
+              }
+            } else {
+              console.error("[agent] INVALID_ARGUMENT, removing thinkingConfig");
+              useThinking = false;
+              outcome = await callModel(false, modelTimeoutMs, 1);
+            }
           }
           const { text, modelParts, calls } = outcome;
 
@@ -317,8 +346,9 @@ export async function runToolAgent(opts: {
         });
         controller.close();
       } catch (err: unknown) {
-        console.error("[agent]", err);
         const timedOut = err instanceof Error && err.message === "MODEL_TIMEOUT";
+        const reason = timedOut ? "MODEL_TIMEOUT" : (err instanceof Error ? (err.message || err.name) : String(err));
+        console.error("[agent] advice failed", { reason, timedOut });
         if (sentLead) enqueueRaw(MODEL_TIMEOUT_NOTE);
         else if (timedOut) enqueueRaw(MODEL_TIMEOUT_NOTE);
         else enqueue("Хариулт боловсруулахад түр саатал гарлаа. Та асуултаа дахин илгээнэ үү.");

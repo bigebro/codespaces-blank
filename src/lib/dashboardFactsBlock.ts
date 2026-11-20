@@ -1,5 +1,6 @@
 import { dashboardItemFactsText, gradeFactLines, itemVarianceFacts, type GradeGuideInput } from "@/lib/gradeGuide";
 import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
+import { itemDisplayName, localizedItemName } from "@/lib/itemDisplayName";
 
 export type GradeRow = GradeGuideInput & {
   name?: string;
@@ -43,9 +44,28 @@ export function renderItemFactsBlock(row: GradeRow): string {
   ];
   if (v.unexplainedQty != null && v.unexplainedQty > 0.05 && unexplainedMnt != null) {
     const extra = `Тайлбаргүй зөрүү ${qty(v.unexplainedQty, unitText)} / ${money(unexplainedMnt)}.`;
-    if (!lines[1].includes(String(Math.round(unexplainedMnt)))) lines.push(extra);
+    if (!lines[1].includes(String(Math.round(Math.abs(unexplainedMnt))))) lines.push(extra);
   }
   return lines.filter(Boolean).join("\n");
+}
+
+/** Нэг барааны хариултаас самбарын нийт дүн, бүх барааны мөрийг хасна. */
+export function stripAllItemBoardTotals(modelText: string): string {
+  return String(modelText || "")
+    .split("\n")
+    .filter((line) => {
+      const t = line.toLowerCase();
+      if (/самбарын тоо/.test(t)) return false;
+      if (/баталгаажсан барааны/.test(t)) return false;
+      if (/^орлого\s*:/.test(t)) return false;
+      if (/өртөг \(баталгаажсан/.test(t)) return false;
+      if (/бараа тус бүрийн тоо/.test(t)) return false;
+      if (/худалдан авалтын үнийн дүнгийн хувь/.test(t)) return false;
+      return true;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function mnt(value: unknown) {
@@ -77,14 +97,26 @@ export function renderOverviewFactsBlock(data: any, label: string): string {
   return lines.filter(Boolean).join("\n");
 }
 
+function gradeMatchKeys(name: string): string[] {
+  const raw = String(name || "").trim();
+  if (!raw) return [];
+  const keys = [raw, itemDisplayName(raw), localizedItemName(raw, "mn"), localizedItemName(raw, "en")];
+  const bracket = raw.match(/^(.*?)\s*\((.*?)\)\s*$/);
+  if (bracket) keys.push(bracket[1], bracket[2]);
+  return [...new Set(keys.map((key) => key.trim().toLowerCase()).filter((key) => key.length >= 2))]
+    .sort((a, b) => b.length - a.length);
+}
+
 export function findNamedGrade(grades: GradeRow[] = [], userMessage: string): GradeRow | null {
   const text = String(userMessage || "").toLowerCase();
   if (!text) return null;
-  const named = (grades || [])
-    .map((row) => ({ row, name: String(row?.name || "").trim() }))
-    .filter((item) => item.name && text.includes(item.name.toLowerCase()))
-    .sort((a, b) => b.name.length - a.name.length);
-  return named[0]?.row || null;
+  let best: { row: GradeRow; len: number } | null = null;
+  for (const row of grades || []) {
+    for (const key of gradeMatchKeys(String(row?.name || ""))) {
+      if (text.includes(key) && (!best || key.length > best.len)) best = { row, len: key.length };
+    }
+  }
+  return best?.row || null;
 }
 
 export function isGradeStatusQuestion(text: string) {
@@ -124,7 +156,7 @@ export function stripContradictingNumberLines(
     .filter((line) => {
       const tokens = officialNumberTokens(line);
       if (tokens.size === 0) return true;
-      const talksAboutItem = !item || line.toLowerCase().includes(item) || /хаягдал|тайлбаргүй|зөрүү|мл|₮|эхлэх|эцсийн|муудсан|туршилт/.test(line.toLowerCase());
+      const talksAboutItem = !item || line.toLowerCase().includes(item) || /хаягдал|тайлбаргүй|зөрүү|мл|₮|эхлэх|эцсийн|муудсан|асгарсан|алдаа|туршилт/.test(line.toLowerCase());
       if (!talksAboutItem) return true;
       for (const token of tokens) {
         if (!official.has(token)) return false;

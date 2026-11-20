@@ -1,4 +1,4 @@
-import { displayUnit } from "@/lib/shiftCycle";
+import { displayUnit, UNEXPLAINED_GAP_HINT } from "@/lib/shiftCycle";
 import { STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
 
 export type GradeGuideInput = {
@@ -19,9 +19,12 @@ export type GradeGuideInput = {
   gap_money?: number | null;
   measured_from?: string | null;
   waste_spoilage?: number | null;
+  waste_spill?: number | null;
   waste_testing?: number | null;
   waste_staff_meal?: number | null;
   waste_other?: number | null;
+  unexplained_event_qty?: number | null;
+  unexplained_event_money?: number | null;
 };
 
 export type GradeGuide = {
@@ -59,6 +62,7 @@ export type ItemVarianceFacts = {
   partial: boolean;
   wasteKnown: boolean;
   spoilage: number;
+  spill: number;
   testing: number;
   staffMeal: number;
   other: number;
@@ -71,6 +75,8 @@ export type ItemVarianceFacts = {
   end: number | null;
   purchased: number | null;
   unexplainedQty: number | null;
+  eventUnexplainedQty: number | null;
+  eventUnexplainedMoney: number | null;
 };
 
 export function itemVarianceFacts(row: GradeGuideInput): ItemVarianceFacts {
@@ -81,10 +87,11 @@ export function itemVarianceFacts(row: GradeGuideInput): ItemVarianceFacts {
   const hasEnd = row.has_end === true;
   const wasteKnown = [row.waste_spoilage, row.waste_testing, row.waste_staff_meal, row.waste_other].every(known);
   const spoilage = wasteKnown ? Number(row.waste_spoilage) : 0;
+  const spill = wasteKnown && known(row.waste_spill) ? Number(row.waste_spill) : wasteKnown ? 0 : 0;
   const testing = wasteKnown ? Number(row.waste_testing) : 0;
   const staffMeal = wasteKnown ? Number(row.waste_staff_meal) : 0;
   const other = wasteKnown ? Number(row.waste_other) : 0;
-  const logged = spoilage + testing + staffMeal + other;
+  const logged = spoilage + spill + testing + staffMeal + other;
   const theo = known(row.theoretical_qty) ? Number(row.theoretical_qty) : null;
   const actual = known(row.actual_qty) ? Number(row.actual_qty) : null;
   // Хэсэгчилсэн хугацаанд gap_qty null. Бүтэн хугацааны жортой хасаж хуурамч зөрүү гаргахгүй.
@@ -102,6 +109,7 @@ export function itemVarianceFacts(row: GradeGuideInput): ItemVarianceFacts {
     partial,
     wasteKnown,
     spoilage,
+    spill,
     testing,
     staffMeal,
     other,
@@ -114,6 +122,8 @@ export function itemVarianceFacts(row: GradeGuideInput): ItemVarianceFacts {
     end,
     purchased,
     unexplainedQty,
+    eventUnexplainedQty: known(row.unexplained_event_qty) ? Number(row.unexplained_event_qty) : null,
+    eventUnexplainedMoney: known(row.unexplained_event_money) ? Number(row.unexplained_event_money) : null,
   };
 }
 
@@ -152,6 +162,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   const hasEnd = v.hasEnd;
   const wasteKnown = v.wasteKnown;
   const spoilage = v.spoilage;
+  const spill = v.spill;
   const testing = v.testing;
   const staffMeal = v.staffMeal;
   const other = v.other;
@@ -189,7 +200,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   } else if (logged <= 0.0001) {
     facts.push(`Хаягдал бүртгэл 0${unitText}.`);
   } else {
-    facts.push(`Хаягдал бүртгэгдсэн ${qty(logged)}${unitText}. Муудсан ${qty(spoilage)}, Туршилт ${qty(testing)}, Ажилтны хоол ${qty(staffMeal)}, Бусад ${qty(other)}.`);
+    facts.push(`Хаягдал бүртгэгдсэн ${qty(logged)}${unitText}. Муудсан ${qty(spoilage)}, Асгарсан/Алдаа ${qty(spill)}, Туршилт ${qty(testing)}, Ажилтны хоол ${qty(staffMeal)}, Бусад ${qty(other)}.`);
   }
   if (gap == null) facts.push("Тооны зөрүүг тооцоолоогүй.");
   else if (Math.abs(gap) <= 0.05) facts.push("Тооны зөрүү алга.");
@@ -198,6 +209,12 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
   else facts.push(`Мөнгөн зөрүү ${money(Number(row.gap_money))}.`);
   if (row.status === "Check" && gap != null && Math.abs(gap) > 0.05) {
     facts.push("Шар мөр тул энэ зөрүү Алдагдал, Илүүдэл, Тайлбаргүй зөрүүгийн нийт дүнд ороогүй.");
+  }
+  if (v.unexplainedQty == null && v.eventUnexplainedQty != null && v.eventUnexplainedQty > 0.05) {
+    const moneyBit = v.eventUnexplainedMoney != null
+      ? ` / ${Math.round(v.eventUnexplainedMoney).toLocaleString("en-US")}₮`
+      : "";
+    facts.push(`Тайлбаргүй зөрүү ${qty(v.eventUnexplainedQty)}${unitText}${moneyBit}.`);
   }
 
   if (action === "date") {
@@ -303,7 +320,7 @@ export function gradeGuide(row: GradeGuideInput): GradeGuide {
       countTask: false,
       steps: [
         "Тоолох даалгавар бүү үүсгэ. Эхлэх тоо болон эцсийн тоо аль хэдийн байна.",
-        `Таблет дээр Хаягдал цэсийг нээ. Тайлбаргүй ${qty(unexplained)}${unitText}-ийг нэг шалтгаанаар бүртгэ: Муудсан, Туршилт, Ажилтны хоол, Асгарсан, эсвэл Бусад.`,
+        UNEXPLAINED_GAP_HINT,
         theo != null && Math.abs(theo) <= 0.0001
           ? "Жор 0 байгаа тул борлуулалт энэ барааг олоогүй. Зарагдсан гэж үзэж байвал жорын нэрийг борлуулалтын нэртэй тулга."
           : "Хэрэв жор бага байгаа бол жорыг нээж нэг борлуулалтын орцыг шалга. Тоог таахгүй.",

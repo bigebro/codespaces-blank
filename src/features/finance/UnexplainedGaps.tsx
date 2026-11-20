@@ -1,6 +1,6 @@
 "use client";
 
-import { UNEXPLAINED_LABEL, staffDisplayName } from "@/lib/shiftCycle";
+import { UNEXPLAINED_LABEL, UNEXPLAINED_GAP_HINT, staffDisplayName } from "@/lib/shiftCycle";
 
 type Gap = {
   id: string;
@@ -31,7 +31,7 @@ export default function UnexplainedGaps({ rows }: { rows?: Gap[] | null }) {
             <p className="text-xs text-zinc-400 mt-1">Ажилтан: {staffDisplayName(row.staff)}</p>
             <p className="text-xs text-zinc-400">Ээлж: {row.shift}</p>
             <p className="text-sm text-amber-100 mt-2">{row.cause?.title || "Мэдээлэл дутуу"}</p>
-            <p className="text-xs text-zinc-400 mt-1">{row.cause?.why || "Шалтгааныг тогтоогоогүй."}</p>
+            <p className="text-xs text-zinc-400 mt-1">{row.cause?.why || UNEXPLAINED_GAP_HINT}</p>
           </div>
         ))
       )}

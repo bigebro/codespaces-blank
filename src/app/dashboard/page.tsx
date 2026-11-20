@@ -6,7 +6,7 @@ import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubD
 import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
 import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
 import { roleLabel } from "../../lib/roleLabel";
-import { displaySourceNote, staffDisplayName } from "../../lib/shiftCycle";
+import { displaySourceNote, staffDisplayName, wasteFeedDetail } from "../../lib/shiftCycle";
 import { planLabel } from "../../lib/planLabel";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
@@ -3215,7 +3215,9 @@ function Home() {
                                           )}
                                         </td>
                                         <td className="py-3 px-2 text-zinc-400 max-w-[200px] truncate">
-                                          {displaySourceNote(log.notes) || "—"}
+                                          {["spoilage", "testing", "staff_meal", "other", "spill", "spilled"].includes(String(log.type || "").toLowerCase())
+                                            ? (wasteFeedDetail({ type: log.type, notes: log.notes, worker: log.worker_name }) || "—")
+                                            : (displaySourceNote(log.notes) || "—")}
                                         </td>
                                         <td className="py-3 px-2 text-zinc-400 text-sm font-mono">
                                           {new Date(log.date).toLocaleString(

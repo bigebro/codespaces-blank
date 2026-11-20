@@ -12,8 +12,10 @@ import {
   isGradeStatusQuestion,
   renderItemFactsBlock,
   renderOverviewFactsBlock,
+  stripAllItemBoardTotals,
   stripContradictingNumberLines,
 } from "@/lib/dashboardFactsBlock";
+import { localizedItemName } from "@/lib/itemDisplayName";
 
 export async function runCfoAgent(context: AgentContext, userMessage: string): Promise<ReadableStream> {
   const now = new Date();
@@ -28,7 +30,8 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
     context.activeEndDate,
     now,
   );
-  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage);
+  const looksLikeItemFacts = /хаягдал|муудсан|асгарсан|эцсийн тоо|эхлэх тоо|тайлбаргүй/.test(String(userMessage || "").toLowerCase());
+  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage) || looksLikeItemFacts;
   const periodLine = overviewDateLine(overviewPeriod);
 
   const official = { text: "", itemName: "" };
@@ -43,7 +46,11 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       modelTimeoutMs: 15000,
       tools: [],
       preamble: "",
-      numberGuard: (modelText) => stripContradictingNumberLines(modelText, official.text, official.itemName),
+      numberGuard: (modelText) => {
+        let cleaned = stripContradictingNumberLines(modelText, official.text, official.itemName);
+        if (official.itemName) cleaned = stripAllItemBoardTotals(cleaned);
+        return cleaned;
+      },
       prepareLeadingText: async () => {
         const data: any = await getCachedAnalytics(
           context.clientId,
@@ -51,7 +58,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
           ubDayEndIso(overviewPeriod.endDay),
         );
         const named = findNamedGrade(data?.grades || [], userMessage);
-        official.itemName = named?.name || "";
+        official.itemName = named ? (localizedItemName(named.name || "", "mn") || named.name || "") : "";
         const body = named
           ? renderItemFactsBlock(named)
           : renderOverviewFactsBlock(data, overviewPeriod.label);

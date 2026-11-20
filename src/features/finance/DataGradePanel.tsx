@@ -33,9 +33,12 @@ type Grade = {
   actual_qty?: number | null;
   partial?: boolean;
   waste_spoilage?: number | null;
+  waste_spill?: number | null;
   waste_testing?: number | null;
   waste_staff_meal?: number | null;
   waste_other?: number | null;
+  unexplained_event_qty?: number | null;
+  unexplained_event_money?: number | null;
 };
 
 type LogRow = { id: string; qty: number; cost: number; date: string; notes?: string };

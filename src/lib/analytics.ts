@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { analyticsPeriod, ubDay } from './ubDate';
 import { buildDataTrust } from './honestDashboard';
-import { cleanLogNotes, displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+import { cleanLogNotes, displayUnit, logTypeLabel, staffDisplayName, wasteBucket } from './shiftCycle';
 import { sortLogsNewestFirst } from './logSort';
 import { formatUbTime } from './formatUbTime';
 import { assemblePhase4 } from './phase4';
@@ -363,6 +363,7 @@ export async function getAnalyticsData(
   let totalWasteLoss = 0;
   let totalSurplusSavings = 0;
   let totalLoggedSpoilage = 0;
+  let totalLoggedSpill = 0;
   let totalLoggedTesting = 0;
   let totalLoggedStaffMeal = 0;
   let totalLoggedOther = 0;
@@ -678,7 +679,7 @@ for (const key in master) {
 
   const loggedEvents: Record<string, any> = {};
   Object.keys(master).forEach((name: string) => {
-    loggedEvents[name] = { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
+    loggedEvents[name] = { spoilage: 0, spill: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
   });
 
   rawInventoryLogs.forEach((log: any) => {
@@ -693,9 +694,11 @@ for (const key in master) {
     if (log.incident_type === 'unexplained_gap') return;
     if (logDate < startDay || logDate > endDay) return;
 
-    if (log.type === 'spoilage') loggedEvents[nameKey].spoilage += qty;
-    else if (log.type === 'testing') loggedEvents[nameKey].testing += qty;
-    else if (log.type === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
+    const bucket = wasteBucket(log.type, log.notes);
+    if (bucket === 'spoilage') loggedEvents[nameKey].spoilage += qty;
+    else if (bucket === 'spill') loggedEvents[nameKey].spill += qty;
+    else if (bucket === 'testing') loggedEvents[nameKey].testing += qty;
+    else if (bucket === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
     else loggedEvents[nameKey].other += qty;
 
     if (log.notes && log.notes !== `${log.type} logged manually`) {
@@ -748,18 +751,22 @@ for (const key in master) {
     const grade: any = gradeIngredient(m, startDay, countEndDay, weightedForMoney);
     if (!grade) continue;
     let wasteSpoilage = 0;
+    let wasteSpill = 0;
     let wasteTesting = 0;
     let wasteStaffMeal = 0;
     let wasteOther = 0;
     for (const log of rawInventoryLogs || []) {
       if (log.ingredient_id !== m.id || !log.date) continue;
+      if (log.incident_type === "unexplained_gap") continue;
       const day = ubDay(log.date);
       if (day < startDay || day > endDay) continue;
       const amount = Math.abs(Number(log.quantity) || 0);
-      if (log.type === "spoilage") wasteSpoilage += amount;
-      else if (log.type === "testing") wasteTesting += amount;
-      else if (log.type === "staff_meal") wasteStaffMeal += amount;
-      else if (log.type === "other" && log.incident_type !== "unexplained_gap") wasteOther += amount;
+      const bucket = wasteBucket(log.type, log.notes);
+      if (bucket === "spoilage") wasteSpoilage += amount;
+      else if (bucket === "spill") wasteSpill += amount;
+      else if (bucket === "testing") wasteTesting += amount;
+      else if (bucket === "staff_meal") wasteStaffMeal += amount;
+      else if (log.type === "other" || bucket === "other") wasteOther += amount;
     }
     grade.has_start = Boolean(m.has_start);
     grade.has_end = Boolean(m.has_end);
@@ -767,6 +774,7 @@ for (const key in master) {
     grade.end_qty = m.has_end ? Number(m.end) : null;
     grade.purchased_qty = Number(m.purchased) || 0;
     grade.waste_spoilage = wasteSpoilage;
+    grade.waste_spill = wasteSpill;
     grade.waste_testing = wasteTesting;
     grade.waste_staff_meal = wasteStaffMeal;
     grade.waste_other = wasteOther;
@@ -818,11 +826,12 @@ for (const key in master) {
 
     const rawGap = m.partial ? 0 : actual - m.theoretical;
     const impact = Math.round(rawGap * weightedForMoney) || 0;
-    const itemLogs = loggedEvents[m.name] || { spoilage: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
-    const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
+    const itemLogs = loggedEvents[m.name] || { spoilage: 0, spill: 0, testing: 0, staff_meal: 0, other: 0, notes: [] };
+    const unexplainedGap = Math.max(0, rawGap - itemLogs.spoilage - (itemLogs.spill || 0) - itemLogs.testing - itemLogs.staff_meal - itemLogs.other);
     const unexplainedImpact = Math.round(unexplainedGap * m.unit_price) || 0;
     if (grade.status === "Verified") totalUnexplainedWaste += unexplainedImpact;
     totalLoggedSpoilage += Math.round(itemLogs.spoilage * m.unit_price) || 0;
+    totalLoggedSpill += Math.round((itemLogs.spill || 0) * m.unit_price) || 0;
     totalLoggedTesting += Math.round(itemLogs.testing * m.unit_price) || 0;
     totalLoggedStaffMeal += Math.round(itemLogs.staff_meal * m.unit_price) || 0;
     totalLoggedOther += Math.round(itemLogs.other * m.unit_price) || 0;
@@ -863,7 +872,20 @@ for (const key in master) {
         unit: m.unit,
         unit_price: m.unit_price,
         loss_amount: Math.round(itemLogs.spoilage * m.unit_price),
-        cause: "Хугацаа дууссан / Чанарын шаардлага хангаагүй (Бүртгэлтэй акт)"
+        cause: "Муудсан / Хугацаа дууссан (Бүртгэлтэй акт)"
+      });
+    }
+
+    if ((itemLogs.spill || 0) > 0) {
+      wasteAuditItems.push({
+        name: m.name,
+        theo_usage: Math.round(m.theoretical * 10) / 10,
+        actual_usage: Math.round(safeActual * 10) / 10,
+        gap_qty: Math.round(itemLogs.spill * 10) / 10,
+        unit: m.unit,
+        unit_price: m.unit_price,
+        loss_amount: Math.round(itemLogs.spill * m.unit_price),
+        cause: "Асгарсан/Алдаа (Бүртгэлтэй акт)"
       });
     }
 
@@ -1219,6 +1241,17 @@ for (const key in master) {
       };
     });
 
+  for (const grade of grades) {
+    const rows = unexplainedGaps.filter((gap: any) => gap.ingredientId && gap.ingredientId === grade.ingredient_id);
+    if (!rows.length) continue;
+    const qtySum = rows.reduce((sum: number, row: any) => sum + (Number(row.qty) || 0), 0);
+    const priced = rows.filter((row: any) => row.money != null && Number.isFinite(Number(row.money)));
+    grade.unexplained_event_qty = qtySum;
+    grade.unexplained_event_money = priced.length
+      ? priced.reduce((sum: number, row: any) => sum + Number(row.money), 0)
+      : null;
+  }
+
   const phase4 = assemblePhase4({
     settings: rawSettings,
     ingredients: rawIngredients || [],
@@ -1336,6 +1369,7 @@ logged_spoilage_items: (rawInventoryLogs || [])
     total_waste_loss: totalWasteLoss || 0,
     total_unexplained_waste: totalUnexplainedWaste || 0,
     total_logged_spoilage: totalLoggedSpoilage || 0,
+    total_logged_spill: totalLoggedSpill || 0,
     total_logged_testing: totalLoggedTesting || 0,
     total_logged_staff_meal: totalLoggedStaffMeal || 0,
     total_logged_other: totalLoggedOther || 0,

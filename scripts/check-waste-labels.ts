@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { cleanLogNotes, displaySourceNote, logTypeLabel, staffDisplayName, tabletSourceNote, wasteFeedDetail } from "../src/lib/shiftCycle";
+import { cleanLogNotes, displaySourceNote, logTypeLabel, staffDisplayName, tabletSourceNote, wasteBucket, wasteFeedDetail, wasteReasonLabel } from "../src/lib/shiftCycle";
 import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
 
 assert.equal(logTypeLabel("TESTING"), "Туршилт");
 assert.equal(logTypeLabel("testing"), "Туршилт");
 assert.equal(logTypeLabel("OTHER"), "Бусад");
-assert.equal(logTypeLabel("SPOILAGE"), "Асгарсан/Муудсан");
-assert.equal(logTypeLabel("spoilage", "өглөө асгарсан"), "Асгарсан");
+assert.equal(logTypeLabel("SPOILAGE"), "Муудсан");
+assert.equal(logTypeLabel("spoilage", "өглөө асгарсан"), "Асгарсан/Алдаа");
 assert.equal(logTypeLabel("spoilage", "муудсан"), "Муудсан");
 assert.equal(logTypeLabel("mystery"), "Бусад");
 assert.equal(staffDisplayName("staff (TEST Бариста)"), "Ажилтан: TEST Бариста");
@@ -25,10 +25,20 @@ assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");
 assert.equal(localizedItemName("Milk (Сүү)", "mn"), "Сүү");
 assert.equal(localizedItemName("Milk (Сүү) (ТУРШИЛТ)", "mn"), "Сүү");
 
-assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Kiosk (Хаягдал)", worker: "Kiosk (Хаягдал)" }), "Таблет (Хаягдал) · Асгарсан/Муудсан");
-assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан");
+assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Kiosk (Хаягдал)", worker: "Kiosk (Хаягдал)" }), "Таблет (Хаягдал) · Муудсан");
+assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан/Алдаа");
 assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Таблет (Хаягдал) · Муудсан" }), "Таблет (Хаягдал) · Муудсан");
 assert.equal(cleanLogNotes("сүү 200мл асгасан (🧠 Суралцсан үг)"), "сүү 200мл асгасан");
 assert.doesNotMatch(cleanLogNotes("foo (⚡ Local Parser)"), /Local Parser|Суралцсан/);
 assert.equal(tabletSourceNote("Хаягдал", "Асгарсан"), "Таблет (Хаягдал) · Асгарсан");
+assert.equal(wasteBucket("spoilage", "Асгарсан"), "spill");
+assert.equal(wasteBucket("spoilage", "Асгарсан/Алдаа"), "spill");
+assert.equal(wasteBucket("other", "өглөө асгарсан"), "spill");
+assert.equal(wasteBucket("spoilage", "Муудсан"), "spoilage");
+assert.equal(wasteBucket("spoilage", "Хугацаа дууссан"), "spoilage");
+assert.equal(wasteBucket("spoilage", ""), "spoilage");
+assert.equal(wasteReasonLabel("spoilage", "Асгарсан"), "Асгарсан/Алдаа");
+assert.equal(logTypeLabel("spoilage", "Асгарсан"), "Асгарсан/Алдаа");
+assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан/Алдаа");
+assert.equal(wasteFeedDetail({ type: "other", notes: "Бусад", worker: "Анхтуул" }), "Таблет (Хаягдал) · Бусад");
 console.log("waste and item label checks passed");

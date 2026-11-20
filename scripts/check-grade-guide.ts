@@ -49,8 +49,8 @@ const eggsLeft = gradeGuide({
 });
 assert.equal(eggsLeft.countTask, false);
 assert.match(eggsLeft.facts.join(" "), /Тайлбаргүй 2 ширхэг/);
-assert.match(eggsLeft.steps[1], /2 ширхэг/);
-assert.match(eggsLeft.steps[1], /Муудсан/);
+assert.match(eggsLeft.steps.join(" "), /жорын нэг порцыг шалга/i);
+assert.doesNotMatch(eggsLeft.steps.join(" "), /нэг шалтгаанаар бүртгэ/);
 
 const noPrice = gradeGuide({
   action: "price",

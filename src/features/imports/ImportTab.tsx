@@ -1528,9 +1528,16 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         else if (rawType.includes("other") || rawType.includes("бусад"))
           dbType = "other";
         else if (
+          /асга|алдаа|spill/.test(rawType) &&
+          !/мууд/.test(rawType)
+        ) {
+          dbType = "spoilage";
+          if (!/асга|алдаа|spill/.test(note.toLowerCase())) {
+            note = note ? `${note} · Асгарсан/Алдаа` : "Асгарсан/Алдаа";
+          }
+        } else if (
           rawType.includes("spoil") ||
           rawType.includes("хаягдал") ||
-          rawType.includes("асга") ||
           rawType.includes("мууд")
         )
           dbType = "spoilage";

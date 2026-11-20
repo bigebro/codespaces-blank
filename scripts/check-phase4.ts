@@ -68,7 +68,7 @@ const waste = likelyCause({
   unit: "кг",
 });
 assert.equal(waste.title, CAUSE_WASTE);
-assert.match(waste.why, /магадгүй/);
+assert.match(waste.why, /жорын нэг порцыг шалга/i);
 
 const thin = likelyCause({
   counts: [{ at: day(1), qty: 5 }],
