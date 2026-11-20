@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cleanLogNotes, displaySourceNote, logTypeLabel, staffDisplayName, tabletSourceNote, wasteBucket, wasteFeedDetail, wasteReasonLabel } from "../src/lib/shiftCycle";
+import { addWasteLog, cleanLogNotes, displaySourceNote, emptyWasteBuckets, logTypeLabel, staffDisplayName, tabletSourceNote, wasteBucket, wasteFeedDetail, wasteLoggedTotal, wasteReasonLabel } from "../src/lib/shiftCycle";
 import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
 
 assert.equal(logTypeLabel("TESTING"), "Туршилт");
@@ -41,4 +41,51 @@ assert.equal(wasteReasonLabel("spoilage", "Асгарсан"), "Асгарсан
 assert.equal(logTypeLabel("spoilage", "Асгарсан"), "Асгарсан/Алдаа");
 assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан/Алдаа");
 assert.equal(wasteFeedDetail({ type: "other", notes: "Бусад", worker: "Анхтуул" }), "Таблет (Хаягдал) · Бусад");
+assert.equal(
+  wasteFeedDetail({ type: "spoilage", notes: "Сүү 100 мл асгарсан (🧠 Суралцсан үг)", worker: "staff (TEST Бариста)" }),
+  "Таблет (Хаягдал) · Асгарсан/Алдаа",
+);
+assert.equal(
+  wasteFeedDetail({ type: "spoilage", notes: "200 мл сүү асгарсан", worker: "staff (TEST Бариста)" }),
+  "Таблет (Хаягдал) · Асгарсан/Алдаа",
+);
+assert.equal(
+  wasteFeedDetail({ type: "other", notes: "Бусад", worker: "staff (TEST Бариста)" }),
+  "Таблет (Хаягдал) · Бусад",
+);
+assert.equal(
+  wasteFeedDetail({ type: "other", notes: "", worker: "TEST Бариста" }),
+  "Таблет (Хаягдал) · Бусад",
+);
+
+// qa6 regression: milk counts (10000+14000+17800=41800) must not enter Бусад.
+const milkId = "milk-1";
+const coffeeId = "coffee-1";
+const cupId = "cup-1";
+const logs = [
+  { ingredient_id: milkId, type: "count", incident_type: "normal", quantity: 10000, notes: "Бөөнөөр Тоолсон Үлдэгдэл (start)" },
+  { ingredient_id: milkId, type: "count", incident_type: "opening_recount", quantity: 14000, notes: "Ээлж нээх тооллого" },
+  { ingredient_id: milkId, type: "count", incident_type: "daily_cycle_count", quantity: 17800, notes: "Ээлж хаалтын тооллого" },
+  { ingredient_id: milkId, type: "count", incident_type: "daily_cycle_count", quantity: 4300, notes: "Ээлж хаалтын тооллого 4300" },
+  { ingredient_id: milkId, type: "other", incident_type: "unexplained_gap", quantity: 3800, notes: "Тайлбаргүй зөрүү" },
+  { ingredient_id: milkId, type: "spoilage", notes: "Kiosk (Хаягдал)", quantity: -100 },
+  { ingredient_id: milkId, type: "spoilage", notes: "Асгарсан", quantity: -1100 },
+  { ingredient_id: milkId, type: "testing", incident_type: "shift_waste", notes: "Туршилт", quantity: -1200 },
+  { ingredient_id: coffeeId, type: "count", quantity: 2000, notes: "start" },
+  { ingredient_id: coffeeId, type: "testing", notes: "Туршилт", quantity: -250 },
+  { ingredient_id: cupId, type: "count", quantity: 200, notes: "start" },
+  { ingredient_id: cupId, type: "testing", notes: "Туршилт", quantity: -25 },
+  { ingredient_id: cupId, type: "purchase", notes: "Таблет (Орлого)", quantity: 1 },
+];
+const buckets = emptyWasteBuckets();
+for (const log of logs) addWasteLog(buckets, log, milkId);
+assert.equal(buckets.spoilage, 100);
+assert.equal(buckets.spill, 1100);
+assert.equal(buckets.testing, 1200);
+assert.equal(buckets.staff_meal, 0);
+assert.equal(buckets.other, 0);
+assert.equal(wasteLoggedTotal(buckets), 2400);
+assert.notEqual(wasteLoggedTotal(buckets), 41800);
+assert.notEqual(wasteLoggedTotal(buckets), 44200);
+
 console.log("waste and item label checks passed");

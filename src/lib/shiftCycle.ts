@@ -60,6 +60,45 @@ export function notesPointToSpill(text?: string | null) {
   return /асга|spill|spillage|алдаа|унагасан|унагаад|дахин\s*хий|remake|dropped/.test(t);
 }
 
+const WASTE_TYPE_KEYS = new Set([
+  "spoilage", "spoil", "testing", "test", "staff_meal", "staffmeal", "other", "waste", "spill", "spilled",
+]);
+
+/** Тооллого, орлого, борлуулалт, тайлбаргүй зөрүүгийн мөр хаягдлын хувин руу орохгүй. */
+export function isRealWasteLog(log: { type?: string | null; incident_type?: string | null }): boolean {
+  if (String(log?.incident_type || "").toLowerCase() === "unexplained_gap") return false;
+  return WASTE_TYPE_KEYS.has(normalizeLogType(String(log?.type || "")));
+}
+
+export type WasteBuckets = {
+  spoilage: number;
+  spill: number;
+  testing: number;
+  staff_meal: number;
+  other: number;
+};
+
+export function emptyWasteBuckets(): WasteBuckets {
+  return { spoilage: 0, spill: 0, testing: 0, staff_meal: 0, other: 0 };
+}
+
+export function wasteLoggedTotal(buckets: WasteBuckets) {
+  return buckets.spoilage + buckets.spill + buckets.testing + buckets.staff_meal + buckets.other;
+}
+
+/** Зөвхөн энэ барааны жинхэнэ хаягдлыг хувингаар нэмнэ. Тооллого/орлогыг алгасна. */
+export function addWasteLog(
+  buckets: WasteBuckets,
+  log: { type?: string | null; notes?: string | null; incident_type?: string | null; quantity?: number | string | null; ingredient_id?: string | null },
+  ingredientId?: string | null,
+) {
+  if (ingredientId && log.ingredient_id && log.ingredient_id !== ingredientId) return;
+  if (!isRealWasteLog(log)) return;
+  const qty = Math.abs(Number(log.quantity) || 0);
+  if (!(qty > 0)) return;
+  buckets[wasteBucket(String(log.type || ""), log.notes)] += qty;
+}
+
 export function wasteBucket(type: string, notes?: string | null): WasteBucket {
   const key = normalizeLogType(type);
   if (key === "testing" || key === "test") return "testing";
@@ -143,13 +182,19 @@ export function wasteFeedDetail(log: { type?: string; notes?: string | null; wor
   const notes = cleanLogNotes(log.notes || "");
   const reason = wasteReasonLabel(String(log.type || ""), notes);
   const worker = displaySourceNote(log.worker || "");
+  const otherSource =
+    /dashboard|самбар|бөөн|импорт|excel/i.test(notes) ||
+    /dashboard|самбар|бөөн|импорт|excel/i.test(worker);
   const looksTablet =
     /таблет/i.test(notes) ||
     /таблет/i.test(worker) ||
     /\(Хаягдал\)/i.test(notes) ||
     /\(Хаягдал\)/i.test(worker) ||
+    /\(Орлого\)/i.test(notes) ||
     TABLET_REASON_NOTES.has(notes) ||
-    /^Таблет\s*\(/i.test(notes);
+    /^Таблет\s*\(/i.test(notes) ||
+    notesPointToSpill(notes) ||
+    (isWasteType(String(log.type || "")) && !otherSource);
   let source = "";
   const sourceMatch = notes.match(/Таблет\s*\([^)]+\)/i) || worker.match(/Таблет\s*\([^)]+\)/i);
   if (sourceMatch) source = sourceMatch[0].replace(/^таблет/i, "Таблет");

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
 import { COMPLETE_PERIOD, INCOMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, dashboardTrust, trustConfirmedLine } from "@/lib/honestDashboard";
 import { gradeGuide } from "@/lib/gradeGuide";
+import { itemPurchaseLine, itemReasonsLine } from "@/lib/dashboardFactsBlock";
 
 type Grade = {
   ingredient_id: string;
@@ -337,19 +338,14 @@ export default function DataGradePanel({
                   </span>
                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
                 </div>
-                     <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).filter((r) => !(row.measured_from && r.startsWith("Хэмжсэн:"))).join(". ")}</p>
+                     <p className="text-xs text-zinc-400 mt-1">{itemReasonsLine(row)}</p>
                 {row.measured_from && (
                   <p className="text-xs text-amber-200/90 mt-1">
                     Хэмжсэн: {monthDay(row.measured_from)} – {monthDay(row.measured_until || row.measured_from)}
                   </p>
                 )}
                 <p className="text-xs text-zinc-500 mt-1">
-                  Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮
-                  {row.measured_from
-                    ? `. Хэмжсэн хугацааны бодит өртөг ${Math.round(row.actual_money || 0).toLocaleString()}₮.`
-                    : row.gap_money == null
-                      ? ". Өртөгт оруулаагүй."
-                      : `. Зөрүү ${money(row.gap_money)}.`}
+                  {itemPurchaseLine(row)}
                 </p>
                 {guideBlock(row)}
               </div>
@@ -378,7 +374,7 @@ export default function DataGradePanel({
                 </div>
                 <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).join(". ")}</p>
                 {guideBlock(row)}
-                <p className="text-xs text-zinc-500 mt-1">Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮. Өртөгт оруулаагүй.</p>
+                <p className="text-xs text-zinc-500 mt-1">{itemPurchaseLine({ ...row, measured_from: null, gap_money: null })}</p>
               </div>
             ))}
           </div>

@@ -119,6 +119,8 @@ export async function runToolAgent(opts: {
   /** Drop model lines whose numbers contradict or restate the leading block. */
   numberGuard?: (modelText: string) => string;
   modelTimeoutMs?: number;
+  /** Skip thinkingConfig so short advice calls start faster. */
+  disableThinking?: boolean;
 }): Promise<ReadableStream> {
   const encoder = new TextEncoder();
 
@@ -169,7 +171,7 @@ export async function runToolAgent(opts: {
         const proposalCards: unknown[] = [];
         let finalText = "";
         let streamed = false;
-        let useThinking = true;
+        let useThinking = !opts.disableThinking;
         let attemptSent = false;
 
         const readModel = async (thinking: boolean) => {
@@ -244,7 +246,7 @@ export async function runToolAgent(opts: {
         };
 
         const modelTimeoutMs = opts.modelTimeoutMs || 0;
-        const retryTimeoutMs = modelTimeoutMs ? Math.min(8000, modelTimeoutMs) : 0;
+        const retryTimeoutMs = modelTimeoutMs ? Math.min(15000, Math.max(8000, Math.round(modelTimeoutMs / 2))) : 0;
         const modelFailReason = (err: unknown) => {
           if (err instanceof Error && err.message === "MODEL_TIMEOUT") return "MODEL_TIMEOUT";
           if (err instanceof Error) return err.message || err.name || "Error";

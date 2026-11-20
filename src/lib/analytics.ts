@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { analyticsPeriod, ubDay } from './ubDate';
 import { buildDataTrust } from './honestDashboard';
-import { cleanLogNotes, displayUnit, logTypeLabel, staffDisplayName, wasteBucket } from './shiftCycle';
+import { addWasteLog, cleanLogNotes, displayUnit, emptyWasteBuckets, isRealWasteLog, logTypeLabel, staffDisplayName } from './shiftCycle';
 import { sortLogsNewestFirst } from './logSort';
 import { formatUbTime } from './formatUbTime';
 import { assemblePhase4 } from './phase4';
@@ -690,16 +690,16 @@ for (const key in master) {
     const qty = Math.abs(parseFloat(log.quantity)) || 0;
     const logDate = log.date ? ubDay(log.date) : '';
 
-    if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
-    if (log.incident_type === 'unexplained_gap') return;
+    if (!isRealWasteLog(log)) return;
     if (logDate < startDay || logDate > endDay) return;
 
-    const bucket = wasteBucket(log.type, log.notes);
-    if (bucket === 'spoilage') loggedEvents[nameKey].spoilage += qty;
-    else if (bucket === 'spill') loggedEvents[nameKey].spill += qty;
-    else if (bucket === 'testing') loggedEvents[nameKey].testing += qty;
-    else if (bucket === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
-    else loggedEvents[nameKey].other += qty;
+    const buckets = emptyWasteBuckets();
+    addWasteLog(buckets, log);
+    loggedEvents[nameKey].spoilage += buckets.spoilage;
+    loggedEvents[nameKey].spill += buckets.spill;
+    loggedEvents[nameKey].testing += buckets.testing;
+    loggedEvents[nameKey].staff_meal += buckets.staff_meal;
+    loggedEvents[nameKey].other += buckets.other;
 
     if (log.notes && log.notes !== `${log.type} logged manually`) {
       loggedEvents[nameKey].notes.push(log.notes);
@@ -750,34 +750,23 @@ for (const key in master) {
     const weightedForMoney = weightedPrice || m.unit_price || 0;
     const grade: any = gradeIngredient(m, startDay, countEndDay, weightedForMoney);
     if (!grade) continue;
-    let wasteSpoilage = 0;
-    let wasteSpill = 0;
-    let wasteTesting = 0;
-    let wasteStaffMeal = 0;
-    let wasteOther = 0;
+    const waste = emptyWasteBuckets();
     for (const log of rawInventoryLogs || []) {
       if (log.ingredient_id !== m.id || !log.date) continue;
-      if (log.incident_type === "unexplained_gap") continue;
       const day = ubDay(log.date);
       if (day < startDay || day > endDay) continue;
-      const amount = Math.abs(Number(log.quantity) || 0);
-      const bucket = wasteBucket(log.type, log.notes);
-      if (bucket === "spoilage") wasteSpoilage += amount;
-      else if (bucket === "spill") wasteSpill += amount;
-      else if (bucket === "testing") wasteTesting += amount;
-      else if (bucket === "staff_meal") wasteStaffMeal += amount;
-      else if (log.type === "other" || bucket === "other") wasteOther += amount;
+      addWasteLog(waste, log, m.id);
     }
     grade.has_start = Boolean(m.has_start);
     grade.has_end = Boolean(m.has_end);
     grade.start_qty = m.has_start ? Number(m.start) : null;
     grade.end_qty = m.has_end ? Number(m.end) : null;
     grade.purchased_qty = Number(m.purchased) || 0;
-    grade.waste_spoilage = wasteSpoilage;
-    grade.waste_spill = wasteSpill;
-    grade.waste_testing = wasteTesting;
-    grade.waste_staff_meal = wasteStaffMeal;
-    grade.waste_other = wasteOther;
+    grade.waste_spoilage = waste.spoilage;
+    grade.waste_spill = waste.spill;
+    grade.waste_testing = waste.testing;
+    grade.waste_staff_meal = waste.staff_meal;
+    grade.waste_other = waste.other;
     grade.unit_price = weightedForMoney;
     grade.price = weightedForMoney;
     grades.push(grade);

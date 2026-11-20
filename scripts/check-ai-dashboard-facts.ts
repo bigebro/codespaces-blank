@@ -5,6 +5,7 @@ import {
   officialNumberTokens,
   renderItemFactsBlock,
   renderOverviewFactsBlock,
+  sanitizeItemAdvice,
   stripAllItemBoardTotals,
   stripContradictingNumberLines,
 } from "../src/lib/dashboardFactsBlock";
@@ -31,6 +32,8 @@ const milk = {
   waste_testing: 1200,
   waste_staff_meal: 0,
   waste_other: 0,
+  purchase_value: 0,
+  reasons: [],
 };
 
 const facts = itemVarianceFacts(milk);
@@ -62,6 +65,7 @@ assert.doesNotMatch(serverBlock, /Тайлбаргүй зөрүү 0/);
 assert.doesNotMatch(serverBlock, /Самбарын тоо/);
 assert.doesNotMatch(serverBlock, /Баталгаажсан барааны/);
 assert.doesNotMatch(serverBlock, /2100/);
+assert.match(serverBlock, /Худалдан авалт 0₮/);
 
 const aiLines = gradeFactLines([milk]);
 assert.equal(aiLines.includes(dashboard), true);
@@ -138,6 +142,8 @@ const milkUnknownEnd = {
   waste_other: 0,
   unexplained_event_qty: 3800,
   unexplained_event_money: 19000,
+  purchase_value: 0,
+  reasons: ["2026-11-30-нд эсвэл түүнээс хойш тооллого алга"],
 };
 const unknownFacts = itemVarianceFacts(milkUnknownEnd);
 assert.equal(unknownFacts.hasEnd, false);
@@ -165,6 +171,16 @@ assert.match(unknownBlock, /19,000₮/);
 assert.doesNotMatch(unknownBlock, /Самбарын тоо/);
 assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны/);
 assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны тайлбаргүй зөрүү/);
+assert.match(unknownBlock, /2026-11-30-нд эсвэл түүнээс хойш тооллого алга/);
+assert.match(unknownBlock, /Худалдан авалт 0₮\. Өртөгт оруулаагүй\./);
+assert.match(unknownBlock, /1\. Таблет дээр энэ барааг одоо тоол/);
+assert.match(unknownBlock, /2\. /);
+assert.match(unknownBlock, /3\. /);
+
+const coda = "Сүүний орлого болон зарцуулалтын зөрүүг нягтлах хэрэгтэй. Энэ нь бизнесийн үрэлгэн байдлыг багасгана.";
+assert.equal(sanitizeItemAdvice(coda), "");
+assert.equal(sanitizeItemAdvice("Жорын нэг порцыг шалга."), "Жорын нэг порцыг шалга.");
+assert.equal(sanitizeItemAdvice("Хаягдал 2400 мл байна."), "");
 
 const overview = renderOverviewFactsBlock({
   financial_ladder: { revenue: 0, actual_cogs: 0, theo_cogs: 0, verified_gap: 0, data_trust: { grades: [] } },

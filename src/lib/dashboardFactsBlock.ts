@@ -1,4 +1,4 @@
-import { dashboardItemFactsText, gradeFactLines, itemVarianceFacts, type GradeGuideInput } from "@/lib/gradeGuide";
+import { dashboardItemFactsText, gradeFactLines, gradeGuide, itemVarianceFacts, type GradeGuideInput } from "@/lib/gradeGuide";
 import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
 import { itemDisplayName, localizedItemName } from "@/lib/itemDisplayName";
 
@@ -7,6 +7,9 @@ export type GradeRow = GradeGuideInput & {
   unit_price?: number;
   price?: number;
   status?: string;
+  purchase_value?: number | null;
+  actual_money?: number | null;
+  reasons?: string[];
 };
 
 function money(value: number | null | undefined) {
@@ -31,6 +34,24 @@ export function unexplainedMoney(row: GradeRow) {
   return v.unexplainedQty * price;
 }
 
+export function itemReasonsLine(row: GradeRow): string {
+  return (row.reasons || [])
+    .filter((reason) => !(row.measured_from && String(reason).startsWith("Хэмжсэн:")))
+    .join(". ");
+}
+
+/** Самбарын «Худалдан авалт …₮» мөртэй ижил өгүүлбэр. */
+export function itemPurchaseLine(row: GradeRow): string {
+  const purchase = `Худалдан авалт ${Math.round(Number(row.purchase_value || 0)).toLocaleString("en-US")}₮`;
+  if (row.measured_from) {
+    const actual = Number(row.actual_money);
+    const actualText = Number.isFinite(actual) ? Math.round(actual).toLocaleString("en-US") : "—";
+    return `${purchase}. Хэмжсэн хугацааны бодит өртөг ${actualText}₮.`;
+  }
+  if (row.gap_money == null) return `${purchase}. Өртөгт оруулаагүй.`;
+  return `${purchase}. Зөрүү ${money(Number(row.gap_money))}.`;
+}
+
 /** Самбарын барааны картыг сервер дээр бэлэн текст болгоно. Загварчлалгүй, тоо таамаглахгүй. */
 export function renderItemFactsBlock(row: GradeRow): string {
   const name = String(row?.name || "").trim() || "Нэргүй бараа";
@@ -38,15 +59,38 @@ export function renderItemFactsBlock(row: GradeRow): string {
   const v = itemVarianceFacts(row);
   const unitText = v.unitText;
   const unexplainedMnt = unexplainedMoney(row);
+  const guide = gradeGuide(row);
   const lines = [
     `${name} (${status})`,
+    itemReasonsLine(row),
+    itemPurchaseLine(row),
     dashboardItemFactsText(row),
   ];
   if (v.unexplainedQty != null && v.unexplainedQty > 0.05 && unexplainedMnt != null) {
     const extra = `Тайлбаргүй зөрүү ${qty(v.unexplainedQty, unitText)} / ${money(unexplainedMnt)}.`;
-    if (!lines[1].includes(String(Math.round(Math.abs(unexplainedMnt))))) lines.push(extra);
+    const joined = lines.join("\n");
+    if (!joined.includes(String(Math.round(Math.abs(unexplainedMnt))))) lines.push(extra);
   }
-  return lines.filter(Boolean).join("\n");
+  for (let i = 0; i < guide.steps.length; i++) {
+    lines.push(`${i + 1}. ${guide.steps[i]}`);
+  }
+  return lines.filter((line) => Boolean(line && String(line).trim())).join("\n");
+}
+
+/**
+ * Нэг барааны зөвлөмжийг нэг богино өгүүлбэрт үлдээнэ.
+ * Тоо, самбарын нийт дүн, бизнесийн өргөн мэдэгдэл хасна.
+ */
+export function sanitizeItemAdvice(modelText: string): string {
+  const raw = String(modelText || "").replace(/\n{2,}/g, "\n").trim();
+  if (!raw) return "";
+  if (/бизнес|үрэлгэн|компани|байгууллага|нийт дүн|самбарын тоо/i.test(raw)) return "";
+  const first = raw.match(/^[^\n.?!]+[.?!]?/);
+  const s = (first ? first[0] : raw.split("\n")[0] || "").trim();
+  if (!s) return "";
+  if (/[0-9]/.test(s.replace(/₮/g, ""))) return "";
+  if (s.length > 180) return "";
+  return s;
 }
 
 /** Нэг барааны хариултаас самбарын нийт дүн, бүх барааны мөрийг хасна. */

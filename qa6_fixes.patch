@@ -1,0 +1,482 @@
+diff --git a/scripts/check-ai-dashboard-facts.ts b/scripts/check-ai-dashboard-facts.ts
+index 59b9aae..55c94a5 100644
+--- a/scripts/check-ai-dashboard-facts.ts
++++ b/scripts/check-ai-dashboard-facts.ts
+@@ -5,6 +5,7 @@ import {
+   officialNumberTokens,
+   renderItemFactsBlock,
+   renderOverviewFactsBlock,
++  sanitizeItemAdvice,
+   stripAllItemBoardTotals,
+   stripContradictingNumberLines,
+ } from "../src/lib/dashboardFactsBlock";
+@@ -31,6 +32,8 @@ const milk = {
+   waste_testing: 1200,
+   waste_staff_meal: 0,
+   waste_other: 0,
++  purchase_value: 0,
++  reasons: [],
+ };
+ 
+ const facts = itemVarianceFacts(milk);
+@@ -62,6 +65,7 @@ assert.doesNotMatch(serverBlock, /Тайлбаргүй зөрүү 0/);
+ assert.doesNotMatch(serverBlock, /Самбарын тоо/);
+ assert.doesNotMatch(serverBlock, /Баталгаажсан барааны/);
+ assert.doesNotMatch(serverBlock, /2100/);
++assert.match(serverBlock, /Худалдан авалт 0₮/);
+ 
+ const aiLines = gradeFactLines([milk]);
+ assert.equal(aiLines.includes(dashboard), true);
+@@ -138,6 +142,8 @@ const milkUnknownEnd = {
+   waste_other: 0,
+   unexplained_event_qty: 3800,
+   unexplained_event_money: 19000,
++  purchase_value: 0,
++  reasons: ["2026-11-30-нд эсвэл түүнээс хойш тооллого алга"],
+ };
+ const unknownFacts = itemVarianceFacts(milkUnknownEnd);
+ assert.equal(unknownFacts.hasEnd, false);
+@@ -165,6 +171,16 @@ assert.match(unknownBlock, /19,000₮/);
+ assert.doesNotMatch(unknownBlock, /Самбарын тоо/);
+ assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны/);
+ assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны тайлбаргүй зөрүү/);
++assert.match(unknownBlock, /2026-11-30-нд эсвэл түүнээс хойш тооллого алга/);
++assert.match(unknownBlock, /Худалдан авалт 0₮\. Өртөгт оруулаагүй\./);
++assert.match(unknownBlock, /1\. Таблет дээр энэ барааг одоо тоол/);
++assert.match(unknownBlock, /2\. /);
++assert.match(unknownBlock, /3\. /);
++
++const coda = "Сүүний орлого болон зарцуулалтын зөрүүг нягтлах хэрэгтэй. Энэ нь бизнесийн үрэлгэн байдлыг багасгана.";
++assert.equal(sanitizeItemAdvice(coda), "");
++assert.equal(sanitizeItemAdvice("Жорын нэг порцыг шалга."), "Жорын нэг порцыг шалга.");
++assert.equal(sanitizeItemAdvice("Хаягдал 2400 мл байна."), "");
+ 
+ const overview = renderOverviewFactsBlock({
+   financial_ladder: { revenue: 0, actual_cogs: 0, theo_cogs: 0, verified_gap: 0, data_trust: { grades: [] } },
+diff --git a/scripts/check-waste-labels.ts b/scripts/check-waste-labels.ts
+index b2b2e54..e9e2269 100644
+--- a/scripts/check-waste-labels.ts
++++ b/scripts/check-waste-labels.ts
+@@ -1,5 +1,5 @@
+ import assert from "node:assert/strict";
+-import { cleanLogNotes, displaySourceNote, logTypeLabel, staffDisplayName, tabletSourceNote, wasteBucket, wasteFeedDetail, wasteReasonLabel } from "../src/lib/shiftCycle";
++import { addWasteLog, cleanLogNotes, displaySourceNote, emptyWasteBuckets, logTypeLabel, staffDisplayName, tabletSourceNote, wasteBucket, wasteFeedDetail, wasteLoggedTotal, wasteReasonLabel } from "../src/lib/shiftCycle";
+ import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
+ 
+ assert.equal(logTypeLabel("TESTING"), "Туршилт");
+@@ -41,4 +41,51 @@ assert.equal(wasteReasonLabel("spoilage", "Асгарсан"), "Асгарсан
+ assert.equal(logTypeLabel("spoilage", "Асгарсан"), "Асгарсан/Алдаа");
+ assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан/Алдаа");
+ assert.equal(wasteFeedDetail({ type: "other", notes: "Бусад", worker: "Анхтуул" }), "Таблет (Хаягдал) · Бусад");
++assert.equal(
++  wasteFeedDetail({ type: "spoilage", notes: "Сүү 100 мл асгарсан (🧠 Суралцсан үг)", worker: "staff (TEST Бариста)" }),
++  "Таблет (Хаягдал) · Асгарсан/Алдаа",
++);
++assert.equal(
++  wasteFeedDetail({ type: "spoilage", notes: "200 мл сүү асгарсан", worker: "staff (TEST Бариста)" }),
++  "Таблет (Хаягдал) · Асгарсан/Алдаа",
++);
++assert.equal(
++  wasteFeedDetail({ type: "other", notes: "Бусад", worker: "staff (TEST Бариста)" }),
++  "Таблет (Хаягдал) · Бусад",
++);
++assert.equal(
++  wasteFeedDetail({ type: "other", notes: "", worker: "TEST Бариста" }),
++  "Таблет (Хаягдал) · Бусад",
++);
++
++// qa6 regression: milk counts (10000+14000+17800=41800) must not enter Бусад.
++const milkId = "milk-1";
++const coffeeId = "coffee-1";
++const cupId = "cup-1";
++const logs = [
++  { ingredient_id: milkId, type: "count", incident_type: "normal", quantity: 10000, notes: "Бөөнөөр Тоолсон Үлдэгдэл (start)" },
++  { ingredient_id: milkId, type: "count", incident_type: "opening_recount", quantity: 14000, notes: "Ээлж нээх тооллого" },
++  { ingredient_id: milkId, type: "count", incident_type: "daily_cycle_count", quantity: 17800, notes: "Ээлж хаалтын тооллого" },
++  { ingredient_id: milkId, type: "count", incident_type: "daily_cycle_count", quantity: 4300, notes: "Ээлж хаалтын тооллого 4300" },
++  { ingredient_id: milkId, type: "other", incident_type: "unexplained_gap", quantity: 3800, notes: "Тайлбаргүй зөрүү" },
++  { ingredient_id: milkId, type: "spoilage", notes: "Kiosk (Хаягдал)", quantity: -100 },
++  { ingredient_id: milkId, type: "spoilage", notes: "Асгарсан", quantity: -1100 },
++  { ingredient_id: milkId, type: "testing", incident_type: "shift_waste", notes: "Туршилт", quantity: -1200 },
++  { ingredient_id: coffeeId, type: "count", quantity: 2000, notes: "start" },
++  { ingredient_id: coffeeId, type: "testing", notes: "Туршилт", quantity: -250 },
++  { ingredient_id: cupId, type: "count", quantity: 200, notes: "start" },
++  { ingredient_id: cupId, type: "testing", notes: "Туршилт", quantity: -25 },
++  { ingredient_id: cupId, type: "purchase", notes: "Таблет (Орлого)", quantity: 1 },
++];
++const buckets = emptyWasteBuckets();
++for (const log of logs) addWasteLog(buckets, log, milkId);
++assert.equal(buckets.spoilage, 100);
++assert.equal(buckets.spill, 1100);
++assert.equal(buckets.testing, 1200);
++assert.equal(buckets.staff_meal, 0);
++assert.equal(buckets.other, 0);
++assert.equal(wasteLoggedTotal(buckets), 2400);
++assert.notEqual(wasteLoggedTotal(buckets), 41800);
++assert.notEqual(wasteLoggedTotal(buckets), 44200);
++
+ console.log("waste and item label checks passed");
+diff --git a/src/ai/agents/cfo.agent.ts b/src/ai/agents/cfo.agent.ts
+index d50712e..82a5f66 100644
+--- a/src/ai/agents/cfo.agent.ts
++++ b/src/ai/agents/cfo.agent.ts
+@@ -12,6 +12,7 @@ import {
+   isGradeStatusQuestion,
+   renderItemFactsBlock,
+   renderOverviewFactsBlock,
++  sanitizeItemAdvice,
+   stripAllItemBoardTotals,
+   stripContradictingNumberLines,
+ } from "@/lib/dashboardFactsBlock";
+@@ -35,20 +36,27 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
+   const periodLine = overviewDateLine(overviewPeriod);
+ 
+   const official = { text: "", itemName: "" };
++  const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts;
+ 
+   if (factsFirst) {
+     return runToolAgent({
+       context,
+-      userMessage,
++      userMessage: overviewAdvice
++        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Хамгийн ихдээ хоёр богино зөвлөмж бич.`
++        : `${userMessage}\n\nСамбарын карт дээрх мөр, зөвлөмж хэрэглэгчид аль хэдийн харагдана. Тоо, бизнесийн өргөн мэдэгдэл бүү бич. Нэг богино өгүүлбэр, эсвэл хоосон.`,
+       disableTools: true,
+       historyLimit: 0,
+-      maxOutputTokens: 256,
+-      modelTimeoutMs: 15000,
++      maxOutputTokens: overviewAdvice ? 512 : 256,
++      modelTimeoutMs: overviewAdvice ? 25000 : 15000,
++      disableThinking: true,
+       tools: [],
+       preamble: "",
+       numberGuard: (modelText) => {
+         let cleaned = stripContradictingNumberLines(modelText, official.text, official.itemName);
+-        if (official.itemName) cleaned = stripAllItemBoardTotals(cleaned);
++        if (official.itemName) {
++          cleaned = stripAllItemBoardTotals(cleaned);
++          cleaned = sanitizeItemAdvice(cleaned);
++        }
+         return cleaned;
+       },
+       prepareLeadingText: async () => {
+@@ -67,7 +75,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
+       },
+       systemInstruction: `
+ You are the Operlink AI Chief Financial Officer for "${context.clientId}".
+-[ABSOLUTE CONSTRAINT: NO EMOJIS]. The user already sees the period's dashboard numbers above your reply. Do not repeat any figure, table, quantity, percent, or money amount. Do not write the item's start, end, waste, or unexplained gap again. Write at most two short Mongolian advice sentences. If you have nothing to add, write nothing.
++[ABSOLUTE CONSTRAINT: NO EMOJIS]. The user already sees the period's dashboard numbers and (for a single item) the card's date line, purchase line, facts and hint steps above your reply. Do not repeat any figure, table, quantity, percent, money amount, date line, purchase line, or hint bullet. Do not make business-wide claims. For a single item, write at most one short Mongolian sentence with no numbers, or write nothing. For a business overview, write at most two short Mongolian advice sentences with no invented numbers. If you have nothing to add, write nothing.
+ ${MN_BUSINESS_SPELLING_NOTE}
+ [TEMPORAL CONTEXT]: TODAY: ${currentIsoDate}. PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar).
+ `.trim(),
+diff --git a/src/ai/runtime/agentLoop.ts b/src/ai/runtime/agentLoop.ts
+index b5666e9..00dc20b 100644
+--- a/src/ai/runtime/agentLoop.ts
++++ b/src/ai/runtime/agentLoop.ts
+@@ -119,6 +119,8 @@ export async function runToolAgent(opts: {
+   /** Drop model lines whose numbers contradict or restate the leading block. */
+   numberGuard?: (modelText: string) => string;
+   modelTimeoutMs?: number;
++  /** Skip thinkingConfig so short advice calls start faster. */
++  disableThinking?: boolean;
+ }): Promise<ReadableStream> {
+   const encoder = new TextEncoder();
+ 
+@@ -169,7 +171,7 @@ export async function runToolAgent(opts: {
+         const proposalCards: unknown[] = [];
+         let finalText = "";
+         let streamed = false;
+-        let useThinking = true;
++        let useThinking = !opts.disableThinking;
+         let attemptSent = false;
+ 
+         const readModel = async (thinking: boolean) => {
+@@ -244,7 +246,7 @@ export async function runToolAgent(opts: {
+         };
+ 
+         const modelTimeoutMs = opts.modelTimeoutMs || 0;
+-        const retryTimeoutMs = modelTimeoutMs ? Math.min(8000, modelTimeoutMs) : 0;
++        const retryTimeoutMs = modelTimeoutMs ? Math.min(15000, Math.max(8000, Math.round(modelTimeoutMs / 2))) : 0;
+         const modelFailReason = (err: unknown) => {
+           if (err instanceof Error && err.message === "MODEL_TIMEOUT") return "MODEL_TIMEOUT";
+           if (err instanceof Error) return err.message || err.name || "Error";
+diff --git a/src/features/finance/DataGradePanel.tsx b/src/features/finance/DataGradePanel.tsx
+index 1570b26..aa0e844 100644
+--- a/src/features/finance/DataGradePanel.tsx
++++ b/src/features/finance/DataGradePanel.tsx
+@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
+ import { ubDay } from "@/lib/ubDate";
+ import { COMPLETE_PERIOD, INCOMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, dashboardTrust, trustConfirmedLine } from "@/lib/honestDashboard";
+ import { gradeGuide } from "@/lib/gradeGuide";
++import { itemPurchaseLine, itemReasonsLine } from "@/lib/dashboardFactsBlock";
+ 
+ type Grade = {
+   ingredient_id: string;
+@@ -337,19 +338,14 @@ export default function DataGradePanel({
+                   </span>
+                   <span className="font-bold text-zinc-100 truncate">{row.name}</span>
+                 </div>
+-                     <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).filter((r) => !(row.measured_from && r.startsWith("Хэмжсэн:"))).join(". ")}</p>
++                     <p className="text-xs text-zinc-400 mt-1">{itemReasonsLine(row)}</p>
+                 {row.measured_from && (
+                   <p className="text-xs text-amber-200/90 mt-1">
+                     Хэмжсэн: {monthDay(row.measured_from)} – {monthDay(row.measured_until || row.measured_from)}
+                   </p>
+                 )}
+                 <p className="text-xs text-zinc-500 mt-1">
+-                  Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮
+-                  {row.measured_from
+-                    ? `. Хэмжсэн хугацааны бодит өртөг ${Math.round(row.actual_money || 0).toLocaleString()}₮.`
+-                    : row.gap_money == null
+-                      ? ". Өртөгт оруулаагүй."
+-                      : `. Зөрүү ${money(row.gap_money)}.`}
++                  {itemPurchaseLine(row)}
+                 </p>
+                 {guideBlock(row)}
+               </div>
+@@ -378,7 +374,7 @@ export default function DataGradePanel({
+                 </div>
+                 <p className="text-xs text-zinc-400 mt-1">{(row.reasons || []).join(". ")}</p>
+                 {guideBlock(row)}
+-                <p className="text-xs text-zinc-500 mt-1">Худалдан авалт {Math.round(row.purchase_value || 0).toLocaleString()}₮. Өртөгт оруулаагүй.</p>
++                <p className="text-xs text-zinc-500 mt-1">{itemPurchaseLine({ ...row, measured_from: null, gap_money: null })}</p>
+               </div>
+             ))}
+           </div>
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index 2b24d47..beb76bb 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabaseAdmin';
+ import { calculateMatchScore, transliterate } from './autoReconcile';
+ import { analyticsPeriod, ubDay } from './ubDate';
+ import { buildDataTrust } from './honestDashboard';
+-import { cleanLogNotes, displayUnit, logTypeLabel, staffDisplayName, wasteBucket } from './shiftCycle';
++import { addWasteLog, cleanLogNotes, displayUnit, emptyWasteBuckets, isRealWasteLog, logTypeLabel, staffDisplayName } from './shiftCycle';
+ import { sortLogsNewestFirst } from './logSort';
+ import { formatUbTime } from './formatUbTime';
+ import { assemblePhase4 } from './phase4';
+@@ -690,16 +690,16 @@ for (const key in master) {
+     const qty = Math.abs(parseFloat(log.quantity)) || 0;
+     const logDate = log.date ? ubDay(log.date) : '';
+ 
+-    if (log.type === 'count' || log.type === 'purchase' || log.type === 'sale') return;
+-    if (log.incident_type === 'unexplained_gap') return;
++    if (!isRealWasteLog(log)) return;
+     if (logDate < startDay || logDate > endDay) return;
+ 
+-    const bucket = wasteBucket(log.type, log.notes);
+-    if (bucket === 'spoilage') loggedEvents[nameKey].spoilage += qty;
+-    else if (bucket === 'spill') loggedEvents[nameKey].spill += qty;
+-    else if (bucket === 'testing') loggedEvents[nameKey].testing += qty;
+-    else if (bucket === 'staff_meal') loggedEvents[nameKey].staff_meal += qty;
+-    else loggedEvents[nameKey].other += qty;
++    const buckets = emptyWasteBuckets();
++    addWasteLog(buckets, log);
++    loggedEvents[nameKey].spoilage += buckets.spoilage;
++    loggedEvents[nameKey].spill += buckets.spill;
++    loggedEvents[nameKey].testing += buckets.testing;
++    loggedEvents[nameKey].staff_meal += buckets.staff_meal;
++    loggedEvents[nameKey].other += buckets.other;
+ 
+     if (log.notes && log.notes !== `${log.type} logged manually`) {
+       loggedEvents[nameKey].notes.push(log.notes);
+@@ -750,34 +750,23 @@ for (const key in master) {
+     const weightedForMoney = weightedPrice || m.unit_price || 0;
+     const grade: any = gradeIngredient(m, startDay, countEndDay, weightedForMoney);
+     if (!grade) continue;
+-    let wasteSpoilage = 0;
+-    let wasteSpill = 0;
+-    let wasteTesting = 0;
+-    let wasteStaffMeal = 0;
+-    let wasteOther = 0;
++    const waste = emptyWasteBuckets();
+     for (const log of rawInventoryLogs || []) {
+       if (log.ingredient_id !== m.id || !log.date) continue;
+-      if (log.incident_type === "unexplained_gap") continue;
+       const day = ubDay(log.date);
+       if (day < startDay || day > endDay) continue;
+-      const amount = Math.abs(Number(log.quantity) || 0);
+-      const bucket = wasteBucket(log.type, log.notes);
+-      if (bucket === "spoilage") wasteSpoilage += amount;
+-      else if (bucket === "spill") wasteSpill += amount;
+-      else if (bucket === "testing") wasteTesting += amount;
+-      else if (bucket === "staff_meal") wasteStaffMeal += amount;
+-      else if (log.type === "other" || bucket === "other") wasteOther += amount;
++      addWasteLog(waste, log, m.id);
+     }
+     grade.has_start = Boolean(m.has_start);
+     grade.has_end = Boolean(m.has_end);
+     grade.start_qty = m.has_start ? Number(m.start) : null;
+     grade.end_qty = m.has_end ? Number(m.end) : null;
+     grade.purchased_qty = Number(m.purchased) || 0;
+-    grade.waste_spoilage = wasteSpoilage;
+-    grade.waste_spill = wasteSpill;
+-    grade.waste_testing = wasteTesting;
+-    grade.waste_staff_meal = wasteStaffMeal;
+-    grade.waste_other = wasteOther;
++    grade.waste_spoilage = waste.spoilage;
++    grade.waste_spill = waste.spill;
++    grade.waste_testing = waste.testing;
++    grade.waste_staff_meal = waste.staff_meal;
++    grade.waste_other = waste.other;
+     grade.unit_price = weightedForMoney;
+     grade.price = weightedForMoney;
+     grades.push(grade);
+diff --git a/src/lib/dashboardFactsBlock.ts b/src/lib/dashboardFactsBlock.ts
+index 71dc0c3..049ff43 100644
+--- a/src/lib/dashboardFactsBlock.ts
++++ b/src/lib/dashboardFactsBlock.ts
+@@ -1,4 +1,4 @@
+-import { dashboardItemFactsText, gradeFactLines, itemVarianceFacts, type GradeGuideInput } from "@/lib/gradeGuide";
++import { dashboardItemFactsText, gradeFactLines, gradeGuide, itemVarianceFacts, type GradeGuideInput } from "@/lib/gradeGuide";
+ import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
+ import { itemDisplayName, localizedItemName } from "@/lib/itemDisplayName";
+ 
+@@ -7,6 +7,9 @@ export type GradeRow = GradeGuideInput & {
+   unit_price?: number;
+   price?: number;
+   status?: string;
++  purchase_value?: number | null;
++  actual_money?: number | null;
++  reasons?: string[];
+ };
+ 
+ function money(value: number | null | undefined) {
+@@ -31,6 +34,24 @@ export function unexplainedMoney(row: GradeRow) {
+   return v.unexplainedQty * price;
+ }
+ 
++export function itemReasonsLine(row: GradeRow): string {
++  return (row.reasons || [])
++    .filter((reason) => !(row.measured_from && String(reason).startsWith("Хэмжсэн:")))
++    .join(". ");
++}
++
++/** Самбарын «Худалдан авалт …₮» мөртэй ижил өгүүлбэр. */
++export function itemPurchaseLine(row: GradeRow): string {
++  const purchase = `Худалдан авалт ${Math.round(Number(row.purchase_value || 0)).toLocaleString("en-US")}₮`;
++  if (row.measured_from) {
++    const actual = Number(row.actual_money);
++    const actualText = Number.isFinite(actual) ? Math.round(actual).toLocaleString("en-US") : "—";
++    return `${purchase}. Хэмжсэн хугацааны бодит өртөг ${actualText}₮.`;
++  }
++  if (row.gap_money == null) return `${purchase}. Өртөгт оруулаагүй.`;
++  return `${purchase}. Зөрүү ${money(Number(row.gap_money))}.`;
++}
++
+ /** Самбарын барааны картыг сервер дээр бэлэн текст болгоно. Загварчлалгүй, тоо таамаглахгүй. */
+ export function renderItemFactsBlock(row: GradeRow): string {
+   const name = String(row?.name || "").trim() || "Нэргүй бараа";
+@@ -38,15 +59,38 @@ export function renderItemFactsBlock(row: GradeRow): string {
+   const v = itemVarianceFacts(row);
+   const unitText = v.unitText;
+   const unexplainedMnt = unexplainedMoney(row);
++  const guide = gradeGuide(row);
+   const lines = [
+     `${name} (${status})`,
++    itemReasonsLine(row),
++    itemPurchaseLine(row),
+     dashboardItemFactsText(row),
+   ];
+   if (v.unexplainedQty != null && v.unexplainedQty > 0.05 && unexplainedMnt != null) {
+     const extra = `Тайлбаргүй зөрүү ${qty(v.unexplainedQty, unitText)} / ${money(unexplainedMnt)}.`;
+-    if (!lines[1].includes(String(Math.round(Math.abs(unexplainedMnt))))) lines.push(extra);
++    const joined = lines.join("\n");
++    if (!joined.includes(String(Math.round(Math.abs(unexplainedMnt))))) lines.push(extra);
+   }
+-  return lines.filter(Boolean).join("\n");
++  for (let i = 0; i < guide.steps.length; i++) {
++    lines.push(`${i + 1}. ${guide.steps[i]}`);
++  }
++  return lines.filter((line) => Boolean(line && String(line).trim())).join("\n");
++}
++
++/**
++ * Нэг барааны зөвлөмжийг нэг богино өгүүлбэрт үлдээнэ.
++ * Тоо, самбарын нийт дүн, бизнесийн өргөн мэдэгдэл хасна.
++ */
++export function sanitizeItemAdvice(modelText: string): string {
++  const raw = String(modelText || "").replace(/\n{2,}/g, "\n").trim();
++  if (!raw) return "";
++  if (/бизнес|үрэлгэн|компани|байгууллага|нийт дүн|самбарын тоо/i.test(raw)) return "";
++  const first = raw.match(/^[^\n.?!]+[.?!]?/);
++  const s = (first ? first[0] : raw.split("\n")[0] || "").trim();
++  if (!s) return "";
++  if (/[0-9]/.test(s.replace(/₮/g, ""))) return "";
++  if (s.length > 180) return "";
++  return s;
+ }
+ 
+ /** Нэг барааны хариултаас самбарын нийт дүн, бүх барааны мөрийг хасна. */
+diff --git a/src/lib/shiftCycle.ts b/src/lib/shiftCycle.ts
+index bd6c6e2..8605e0b 100644
+--- a/src/lib/shiftCycle.ts
++++ b/src/lib/shiftCycle.ts
+@@ -60,6 +60,45 @@ export function notesPointToSpill(text?: string | null) {
+   return /асга|spill|spillage|алдаа|унагасан|унагаад|дахин\s*хий|remake|dropped/.test(t);
+ }
+ 
++const WASTE_TYPE_KEYS = new Set([
++  "spoilage", "spoil", "testing", "test", "staff_meal", "staffmeal", "other", "waste", "spill", "spilled",
++]);
++
++/** Тооллого, орлого, борлуулалт, тайлбаргүй зөрүүгийн мөр хаягдлын хувин руу орохгүй. */
++export function isRealWasteLog(log: { type?: string | null; incident_type?: string | null }): boolean {
++  if (String(log?.incident_type || "").toLowerCase() === "unexplained_gap") return false;
++  return WASTE_TYPE_KEYS.has(normalizeLogType(String(log?.type || "")));
++}
++
++export type WasteBuckets = {
++  spoilage: number;
++  spill: number;
++  testing: number;
++  staff_meal: number;
++  other: number;
++};
++
++export function emptyWasteBuckets(): WasteBuckets {
++  return { spoilage: 0, spill: 0, testing: 0, staff_meal: 0, other: 0 };
++}
++
++export function wasteLoggedTotal(buckets: WasteBuckets) {
++  return buckets.spoilage + buckets.spill + buckets.testing + buckets.staff_meal + buckets.other;
++}
++
++/** Зөвхөн энэ барааны жинхэнэ хаягдлыг хувингаар нэмнэ. Тооллого/орлогыг алгасна. */
++export function addWasteLog(
++  buckets: WasteBuckets,
++  log: { type?: string | null; notes?: string | null; incident_type?: string | null; quantity?: number | string | null; ingredient_id?: string | null },
++  ingredientId?: string | null,
++) {
++  if (ingredientId && log.ingredient_id && log.ingredient_id !== ingredientId) return;
++  if (!isRealWasteLog(log)) return;
++  const qty = Math.abs(Number(log.quantity) || 0);
++  if (!(qty > 0)) return;
++  buckets[wasteBucket(String(log.type || ""), log.notes)] += qty;
++}
++
+ export function wasteBucket(type: string, notes?: string | null): WasteBucket {
+   const key = normalizeLogType(type);
+   if (key === "testing" || key === "test") return "testing";
+@@ -143,13 +182,19 @@ export function wasteFeedDetail(log: { type?: string; notes?: string | null; wor
+   const notes = cleanLogNotes(log.notes || "");
+   const reason = wasteReasonLabel(String(log.type || ""), notes);
+   const worker = displaySourceNote(log.worker || "");
++  const otherSource =
++    /dashboard|самбар|бөөн|импорт|excel/i.test(notes) ||
++    /dashboard|самбар|бөөн|импорт|excel/i.test(worker);
+   const looksTablet =
+     /таблет/i.test(notes) ||
+     /таблет/i.test(worker) ||
+     /\(Хаягдал\)/i.test(notes) ||
+     /\(Хаягдал\)/i.test(worker) ||
++    /\(Орлого\)/i.test(notes) ||
+     TABLET_REASON_NOTES.has(notes) ||
+-    /^Таблет\s*\(/i.test(notes);
++    /^Таблет\s*\(/i.test(notes) ||
++    notesPointToSpill(notes) ||
++    (isWasteType(String(log.type || "")) && !otherSource);
+   let source = "";
+   const sourceMatch = notes.match(/Таблет\s*\([^)]+\)/i) || worker.match(/Таблет\s*\([^)]+\)/i);
+   if (sourceMatch) source = sourceMatch[0].replace(/^таблет/i, "Таблет");

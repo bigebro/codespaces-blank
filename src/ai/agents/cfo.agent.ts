@@ -12,6 +12,7 @@ import {
   isGradeStatusQuestion,
   renderItemFactsBlock,
   renderOverviewFactsBlock,
+  sanitizeItemAdvice,
   stripAllItemBoardTotals,
   stripContradictingNumberLines,
 } from "@/lib/dashboardFactsBlock";
@@ -35,20 +36,27 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
   const periodLine = overviewDateLine(overviewPeriod);
 
   const official = { text: "", itemName: "" };
+  const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts;
 
   if (factsFirst) {
     return runToolAgent({
       context,
-      userMessage,
+      userMessage: overviewAdvice
+        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Хамгийн ихдээ хоёр богино зөвлөмж бич.`
+        : `${userMessage}\n\nСамбарын карт дээрх мөр, зөвлөмж хэрэглэгчид аль хэдийн харагдана. Тоо, бизнесийн өргөн мэдэгдэл бүү бич. Нэг богино өгүүлбэр, эсвэл хоосон.`,
       disableTools: true,
       historyLimit: 0,
-      maxOutputTokens: 256,
-      modelTimeoutMs: 15000,
+      maxOutputTokens: overviewAdvice ? 512 : 256,
+      modelTimeoutMs: overviewAdvice ? 25000 : 15000,
+      disableThinking: true,
       tools: [],
       preamble: "",
       numberGuard: (modelText) => {
         let cleaned = stripContradictingNumberLines(modelText, official.text, official.itemName);
-        if (official.itemName) cleaned = stripAllItemBoardTotals(cleaned);
+        if (official.itemName) {
+          cleaned = stripAllItemBoardTotals(cleaned);
+          cleaned = sanitizeItemAdvice(cleaned);
+        }
         return cleaned;
       },
       prepareLeadingText: async () => {
@@ -67,7 +75,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       },
       systemInstruction: `
 You are the Operlink AI Chief Financial Officer for "${context.clientId}".
-[ABSOLUTE CONSTRAINT: NO EMOJIS]. The user already sees the period's dashboard numbers above your reply. Do not repeat any figure, table, quantity, percent, or money amount. Do not write the item's start, end, waste, or unexplained gap again. Write at most two short Mongolian advice sentences. If you have nothing to add, write nothing.
+[ABSOLUTE CONSTRAINT: NO EMOJIS]. The user already sees the period's dashboard numbers and (for a single item) the card's date line, purchase line, facts and hint steps above your reply. Do not repeat any figure, table, quantity, percent, money amount, date line, purchase line, or hint bullet. Do not make business-wide claims. For a single item, write at most one short Mongolian sentence with no numbers, or write nothing. For a business overview, write at most two short Mongolian advice sentences with no invented numbers. If you have nothing to add, write nothing.
 ${MN_BUSINESS_SPELLING_NOTE}
 [TEMPORAL CONTEXT]: TODAY: ${currentIsoDate}. PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar).
 `.trim(),
