@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { isOverviewQuestion } from "../src/ai/agents/overview";
 import { createPeriodPrefixGate, ensureSinglePeriodPrefix, resolveOverviewPeriod, stripStrayTodayHeadings } from "../src/lib/overviewPeriod";
 import { currentWeekBounds, monthEndDay, monthStartDay, ubDayEndIso, ubDayStartIso } from "../src/lib/ubDate";
 
@@ -104,4 +105,7 @@ assert.equal(monthGate.flush(), "");
 
 const overviewSrc = require("node:fs").readFileSync("src/ai/agents/overview.ts", "utf8");
 assert.match(overviewSrc, /Сонгосон хугацаа өнөөдөр биш бол/);
+
+assert.equal(isOverviewQuestion("Өчигдөр юу болсон бэ?"), true);
+assert.equal(isOverviewQuestion("Сүү яагаад шалгах гэж байна?"), false);
 console.log("overview period checks passed");

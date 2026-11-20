@@ -13,6 +13,7 @@ import {
   trustEstimateDisplay,
   trustTone,
   unlockLine,
+  purchasePctLabel,
 } from "../src/lib/honestDashboard";
 
 const grades = [
@@ -25,6 +26,7 @@ const grades = [
 
 const summary = summarizeTrust({ grades });
 assert.equal(summary.purchase_pct, 80);
+assert.equal(purchasePctLabel(summary), "80%");
 assert.equal(summary.meter, "Үнэн зөв байдал: 40%");
 assert.equal(summary.counts, "2 бараа дутуу, 1 бараа шалгах");
 assert.equal(summary.missing, 2);
@@ -61,6 +63,16 @@ assert.equal(gradesWin.verified, 0);
 assert.equal(gradesWin.check, 3);
 assert.equal(gradesWin.estimate, "Тооцоолсон, 3 бараанаас 0 баталгаажсан, 3 ажил үлдсэн");
 assert.equal(gradesWin.counts, "0 бараа дутуу, 3 бараа шалгах");
+
+
+const noPurchase = summarizeTrust({
+  grades: [
+    { name: "Сүү", status: "Verified", purchase_value: 0 },
+    { name: "Кофе", status: "Check", purchase_value: 0 },
+  ],
+});
+assert.equal(noPurchase.has_purchase_value, false);
+assert.equal(purchasePctLabel(noPurchase), "—");
 
 assert.equal(TRUST_PENDING_LINE, "—");
 assert.equal(isTrustReady(null), false);
@@ -155,7 +167,7 @@ assert.match(overview, /buildOverviewSnapshot/);
 assert.match(overview, /overviewDateLine/);
 
 const cfo = readFileSync("src/ai/agents/cfo.agent.ts", "utf8");
-assert.match(cfo, /preamble: wantsOverview/);
+assert.match(cfo, /preamble: `\$\{overviewDateLine\(overviewPeriod\)\}/);
 assert.match(cfo, /resolveOverviewPeriod/);
 assert.match(cfo, /MN_BUSINESS_SPELLING_NOTE/);
 assert.match(cfo, /overviewDateLine\(overviewPeriod\)/);

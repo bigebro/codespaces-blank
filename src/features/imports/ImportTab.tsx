@@ -95,6 +95,12 @@ export default function ImportTab({
   const [activeSampleModal, setActiveSampleModal] = useState<string | null>(
     null,
   );
+  const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const openTemplate = (kind: string) => {
+    setActiveSampleModal(kind);
+    setTemplateNotice("Загварыг дэлгэцэн дээр харууллаа.");
+    window.setTimeout(() => setTemplateNotice(null), 3500);
+  };
 
   const existingKitchenCount = inventoryLogs.filter((l) => {
     if (
@@ -188,7 +194,7 @@ export default function ImportTab({
       .replace(/[\u00a0\s]+/g, " ")
       .trim();
   }
-  // 1. Олон сул зай, tab-ийг автоматаар 1 зай болгож цэвэрлэх ("Caffe   Latte" -> "Caffe Latte")
+  // 1. Олон сул зай, tab-ийг автоматаар 1 зай болгож цэвэрлэх ("Caffe   Latte" -> "Кафе латте")
   const cleanCell = (str: string) =>
     (str || "").replace(/[\u00a0\s]+/g, " ").trim();
   // ⚡ МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
@@ -615,7 +621,7 @@ export default function ImportTab({
                     productName: posItem.name,
                     type: "NAME_MERGE",
                     oldName: posItem.name, // ПОС дээрх нэр: "americo"
-                    newName: `${targetProd.name} (AI таасан 🤖)`, // Үндсэн цэс: "Americano"
+                    newName: `${targetProd.name} (AI таасан 🤖)`, // Үндсэн цэс: "Американо"
                     oldPrice: oldPrice,
                     newPrice: newPrice,
                     oldCategory: targetProd.category || "General",
@@ -1690,7 +1696,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             </div>
             <button
               type="button"
-              onClick={() => setActiveSampleModal("sales")}
+              onClick={() => openTemplate("sales")}
               className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg cursor-pointer"
             >
               Загвар харах
@@ -1742,7 +1748,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               rows={8}
               value={salesPasteText}
               onChange={(e) => setSalesPasteText(e.target.value)}
-              placeholder="Жишээ:&#10;Caffe Latte&#9;34&#10;Tiramisu&#9;62"
+              placeholder="Жишээ:&#10;Кафе латте&#9;34&#10;Тирамису&#9;62"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:border-zinc-700"
             />
 
@@ -1792,7 +1798,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             </div>
             <button
               type="button"
-              onClick={() => setActiveSampleModal("purchases")}
+              onClick={() => openTemplate("purchases")}
               className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg cursor-pointer"
             >
               Загвар харах
@@ -1842,7 +1848,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               rows={8}
               value={purchasePasteText}
               onChange={(e) => setPurchasePasteText(e.target.value)}
-              placeholder="Жишээ:&#10;Milk&#9;10000&#9;58000"
+              placeholder="Жишээ:&#10;Сүү&#9;10000&#9;58000"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:border-zinc-700"
             />
 
@@ -1891,7 +1897,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             {/*  ЗАГВАР ХАРАХ ТОВЧ */}
             <button
               type="button"
-              onClick={() => setActiveSampleModal("audit")}
+              onClick={() => openTemplate("audit")}
               className="text-xs font-bold text-zinc-300 hover:bg-zinc-700 hover:text-white bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
             >
               Загвар харах
@@ -1921,10 +1927,12 @@ if (cols.length === 2 && costIdx > qtyIdx) {
   </label>
   <input
     type="date"
+    lang="en-CA"
     value={auditDate}
     onChange={(e) => setAuditDate(e.target.value)}
     className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-500 rounded-xl px-3 py-2 text-sm text-zinc-100 font-semibold outline-none transition-colors cursor-pointer [color-scheme:dark]"
   />
+  <p className="text-[11px] text-zinc-500 mt-1 font-mono">{auditDate || "YYYY-MM-DD"}</p>
 </div>
           <div>
   <label className="block text-xs font-medium text-zinc-500 mb-1.5 uppercase tracking-wider">
@@ -1962,7 +1970,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               rows={8}
               value={inventoryPasteText}
               onChange={(e) => setInventoryPasteText(e.target.value)}
-              placeholder="Жишээ:&#10;Matcha powder&#9;41.9&#10;Eggs&#9;5&#10;Hazelnut syrup&#9;833.9"
+              placeholder="Жишээ:&#10;Матча нунтаг&#9;41.9&#10;Өндөг&#9;5&#10;Самар сироп&#9;833.9"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700 leading-normal"
             />
 
@@ -2003,7 +2011,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
             <button
               type="button"
-              onClick={() => setActiveSampleModal("kitchen")}
+              onClick={() => openTemplate("kitchen")}
               className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
             >
               Загвар харах
@@ -2051,7 +2059,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               rows={6}
               value={kitchenPasteText}
               onChange={(e) => setKitchenPasteText(e.target.value)}
-              placeholder="Жишээ:&#10;2026-06-04&#9;Spoilage&#9;Whipped cream&#9;500&#9;Асгарч муудсан"
+              placeholder="Жишээ:&#10;2026-06-04&#9;spoilage&#9;Цөцгийн крем&#9;500&#9;Асгарч муудсан"
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-rose-500 leading-normal"
             />
 
@@ -2095,7 +2103,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
                 <button
                   type="button"
-                  onClick={() => setActiveSampleModal("ingredients")}
+                  onClick={() => openTemplate("ingredients")}
                   className="text-xs hover:bg-zinc-700 hover:text-whitetext-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
                   Загвар харах
@@ -2120,7 +2128,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   rows={6}
                   value={ingredientsPasteText}
                   onChange={(e) => setIngredientsPasteText(e.target.value)}
-                  placeholder="Жишээ:&#10;Milk&#9;ml&#9;5.8&#9;20000&#10;Beans&#9;gram&#9;85&#9;5000"
+                  placeholder="Жишээ:&#10;Сүү&#9;мл&#9;5.8&#9;20000&#10;Кофе үр&#9;гр&#9;85&#9;5000"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700"
                 />
                 <button
@@ -2146,7 +2154,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
                 <button
                   type="button"
-                  onClick={() => setActiveSampleModal("recipes")}
+                  onClick={() => openTemplate("recipes")}
                   className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
                   Загвар харах
@@ -2169,7 +2177,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   rows={6}
                   value={recipesPasteText}
                   onChange={(e) => setRecipesPasteText(e.target.value)}
-                  placeholder="Жишээ:&#10;Caffe Latte&#9;Milk&#9;200&#10;Caffe Latte&#9;Beans&#9;16&#10;Chicken Sandwich&#9;Cheese slice&#9;1"
+                  placeholder="Жишээ:&#10;Кафе латте&#9;Сүү&#9;200&#10;Кафе латте&#9;Кофе үр&#9;16&#10;Тахианы сэндвич&#9;Бяслаг&#9;1"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-800"
                 />
                 <button
@@ -2195,7 +2203,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                 {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
                 <button
                   type="button"
-                  onClick={() => setActiveSampleModal("products")}
+                  onClick={() => openTemplate("products")}
                   className="hover:bg-zinc-700 hover:text-white text-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                 >
                   Загвар харах
@@ -2220,7 +2228,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   rows={5}
                   value={productsPasteText}
                   onChange={(e) => setProductsPasteText(e.target.value)}
-                  placeholder="Жишээ:&#10;SANDWICH&#9;Chicken Sandwich&#9;8900&#10;COLD COFFEE&#9;Americano /мөстэй/&#9;8500&#10;COLD COFFEE&#9;Caffe latte /мөстэй/&#9;9500"
+                  placeholder="Жишээ:&#10;СЭНДВИЧ&#9;Тахианы сэндвич&#9;8900&#10;ХҮЙТЭН КОФЕ&#9;Американо /мөстэй/&#9;8500&#10;ХҮЙТЭН КОФЕ&#9;Кафе латте /мөстэй/&#9;9500"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700"
                 />
                 <button
@@ -2237,9 +2245,14 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         )}
 
         {/* 🔍 БҮХ 7 ТӨРЛИЙН EXCEL ЖИШЭЭ ХАРУУЛАХ ПОПАП ЦОНХ (MODAL) */}
+        {templateNotice && (
+          <div className="fixed top-4 left-1/2 z-[210] -translate-x-1/2 bg-zinc-800 border border-zinc-600 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-xl">
+            {templateNotice}
+          </div>
+        )}
         {activeSampleModal && (
           <div
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+            className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
             onClick={() => setActiveSampleModal(null)}
           >
             <div
@@ -2255,7 +2268,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   onClick={() => setActiveSampleModal(null)}
                   className="text-zinc-400 hover:text-white text-sm font-bold bg-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer transition hover:bg-zinc-700"
                 >
-                  ✕ Хаах
+                  Хаах
                 </button>
               </div>
 
@@ -2284,13 +2297,13 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span>4. Огноо</span>
                     </div>
                     <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
-                      <span>Caffe Latte</span>
+                      <span>Кафе латте</span>
                       <span>30</span>
                       <span>285000</span>
                       <span>2026-09-15</span>
                     </div>
                     <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300">
-                      <span>Americano</span>
+                      <span>Американо</span>
                       <span>20</span>
                       <span>160000</span>
                       <span>2026-09-15</span>
@@ -2316,7 +2329,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "Бүтээгдэхүүн\tТоо ширхэг\tНийт орлого\tОгноо\nCaffe Latte\t30\t285000\t2026-09-15\nAmericano\t20\t160000\t2026-09-15",
+                        "Бүтээгдэхүүн\tТоо ширхэг\tНийт орлого\tОгноо\nКафе латте\t30\t285000\t2026-09-15\nАмерикано\t20\t160000\t2026-09-15",
                       );
                       alert(
                         "Борлуулалтын загвар хуулагдлаа! Одоо талбартаа Ctrl+V дарж тавина уу.",
@@ -2342,13 +2355,13 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span>4. Огноо</span>
                     </div>
                     <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
-                      <span>Milk</span>
+                      <span>Сүү</span>
                       <span>5000</span>
                       <span>27500</span>
                       <span>2026-09-15</span>
                     </div>
                     <div className="grid grid-cols-4 p-2.5 bg-zinc-900 text-zinc-300">
-                      <span>Beans</span>
+                      <span>Кофе үр</span>
                       <span>1000</span>
                       <span>85000</span>
                       <span>2026-09-15</span>
@@ -2374,7 +2387,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "Барааны нэр\tТоо хэмжээ\tНийт өртөг\tОгноо\nMilk\t5000\t27500\t2026-09-15\nBeans\t1000\t85000\t2026-09-15",
+                        "Барааны нэр\tТоо хэмжээ\tНийт өртөг\tОгноо\nСүү\t5000\t27500\t2026-09-15\nКофе үр\t1000\t85000\t2026-09-15",
                       );
                       alert(
                         "Татан авалтын загвар хуулагдлаа! Одоо талбартаа Ctrl+V дарж тавина уу.",
@@ -2398,15 +2411,15 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span>2. Тоо хэмжээ</span>
                     </div>
                     <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
-                      <span>Matcha powder</span>
+                      <span>Матча нунтаг</span>
                       <span>41.9</span>
                     </div>
                     <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
-                      <span>Eggs</span>
+                      <span>Өндөг</span>
                       <span>5</span>
                     </div>
                     <div className="grid grid-cols-2 p-2 bg-zinc-900 text-zinc-300">
-                      <span>Hazelnut syrup</span>
+                      <span>Самар сироп</span>
                       <span>833.9</span>
                     </div>
                   </div>
@@ -2429,7 +2442,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     onClick={() => {
                       // Толгой мөртэйгөө хамт хуулагдана:
                       navigator.clipboard.writeText(
-                        "Барааны нэр\tТоо хэмжээ\nMatcha powder\t41.9\nEggs\t5\nHazelnut syrup\t833.9\nMilk\t352.4",
+                        "Барааны нэр\tТоо хэмжээ\nМатча нунтаг\t41.9\nӨндөг\t5\nСамар сироп\t833.9\nСүү\t352.4",
                       );
                       alert(
                         "Босоо тооллогын загвар (Толгой мөртэй) хуулагдлаа! Ctrl+V дарж тавина уу.",
@@ -2457,7 +2470,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>2026-09-15</span>
                       <span className="text-rose-400 font-bold">spoilage</span>
-                      <span>Milk</span>
+                      <span>Сүү</span>
                       <span>1000</span>
                       <span>Өглөө асгарсан</span>
                     </div>
@@ -2466,21 +2479,21 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span className="text-zinc-300 font-bold">
                         staff_meal
                       </span>
-                      <span>Eggs</span>
+                      <span>Өндөг</span>
                       <span>2</span>
                       <span>Ажилтны хоолонд</span>
                     </div>
                     <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">testing</span>
-                      <span>Beans</span>
+                      <span>Кофе үр</span>
                       <span>50</span>
                       <span>Кофены амталгаа</span>
                     </div>
                     <div className="grid grid-cols-5 p-2 bg-zinc-900 text-zinc-300">
                       <span>2026-09-15</span>
                       <span className="text-zinc-300 font-bold">other</span>
-                      <span>Bun</span>
+                      <span>Талх</span>
                       <span>1</span>
                       <span>Үзүүлэнгийн тавиурт тавьсан</span>
                     </div>
@@ -2529,7 +2542,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "Огноо\tТөрөл\tБарааны нэр\tХэмжээ\tТайлбар\n2026-09-15\tspoilage\tMilk\t1000\tӨглөө асгарсан\n2026-09-15\tstaff_meal\tEggs\t2\tАжилтны хоолонд\n2026-09-15\ttesting\tBeans\t50\tКофены амталгаа\n2026-09-15\tother\tBun\t1\tҮзүүлэнгийн тавиурт тавьсан",
+                        "Огноо\tТөрөл\tБарааны нэр\tХэмжээ\tТайлбар\n2026-09-15\tspoilage\tСүү\t1000\tӨглөө асгарсан\n2026-09-15\tstaff_meal\tӨндөг\t2\tАжилтны хоолонд\n2026-09-15\ttesting\tКофе үр\t50\tКофены амталгаа\n2026-09-15\tother\tТалх\t1\tҮзүүлэнгийн тавиурт тавьсан",
                       );
                       alert(
                         "Гал тогооны хаягдлын загвар (Бүх 4 төрөлтэйгөө) хуулагдлаа! Одоо талбартаа Ctrl+V дарж тавина уу.",
@@ -2553,13 +2566,13 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span>4. Хэвийн нөөц</span>
                     </div>
                     <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
-                      <span>Milk</span>
+                      <span>Сүү</span>
                       <span>ml</span>
                       <span>5.8</span>
                       <span>20000</span>
                     </div>
                     <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300">
-                      <span>Beans</span>
+                      <span>Кофе үр</span>
                       <span>gram</span>
                       <span>85</span>
                       <span>5000</span>
@@ -2569,7 +2582,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "Milk\tml\t5.8\t20000\nBeans\tgram\t85\t5000",
+                        "Сүү\tмл\t5.8\t20000\nКофе үр\tгр\t85\t5000",
                       );
                       alert(
                         "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",
@@ -2592,13 +2605,13 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                       <span>3. Орцын хэмжээ</span>
                     </div>
                     <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
-                      <span>Caffe Latte</span>
-                      <span>Milk</span>
+                      <span>Кафе латте</span>
+                      <span>Сүү</span>
                       <span>200</span>
                     </div>
                     <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300">
-                      <span>Caffe Latte</span>
-                      <span>Beans</span>
+                      <span>Кафе латте</span>
+                      <span>Кофе үр</span>
                       <span>16</span>
                     </div>
                   </div>
@@ -2606,7 +2619,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "Caffe Latte\tMilk\t200\nCaffe Latte\tBeans\t16\nChicken Sandwich\tCheese\t1",
+                        "Кафе латте\tСүү\t200\nКафе латте\tКофе үр\t16\nТахианы сэндвич\tБяслаг\t1",
                       );
                       alert(
                         "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",
@@ -2630,12 +2643,12 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     </div>
                     <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>COFFEE</span>
-                      <span>Caffe Latte</span>
+                      <span>Кафе латте</span>
                       <span>9500</span>
                     </div>
                     <div className="grid grid-cols-3 p-2 bg-zinc-900 text-zinc-300">
-                      <span>SANDWICH</span>
-                      <span>Chicken Sandwich</span>
+                      <span>СЭНДВИЧ</span>
+                      <span>Тахианы сэндвич</span>
                       <span>12500</span>
                     </div>
                   </div>
@@ -2643,7 +2656,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "COFFEE\tCaffe Latte\t9500\nCOFFEE\tAmericano\t8000\nSANDWICH\tChicken Sandwich\t12500",
+                        "COFFEE\tКафе латте\t9500\nCOFFEE\tАмерикано\t8000\nСЭНДВИЧ\tТахианы сэндвич\t12500",
                       );
                       alert(
                         "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",

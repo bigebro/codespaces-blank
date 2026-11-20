@@ -188,12 +188,14 @@ export default function GeneralSettings({
 
   const formatLocalTime = (isoString?: string) => {
     if (!isoString) return "-";
-    return new Date(isoString).toLocaleString("mn-MN", {
+    return new Date(isoString).toLocaleString("en-CA", {
       timeZone: "Asia/Ulaanbaatar",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
     });
   };
 
@@ -420,19 +422,19 @@ export default function GeneralSettings({
         {/* 1. КАСС, БАНК БА ТАТВАРЫН ЭХНИЙ ТОХИРГОО */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
           <h3 className="text-base font-bold mb-4 text-zinc-200 flex items-center gap-2">
-              Мөнгөн Данс & Татварын Горим
+              Мөнгөн данс ба татварын горим
           </h3>
 
           {/* 🖼️ KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">
-              Kiosk таблетын лого
+              Киоск таблетын лого
             </label>
             <div className="flex items-center gap-3 bg-zinc-950 p-2 rounded-xl border border-zinc-800 mb-1.5">
               {kioskLogoUrl ? (
                 <img
                   src={kioskLogoUrl}
-                  alt="Kiosk Logo"
+                  alt="Киоск лого"
                   className="h-10 w-10 rounded-xl object-cover border border-zinc-700 shrink-0"
                 />
               ) : (
@@ -480,7 +482,7 @@ export default function GeneralSettings({
                     } else {
                       setKioskLogoUrl(newLogoUrl); // Дэлгэц дээрх зургийг тэр дор нь солих
                       alert(
-                        "Лого амжилттай солигдлоо! Kiosk дээр шууд харагдана.",
+                        "Лого амжилттай солигдлоо! Киоск дээр шууд харагдана.",
                       );
                       fetchData();
                     }
@@ -493,7 +495,7 @@ export default function GeneralSettings({
                   Зураг солих
                 </label>
                 <p className="text-xs text-zinc-500 mt-0.5 truncate">
-                  Зөвхөн Kiosk таблет дээр харагдана
+                  Зөвхөн киоск таблет дээр харагдана
                 </p>
               </div>
             </div>
@@ -807,8 +809,8 @@ export default function GeneralSettings({
               </span>
             </h3>
             <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-              Ангилал тус бүрийн хүрэх ёстой зорилтот бохир ашгийн % (Gross
-              Margin). Түүхий эд өсөхөд систем энэ хувиар автоматаар зөвлөх
+              Ангилал тус бүрийн хүрэх ёстой зорилтот бохир ашгийн хувь.
+              Түүхий эд өсөхөд систем энэ хувиар автоматаар зөвлөх
               зарах үнийг бодно.
             </p>
           </div>
@@ -839,7 +841,7 @@ export default function GeneralSettings({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-white flex items-center gap-1.5">
                     <span>{cat.icon}</span>
-                    <span>{cat.name.replace(/^[^\s]+\s/, "")}</span>
+                    <span>{cat.name}</span>
                   </span>
                   <span className="text-xs text-zinc-500 font-mono">
                     Стандарт: {DEFAULT_GLOBAL_MARGINS[cat.id]}%

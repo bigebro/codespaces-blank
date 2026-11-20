@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { logTypeLabel, staffDisplayName } from "../src/lib/shiftCycle";
+import { itemDisplayName, localizedItemName, splitItemName } from "../src/lib/itemDisplayName";
+
+assert.equal(logTypeLabel("TESTING"), "Туршилт");
+assert.equal(logTypeLabel("testing"), "Туршилт");
+assert.equal(logTypeLabel("OTHER"), "Бусад");
+assert.equal(logTypeLabel("SPOILAGE"), "Асгарсан/Муудсан");
+assert.equal(logTypeLabel("spoilage", "өглөө асгарсан"), "Асгарсан");
+assert.equal(logTypeLabel("spoilage", "муудсан"), "Муудсан");
+assert.equal(logTypeLabel("mystery"), "Бусад");
+assert.equal(staffDisplayName("staff (TEST Бариста)"), "Ажилтан: TEST Бариста");
+assert.equal(staffDisplayName("STAFF (Анхтуул)"), "Ажилтан: Анхтуул");
+assert.equal(staffDisplayName("TEST Бариста"), "TEST Бариста");
+assert.equal(itemDisplayName("Сүү (ТУРШИЛТ)"), "Сүү");
+assert.equal(splitItemName("Кофе үр (ТУРШИЛТ)").isTest, true);
+assert.equal(localizedItemName("Сүү (ТУРШИЛТ)", "mn"), "Сүү");
+assert.equal(localizedItemName("Milk (Сүү)", "mn"), "Сүү");
+assert.equal(localizedItemName("Milk (Сүү) (ТУРШИЛТ)", "mn"), "Сүү");
+console.log("waste and item label checks passed");

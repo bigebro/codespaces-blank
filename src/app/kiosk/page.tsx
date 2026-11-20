@@ -5,7 +5,10 @@ import OwnScore from "../../features/kiosk/OwnScore";
 import CupCheck from "../../features/finance/CupCheck";
 import TeamGoalBar from "../../features/finance/TeamGoalBar";
 import CycleCount, { type CycleResult } from "../../features/kiosk/CycleCount";
-import { displayUnit, logTypeLabel, releaseSaveLock, streakText, takeSaveLock, type CycleItem } from "../../lib/shiftCycle";
+import { displayUnit, logTypeLabel, releaseSaveLock, streakText, takeSaveLock, KIOSK_WASTE_REASONS, type CycleItem } from "../../lib/shiftCycle";
+import { roleLabel } from "../../lib/roleLabel";
+import { formatUbTime } from "../../lib/formatUbTime";
+import { localizedItemName, splitItemName } from "../../lib/itemDisplayName";
 import TruthMeter from "../../features/finance/TruthMeter";
 import {
   Coffee,
@@ -1061,7 +1064,7 @@ function KioskPage() {
     | "incident_report"
     | "close_shift"
     | "opening_recount"
-  >("pairing");
+  >("initializing");
 // 🔐 ХОЛБОЛТЫН СТЭЙТ (PAIRING)
   const [pairingCodeInput, setPairingCodeInput] = useState("");
   const [isPairing, setIsPairing] = useState(false);
@@ -1074,6 +1077,8 @@ function KioskPage() {
   const [openingItems, setOpeningItems] = useState<CycleItem[]>([]);
   const [cycleResult, setCycleResult] = useState<CycleResult | null>(null);
   const [noteText, setNoteText] = useState<string | null>(null);
+  const [msgTone, setMsgTone] = useState<"success" | "error">("error");
+  const [wasteReason, setWasteReason] = useState<(typeof KIOSK_WASTE_REASONS)[number] | null>(null);
   const confirmRef = useRef<(value: boolean) => void>(() => {});
   const openingSaveRef = useRef(false);
   const closeSaveRef = useRef(false);
@@ -1184,29 +1189,16 @@ function KioskPage() {
   // 3. УХААЛАГ НЭР ХӨРВҮҮЛЭГЧ (Эхний үгээр тасдаж алдаа гаргахгүй хувилбар)
   const tName = (rawName: string) => {
     if (!rawName) return "";
-
-    // Англи горим: Хаалтыг арилгаж цэвэр англи нэр гаргана
+    const base = splitItemName(rawName).name || rawName;
     if (lang === "en") {
-      const m = rawName.match(/^(.*?)\s*\(/);
-      return m ? m[1].trim() : rawName;
+      const m = base.match(/^(.*?)\s*\(/);
+      return (m ? m[1] : base).trim();
     }
-
-    // 🇲🇳 Монгол горим:
-    // 1. Хаалтад монгол нэр байвал ХААЛТАН ДОТОРХЫГ ШУУД АВНА (Хамгийн зөв хувилбар)
-    const bracketMatch = rawName.match(/\((.*?)\)/);
-    if (bracketMatch && bracketMatch[1]) return bracketMatch[1].trim();
-
-    const clean = rawName.toLowerCase().trim();
-
-    // 2. Баазад өмнө нь зөв хадгалсан орчуулга байвал тэрийг авна
+    const localized = localizedItemName(base, "mn");
+    if (/[А-Яа-яӨөҮүЁё]/.test(localized)) return localized;
+    const clean = localized.toLowerCase().trim();
     if (translationsCache[clean]) return translationsCache[clean];
-
-    // 3. ЗӨВХӨН БҮХЭЛ НЭРЭЭРЭЭ толь бичигт байвал авна
-    if (typeof STATIC_DICT !== "undefined" && STATIC_DICT[clean]) {
-      return STATIC_DICT[clean]; //
-    }
-
-    // 4. Аль нь ч биш бол AI-аар БҮТЭН НЭРЭЭР НЬ зөв орчуулж баазад цээжилнэ
+    if (typeof STATIC_DICT !== "undefined" && STATIC_DICT[clean]) return STATIC_DICT[clean];
     if (!translationsCache[clean]) {
       const tokens = kioskTokens();
       fetch("/api/kiosk-ai", {
@@ -1216,21 +1208,20 @@ function KioskPage() {
           "x-kiosk-device": tokens.deviceToken,
           "x-kiosk-worker": tokens.workerToken,
         },
-        body: JSON.stringify({ action: "translate", text: rawName }),
+        body: JSON.stringify({ action: "translate", text: localized }),
       })
-          .then((res) => res.json())
-          .then((d) => {
-            if (d.success && d.translation) {
-              setTranslationsCache((prev) => ({
-                ...prev,
-                [clean]: d.translation,
-              }));
-            }
-          })
-          .catch(() => {});
+        .then((res) => res.json())
+        .then((d) => {
+          if (d.success && d.translation) {
+            setTranslationsCache((prev) => ({
+              ...prev,
+              [clean]: d.translation,
+            }));
+          }
+        })
+        .catch(() => {});
     }
-
-    return rawName;
+    return localized;
   };
 
   const tUnit = (u: string) => {
@@ -1998,7 +1989,7 @@ const initKioskContext = async () => {
       await kioskSaveLogs(logs);
       await kioskOps("task.complete", { id: task.id });
       setTasks((prev) => prev.map((row) => (row.id === task.id ? { ...row, done: true } : row)));
-      setMsg("Тооллого хадгалагдлаа.");
+      setMsgTone("success"); setMsg("Тооллого хадгалагдлаа.");
     } catch (err: any) {
       setMsg(err.message || "Тооллого хадгалагдсангүй.");
     } finally {
@@ -2022,6 +2013,7 @@ const initKioskContext = async () => {
 
   const openCloseShift = async () => {
     setMsg("");
+    setIsAiLoading(true);
     try {
       const plan = await kioskOps("cycle.plan", { activeShiftId: activeShift?.id || null });
       const items = plan.closeItems || [];
@@ -2037,7 +2029,10 @@ const initKioskContext = async () => {
       setPosZFile(null);
       setStep("close_shift");
     } catch (err: any) {
+      setMsgTone("error");
       setMsg(err.message || "Тооллогын жагсаалт гарсангүй.");
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -2077,7 +2072,7 @@ const initKioskContext = async () => {
       if (logs.length) await kioskSaveLogs(logs);
       setOpeningItems([]);
       setStep("menu");
-      setMsg("Нээлтийн тооллого хадгалагдлаа.");
+      setMsgTone("success"); setMsg("Нээлтийн тооллого хадгалагдлаа.");
     } catch {
       releaseSaveLock(openingSaveRef);
       setMsg("Нээлтийн тооллого хадгалагдсангүй.");
@@ -2147,7 +2142,7 @@ const handleCloseShift = async () => {
         })),
       });
 
-      setMsg("Ээлж хаагдлаа.");
+      setMsgTone("success"); setMsg("Ээлж хаагдлаа.");
       setStep("select_worker");
       setSelectedWorker(null);
       localStorage.removeItem("kiosk_worker_token");
@@ -2168,9 +2163,26 @@ const handleCloseShift = async () => {
       setIsAiLoading(false);
     }
   };
+  if (step === "initializing" || (isLoadingKiosk && !tenantClientId && step !== "pairing")) {
+    return (
+      <div className="h-[100dvh] w-full bg-zinc-950 text-zinc-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden">
+        <div className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-zinc-800/80 pb-2.5 mb-2 shrink-0 px-1">
+          <div className="h-8 w-40 rounded-xl bg-zinc-800 animate-pulse" />
+          <div className="h-8 w-24 rounded-xl bg-zinc-800 animate-pulse" />
+        </div>
+        <div className="w-full max-w-2xl lg:max-w-3xl flex-1 rounded-3xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <div className="h-10 w-1/2 rounded-xl bg-zinc-800 animate-pulse" />
+          <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
+          <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
+          <div className="h-20 rounded-2xl bg-zinc-800 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[100dvh] w-full bg-zinc-950 text-zinc-100 flex flex-col items-center p-2.5 sm:p-4 select-none overflow-hidden touch-none">
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <header className="w-full max-w-2xl lg:max-w-3xl flex justify-between items-center border-b border-zinc-800/80 pb-2.5 mb-2 shrink-0 px-1">
         <div className="flex items-center gap-2.5">
           {
@@ -2239,7 +2251,7 @@ const handleCloseShift = async () => {
       {/* 🚀 MAIN CONTENT */}
        <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* ⚡ 1. CLEAN LOADING SCREEN WHILE VERIFYING (Eliminates the glimpse!) */}
-        {isLoadingKiosk || step === "initializing" ? (
+        {isLoadingKiosk ? (
           <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950 select-none">
             <div className="h-8 w-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin mb-3" />
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
@@ -2249,8 +2261,8 @@ const handleCloseShift = async () => {
         ) : (
           <>
             {msg && (
-              <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border border-rose-500/20 flex items-center justify-center gap-2 shrink-0">
-                <ShieldAlert className="h-4 w-4 shrink-0" />
+              <div className={`${msgTone === "success" ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-rose-500/10 text-rose-400 border-rose-500/20"} p-2.5 rounded-xl mb-2 w-full text-center font-bold text-xs border flex items-center justify-center gap-2 shrink-0`}>
+                {msgTone === "success" ? null : <ShieldAlert className="h-4 w-4 shrink-0" />}
                 <span>{msg}</span>
               </div>
             )}
@@ -2362,8 +2374,8 @@ const handleCloseShift = async () => {
                         {w.full_name ||
                           (w.email ? w.email.split("@")[0] : "Ажилтан")}
                       </span>
-                      <span className="text-xs text-zinc-200 font-bold uppercase mt-0.5 block">
-                        {w.role}
+                      <span className="text-xs text-zinc-200 font-bold mt-0.5 block">
+                        {roleLabel(w.role) || "Ажилтан"}
                       </span>
                     </div>
                     <div className="bg-zinc-950 p-2.5 rounded-xl text-zinc-500 group-hover:text-zinc-200 font-black text-xs">
@@ -2395,7 +2407,7 @@ const handleCloseShift = async () => {
                   👤{" "}
                   {selectedWorker?.full_name ||
                     selectedWorker?.email.split("@")[0]}{" "}
-                  ({selectedWorker?.role})
+                  ({roleLabel(selectedWorker?.role) || "Ажилтан"})
                 </span>
               </div>
             </div>
@@ -3021,12 +3033,16 @@ const handleCloseShift = async () => {
                         setQuickItemModal(ing);
                         setQuickQty("");
                         setPurchaseCost("");
+                        setWasteReason(null);
                       }}
                       className="bg-zinc-950 hover:bg-zinc-800 active:scale-95 border border-zinc-800 hover:border-zinc-700 p-3 rounded-2xl flex flex-col justify-between text-left transition shadow-sm min-h-[80px]"
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span className="font-bold text-sm sm:text-base text-white line-clamp-2 leading-snug">
                           {tName(ing.name)}
+                          {splitItemName(ing.name).isTest ? (
+                            <span className="ml-1 align-middle text-[10px] font-bold normal-case text-zinc-400 border border-zinc-700 rounded px-1 py-0.5">Туршилт</span>
+                          ) : null}
                         </span>
                         {ing.is_critical && (
                           <span className="text-[11px] font-black bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded shrink-0">
@@ -3099,7 +3115,7 @@ const handleCloseShift = async () => {
                 className="p-2.5 bg-zinc-800/60 hover:bg-zinc-800 active:scale-95 rounded-2xl border border-zinc-800 text-zinc-200 font-black text-xs flex flex-col items-center justify-center gap-1 transition"
               >
                 <ListOrdered className="h-4 w-4" />
-                <span>Ээлж Хаах</span>
+                <span>{isAiLoading && step === "menu" ? "Түр хүлээнэ үү..." : "Ээлж хаах"}</span>
               </button>
             </div>
 
@@ -3134,7 +3150,7 @@ const handleCloseShift = async () => {
                       onClick={() => setShowRecipeModal(false)}
                       className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-xs font-bold cursor-pointer"
                     >
-                      ✕ Хаах
+                      Хаах
                     </button>
                   </div>
 
@@ -3298,7 +3314,7 @@ const handleCloseShift = async () => {
                       }`}
                     >
                       <Receipt className="h-4 w-4 shrink-0" />
-                      <span>Жижиг зардал (CU)</span>
+                      <span>Жижиг зардал</span>
                     </button>
                   </div>
 
@@ -3524,6 +3540,24 @@ const handleCloseShift = async () => {
                         : "bg-zinc-950 border-zinc-800 opacity-60"
                     }`}
                   >
+                    {kioskMode === "spoilage" && (
+                      <div className="grid grid-cols-2 gap-2 pb-2">
+                        {KIOSK_WASTE_REASONS.map((row) => (
+                          <button
+                            key={row.label}
+                            type="button"
+                            onClick={() => setWasteReason(row)}
+                            className={`py-2 rounded-xl text-xs font-bold border ${
+                              wasteReason?.label === row.label
+                                ? "bg-white text-zinc-950 border-white"
+                                : "bg-zinc-950 text-zinc-200 border-zinc-800"
+                            }`}
+                          >
+                            {row.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <span className="text-xs text-zinc-400 font-bold uppercase block mb-0.5">
                       Тоо хэмжээ ({quickItemModal.unit}):
                     </span>
@@ -3732,6 +3766,7 @@ const handleCloseShift = async () => {
                       parseFloat(quickQty) <= 0 ||
                       (kioskMode === "purchase" &&
                         (!purchaseCost || parseFloat(purchaseCost) <= 0)) ||
+                      (kioskMode === "spoilage" && !wasteReason) ||
                       isAiLoading
                     }
                  onClick={() => {
@@ -3758,6 +3793,7 @@ const handleCloseShift = async () => {
   const itemToSave = quickItemModal;
   const fileToUpload = noEbarimtFile;
   const payMethod = purchasePayMethod;
+  const chosenReason = wasteReason;
 
   setQuickItemModal(null);
   setQuickQty("");
@@ -3791,23 +3827,23 @@ const handleCloseShift = async () => {
           ingredient_id: itemToSave.id,
           quantity: finalQty,
           total_cost: costVal,
-          type: kioskMode,
+          type: kioskMode === "spoilage" && chosenReason ? chosenReason.type : kioskMode,
           payment_method: kioskMode === "purchase" ? payMethod : null,
           image_url: uploadedUrl,
           is_ebarimt: false,
           incident_type: kioskMode === "count" ? "kiosk_count" : null,
-          notes: kioskMode === "count" ? `Kiosk тооллого: ${itemToSave.name}` : `Kiosk (${modeLabel})`,
+          notes: kioskMode === "spoilage" && chosenReason
+            ? chosenReason.notes
+            : kioskMode === "count" ? `Киоск тооллого: ${itemToSave.name}` : `Киоск (${modeLabel})`,
           input_unit: itemToSave.unit,
         },
       ]);
       const newId = saved.ids?.[0];
-      if (newId) {
-        setRecentToast({
-          id: newId,
-          text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel})`,
-        });
-        fetchKioskData(tenantClientId);
-      }
+      setRecentToast({
+        id: newId || "ok",
+        text: `${itemToSave.name}: ${qtyNum} ${itemToSave.unit} (${costVal > 0 ? costVal.toLocaleString() + "₮" : modeLabel}) хадгалагдлаа`,
+      });
+      fetchKioskData(tenantClientId);
     } catch (err: any) {
       notify(`Серверийн алдаа: ${err.message || err}`);
       console.error("Background save failed:", err);
@@ -4397,7 +4433,7 @@ const handleCloseShift = async () => {
                       onClick={() => setShowLogsDrawer(false)}
                       className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"
                     >
-                      ✕ Хаах
+                      Хаах
                     </button>
                   </div>
 
@@ -4409,10 +4445,11 @@ const handleCloseShift = async () => {
                       </p>
                     ) : (
                       todayLogs.map((log) => {
-                        const isPurchase = log.type === "purchase";
-                        const isSpoilage = log.type === "spoilage";
-                        const isStaffMeal = log.type === "staff_meal";
-                        const isTesting = log.type === "testing";
+                        const kind = String(log.type || "").toLowerCase();
+                        const isPurchase = kind === "purchase";
+                        const isSpoilage = kind === "spoilage";
+                        const isStaffMeal = kind === "staff_meal";
+                        const isTesting = kind === "testing";
                         const isCashOut =
                           log.type === "count" &&
                           log.non_food_item?.includes("Касс");
@@ -4425,12 +4462,7 @@ const handleCloseShift = async () => {
                         const typeLabel = log.non_food_item?.includes("Касс") ? "Касс" : logTypeLabel(log.type, log.notes);
                         const cost = parseFloat(log.total_cost) || 0;
                         const qty = Math.abs(parseFloat(log.quantity) || 0);
-                        const timeStr = log.date
-                          ? new Date(log.date).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "";
+                        const timeStr = log.date ? formatUbTime(log.date) : "";
 
                         return (
                           <div
@@ -4913,7 +4945,7 @@ const handleCloseShift = async () => {
                   onClick={() => setShowCartModal(false)}
                   className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl text-xs font-bold"
                 >
-                  ✕ Хаах
+                  Хаах
                 </button>
               </div>
 

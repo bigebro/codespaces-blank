@@ -15,24 +15,53 @@ export const WASTE_REASONS: { label: string; type: "spoilage" | "testing" | "sta
 ];
 
 const TYPE_LABEL: Record<string, string> = {
-  spoilage: "Хаягдал",
+  spoilage: "Асгарсан/Муудсан",
   staff_meal: "Ажилтны хоол",
+  staffmeal: "Ажилтны хоол",
   testing: "Туршилт",
+  test: "Туршилт",
   purchase: "Орлого",
   count: "Тооллого",
   sale: "Борлуулалт",
+  sales: "Борлуулалт",
   other: "Бусад",
+  waste: "Хаягдал",
+  spill: "Асгарсан",
+  spilled: "Асгарсан",
 };
 
+function normalizeLogType(type: string) {
+  return String(type || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 // Хадгалагдсан төрөл (spoilage гэх мэт) өөрчлөгдөхгүй, зөвхөн харуулах нэр.
-// Хаягдал дотроос бичвэрт нь «асга» байвал Асгарсан, «мууд» байвал Муудсан гэж харуулна.
+// Код том/жижиг үсэг үл харгалзана. spoilage: бичвэрт «асга»/«мууд» байвал ялгана, үгүй бол «Асгарсан/Муудсан».
 export function logTypeLabel(type: string, text?: string | null) {
-  if (type === "spoilage") {
+  const key = normalizeLogType(type);
+  if (key === "spoilage" || key === "spoil") {
     const t = String(text || "").toLowerCase();
-    if (t.includes("асга")) return "Асгарсан";
-    if (t.includes("мууд")) return "Муудсан";
+    if (t.includes("асга") && !t.includes("мууд")) return "Асгарсан";
+    if (t.includes("мууд") && !t.includes("асга")) return "Муудсан";
+    return "Асгарсан/Муудсан";
   }
-  return TYPE_LABEL[type] || "Бүртгэл";
+  return TYPE_LABEL[key] || "Бусад";
+}
+
+/** «staff (Нэр)» хэлбэрийг «Ажилтан: Нэр» болгоно. */
+export function staffDisplayName(raw: string | null | undefined): string {
+  const s = String(raw || "").trim();
+  if (!s) return "Ажилтан";
+  const wrapped = s.match(/^\s*(staff|barista|worker|менежер|ажилтан|тогооч|бариста)\s*\((.+)\)\s*$/i);
+  if (wrapped) {
+    const name = wrapped[2].trim();
+    return name ? `Ажилтан: ${name}` : "Ажилтан";
+  }
+  if (/^(staff|barista|worker)$/i.test(s)) return "Ажилтан";
+  if (/^ажилтан\s*:/i.test(s)) return s;
+  return s;
 }
 
 export function displayUnit(unit: string) {
@@ -161,8 +190,9 @@ export type CycleItem = {
 };
 
 export function reviewEnteredCount(item: CycleItem, qty: number, alreadyRecounted: boolean) {
+  const empty = { needsRecount: false, needsWaste: false, needsConfirm: false, unexplainedQty: null as number | null, gapQty: null as number | null, money: null as number | null };
   if (item.previousQty == null || !Number.isFinite(item.previousQty)) {
-    return { needsRecount: false, needsWaste: false, unexplainedQty: null as number | null, gapQty: null as number | null, money: null as number | null };
+    return empty;
   }
   const gap = countGap({
     previousQty: item.previousQty,
@@ -171,19 +201,23 @@ export function reviewEnteredCount(item: CycleItem, qty: number, alreadyRecounte
     recipeUsage: Number(item.recipeUsageSince) || 0,
     unitPrice: item.unitPrice,
   });
-  if (!alreadyRecounted && gap.needsRecount) {
-    return { needsRecount: true, needsWaste: false, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
+  const implausible = isImplausibleIncrease(item, qty);
+  if (!alreadyRecounted && (gap.needsRecount || implausible)) {
+    return { needsRecount: true, needsWaste: false, needsConfirm: false, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
+  }
+  if (alreadyRecounted && implausible) {
+    return { needsRecount: false, needsWaste: false, needsConfirm: true, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
   }
   if (alreadyRecounted && gap.needsRecount && gap.gapQty > 0) {
-    return { needsRecount: false, needsWaste: true, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
+    return { needsRecount: false, needsWaste: true, needsConfirm: false, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
   }
   if (alreadyRecounted && gap.needsRecount && gap.gapQty < 0) {
-    return { needsRecount: false, needsWaste: false, unexplainedQty: gap.gapQty, gapQty: gap.gapQty, money: gap.money };
+    return { needsRecount: false, needsWaste: false, needsConfirm: false, unexplainedQty: gap.gapQty, gapQty: gap.gapQty, money: gap.money };
   }
   if (gap.money == null && Math.abs(gap.gapQty) > gap.threshold) {
-    return { needsRecount: false, needsWaste: false, unexplainedQty: gap.gapQty, gapQty: gap.gapQty, money: null };
+    return { needsRecount: false, needsWaste: false, needsConfirm: false, unexplainedQty: gap.gapQty, gapQty: gap.gapQty, money: null };
   }
-  return { needsRecount: false, needsWaste: false, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
+  return { needsRecount: false, needsWaste: false, needsConfirm: false, unexplainedQty: null, gapQty: gap.gapQty, money: gap.money };
 }
 
 export function splitWaste(gapQty: number, wasteQty: number, unitPrice: number | null) {
@@ -254,3 +288,32 @@ export function buildCountLog(input: {
     date: input.now,
   };
 }
+
+/** Хаалтын/нээлтийн тооллого: орлогогүйгээр өмнөх үлдэгдлээс хэт өндөр үсрэлт. */
+export function expectedOnHand(item: Pick<CycleItem, "previousQty" | "purchasesSince">): number | null {
+  if (item.previousQty == null || !Number.isFinite(item.previousQty)) return null;
+  return Number(item.previousQty) + (Number(item.purchasesSince) || 0);
+}
+
+/**
+ * Консерватив дүрэм: тоолсон тоо (өмнөх + орлого)-оос 2 дахин их
+ * бөгөөд зөрүү нь дор хаяж 100 нэгж (эсвэл өмнөх үлдэгдлийн 50%) бол хэт үсрэлт.
+ * Орлого бүртгэгдээгүй том тоог дуугүй хүлээн авахгүй.
+ */
+export function isImplausibleIncrease(item: CycleItem, qty: number): boolean {
+  const expected = expectedOnHand(item);
+  if (expected == null || !Number.isFinite(qty) || qty < 0) return false;
+  const jump = qty - expected;
+  const minJump = Math.max(100, Math.abs(expected) * 0.5);
+  return qty > expected * 2 && jump >= minJump;
+}
+
+export const IMPLAUSIBLE_COUNT_MESSAGE =
+  "Энэ тоо өмнөх тооллого болон бүртгэгдсэн орлогоос хэт өндөр байна. Орлого бүртгэгдээгүй байж магадгүй. Зөв гэдгээ батална уу, эсвэл тоогоо дахин оруулна уу.";
+
+export const KIOSK_WASTE_REASONS: { label: string; type: "spoilage" | "other"; notes: string }[] = [
+  { label: "Асгарсан", type: "spoilage", notes: "Асгарсан" },
+  { label: "Муудсан", type: "spoilage", notes: "Муудсан" },
+  { label: "Хугацаа дууссан", type: "spoilage", notes: "Хугацаа дууссан" },
+  { label: "Бусад", type: "other", notes: "Бусад" },
+];

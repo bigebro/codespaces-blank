@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Mail, Lock, ArrowRight } from "lucide-react";
 import { supabaseMaster } from "@/lib/supabaseMaster";
+import { mapAuthError } from "@/lib/authErrors";
 
 export default function MasterLoginPage() {
   const router = useRouter();
@@ -33,14 +34,12 @@ export default function MasterLoginPage() {
 
       if (!isAdmin) {
         await supabaseMaster.auth.signOut();
-        throw new Error(
-          "⛔ Хандалт хориотой: Зөвхөн платформ эзэмшигч нэвтрэх эрхтэй!",
-        );
+        throw new Error("Хандалт хориотой: Зөвхөн платформ эзэмшигч нэвтрэх эрхтэй.");
       }
 
       router.push("/admin");
     } catch (err: any) {
-      setError(err.message || "Нэвтрэхэд алдаа гарлаа.");
+      setError(mapAuthError(err, "Нэвтрэхэд алдаа гарлаа."));
     } finally {
       setLoading(false);
     }

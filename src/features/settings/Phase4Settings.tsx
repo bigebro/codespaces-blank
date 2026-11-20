@@ -97,7 +97,7 @@ export default function Phase4Settings({ activeClient }: { activeClient: string 
           <input value={limit} onChange={(event) => setLimit(event.target.value)} inputMode="decimal" className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white" />
         </label>
         <label className="block text-xs text-zinc-400">
-          Тооллогын streak, ээлж
+          Тооллогын цуврал ээлж
           <input value={streak} onChange={(event) => setStreak(event.target.value)} inputMode="numeric" className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white" />
         </label>
         <label className="block text-xs text-zinc-400">

@@ -11,6 +11,7 @@ import { AgentContext } from "@/types/agent.types";
 import { requireKioskWorker } from "@/lib/kioskAuth";
 import { convertToIngredientUnit } from "@/lib/units";
 import { logTypeLabel } from "@/lib/shiftCycle";
+import { CASH_EXPENSE_HINT, looksLikeCashExpense } from "@/lib/cashExpenseHint";
 import { readRequestRange } from "@/lib/analyticsRange";
 // ⚡ 1. Серверийн санах ой дээр 60 секунд хадгалах кэш (Файлын дээд талд)
 const analyticsCache = new Map<string, { data: any; timestamp: number }>();
@@ -743,6 +744,13 @@ ${JSON.stringify(unmatched)}`;
           }
         }
 
+        if (looksLikeCashExpense(text)) {
+          return NextResponse.json({
+            success: true,
+            is_log: false,
+            message: CASH_EXPENSE_HINT,
+          });
+        }
         return NextResponse.json({
           success: true,
           is_log: false,

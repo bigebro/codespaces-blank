@@ -23,7 +23,9 @@ import UnexplainedGaps from "./UnexplainedGaps";
 import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
-import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, trustEstimateDisplay } from "@/lib/honestDashboard";
+import { IMPOSSIBLE_TITLE, dashboardTrust, impossibleReasons, isTrustReady, parsePct, purchasePctLabel, trustEstimateDisplay } from "@/lib/honestDashboard";
+import { logTypeLabel, staffDisplayName } from "@/lib/shiftCycle";
+import { periodDataState, PERIOD_EMPTY_TITLE, PERIOD_EMPTY_HINT } from "@/lib/periodDataState";
 
 // 3. ТУСЛАХ ФУНКЦҮҮД (Огноо ба текстийн цэвэрлэгээ):
 function cleanString(str: string) {
@@ -122,12 +124,14 @@ export default function FinanceTab({
   const [customMarginPrices, setCustomMarginPrices] = useState<
     Record<string, number>
   >({});
+  const [etaxNotice, setEtaxNotice] = useState<string | null>(null);
 
   const trustReady = isTrustReady(liveAnalytics);
   const trustSummary = dashboardTrust(liveAnalytics).summary;
   const estimateText = trustEstimateDisplay(liveAnalytics, loading);
   // Борлуулалт байхгүй үед 0% нь «хэмжигдээгүй» гэсэн утгатай тул «—» харуулна.
   const hasRevenue = Number(liveAnalytics?.financial_ladder?.revenue || 0) > 0;
+  const dataState = periodDataState({ loading, analytics: liveAnalytics });
   const verifiedActual = Number(liveAnalytics?.financial_ladder?.actual_cogs || 0);
   const verifiedTheo = Number(liveAnalytics?.financial_ladder?.theo_cogs || 0);
   const unverifiedTheo = Number(
@@ -508,12 +512,17 @@ export default function FinanceTab({
               return;
             }
               exportAuditExcel(liveAnalytics, activeClient, startDate, endDate);
+              setEtaxNotice("E-Tax файл татагдлаа");
+              setTimeout(() => setEtaxNotice(null), 4000);
             }}
               className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
             >
               <Download className="h-3.5 w-3.5" /> E-Tax Экспорт
             </button>
           </div>
+          {etaxNotice && (
+            <p className="text-xs font-bold text-emerald-300 mt-2">{etaxNotice}</p>
+          )}
         </div>
 
         {/* 🚨 ТОХИОЛДОЛ 1: ХЭРЭВ БОРЛУУЛСАН ЦЭС ДҮНД ЖОРГҮЙ БАРАА БАЙВАЛ ШУУД ТҮГЖИНЭ */}
@@ -544,6 +553,11 @@ export default function FinanceTab({
             >
               🔗 Жоргүй цэсийг холбох ➔
             </button>
+          </div>
+        ) : dataState === "empty" ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+            <p className="text-sm font-bold text-zinc-200">{PERIOD_EMPTY_TITLE}</p>
+            <p className="text-xs text-zinc-400 mt-2">{PERIOD_EMPTY_HINT}</p>
           </div>
         ) : (
           /* 🟢 ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */
@@ -613,7 +627,7 @@ export default function FinanceTab({
               <span className="text-xs text-zinc-300 mt-1 block">
                 {trustReady
                   ? trustSummary.verified > 0
-                    ? `${trustSummary.total} бараанаас ${trustSummary.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${trustSummary.purchase_pct}%)`
+                    ? `${trustSummary.total} бараанаас ${trustSummary.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн ${purchasePctLabel(trustSummary)})`
                     : trustSummary.total > 0
                       ? `${trustSummary.total} бараанаас баталгаажсан нь алга`
                       : "—"
@@ -685,6 +699,8 @@ export default function FinanceTab({
             ))}
           </div>
         )}
+        {dataState !== "empty" && (
+        <>
         <DataGradePanel
           liveAnalytics={liveAnalytics}
           onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
@@ -898,7 +914,12 @@ export default function FinanceTab({
                   Ажилтнуудын Сүүлийн Бүртгэлүүд
                 </p>
 
-                {liveAnalytics?.all_timeline_logs?.filter(
+                {dataState === "loading" ? (
+                  <div className="space-y-2">
+                    <div className="h-12 bg-zinc-800 rounded-xl" />
+                    <div className="h-12 bg-zinc-800 rounded-xl" />
+                  </div>
+                ) : liveAnalytics?.all_timeline_logs?.filter(
                   (l: any) => l.type !== "count" && l.type !== "purchase",
                 ).length > 0 ? (
                   <div className="space-y-3 border-l-2 border-zinc-800 pl-3 ml-1">
@@ -911,7 +932,7 @@ export default function FinanceTab({
                         <div key={idx} className="relative">
                           <span className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-zinc-600 ring-4 ring-[#1E293B]" />
                           <p className="text-xs font-bold text-zinc-300">
-                            {log.worker}{" "}
+                            {staffDisplayName(log.worker)}{" "}
                             <span className="text-zinc-500 font-normal">
                               бүртгэсэн:
                             </span>
@@ -925,15 +946,13 @@ export default function FinanceTab({
                           </p>
                           <p className="text-xs text-zinc-500 mt-0.5 flex gap-2">
                             <span
-                              className={`uppercase font-bold ${
-                                log.type === "spoilage"
+                              className={`font-bold ${
+                                String(log.type || "").toLowerCase() === "spoilage"
                                   ? "text-rose-400"
-                                  : log.type === "staff_meal"
-                                    ? "text-zinc-300"
-                                    : "text-zinc-300"
+                                  : "text-zinc-300"
                               }`}
                             >
-                              {log.type}
+                              {logTypeLabel(log.type, log.notes)}
                             </span>
                             <span>• {log.notes}</span>
                           </p>
@@ -942,13 +961,15 @@ export default function FinanceTab({
                   </div>
                 ) : (
                   <p className="text-xm text-zinc-500 italic">
-                    Өнөөдөр бүртгэгдсэн хаягдал алга байна.
+                    Энэ хугацаанд бүртгэгдсэн хаягдал алга байна.
                   </p>
                 )}
               </div>
             </div>
           </div>
         </div>
+        </>
+        )}
         {/* 🛡️ МАРЖИН ХАМГААЛАГЧ (УЯН ХАТАН ТОХИРУУЛГАТАЙ) */}
         {liveAnalytics?.margin_guard_alerts?.length > 0 &&
           (() => {

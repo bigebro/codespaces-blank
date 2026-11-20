@@ -2,7 +2,8 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { calculateMatchScore, transliterate } from './autoReconcile';
 import { analyticsPeriod, ubDay } from './ubDate';
 import { buildDataTrust } from './honestDashboard';
-import { displayUnit } from './shiftCycle';
+import { displayUnit, logTypeLabel, staffDisplayName } from './shiftCycle';
+import { formatUbTime } from './formatUbTime';
 import { assemblePhase4 } from './phase4';
 
 function addCalendarDays(day: string, days: number) {
@@ -282,7 +283,7 @@ export async function getAnalyticsData(
         .select("id, date, created_at, type, quantity, total_cost, notes, non_food_item, ingredient_id, worker_name, staff_id, shift_id, payment_method, is_ebarimt, image_url, incident_type, reported_against_worker")
         .eq("client_id", clientId.trim())
         .gte("date", new Date(new Date(finalStartDate).getTime() - 180 * 86400000).toISOString())
-        .lte("date", finalEndDate)
+        .lte("date", new Date(new Date(finalEndDate).getTime() + 14 * 3600 * 1000).toISOString())
         .order("date", { ascending: true })
         .range(from, to),
     ),
@@ -1100,16 +1101,23 @@ for (const key in master) {
     };
   });
 
-  const timelineLogs = rawInventoryLogs.map((log: any) => {
+  const timelineLogs = rawInventoryLogs
+    .filter((log: any) => {
+      if (!log.date) return false;
+      const day = ubDay(log.date);
+      return day >= startDay && day <= endDay;
+    })
+    .map((log: any) => {
     const ing = rawIngredients.find((i: any) => i.id === log.ingredient_id);
     return {
-      date: log.date ? new Date(log.date).toLocaleString('mn-MN', { timeZone: 'Asia/Ulaanbaatar', dateStyle: 'short' }) : 'Unknown',
-      time: log.date ? new Date(log.date).toLocaleTimeString('mn-MN', { timeZone: 'Asia/Ulaanbaatar' }) : '',
-      worker: log.worker_name || 'Систем / Админ',
+      date: log.date ? ubDay(log.date) : "",
+      time: log.date ? formatUbTime(log.date) : "",
+      worker: staffDisplayName(log.worker_name || "Систем / Админ"),
       item: ing ? ing.name : (log.non_food_item || "Unknown"),
       qty: log.quantity,
       unit: ing ? ing.unit : 'ш',
       type: log.type,
+      type_label: logTypeLabel(log.type, log.notes),
       payment_method: log.payment_method || 'bank',
       is_ebarimt: log.is_ebarimt !== false,
       image_url: log.image_url || null,
@@ -1295,8 +1303,8 @@ logged_spoilage_items: (rawInventoryLogs || [])
       item: ing ? ing.name : (log.non_food_item || "Unknown"),
       quantity: Math.abs(parseFloat(log.quantity) || 0),
       unit: ing ? ing.unit : "ш",
-      worker: log.worker_name || "Үл мэдэгдэх", // 👈 ЭНД АЖИЛТНЫ НЭРИЙГ ӨГНӨ!
-      time: log.date ? new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
+      worker: staffDisplayName(log.worker_name || "Үл мэдэгдэх"),
+      time: log.date ? formatUbTime(log.date) : "",
       notes: log.notes || ""
     };
   }),

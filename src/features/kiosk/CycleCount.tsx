@@ -12,6 +12,7 @@ import {
   UNEXPLAINED_LABEL,
   WASTE_QUESTION,
   WASTE_REASONS,
+  IMPLAUSIBLE_COUNT_MESSAGE,
   type CycleItem,
 } from "@/lib/shiftCycle";
 
@@ -43,7 +44,7 @@ export default function CycleCount({
   const [index, setIndex] = useState(0);
   const [recounting, setRecounting] = useState(false);
   const [value, setValue] = useState("");
-  const [phase, setPhase] = useState<"count" | "waste" | "wasteQty" | "night">("count");
+  const [phase, setPhase] = useState<"count" | "waste" | "wasteQty" | "confirm" | "night">("count");
   const [reason, setReason] = useState<{ label: string; type: string } | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [waste, setWaste] = useState<CycleWaste[]>([]);
@@ -113,6 +114,12 @@ export default function CycleCount({
     if (review.needsRecount) {
       setRecounting(true);
       setValue("");
+      setError("");
+      return;
+    }
+    if (review.needsConfirm) {
+      setCounts({ ...counts, [item.id]: qty });
+      setPhase("confirm");
       setError("");
       return;
     }
@@ -187,6 +194,35 @@ export default function CycleCount({
             {index + 1 === items.length ? "Дуусгах" : "Дараах"}
           </button>
         </>
+      )}
+
+
+      {phase === "confirm" && (
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-4 space-y-3">
+          <p className="text-lg font-black text-white">{item.name}</p>
+          <p className="text-sm text-zinc-200">{IMPLAUSIBLE_COUNT_MESSAGE}</p>
+          <p className="text-sm text-zinc-400 font-mono">Оруулсан тоо: {counts[item.id]} {displayUnit(item.unit)}</p>
+          {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+          <button
+            type="button"
+            onClick={() => remember(counts[item.id])}
+            className="w-full h-14 rounded-2xl bg-white text-zinc-950 font-black"
+          >
+            Тийм, энэ тоо зөв
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPhase("count");
+              setRecounting(false);
+              setValue("");
+              setError("");
+            }}
+            className="w-full h-14 rounded-2xl border border-zinc-700 text-zinc-200 font-bold"
+          >
+            Дахин оруулах
+          </button>
+        </div>
       )}
 
       {phase === "waste" && gapNow && (

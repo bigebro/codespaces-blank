@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { mapAuthError } from "@/lib/authErrors";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
@@ -200,7 +201,7 @@ export default function LoginPage() {
       if (error) throw error;
       setSuccessMsg("Нууц үг сэргээх линкийг имэйл рүү тань илгээлээ.");
     } catch (err: any) {
-      setErrorMsg(err.message || "Имэйл илгээж чадсангүй.");
+      setErrorMsg(mapAuthError(err, "Имэйл илгээж чадсангүй."));
     } finally {
       setLoading(false);
     }
@@ -279,12 +280,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             password,
           });
           
-          if (signInError) {
-             if (signInError.message.includes("Email not confirmed")) {
-                 throw new Error(" Supabase 'Confirm email' тохиргоо асаалттай байна! Унтраана уу.");
-             }
-             throw signInError;
-          }
+          if (signInError) throw signInError;
         }
 
         // ⚡ 4. DASHBOARD РУУ ШУУД ҮСЭРГЭХ (Modal өөрөө нээгдэнэ):
@@ -324,7 +320,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           "Энэ бизнесийн нэр аль хэдийнэ бүртгэгдсэн байна! Та өөр нэр сонгоно уу.",
         );
       } else {
-        setErrorMsg(err.message || "Үйлдэл амжилтгүй боллоо.");
+        setErrorMsg(mapAuthError(err, "Үйлдэл амжилтгүй боллоо. Дахин оролдоно уу."));
       }
     } finally {
       // Амжилттай нэвтэрсэн бол хуудас солигдох хүртэл товчийг идэвхгүй байлгана.
@@ -549,7 +545,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               href="/kiosk"
               className="text-xs text-zinc-500 hover:text-zinc-200 font-bold transition inline-flex items-center gap-1"
             >
-              ← Kiosk руу буцах
+              ← Киоск руу буцах
             </Link>
           </div>
         )}

@@ -5,6 +5,8 @@ import { supabase } from "../../lib/supabase";
 import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubDate";
 import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
 import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
+import { roleLabel } from "../../lib/roleLabel";
+import { planLabel } from "../../lib/planLabel";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
 // @ts-ignore
@@ -314,7 +316,7 @@ function Home() {
   const [taxMode, setTaxMode] = useState("auto");
 
 
-  const [userRole, setUserRole] = useState<string>("Ажилтан");
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [shifts, setShifts] = useState<any[]>([]);
   const [activeClient, setActiveClient] = useState<string>("");
@@ -2365,7 +2367,7 @@ function Home() {
               href="/kiosk"
               className="w-full bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-zinc-200 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
-              📱 Гал тогооны Kiosk руу буцах
+              📱 Гал тогооны киоск руу буцах
             </Link>
           </div>
         </div>
@@ -2502,7 +2504,7 @@ function Home() {
                   onClick={() => router.push("/kiosk")}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-zinc-300 hover:bg-zinc-800/60 transition-all mt-1"
                 >
-                  <Smartphone className="h-4 w-4" /> Гал тогооны Kiosk
+                  <Smartphone className="h-4 w-4" /> Гал тогооны киоск
                 </button>
               )}
 
@@ -2616,7 +2618,11 @@ function Home() {
                   {user.email}
                 </p>
                 <p className="text-zinc-500 text-xs uppercase font-bold mt-0.5">
-                  {userRole === "owner" ? "Эзэн" : userRole === "manager" ? "Менежер" : userRole === "staff" ? "Ажилтан" : userRole}
+                  {userRole == null ? (
+                    <span className="inline-block h-3 w-16 rounded bg-zinc-800 animate-pulse align-middle" aria-hidden />
+                  ) : (
+                    roleLabel(userRole)
+                  )}
                 </p>
               </div>
               <button
@@ -2717,7 +2723,7 @@ function Home() {
                       Таны{" "}
                       {tenantInfo.isTrial
                         ? "14 хоногийн туршилт"
-                        : `${tenantInfo.plan.toUpperCase()} эрх`}{" "}
+                        : `«${planLabel(tenantInfo.plan, tenantInfo.isTrial)}» эрх`}{" "}
                       <strong>{tenantInfo.formattedEndDate}</strong>-нд дуусна.
                       Үйл ажиллагаагаа тасалдуулахгүйн тулд сунгана уу.
                     </p>
@@ -2944,7 +2950,7 @@ function Home() {
                       setProductsList={setProductsList}
                       learnedMenus={learnedMenus}
                       learnedCategories={learnedCategories}
-                      userRole={userRole}
+                      userRole={userRole ?? ""}
                       user={user}
                       loading={loading}
                       setLoading={setLoading}
@@ -3237,7 +3243,7 @@ function Home() {
                             <h3 className="font-black text-white text-sm uppercase">
                               Идэвхтэй багц:{" "}
                               <span className="text-zinc-200">
-                                {tenantInfo?.plan || "Professional"}
+                                {planLabel(tenantInfo?.plan, tenantInfo?.isTrial)}
                               </span>
                             </h3>
                             {tenantInfo?.isTrial && (

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ubDay } from "@/lib/ubDate";
-import { COMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine } from "@/lib/honestDashboard";
+import { COMPLETE_PERIOD, STATUS_LABEL, SURPLUS_NOTE, topFixActions, unlockLine, purchasePctLabel } from "@/lib/honestDashboard";
 import { gradeGuide } from "@/lib/gradeGuide";
 
 type Grade = {
@@ -286,7 +286,7 @@ export default function DataGradePanel({
       <div>
         <h3 className="text-base font-black text-white">Өгөгдлийн итгэл</h3>
         <p className="text-sm text-zinc-300 mt-1">
-          {trust.total} бараанаас {trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн {trust.purchase_pct}%)
+          {trust.total} бараанаас {trust.verified} нь баталгаажсан (худалдан авалтын үнийн дүнгийн {purchasePctLabel(trust)})
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">

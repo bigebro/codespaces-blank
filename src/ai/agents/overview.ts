@@ -1,11 +1,11 @@
 import { getAnalyticsData } from "@/lib/analytics";
-import { dashboardTrust, overviewStatusBlock } from "@/lib/honestDashboard";
+import { dashboardTrust, overviewStatusBlock, purchasePctLabel, STATUS_LABEL, normalizeStatus } from "@/lib/honestDashboard";
 import { ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
 import type { OverviewPeriod } from "@/lib/overviewPeriod";
 
 export type { OverviewPeriod } from "@/lib/overviewPeriod";
-export { overviewDateLine, resolveOverviewPeriod } from "@/lib/overviewPeriod";
+export { hasNamedPeriod, overviewDateLine, resolveOverviewPeriod } from "@/lib/overviewPeriod";
 
 // «Бизнес ямар байна вэ?» төрлийн ерөнхий асуулт.
 const OVERVIEW_PATTERNS = [
@@ -18,6 +18,9 @@ const OVERVIEW_PATTERNS = [
   "өнөөдрийн дүн",
   "тойм",
   "дүгнэлт",
+  "юу болсон",
+  "юу болов",
+  "what happened",
   "overview",
   "summary",
 ];
@@ -25,6 +28,33 @@ const OVERVIEW_PATTERNS = [
 export function isOverviewQuestion(text: string) {
   const t = String(text || "").toLowerCase();
   return OVERVIEW_PATTERNS.some((p) => t.includes(p));
+}
+
+
+function qtyLine(value: unknown, unit?: string) {
+  if (value == null || value === "") return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  const u = String(unit || "").trim();
+  return u ? `${Math.round(n * 10) / 10} ${u}` : `${Math.round(n * 10) / 10}`;
+}
+
+function moneyLine(value: unknown) {
+  if (value == null || value === "") return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return `${Math.round(n).toLocaleString("en-US")} ₮`;
+}
+
+/** Самбарын бараа тус бүрийн зөрүү, статусыг AI-д өгнө. Тоо байхгүй бол «—». */
+export function gradeFactLines(grades: any[] = []): string {
+  if (!grades.length) return "Барааны зөрүүний мөр алга.";
+  return grades.map((row) => {
+    const name = String(row?.name || "").trim() || "Нэргүй бараа";
+    const status = STATUS_LABEL[normalizeStatus(row?.status)];
+    const unit = row?.unit;
+    return `- ${name}: ${status}; бодит: ${qtyLine(row?.actual_qty, unit)}; онол: ${qtyLine(row?.theoretical_qty, unit)}; зөрүү: ${qtyLine(row?.gap_qty, unit)} / ${moneyLine(row?.gap_money)}`;
+  }).join("\n");
 }
 
 function mnt(value: unknown) {
@@ -70,7 +100,10 @@ export async function buildOverviewSnapshot(clientId: string, range: OverviewPer
       `- Хаягдлын алдагдал: ${mnt(waste)}`,
       `- Тайлбаргүй зөрүү: ${mnt(unexplained)}`,
       overviewStatusBlock(board),
-      "ДҮРЭМ: Зөвхөн дээрх тоо болон бараа тус бүрийн статусыг ашигла. Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Хариултын эхэнд хугацааг систем нэмнэ, чи давхар бичиж хэрэггүй. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. 0 нь өгөгдөл байхгүй гэсэн утгатай байж болно, тэгвэл «өгөгдөл алга» гэж хэл. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
+      `- Худалдан авалтын үнийн дүнгийн хувь: ${purchasePctLabel(trust)}`,
+      "Бараа тус бүрийн тоо (самбартай ижил. Энд байхгүй тоог битгий нэм):",
+      gradeFactLines(data?.grades || []),
+      "ДҮРЭМ: Зөвхөн дээрх тоо, барааны мөр, эсвэл ижил хугацаагаар дуудсан tool-ийн гаралтыг иш тат. Өөр хугацааны эсвэл MTD vitals-ийн тоог энэ хариултад бичиж болохгүй. Тооны эх сурвалж олдохгүй бол «—» эсвэл «өгөгдөл алга» гэж хэл, 0 гэж таамаглаж болохгүй. Хариултад зөвхөн нэг хугацаа нэрлэ (систем эхэнд нэмсэн хугацаа). Самбар «Шалгах» гэж байвал зөрүү 0 байлаа ч «Баталгаажсан» гэж битгий өөрчил. Сонгосон хугацаа өнөөдөр биш бол «Өнөөдөр (огноо)» гэсэн гарчиг битигий нэм. Дутуу эсвэл шалгах бараа байвал зөрүү бүрэн биш гэдгийг дурд. Эцэст нь 2-3 богино зөвлөгөө өг.",
       MN_BUSINESS_SPELLING_NOTE,
     ].join("\n");
   } catch (err) {

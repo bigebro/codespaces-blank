@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Coffee, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { mapAuthError } from "@/lib/authErrors";
 
 function UpdatePasswordPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ function UpdatePasswordPage() {
       setSuccessMsg("Нууц үг амжилттай солигдлоо! Та нэвтэрч орно уу.");
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: any) {
-      setErrorMsg(err.message || "Нууц үг солиход алдаа гарлаа.");
+      setErrorMsg(mapAuthError(err, "Нууц үг солиход алдаа гарлаа."));
     } finally {
       setLoading(false);
     }
@@ -45,7 +46,7 @@ function UpdatePasswordPage() {
             Шинэ Нууц Үг Тохируулах
           </h2>
           <p className="text-zinc-500 text-xs mt-1 uppercase tracking-wider font-bold">
-            Secure Password Reset
+            Нууц үг сэргээх
           </p>
         </div>
 

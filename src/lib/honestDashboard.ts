@@ -55,6 +55,7 @@ export type DataTrust = {
   remaining: number;
   unverified_theo: number;
   purchase_pct: number;
+  has_purchase_value: boolean;
 };
 
 /** Самбар болон OP AI хоёулаа энэ тооллогоор «баталгаажсан / дутуу / шалгах»-ыг бодно. */
@@ -65,10 +66,9 @@ export function buildDataTrust(grades: GradeLike[] = [], purchasePct?: number): 
   const check = normalized.filter((row) => row.status === "Check").length;
   const purchaseAll = normalized.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
   const purchaseVerified = verifiedRows.reduce((sum, row) => sum + (Number(row.purchase_value) || 0), 0);
+  const has_purchase_value = purchaseAll > 0;
   const purchase_pct = purchasePct ?? (
-    purchaseAll > 0
-      ? Math.round((purchaseVerified / purchaseAll) * 100)
-      : (normalized.length ? Math.round((verifiedRows.length / normalized.length) * 100) : 0)
+    has_purchase_value ? Math.round((purchaseVerified / purchaseAll) * 100) : 0
   );
   const unverified_theo = normalized
     .filter((row) => row.status !== "Verified")
@@ -81,6 +81,7 @@ export function buildDataTrust(grades: GradeLike[] = [], purchasePct?: number): 
     remaining: missing + check,
     unverified_theo,
     purchase_pct,
+    has_purchase_value,
   };
 }
 
@@ -141,6 +142,7 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
         ) || 0,
         unverified_theo: Number(input.data_trust.unverified_theo ?? fromGrades.unverified_theo) || 0,
         purchase_pct: input.data_trust.purchase_pct ?? fromGrades.purchase_pct,
+        has_purchase_value: input.data_trust.has_purchase_value ?? fromGrades.has_purchase_value,
       }
     : fromGrades;
   // «ажил үлдсэн»: grades байвал засварлаж болох мөр, үгүй бол data_trust.remaining.
@@ -151,6 +153,7 @@ export function summarizeTrust(input: { grades?: GradeLike[]; data_trust?: Parti
   const verified_pct = trust.total ? Math.floor((trust.verified / trust.total) * 100) : 0;
   return {
     purchase_pct: trust.purchase_pct,
+    has_purchase_value: Boolean(trust.has_purchase_value),
     verified_pct,
     verified: trust.verified,
     total: trust.total,
@@ -237,4 +240,14 @@ export function likelyCauses(gapQty: number | null | undefined) {
   return Number(gapQty) < 0
     ? "Үлдэгдэл хүлээгдэж байснаас их. Магадгүй: орлого бүртгээгүй, тооллого буруу, эсвэл жор хэт их орцтой."
     : "Үлдэгдэл хүлээгдэж байснаас бага. Магадгүй: хаягдал бүртгээгүй, орлого давхар эсвэл илүү бүртгэсэн, тооллого буруу, эсвэл жор хэт бага орцтой.";
+}
+
+/** Худалдан авалтын үнийн дүн байхгүй үед 0%-ийг «—» гэж харуулна. */
+export function purchasePctLabel(trust: { purchase_pct?: number; has_purchase_value?: boolean } | null | undefined): string {
+  if (!trust) return "—";
+  if (trust.has_purchase_value === false) return "—";
+  const pct = trust.purchase_pct;
+  if (pct == null || !Number.isFinite(Number(pct))) return "—";
+  if (Number(pct) === 0 && trust.has_purchase_value !== true) return "—";
+  return `${Math.round(Number(pct))}%`;
 }

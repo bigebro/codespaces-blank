@@ -62,6 +62,13 @@ const NAMED_PERIODS: Array<{ re: RegExp; make: (today: string) => OverviewPeriod
   { re: /өнөөдөр|өнөөдрийн|\btoday\b/, make: (today) => todayPeriod(today, "named") },
 ];
 
+
+/** Асуултад өчигдөр/өнөөдөр/энэ сар зэрэг нэрлэсэн хугацаа байгаа эсэх. */
+export function hasNamedPeriod(text: string): boolean {
+  const t = String(text || "").toLowerCase();
+  return NAMED_PERIODS.some((item) => item.re.test(t));
+}
+
 /** Асуултад нэрлэсэн хугацаа байвал тэрийг, үгүй бол самбарын сонгосон хүрээг, тэр ч байхгүй бол өнөөдрийг авна. */
 export function resolveOverviewPeriod(
   text: string,

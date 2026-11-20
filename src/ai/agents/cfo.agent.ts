@@ -4,15 +4,9 @@ import { getVitals } from "@/core/packages/pkg_vitals";
 import { AgentContext } from "@/types/agent.types";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { runToolAgent } from "@/ai/runtime/agentLoop";
-import { buildOverviewSnapshot, isOverviewQuestion, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
+import { buildOverviewSnapshot, overviewDateLine, resolveOverviewPeriod } from "@/ai/agents/overview";
 import { MN_BUSINESS_SPELLING_NOTE } from "@/ai/runtime/mnSpelling";
 
-function sanitizeDateWithYear(dateStr: string | undefined, fallbackDate: string, targetYear: string): string {
-  if (!dateStr || typeof dateStr !== "string") return fallbackDate;
-  const match = dateStr.match(/^(\d{4})(-\d{2}-\d{2}.*)$/);
-  if (match && match[1] !== targetYear) return `${targetYear}${match[2]}`;
-  return dateStr;
-}
 
 export async function runCfoAgent(context: AgentContext, userMessage: string): Promise<ReadableStream> {
   const now = new Date();
@@ -21,7 +15,6 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
     ? context.activeStartDate.split("-")[0]
     : String(currentIsoDate.slice(0, 4));
 
-  const wantsOverview = isOverviewQuestion(userMessage);
   const overviewPeriod = resolveOverviewPeriod(
     userMessage,
     context.activeStartDate,
@@ -43,7 +36,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    wantsOverview ? buildOverviewSnapshot(context.clientId, overviewPeriod) : Promise.resolve(""),
+    buildOverviewSnapshot(context.clientId, overviewPeriod),
   ]);
   const rules = rulesResult.data;
 
@@ -72,8 +65,10 @@ ${MN_BUSINESS_SPELLING_NOTE}
 - (MTD = сарын эхнээс өнөөдрийг хүртэл. Сонгосон хугацааны тоог MTD-тай бүү холь. «Өнөөдөр» гэсэн асуултад MTD-г өнөөдрийн тоо гэж хэлж болохгүй.)
 - OVERVIEW PERIOD: ${overviewPeriod.label} (${overviewPeriod.startDay} – ${overviewPeriod.endDay}, Asia/Ulaanbaatar)
 - If OVERVIEW PERIOD is not today, do not write a «Өнөөдөр (YYYY-MM-DD)» heading. The system already prepends the period.
-- MTD Revenue: ${vitals.monthToDateRevenue.toLocaleString()} ₮
-- Est. Net Profit: ${vitals.estimatedNetProfit.toLocaleString()} ₮ (WARNING: Rough 15% margin guess, NOT actual audited profit)
+- Cite only the OVERVIEW PERIOD. Never name a second period (do not write both «Өнөөдөр» and «энэ сар»).
+- MTD figures below are NOT the selected period. Do not quote them as facts for the question.
+- MTD Revenue (сарын эхнээс өнөөдрийг хүртэл, жишиг биш): ${vitals.monthToDateRevenue.toLocaleString()} ₮
+- Est. Net Profit (WARNING: Rough 15% margin guess, NOT actual audited profit): ${vitals.estimatedNetProfit.toLocaleString()} ₮
 - Opening balances (NOT live till): Cash ${vitals.currentCashBalance.toLocaleString()} ₮, Bank ${vitals.currentBankBalance.toLocaleString()} ₮
 ${todaySnapshot ? "\n" + todaySnapshot + "\n" : ""}
 ${weeklyBriefPromptText}
@@ -92,21 +87,9 @@ openingQty null means no count was logged. Never use currentStock as the opening
     tools: cfoSkills as never,
     sanitizeArgs: (raw) => ({
       ...raw,
-      startDate: sanitizeDateWithYear(
-        raw.startDate as string | undefined,
-        wantsOverview
-          ? ubDayStartIso(overviewPeriod.startDay)
-          : (context.activeStartDate || `${targetYear}-01-01`),
-        targetYear,
-      ),
-      endDate: sanitizeDateWithYear(
-        raw.endDate as string | undefined,
-        wantsOverview
-          ? ubDayEndIso(overviewPeriod.endDay)
-          : (context.activeEndDate || currentIsoDate),
-        targetYear,
-      ),
+      startDate: ubDayStartIso(overviewPeriod.startDay),
+      endDate: ubDayEndIso(overviewPeriod.endDay),
     }),
-    preamble: wantsOverview ? `${overviewDateLine(overviewPeriod)}\n\n` : undefined,
+    preamble: `${overviewDateLine(overviewPeriod)}\n\n`,
   });
 }
