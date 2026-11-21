@@ -1,0 +1,102 @@
+diff --git a/src/ai/agents/cfo.agent.ts b/src/ai/agents/cfo.agent.ts
+index 82a5f66..253e7f2 100644
+--- a/src/ai/agents/cfo.agent.ts
++++ b/src/ai/agents/cfo.agent.ts
+@@ -18,6 +18,23 @@ import {
+ } from "@/lib/dashboardFactsBlock";
+ import { localizedItemName } from "@/lib/itemDisplayName";
+ 
++/** Асуултад нэр нь орсон барааны самбарын картыг олно. Кэштэй тул хурдан. */
++export async function namedGradeForQuestion(context: AgentContext, userMessage: string) {
++  try {
++    const now = new Date();
++    const period = resolveOverviewPeriod(userMessage, context.activeStartDate, context.activeEndDate, now);
++    const data: any = await getCachedAnalytics(
++      context.clientId,
++      ubDayStartIso(period.startDay),
++      ubDayEndIso(period.endDay),
++    );
++    return { data, named: findNamedGrade(data?.grades || [], userMessage) };
++  } catch (err) {
++    console.error("[cfo] named grade lookup failed", err);
++    return { data: null, named: null };
++  }
++}
++
+ export async function runCfoAgent(context: AgentContext, userMessage: string): Promise<ReadableStream> {
+   const now = new Date();
+   const currentIsoDate = ubDay(now);
+@@ -32,17 +49,22 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
+     now,
+   );
+   const looksLikeItemFacts = /хаягдал|муудсан|асгарсан|эцсийн тоо|эхлэх тоо|тайлбаргүй/.test(String(userMessage || "").toLowerCase());
+-  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage) || looksLikeItemFacts;
++  const pre = await namedGradeForQuestion(context, userMessage);
++  const namedUp = pre.named;
++  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage) || looksLikeItemFacts || Boolean(namedUp);
+   const periodLine = overviewDateLine(overviewPeriod);
+ 
+   const official = { text: "", itemName: "" };
+-  const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts;
++  const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts && !namedUp;
++  const overviewContext = overviewAdvice && pre.data
++    ? renderOverviewFactsBlock(pre.data, overviewPeriod.label).slice(0, 3000)
++    : "";
+ 
+   if (factsFirst) {
+     return runToolAgent({
+       context,
+       userMessage: overviewAdvice
+-        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Хамгийн ихдээ хоёр богино зөвлөмж бич.`
++        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Доорх мэдээллээс «Шалгах» эсвэл «Дутуу» төлөвтэй барааг нэрээр нь дурдаж, юуг шалгахыг хамгийн ихдээ хоёр богино өгүүлбэрээр зөвлө. Тоо бичихгүй.${overviewContext ? `\n\nСамбарын мэдээлэл (зөвхөн үндэслэл):\n${overviewContext}` : ""}`
+         : `${userMessage}\n\nСамбарын карт дээрх мөр, зөвлөмж хэрэглэгчид аль хэдийн харагдана. Тоо, бизнесийн өргөн мэдэгдэл бүү бич. Нэг богино өгүүлбэр, эсвэл хоосон.`,
+       disableTools: true,
+       historyLimit: 0,
+@@ -57,10 +79,12 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
+           cleaned = stripAllItemBoardTotals(cleaned);
+           cleaned = sanitizeItemAdvice(cleaned);
+         }
++        cleaned = cleaned.trim();
++        if (overviewAdvice && cleaned) cleaned = `Зөвлөмж: ${cleaned.replace(/^Зөвлөмж\s*:\s*/i, "")}`;
+         return cleaned;
+       },
+       prepareLeadingText: async () => {
+-        const data: any = await getCachedAnalytics(
++        const data: any = pre.data || await getCachedAnalytics(
+           context.clientId,
+           ubDayStartIso(overviewPeriod.startDay),
+           ubDayEndIso(overviewPeriod.endDay),
+diff --git a/src/ai/agents/router.agent.ts b/src/ai/agents/router.agent.ts
+index bc88e2f..14941c0 100644
+--- a/src/ai/agents/router.agent.ts
++++ b/src/ai/agents/router.agent.ts
+@@ -1,6 +1,6 @@
+ import { after } from "next/server";
+ import { AgentContext } from "@/types/agent.types";
+-import { runCfoAgent } from "./cfo.agent";
++import { namedGradeForQuestion, runCfoAgent } from "./cfo.agent";
+ import { runCooAgent } from "./coo.agent";
+ import { runHrAgent } from "./hr.agent";
+ import { geminiApiKey, getGenAI } from "@/lib/ai/genai";
+@@ -47,6 +47,8 @@ const DEPARTMENT_ONLY: Record<string, RouterDecision["route"]> = {
+   payroll: "HR",
+ };
+ 
++const ITEM_STATUS_ASK = /хаягдал|муудсан|асгарсан|алдаа|туршилт|тайлбаргүй|зөрүү|яаж байна|хэр байна|ямар байна|байдал|хэд вэ|хэд байна/;
++
+ function wordHits(text: string, words: string[]) {
+   return words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
+ }
+@@ -217,6 +219,12 @@ export async function routeAiRequest(
+     if (!route) route = keywordFallback(payload.text);
+   }
+ 
++  // Барааны нэр + төлөв/хаягдлын асуулт: самбарын картын тоогоор CFO хариулна (COO-ийн хэрэгсэл өөр тоо гаргаж болно).
++  if (route !== "HR" && route !== "CFO" && !forcesCoo(payload.text.toLowerCase()) && ITEM_STATUS_ASK.test(payload.text.toLowerCase())) {
++    const found = await namedGradeForQuestion(context, payload.text);
++    if (found.named) route = "CFO";
++  }
++
+   const agentText = await withPreviousQuestion(context.clientId, payload.text);
+   console.log(`[ROUTER] Intent classified as: '${route}'`);
+ 

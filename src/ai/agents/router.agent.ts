@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { AgentContext } from "@/types/agent.types";
-import { runCfoAgent } from "./cfo.agent";
+import { namedGradeForQuestion, runCfoAgent } from "./cfo.agent";
 import { runCooAgent } from "./coo.agent";
 import { runHrAgent } from "./hr.agent";
 import { geminiApiKey, getGenAI } from "@/lib/ai/genai";
@@ -46,6 +46,8 @@ const DEPARTMENT_ONLY: Record<string, RouterDecision["route"]> = {
   hr: "HR",
   payroll: "HR",
 };
+
+const ITEM_STATUS_ASK = /хаягдал|муудсан|асгарсан|алдаа|туршилт|тайлбаргүй|зөрүү|яаж байна|хэр байна|ямар байна|байдал|хэд вэ|хэд байна/;
 
 function wordHits(text: string, words: string[]) {
   return words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
@@ -215,6 +217,12 @@ export async function routeAiRequest(
       route = null;
     }
     if (!route) route = keywordFallback(payload.text);
+  }
+
+  // Барааны нэр + төлөв/хаягдлын асуулт: самбарын картын тоогоор CFO хариулна (COO-ийн хэрэгсэл өөр тоо гаргаж болно).
+  if (route !== "HR" && route !== "CFO" && !forcesCoo(payload.text.toLowerCase()) && ITEM_STATUS_ASK.test(payload.text.toLowerCase())) {
+    const found = await namedGradeForQuestion(context, payload.text);
+    if (found.named) route = "CFO";
   }
 
   const agentText = await withPreviousQuestion(context.clientId, payload.text);

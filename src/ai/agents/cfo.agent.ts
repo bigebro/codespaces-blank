@@ -18,6 +18,23 @@ import {
 } from "@/lib/dashboardFactsBlock";
 import { localizedItemName } from "@/lib/itemDisplayName";
 
+/** Асуултад нэр нь орсон барааны самбарын картыг олно. Кэштэй тул хурдан. */
+export async function namedGradeForQuestion(context: AgentContext, userMessage: string) {
+  try {
+    const now = new Date();
+    const period = resolveOverviewPeriod(userMessage, context.activeStartDate, context.activeEndDate, now);
+    const data: any = await getCachedAnalytics(
+      context.clientId,
+      ubDayStartIso(period.startDay),
+      ubDayEndIso(period.endDay),
+    );
+    return { data, named: findNamedGrade(data?.grades || [], userMessage) };
+  } catch (err) {
+    console.error("[cfo] named grade lookup failed", err);
+    return { data: null, named: null };
+  }
+}
+
 export async function runCfoAgent(context: AgentContext, userMessage: string): Promise<ReadableStream> {
   const now = new Date();
   const currentIsoDate = ubDay(now);
@@ -32,17 +49,22 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
     now,
   );
   const looksLikeItemFacts = /хаягдал|муудсан|асгарсан|эцсийн тоо|эхлэх тоо|тайлбаргүй/.test(String(userMessage || "").toLowerCase());
-  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage) || looksLikeItemFacts;
+  const pre = await namedGradeForQuestion(context, userMessage);
+  const namedUp = pre.named;
+  const factsFirst = isOverviewQuestion(userMessage) || isGradeStatusQuestion(userMessage) || looksLikeItemFacts || Boolean(namedUp);
   const periodLine = overviewDateLine(overviewPeriod);
 
   const official = { text: "", itemName: "" };
-  const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts;
+  const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts && !namedUp;
+  const overviewContext = overviewAdvice && pre.data
+    ? renderOverviewFactsBlock(pre.data, overviewPeriod.label).slice(0, 3000)
+    : "";
 
   if (factsFirst) {
     return runToolAgent({
       context,
       userMessage: overviewAdvice
-        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Хамгийн ихдээ хоёр богино зөвлөмж бич.`
+        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Доорх мэдээллээс «Шалгах» эсвэл «Дутуу» төлөвтэй барааг нэрээр нь дурдаж, юуг шалгахыг хамгийн ихдээ хоёр богино өгүүлбэрээр зөвлө. Тоо бичихгүй.${overviewContext ? `\n\nСамбарын мэдээлэл (зөвхөн үндэслэл):\n${overviewContext}` : ""}`
         : `${userMessage}\n\nСамбарын карт дээрх мөр, зөвлөмж хэрэглэгчид аль хэдийн харагдана. Тоо, бизнесийн өргөн мэдэгдэл бүү бич. Нэг богино өгүүлбэр, эсвэл хоосон.`,
       disableTools: true,
       historyLimit: 0,
@@ -57,10 +79,12 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
           cleaned = stripAllItemBoardTotals(cleaned);
           cleaned = sanitizeItemAdvice(cleaned);
         }
+        cleaned = cleaned.trim();
+        if (overviewAdvice && cleaned) cleaned = `Зөвлөмж: ${cleaned.replace(/^Зөвлөмж\s*:\s*/i, "")}`;
         return cleaned;
       },
       prepareLeadingText: async () => {
-        const data: any = await getCachedAnalytics(
+        const data: any = pre.data || await getCachedAnalytics(
           context.clientId,
           ubDayStartIso(overviewPeriod.startDay),
           ubDayEndIso(overviewPeriod.endDay),
