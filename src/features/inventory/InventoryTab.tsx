@@ -68,16 +68,16 @@ export default function InventoryTab({
       const ing = ingredients.find((i) => i.id === id);
       if (!ing) continue;
 
-      // 🛡️ ХАМГААЛАЛТ 1: Хасах тоог шууд хориглох
+      // ХАМГААЛАЛТ 1: Хасах тоог шууд хориглох
       if (qty < 0) {
-        alert(`❌ Алдаа: [${ing.name}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
+        alert(`Алдаа: [${ing.name}] дээр хасах тоо (${qty}) оруулсан байна. Үлдэгдэл 0-ээс бага байж болохгүй!`);
         return; // Үйлдлийг бүрэн зогсоож, setIsSavingBulk-ийг дуудахгүй
       }
 
-      // 🛡️ ХАМГААЛАЛТ 2: Грамм / Килограмм андуурах алдааг барих
+      // ХАМГААЛАЛТ 2: Грамм / Килограмм андуурах алдааг барих
       if ((ing.unit === "гр" || ing.unit === "мл") && qty > 0 && qty < 10) {
         const confirmUnit = window.confirm(
-          `⚠️ САНУУЛГА: Та [${ing.name}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
+          `САНУУЛГА: Та [${ing.name}]-ийг ердөө "${qty} ${ing.unit}" гэж орууллаа.\n\nТа үүнийг ${qty} КИЛОГРАММ/ЛИТР (${qty * 1000} ${ing.unit}) гэж бичих гэсэн юм биш биз?\n\nТийм бол [OK] дарна уу. Үгүй бол [Cancel].`
         );
         if (confirmUnit) {
           qty = qty * 1000;
@@ -85,11 +85,11 @@ export default function InventoryTab({
         }
       }
 
-      // 🛡️ ХАМГААЛАЛТ 3: Хуруу андуурч хэт их тоо бичих (15 гэх гээд 1500 дарвал)
+      // ХАМГААЛАЛТ 3: Хуруу андуурч хэт их тоо бичих (15 гэх гээд 1500 дарвал)
       const prevStock = parseFloat(ing.current_stock) || 0;
       if (prevStock > 0 && qty > (prevStock * 3) && (qty - prevStock) > 500) {
         const confirmVariance = window.confirm(
-          `🛑 АНХААР: [${ing.name}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
+          `АНХААР: [${ing.name}] дээр "${qty} ${ing.unit}" гэж маш их хэмжээгээр бичсэн байна. (Өмнөх үлдэгдэл: ${prevStock} ${ing.unit})\n\nТа 100% зөв тоолсон гэдэгтээ итгэлтэй байна уу?`
         );
         if (!confirmVariance) {
           return; // Үйлдлийг зогсооно
@@ -120,7 +120,7 @@ export default function InventoryTab({
       });
 
       if (logsToInsert.length === 0) {
-        alert("⚠️ Анхааруулга: Та нэг ч бараан дээр тоо бичээгүй байна.");
+        alert("Анхааруулга: Та нэг ч бараан дээр тоо бичээгүй байна.");
         setIsSavingBulk(false);
         return;
       }
@@ -134,12 +134,12 @@ export default function InventoryTab({
         throw logError;
       }
 
-      alert(`✅ Амжилттай! Нийт ${insertedRows?.length || logsToInsert.length} барааны тооллого бааз руу хадгалагдлаа.`);
+      alert(`Амжилттай! Нийт ${insertedRows?.length || logsToInsert.length} барааны тооллого бааз руу хадгалагдлаа.`);
       
       setBulkStock({});
       await fetchDatabaseData(activeClient);
     } catch (e: any) {
-      alert(`❌ Алдаа гарлаа: ${e.message}`);
+      alert(`Алдаа гарлаа: ${e.message}`);
     } finally {
       setIsSavingBulk(false);
     }
@@ -173,7 +173,7 @@ export default function InventoryTab({
             <span>{isSavingBulk ? "Хадгалж байна..." : "Хадгалах"}</span>
           </button>
         </div>
-        {/* 🔄 ЦИКЛИЙН ТОЛЛОГЫН ЯВЦ (ЭНД БАЙХ НЬ 100% ЗӨВ) */}
+        {/* ЦИКЛИЙН ТОЛЛОГЫН ЯВЦ (ЭНД БАЙХ НЬ 100% ЗӨВ) */}
         {liveAnalytics && (
           <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800 text-sm font-mono">
             <span className="text-zinc-400">Цикл тооллого:</span>
@@ -335,7 +335,7 @@ export default function InventoryTab({
                                   {ing.name}
                                 </span>
 
-                                {/* 🏷️ A, B, C БҮХ ТӨЛӨВИЙГ БҮРЭН ӨНГӨТЭЙ БОЛГОСОН ХЭСЭГ: */}
+                                {/* A, B, C БҮХ ТӨЛӨВИЙГ БҮРЭН ӨНГӨТЭЙ БОЛГОСОН ХЭСЭГ: */}
                                 <span
                                   className={`text-xs font-black px-1.5 py-0.5 rounded border ${
                                     abc === "A"
@@ -354,14 +354,14 @@ export default function InventoryTab({
                               </span>
                             </div>
 
-                            {/* 🌐 ОРЧУУЛГЫГ ХАРУУЛАХ БА ЗАСАХ ХЭСЭГ */}
+                            {/* ОРЧУУЛГЫГ ХАРУУЛАХ БА ЗАСАХ ХЭСЭГ */}
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {editingTranslation?.original ===
                               ing.name.toLowerCase() ? (
                                 <div className="flex items-center gap-1">
                                   <input
                                     type="text"
-                                    value={editingTranslation?.text || ""} // 👈 1. ?.text || "" нэмсэн
+                                    value={editingTranslation?.text || ""} // 1. ?.text || "" нэмсэн
                                     onChange={(e) =>
                                       setEditingTranslation((prev) =>
                                         prev
@@ -373,7 +373,7 @@ export default function InventoryTab({
                                   />
                                   <button
                                     onClick={async () => {
-                                      if (!editingTranslation) return; // 👈 2. null биш гэдгийг баталгаажуулах хамгаалалт
+                                      if (!editingTranslation) return; // 2. null биш гэдгийг баталгаажуулах хамгаалалт
 
                                       const cleanOrig = ing.name
                                         .toLowerCase()
@@ -468,7 +468,7 @@ export default function InventoryTab({
                           />
                         </td>
 
-                        {/* 4. LEAD - НИЙЛҮҮЛЭХ ХУГАЦАА (Input) 👈 БУЦААЖ НЭМСЭН ХЭСЭГ */}
+                        {/* 4. LEAD - НИЙЛҮҮЛЭХ ХУГАЦАА (Input) БУЦААЖ НЭМСЭН ХЭСЭГ */}
                         <td className="py-2.5 px-2 text-center">
                           <input
                             type="number"

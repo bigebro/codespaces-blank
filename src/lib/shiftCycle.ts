@@ -176,8 +176,8 @@ const TABLET_REASON_NOTES = new Set(["Асгарсан", "Асгарсан/Ал�
 /** Chat/local-parser tags must not appear in the owner feed. */
 export function cleanLogNotes(raw: string | null | undefined): string {
   let s = displaySourceNote(raw);
-  s = s.replace(/\s*\((?:🧠\s*)?Суралцсан үг\)\s*/gi, " ");
-  s = s.replace(/\s*\((?:⚡\s*)?Local Parser\)\s*/gi, " ");
+  s = s.replace(/\s*\((?:\p{Extended_Pictographic}\s*)?Суралцсан үг\)\s*/giu, " ");
+  s = s.replace(/\s*\((?:\p{Extended_Pictographic}\s*)?Local Parser\)\s*/giu, " ");
   s = s.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "");
   return s.replace(/\s+/g, " ").trim();
 }

@@ -19,7 +19,7 @@
   }
 }
 
-/* 🎨 МЭРГЭЖЛИЙН ТАНСАГ SCROLLBAR */
+/* МЭРГЭЖЛИЙН ТАНСАГ SCROLLBAR */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -52,7 +52,7 @@ html, body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   
-  /* 🚨 IPAD/PHONE ДЭЭР ДЭЭШ ТАТАХАД РЕФРЕШ ХИЙГДЭХИЙГ БҮРМӨСӨН ХААНА! */
+  /* IPAD/PHONE ДЭЭР ДЭЭШ ТАТАХАД РЕФРЕШ ХИЙГДЭХИЙГ БҮРМӨСӨН ХААНА! */
   overscroll-behavior-y: none;
   overscroll-behavior-x: none;
 }

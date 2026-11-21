@@ -23,7 +23,7 @@ function cleanString(str: string) {
     .replace(/[\u00a0\s]+/g, " ")
     .trim();
 }
-// 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
+// Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -64,14 +64,14 @@ export default function RecipeEditor({
     ingredient_id: "",
     amount: "",
   });
-  // 📥 JSON НӨӨЦ ФАЙЛЫГ УНШИХ & СОНГОЖ СЭРГЭЭХ СТЭЙТҮҮД
+  // JSON НӨӨЦ ФАЙЛЫГ УНШИХ & СОНГОЖ СЭРГЭЭХ СТЭЙТҮҮД
   const [jsonBackupModal, setJsonBackupModal] = useState<{
     fileData: any;
     recipesByProduct: Record<string, any[]>;
   } | null>(null);
 
   const [loading, setLoading] = useState(false);
-  // 🕒 ЖОРЫН ТҮҮХ БА ХОГИЙН САВНЫ СТЭЙТҮҮД
+  // ЖОРЫН ТҮҮХ БА ХОГИЙН САВНЫ СТЭЙТҮҮД
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedHistoryProduct, setSelectedHistoryProduct] = useState<
     string | null
@@ -98,16 +98,16 @@ export default function RecipeEditor({
 
   useEffect(() => {
     if (initialDraft) {
-      setIsCreatingRecipeCard(true); // 👈 Ягаан хайрцгаа нээнэ
-      setNewRecipeNameDraft(initialDraft.name); // 👈 Нэрийг нь автоматаар бичнэ
-      setNewRecipePriceDraft(initialDraft.price); // 👈 Үнийг нь автоматаар бичнэ
+      setIsCreatingRecipeCard(true); // Ягаан хайрцгаа нээнэ
+      setNewRecipeNameDraft(initialDraft.name); // Нэрийг нь автоматаар бичнэ
+      setNewRecipePriceDraft(initialDraft.price); // Үнийг нь автоматаар бичнэ
       onDraftCleared?.();
     }
   }, [initialDraft]);
 
-  // 💾 ЗӨВХӨН ТУХАЙН ХАРИЛЦАГЧИЙН (activeClient) ЖОРЫГ ТАТАХ
+  // ЗӨВХӨН ТУХАЙН ХАРИЛЦАГЧИЙН (activeClient) ЖОРЫГ ТАТАХ
   const handleExportRecipeBackup = () => {
-    // 🔒 Өөр салбарын жор хутгалдахаас хамгаалж activeClient-ээр нарийн шүүнэ
+    // Өөр салбарын жор хутгалдахаас хамгаалж activeClient-ээр нарийн шүүнэ
     const clientRecipes = recipes.filter(
       (r: any) =>
         cleanString(r.client_id).toLowerCase() ===
@@ -138,7 +138,7 @@ export default function RecipeEditor({
     a.click();
     URL.revokeObjectURL(url);
   };
-  // 📥 EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
+  // EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
   const handleExportToExcel = () => {
     // 1. Меню (Products) өгөгдлийг бэлтгэх
     const menuData = productsList
@@ -211,7 +211,7 @@ export default function RecipeEditor({
     reader.readAsText(file);
     e.target.value = ""; // Reset
   };
-  // 🕒 2. СҮҮЛИЙН 30 ХОНОГИЙН ТҮҮХИЙГ БААЗААС ДУУДАХ (30 Days Retention)
+  // 2. СҮҮЛИЙН 30 ХОНОГИЙН ТҮҮХИЙГ БААЗААС ДУУДАХ (30 Days Retention)
   const openRecipeHistory = (pName: string) => {
     setSelectedHistoryProduct(pName);
     setShowHistoryModal(true);
@@ -351,7 +351,7 @@ export default function RecipeEditor({
             <span>Бүгдийг сонгох ({allRecipeProductNames.length})</span>
           </label>
 
-          {/* 🗑️ СОНГОСОН ЖОРУУДЫГ ОЛНООР НЬ УСТГАХ ТОВЧ (Түүхий эд шиг) */}
+          {/* СОНГОСОН ЖОРУУДЫГ ОЛНООР НЬ УСТГАХ ТОВЧ (Түүхий эд шиг) */}
           {selectedRecipeProducts.length > 0 && (
             <button
               type="button"
@@ -366,7 +366,7 @@ export default function RecipeEditor({
                 setLoading(true);
                 const namesToDelete = [...selectedRecipeProducts];
 
-                // ⚡ 0ms Optimistic UI (Дэлгэцнээс шууд арилгана)
+                // 0ms Optimistic UI (Дэлгэцнээс шууд арилгана)
                 setRecipes((prev) =>
                   prev.filter((r) => !namesToDelete.includes(r.product_name)),
                 );
@@ -413,7 +413,7 @@ export default function RecipeEditor({
             <span>Меню & Жор (Excel)</span>
           </button>
 
-          {/* 📥 1-CLICK НӨӨЦ СЭРГЭЭХ (ШИНЭ) */}
+          {/* 1-CLICK НӨӨЦ СЭРГЭЭХ (ШИНЭ) */}
           <input
             type="file"
             accept=".json"
@@ -429,7 +429,7 @@ export default function RecipeEditor({
             <span>Нөөцөөс сэргээх</span>
           </label>
 
-          {/* ⚡ ШИНЭ ЖОР ҮҮСГЭХ ТОВЧ */}
+          {/* ШИНЭ ЖОР ҮҮСГЭХ ТОВЧ */}
           <button
             type="button"
             onClick={() => {
@@ -451,8 +451,8 @@ export default function RecipeEditor({
         </div>
       </div>
 
-      {/* ⚡ ЖОРЫН ХАЙЛТТАЙ & ЭМХ ЦЭГЦТЭЙ КАРТ */}
-      {/* 🟣 ЯГААН КАРТ: ДЭЭР НЬ ЧИРЧ УНАГАХ (DROP ZONE) БОЛОМЖТОЙ */}
+      {/* ЖОРЫН ХАЙЛТТАЙ & ЭМХ ЦЭГЦТЭЙ КАРТ */}
+      {/* ЯГААН КАРТ: ДЭЭР НЬ ЧИРЧ УНАГАХ (DROP ZONE) БОЛОМЖТОЙ */}
       {isCreatingRecipeCard && (
         <div
           onDragOver={(e) => e.preventDefault()}
@@ -462,7 +462,7 @@ export default function RecipeEditor({
             if (!raw) return;
             try {
               const dropped = JSON.parse(raw);
-              // ⚡ ЗӨВХӨН ТУХАЙН 1 ОРЦЫГ Л ДАНГААР НЬ ХҮЛЭЭН АВНА
+              // ЗӨВХӨН ТУХАЙН 1 ОРЦЫГ Л ДАНГААР НЬ ХҮЛЭЭН АВНА
               if (dropped.ingredient_id) {
                 // Хэрэв өмнө нь нэмэгдээгүй бол нэмэх
                 setNewRecipeItemsDraft((prev) => {
@@ -486,7 +486,7 @@ export default function RecipeEditor({
           {/* ЧИРЧ УНАГАХ ЗААВАР ТУУЗ */}
           <div className="bg-zinc-900 border border-dashed border-zinc-800/50 p-2.5 rounded-xl text-center">
             <p className="text-xs text-zinc-300 font-bold">
-              💡 Зөвлөмж: Доорх бэлэн жорыг (эсвэл орцуудыг) хулганаараа чирж
+              Зөвлөмж: Доорх бэлэн жорыг (эсвэл орцуудыг) хулганаараа чирж
               энэ хайрцаг руу унагавал шууд хуулагдана!
             </p>
           </div>
@@ -568,7 +568,7 @@ export default function RecipeEditor({
                     .select();
                   if (data) setRecipes((prev) => [...prev, ...data]);
 
-                  // ⚡ Шинэ цэсийг шууд жагсаалт руу 0ms-д нэмнэ:
+                  // Шинэ цэсийг шууд жагсаалт руу 0ms-д нэмнэ:
                   if (setProductsList && newRecipePriceDraft) {
                     setProductsList((prev: any[]) => [
                       {
@@ -623,7 +623,7 @@ export default function RecipeEditor({
               value={draftRecipeIngAmt}
               onChange={(e) => setDraftRecipeIngAmt(e.target.value)}
               onKeyDown={(e) => {
-                // ⚡ Хэмжээгээ бичээд Enter дармагц + Нэмэх товчийг дарсан мэт шууд орно!
+                // Хэмжээгээ бичээд Enter дармагц + Нэмэх товчийг дарсан мэт шууд орно!
                 if (
                   e.key === "Enter" &&
                   draftRecipeIngId &&
@@ -678,7 +678,7 @@ export default function RecipeEditor({
                   >
                     <span>{ing?.name || "Орц"}</span>
 
-                    {/* 👈 ОРСНЫ ДАРАА ТООГ НЬ ШУУД ӨӨРЧИЛЖ БОЛОХ INPUT */}
+                    {/* ОРСНЫ ДАРАА ТООГ НЬ ШУУД ӨӨРЧИЛЖ БОЛОХ INPUT */}
                     <div className="flex items-center gap-1 bg-zinc-950 px-2 py-0.5 rounded-lg border border-zinc-800/50">
                       <input
                         type="number"
@@ -751,7 +751,7 @@ export default function RecipeEditor({
             return (
               <div
                 key={pName}
-                // ❌ Бүхэл картыг чирэхийг болиулсан (draggable={false})
+                // Бүхэл картыг чирэхийг болиулсан (draggable={false})
                 className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2.5 hover:border-zinc-700 transition"
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -781,7 +781,7 @@ export default function RecipeEditor({
                       onClick={() => openRecipeHistory(pName)}
                       className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800/30 px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ml-1"
                     >
-                      <span>🕒 Түүх</span>
+                      <span>Түүх</span>
                     </button>
                   </div>
 
@@ -811,7 +811,7 @@ export default function RecipeEditor({
                   </div>
                 </div>
 
-                {/* ⚡ ОРЦ БҮРИЙГ ГАНЦ ГАНЦААР НЬ ЧИРЭХ ЭСВЭЛ [+] ДАРЖ ХУУЛАХ ХЭСЭГ */}
+                {/* ОРЦ БҮРИЙГ ГАНЦ ГАНЦААР НЬ ЧИРЭХ ЭСВЭЛ [+] ДАРЖ ХУУЛАХ ХЭСЭГ */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-zinc-900">
                   {productRecipes.map((r: any) => {
                     const ing = ingredients.find(
@@ -822,7 +822,7 @@ export default function RecipeEditor({
                       draftVal !== undefined &&
                       draftVal !== r.amount.toString();
 
-                    // 🟢 А. ШИНЭ ЖОР УГСАРЧ БАЙХ ҮЕД (ХААНА Ч ДАРСАН ДЭЭШЭЭ ШУУД НЭМЭГДЭХ ГОРИМ)
+                    // А. ШИНЭ ЖОР УГСАРЧ БАЙХ ҮЕД (ХААНА Ч ДАРСАН ДЭЭШЭЭ ШУУД НЭМЭГДЭХ ГОРИМ)
                     if (isCreatingRecipeCard) {
                       return (
                         <div
@@ -870,7 +870,7 @@ export default function RecipeEditor({
                       );
                     }
 
-                    // ⚪ Б. ЭНГИЙН ҮЕД: ГРАММ ЗАСАХ [✓] БАТЛАХ ТОBЧТОЙ ХУВИЛБАР (ШИНЭ КАРТ ҮҮСГЭНЭ)
+                    // Б. ЭНГИЙН ҮЕД: ГРАММ ЗАСАХ [✓] БАТЛАХ ТОBЧТОЙ ХУВИЛБАР (ШИНЭ КАРТ ҮҮСГЭНЭ)
                     return (
                       <div
                         key={r.id}
@@ -904,7 +904,7 @@ export default function RecipeEditor({
                                     .from("recipes")
                                     .update({ amount: val })
                                     .eq("id", r.id);
-                                  // 👈 ГРАММ ӨӨРЧЛӨГДӨХӨД ШИНЭ ТҮҮХ/КАРТ ҮҮСГЭХ:
+                                  // ГРАММ ӨӨРЧЛӨГДӨХӨД ШИНЭ ТҮҮХ/КАРТ ҮҮСГЭХ:
                                   await recordRecipeSnapshot(pName, "updated");
                                   setRecipeDrafts((prev) => {
                                     const n = { ...prev };
@@ -922,7 +922,7 @@ export default function RecipeEditor({
                           </span>
                         </div>
 
-                        {/* 👈 БУЦААЖ НЭМСЭН [✓ БАТЛАХ] & [✕ БОЛИУЛАХ] ТОВЧНУУД */}
+                        {/* БУЦААЖ НЭМСЭН [✓ БАТЛАХ] & [✕ БОЛИУЛАХ] ТОВЧНУУД */}
                         {isDrafting && (
                           <div className="flex items-center gap-1 animate-in fade-in duration-100">
                             <button
@@ -934,7 +934,7 @@ export default function RecipeEditor({
                                     .from("recipes")
                                     .update({ amount: val })
                                     .eq("id", r.id);
-                                  // 👈 ДАРСАН ДАРУЙД ШИНЭ ТҮҮХ/КАРТ ҮҮСГЭНЭ:
+                                  // ДАРСАН ДАРУЙД ШИНЭ ТҮҮХ/КАРТ ҮҮСГЭНЭ:
                                   await recordRecipeSnapshot(pName, "updated");
                                   setRecipeDrafts((prev) => {
                                     const n = { ...prev };
@@ -980,7 +980,7 @@ export default function RecipeEditor({
                               .from("recipes")
                               .delete()
                               .eq("id", r.id);
-                            // 👈 ОРЦ УСТГАХАД ШИНЭ ТҮҮХ ҮҮСГЭХ:
+                            // ОРЦ УСТГАХАД ШИНЭ ТҮҮХ ҮҮСГЭХ:
                             await recordRecipeSnapshot(pName, "updated");
                             await fetchRecipes();
                           }}
@@ -1100,7 +1100,7 @@ export default function RecipeEditor({
             );
           })}
       </div>
-      {/* 🕒 1. Жорын түүхийн модал */}
+      {/* 1. Жорын түүхийн модал */}
       <RecipeHistoryModal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
@@ -1112,7 +1112,7 @@ export default function RecipeEditor({
         onRestored={fetchRecipes}
       />
 
-      {/* 📥 2. JSON Сэргээх модал */}
+      {/* 2. JSON Сэргээх модал */}
       {jsonBackupModal && (
         <div
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150"
@@ -1125,7 +1125,7 @@ export default function RecipeEditor({
             <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
               <div>
                 <h3 className="text-base font-black text-white flex items-center gap-2">
-                  <span>📥 Нөөц Файлаас Жор Сэргээх</span>
+                  <span>Нөөц Файлаас Жор Сэргээх</span>
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">
                   Файлд нийт{" "}
@@ -1144,7 +1144,7 @@ export default function RecipeEditor({
               </button>
             </div>
 
-            {/* ⚡ БҮГДИЙГ НЭГ ДОР СЭРГЭЭХ ТОМ ТОВЧ */}
+            {/* БҮГДИЙГ НЭГ ДОР СЭРГЭЭХ ТОМ ТОВЧ */}
             <button
               type="button"
               disabled={loading}
@@ -1162,7 +1162,7 @@ export default function RecipeEditor({
               <div className="flex-grow border-t border-zinc-800"></div>
             </div>
 
-            {/* 🔍 ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
+            {/* ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
               {Object.keys(jsonBackupModal.recipesByProduct).map((pName) => {
                 const itemsCount =
@@ -1196,7 +1196,7 @@ export default function RecipeEditor({
         </div>
       )}
       {/* ========================================================================= */}
-      {/* ➕ 3. ШИНЭ ЖОР УГСРАХ МОДАЛ                                                */}
+      {/* 3. ШИНЭ ЖОР УГСРАХ МОДАЛ                                                */}
       {/* ========================================================================= */}
 
       {showAddRecipeModal && (
@@ -1204,7 +1204,7 @@ export default function RecipeEditor({
           <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-md w-full space-y-4 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
               <h3 className="text-sm font-black text-white">
-                📖 Бүрэн Жор Угсрах & Маржин Бодох
+                Бүрэн Жор Угсрах & Маржин Бодох
               </h3>
               <button
                 onClick={() => setShowAddRecipeModal(false)}
@@ -1340,7 +1340,7 @@ export default function RecipeEditor({
               ))}
             </div>
 
-            {/* 3. ⚡ ШУУД ӨРТӨГ БА МАРЖИНГ ТООЦОЖ ХАРУУЛАХ КАРТ */}
+            {/* 3. ШУУД ӨРТӨГ БА МАРЖИНГ ТООЦОЖ ХАРУУЛАХ КАРТ */}
             {(() => {
               let totalCost = 0;
               recipeBuilder.items.forEach((it) => {
@@ -1439,7 +1439,7 @@ export default function RecipeEditor({
         </div>
       )}
 
-      {/* ➕ Тухайн бүтээгдэхүүнд шуурхай орц нэмэх жижиг цонх */}
+      {/* Тухайн бүтээгдэхүүнд шуурхай орц нэмэх жижиг цонх */}
       {addIngToRecipeProduct && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">

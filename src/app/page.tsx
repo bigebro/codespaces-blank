@@ -437,7 +437,7 @@ export default function PremiumLandingPage() {
             тогтмол төлбөр.
           </p>
 
-          {/* 🔘 САР БҮР / ЖИЛЭЭР (2 САР ҮНЭГҮЙ) СОНГОГЧ */}
+          {/* САР БҮР / ЖИЛЭЭР (2 САР ҮНЭГҮЙ) СОНГОГЧ */}
           <div className="inline-flex items-center bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 shadow-xl">
             <button
               type="button"
@@ -575,7 +575,7 @@ export default function PremiumLandingPage() {
 
             <div className="space-y-2 pt-4 border-t border-zinc-800">
               <Link
-                href="tel:99112233" // 👈 Өөрийн утасны дугаараа бичээрэй
+                href="tel:99112233" // Өөрийн утасны дугаараа бичээрэй
                 className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs flex justify-center items-center gap-1.5 shadow"
               >
                  Холбогдох 

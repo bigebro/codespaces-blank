@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 📱 УТАСНЫ ДЭЛГЭЦИЙГ 100% БОДИТ ТОМ ХЭМЖЭЭГЭЭР НЬ ХАРУУЛАХ ҮНДСЭН ТОХИРГОО:
+// УТАСНЫ ДЭЛГЭЦИЙГ 100% БОДИТ ТОМ ХЭМЖЭЭГЭЭР НЬ ХАРУУЛАХ ҮНДСЭН ТОХИРГОО:
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1.0,
@@ -51,9 +51,9 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
-        {/* 🚨 IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
+        {/* IPAD ДЭЭР ЯМАР АЛДАА ГАРЧ JAVASCRIPT-ИЙГ АЛЖ БАЙГААГ ДЭЛГЭЦЭНД ШУУД ХАРУУЛАХ КОД: */}
 
-        {/* 🍏 APPLE (IPAD / IPHONE) ТОХИРГОО: */}
+        {/* APPLE (IPAD / IPHONE) ТОХИРГОО: */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
@@ -62,7 +62,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Smart BoH" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 
-        {/* 🤖 ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
+        {/* ANDROID (GOOGLE CHROME) ТОХИРГОО: */}
         <meta name="theme-color" content="#070b14" />
         <Script
           id="sw-register"
@@ -81,7 +81,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               window.onerror = function(message, source, lineno, colno, error) {
-                alert("🚨 IPAD ДЭЭРХ БОДИТ АЛДАА: " + message + "\\nФайл: " + source + "\\nМөр: " + lineno);
+                alert("IPAD ДЭЭРХ БОДИТ АЛДАА: " + message + "\\nФайл: " + source + "\\nМөр: " + lineno);
               };
             `,
           }}

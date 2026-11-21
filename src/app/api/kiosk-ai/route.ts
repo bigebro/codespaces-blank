@@ -16,7 +16,7 @@ import { readRequestRange } from "@/lib/analyticsRange";
 import { getCachedAnalytics } from "@/lib/analyticsCache";
 import { chatErrorMessage } from "@/lib/chatError";
 
-// 💡 504-өөс сэргийлж хугацааг 60с болгож, аналитикийг хуваалцсан кэшээр дахин татахгүй.
+// 504-өөс сэргийлж хугацааг 60с болгож, аналитикийг хуваалцсан кэшээр дахин татахгүй.
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
@@ -223,7 +223,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 🌐 ШИНЭ ҮГИЙГ AI-ААР 1 УДАА ОРЧУУЛЖ БААЗАД ЦЭЭЖЛЭХ (0 ТОКЕН ЛООП)
+    // ШИНЭ ҮГИЙГ AI-ААР 1 УДАА ОРЧУУЛЖ БААЗАД ЦЭЭЖЛЭХ (0 ТОКЕН ЛООП)
     if (action === "translate" && body.text) {
       const original = String(body.text).trim();
       const lowerOriginal = original.toLowerCase();
@@ -246,7 +246,7 @@ export async function POST(request: Request) {
       // 2. Баазад байхгүй бол AI-аас ганц удаа асуух
       let translated = "";
 
-      // 🧠 FEW-SHOT LEARNING: Хамгийн сүүлд амжилттай сурсан 20 үгийг баазаас татах
+      // FEW-SHOT LEARNING: Хамгийн сүүлд амжилттай сурсан 20 үгийг баазаас татах
       const { data: recentLearnings } = await supabaseAdmin
         .from("learned_translations")
         .select("original_text, translated_text")
@@ -265,7 +265,7 @@ export async function POST(request: Request) {
           "\n";
       }
 
-      // 🚨 AI-д өгөх ТӨГС тушаал (Дүрэм + Өмнөх жишээнүүд хамт явна)
+      // AI-д өгөх ТӨГС тушаал (Дүрэм + Өмнөх жишээнүүд хамт явна)
       const prompt = `You are a professional Mongolian translator for a restaurant POS system.
 Translate the following food/beverage ingredient or menu item name into clean Mongolian.
 CRITICAL RULES:
@@ -322,7 +322,7 @@ Text to translate: "${original}"`;
       return NextResponse.json({ success: false, translation: original });
     }
 
-    // 🧠 ПОС-ЫН НЭРИЙГ СУУРЬ ЦЭСТЭЙ ТААРУУЛАХ AI (20 жишээн дээр суралцана)
+    // ПОС-ЫН НЭРИЙГ СУУРЬ ЦЭСТЭЙ ТААРУУЛАХ AI (20 жишээн дээр суралцана)
     if (
       action === "resolve_pos_menu" &&
       body.unmatchedPosNames &&
@@ -429,11 +429,11 @@ ${JSON.stringify(unmatched)}`;
       if (error)
         return NextResponse.json({
           success: false,
-          message: `❌ Алдаа: ${error.message}`,
+          message: `Алдаа: ${error.message}`,
         });
       return NextResponse.json({
         success: true,
-        message: "❌ Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
+        message: "Бүртгэл цуцлагдлаа (Үлдэгдэл буцаж сэргэсэн).",
       });
     }
 
@@ -446,7 +446,7 @@ ${JSON.stringify(unmatched)}`;
     let ingredients: any[] | null = null;
 
     if (!isOwner || imageBase64 || body.audioBase64) {
-      // 👈 THE QUERY IS RIGHT HERE!
+      // THE QUERY IS RIGHT HERE!
       const res = await supabaseAdmin
         .from("ingredients")
         .select("id, name, unit")
@@ -456,13 +456,13 @@ ${JSON.stringify(unmatched)}`;
     }
 
     // =========================================================================
-    // 🎙️ 1.5. IPAD / IPHONE ДУУ ХООЛОЙГ GEMINI 3.5 Lite ШУУД СОНСОЖ БҮРТГЭХ
+    // 1.5. IPAD / IPHONE ДУУ ХООЛОЙГ GEMINI 3.5 Lite ШУУД СОНСОЖ БҮРТГЭХ
     // =========================================================================
     const audioBase64 = body.audioBase64 || null;
     const audioMimeType = body.audioMimeType || "audio/webm";
 
     if (audioBase64) {
-      // ⚡ Clean MIME type: Strips ";codecs=opus" so Gemini doesn't reject it
+      // Clean MIME type: Strips ";codecs=opus" so Gemini doesn't reject it
       const cleanMime = (audioMimeType || "audio/webm").split(";")[0].trim();
 
       const audioPrompt = `
@@ -536,7 +536,7 @@ ${JSON.stringify(unmatched)}`;
         return NextResponse.json({
           success: false,
           message:
-            "🎙️ Дууг сонсож чадсангүй. Та микрофондоо ойртоод дахин тод ярина уу.",
+            "Дууг сонсож чадсангүй. Та микрофондоо ойртоод дахин тод ярина уу.",
         });
       }
 
@@ -551,7 +551,7 @@ ${JSON.stringify(unmatched)}`;
       if (!aiAnalysis || !aiAnalysis.success || !aiAnalysis.purchases) {
         return NextResponse.json({
           success: false,
-          message: aiAnalysis?.error_message || "❌ Зургийг уншиж чадсангүй.",
+          message: aiAnalysis?.error_message || "Зургийг уншиж чадсангүй.",
         });
       }
 
@@ -599,7 +599,7 @@ ${JSON.stringify(unmatched)}`;
     if (text) {
       const lower = text.toLowerCase().trim();
 
-      // ⚡ АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
+      // АЖИЛТАН БҮРТГЭХ ХЭСЭГ (СУРАЛЦАГЧ FEEDBACK LOOP-ТЭЙ)
       if (!isOwner) {
         const { data: learnedAliases } = await supabaseAdmin
           .from("learned_aliases")
@@ -677,7 +677,7 @@ ${JSON.stringify(unmatched)}`;
               });
             }
 
-            // 2. ⚡ ЗӨВХӨН ЦЭВЭР ҮГ СУРАХ (Алдаатай урт өгүүлбэр цээжлэхгүй!)
+            // 2. ЗӨВХӨН ЦЭВЭР ҮГ СУРАХ (Алдаатай урт өгүүлбэр цээжлэхгүй!)
             let newlyLearnedId: string | null = null;
             if (aiAnalysis.extracted_phrase) {
               const cleanPhrase = aiAnalysis.extracted_phrase
@@ -707,7 +707,7 @@ ${JSON.stringify(unmatched)}`;
               success: true,
               is_log: true,
               log_id: log?.id,
-              learned_alias_id: newlyLearnedId, // 👈 Undo хийх үед устгах ID
+              learned_alias_id: newlyLearnedId, // Undo хийх үед устгах ID
               message: `**Бүртгэгдлээ:**\n• Төрөл: **${logTypeLabel(String(aiAnalysis.type || ""), `${text} ${aiAnalysis.notes || ""}`)}**\n• Бараа: **${aiAnalysis.item_name}**\n• Хэмжээ: **${Math.abs(parsedQty)} ${ingredient.unit}**`,
             });
           }
@@ -737,7 +737,7 @@ ${JSON.stringify(unmatched)}`;
 
 
    if (isOwner) {
-        // ⚡ ХУРДАН ТАЙЛАНГИЙН ТУШААЛ (0.03 секундэд шууд хариулах, 0 токен зарцуулна)
+        // ХУРДАН ТАЙЛАНГИЙН ТУШААЛ (0.03 секундэд шууд хариулах, 0 токен зарцуулна)
         const isReportCommand =
           lower === "report" ||
           lower === "/report" ||
@@ -758,15 +758,15 @@ ${JSON.stringify(unmatched)}`;
             `• **OPEX зардал:** ${Math.round(fin.opex || 0).toLocaleString()} ₮\n` +
             `• **EBIT (Татварын өмнөх):** ${Math.round(fin.ebit || 0).toLocaleString()} ₮\n` +
             `• **ЦЭВЭР АШИГ:** ${Math.round(fin.net_profit || 0).toLocaleString()} ₮ *(${fin.net_margin || "0%"})*\n\n` +
-            `🗑 **Бодит алдагдал (Waste):** ${Math.round(analyticsData.total_waste_loss || 0).toLocaleString()} ₮\n` +
-            `⚡ **Бүтээмж:** ${analyticsData.efficiency || "0%"}\n\n` +
-            `💎 **ТОП ХАЯГДАЛ:**\n` +
+            `**Бодит алдагдал (Waste):** ${Math.round(analyticsData.total_waste_loss || 0).toLocaleString()} ₮\n` +
+            `**Бүтээмж:** ${analyticsData.efficiency || "0%"}\n\n` +
+            `**ТОП ХАЯГДАЛ:**\n` +
             (analyticsData.top_wasters?.length > 0
               ? analyticsData.top_wasters
                   .map((w: any) => `• ${w.name}: -${w.impact?.toLocaleString()}₮ (${w.gap} ${w.unit})`)
                   .join("\n")
               : "• Бүртгэгдсэн хаягдал байхгүй.") +
-            `\n\n💡 *Та санхүү, хаягдал, үнийн бодлогын талаар ямар ч асуултаа шууд асууж болно.*`;
+            `\n\n*Та санхүү, хаягдал, үнийн бодлогын талаар ямар ч асуултаа шууд асууж болно.*`;
 
           return NextResponse.json({
             success: true,
@@ -775,7 +775,7 @@ ${JSON.stringify(unmatched)}`;
           });
         }
 
-        // 🧠 ХЭРЭВ АСУУЛТ АСУУСАН БОЛ -> CFO AGENT АЖИЛЛАНА
+        // ХЭРЭВ АСУУЛТ АСУУСАН БОЛ -> CFO AGENT АЖИЛЛАНА
         const dashboardRange = readRequestRange(body);
         const agentContext: AgentContext = {
           clientId,
@@ -808,13 +808,13 @@ ${JSON.stringify(unmatched)}`;
       }
     }
 
-    // ⚡ 1. Хэрэв дээрх нөхцөлүүдийн алинд ч ороогүй бол заавал Response буцаах ёстой:
+    // 1. Хэрэв дээрх нөхцөлүүдийн алинд ч ороогүй бол заавал Response буцаах ёстой:
     return NextResponse.json({
       success: false,
       message: "Хоосон утга эсвэл тодорхойгүй үйлдэл ирсэн байна.",
     });
 
-  } catch (error: any) { // 👈 2. Бүхэл серверийг уналтаас хамгаалах гаднах CATCH
+  } catch (error: any) { // 2. Бүхэл серверийг уналтаас хамгаалах гаднах CATCH
     console.error("Kiosk AI Global Error:", error);
     return NextResponse.json({
       success: false,

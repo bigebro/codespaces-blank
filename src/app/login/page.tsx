@@ -6,7 +6,7 @@ import { mapAuthError } from "@/lib/authErrors";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-// 🚀 THE QUANTUM FORCE & MATTER OPERALINK LOGO
+// THE QUANTUM FORCE & MATTER OPERALINK LOGO
 
 export function OperlinkLogo({
   className = "h-8 w-8",
@@ -139,7 +139,7 @@ export default function LoginPage() {
       }
 
       if (params.get("from") === "kiosk") {
-        setFromKiosk(true); // 👈 Зөвхөн Kiosk-оос дарж ирсэн үед л идэвхжинэ
+        setFromKiosk(true); // Зөвхөн Kiosk-оос дарж ирсэн үед л идэвхжинэ
       }
     }
   }, []);
@@ -273,7 +273,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           return;
         }
 
-        // ⚡ 3. УХААЛАГ AUTO-LOGIN (Хэрэв Supabase автоматаар сесси өгөөгүй бол л нэвтэрнэ)
+        // 3. УХААЛАГ AUTO-LOGIN (Хэрэв Supabase автоматаар сесси өгөөгүй бол л нэвтэрнэ)
         if (!data.session) {
           const { error: signInError } = await supabase.auth.signInWithPassword({
             email: email.trim(),
@@ -283,7 +283,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           if (signInError) throw signInError;
         }
 
-        // ⚡ 4. DASHBOARD РУУ ШУУД ҮСЭРГЭХ (Modal өөрөө нээгдэнэ):
+        // 4. DASHBOARD РУУ ШУУД ҮСЭРГЭХ (Modal өөрөө нээгдэнэ):
         if (actionIntent === "pay") {
           navigating = true;
           setRedirecting(true);

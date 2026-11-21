@@ -114,7 +114,7 @@ export default function ProductsPanel({
     changes: AutoPilotChange[];
   } | null>(null);
   const [showChangesModal, setShowChangesModal] = useState(false);
-  // 🔗 ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
+  // ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
   const [mergeSelections, setMergeSelections] = useState<
     Record<string, string>
   >({});
@@ -122,7 +122,7 @@ export default function ProductsPanel({
   const [catalogTab, setCatalogTab] = useState<
     "ingredients" | "products" | "recipes"
   >("ingredients");
-  // 📖 Шинэ жор инлайнаар үүсгэх төлөвүүд
+  // Шинэ жор инлайнаар үүсгэх төлөвүүд
 
   // 1. Ангиллын пайз зурагч
   const renderCategoryBadge = (catId: string) => {
@@ -139,7 +139,7 @@ export default function ProductsPanel({
     );
   };
 
-  // ⚡ 1-CLICK ЗӨВ БУЦААХ (UNDO) ФУНКЦ
+  // 1-CLICK ЗӨВ БУЦААХ (UNDO) ФУНКЦ
   const handleSingleUndo = async (changeId: string) => {
     if (!autoPilotActivity) return;
     const targetChange = autoPilotActivity.changes.find(
@@ -217,7 +217,7 @@ export default function ProductsPanel({
   };
 
   const aliasMap: Record<string, string> = {};
-  // 🕒 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
+  // 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
 
   const unmappedSales = React.useMemo(() => {
     // Бүх нэрсийг санах ойд (Set) 1 удаа бэлтгэх (O(1) хурд)
@@ -232,7 +232,7 @@ export default function ProductsPanel({
         knownSet.add(transliterate(clean));
     });
 
-    // 🧠 САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
+    // САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
     (learnedMenus || []).forEach((lm: any) => {
       if (lm.pos_name) {
         const cleanPos = cleanString(lm.pos_name).toLowerCase();
@@ -263,7 +263,7 @@ export default function ProductsPanel({
             ? transliterate(pNameLower)
             : pNameLower;
 
-        // ⚡ 300 сая биш, 0.00001 миллисекундэд шууд шалгана:
+        // 300 сая биш, 0.00001 миллисекундэд шууд шалгана:
         const isKnown =
           knownSet.has(pNameLower) ||
           knownSet.has(pClean) ||
@@ -391,13 +391,13 @@ export default function ProductsPanel({
 
   return (
     <div className="pt-4 space-y-3">
-      {/* ⚡ АВТО-ПИЛОТ ТУУЗ: ЯГ ТАНЫ ХҮССЭН ТЕКСТ & ТОВЧ */}
+      {/* АВТО-ПИЛОТ ТУУЗ: ЯГ ТАНЫ ХҮССЭН ТЕКСТ & ТОВЧ */}
       {autoPilotActivity && (
         <div className="bg-zinc-800/60 border-2 border-zinc-800 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5">
             <span className="h-2.5 w-2.5 rounded-full bg-zinc-200  shrink-0" />
             <p className="text-sm sm:text-sm text-zinc-300 font-black leading-relaxed">
-              ⚡ Авто-Пилот: {autoPilotActivity.totalSales} борлуулалт амжилттай
+              Авто-Пилот: {autoPilotActivity.totalSales} борлуулалт амжилттай
               бодлоо.
               {autoPilotActivity.changes.length > 0
                 ? ` Нийт ${autoPilotActivity.changes.filter((c) => !c.reverted).length} бараанд өөрчлөлт орсон байна.`
@@ -431,7 +431,7 @@ export default function ProductsPanel({
         </div>
       )}
 
-      {/* 📋 [  ӨӨРЧЛӨЛТҮҮДИЙГ ХАРАХ ] ПОПАП ЦОНХ */}
+      {/* [  ӨӨРЧЛӨЛТҮҮДИЙГ ХАРАХ ] ПОПАП ЦОНХ */}
       {showChangesModal && autoPilotActivity && (
         <div
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 animate-in fade-in duration-150"
@@ -444,7 +444,7 @@ export default function ProductsPanel({
             <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
               <div>
                 <h3 className="font-black text-white text-base flex items-center gap-2">
-                  <span>📋 Авто-Пилотын хийсэн өөрчлөлтүүд</span>
+                  <span>Авто-Пилотын хийсэн өөрчлөлтүүд</span>
                 </h3>
                 <p className="text-sm text-zinc-400 mt-0.5">
                   Шинээр орж ирсэн ПОС-ын нэр болон үнийг шалгаж, шаардлагатай
@@ -528,7 +528,7 @@ export default function ProductsPanel({
 
             <div className="flex justify-between items-center pt-2">
               <p className="text-xs text-zinc-500">
-                💡 Буцаах товч дармагц тухайн бараа хуучин нэр болон үнэ рүүгээ
+                Буцаах товч дармагц тухайн бараа хуучин нэр болон үнэ рүүгээ
                 тэр дороо шилжинэ.
               </p>
               <button
@@ -577,7 +577,7 @@ export default function ProductsPanel({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                  {/* ⚡ СОНГОЛТ 1: ХУУЧИН ЖОРТОЙ СОЛЬЖ НЭГТГЭХ (ХАЙЛТТАЙ, АРИЛАХГҮЙ) */}
+                  {/* СОНГОЛТ 1: ХУУЧИН ЖОРТОЙ СОЛЬЖ НЭГТГЭХ (ХАЙЛТТАЙ, АРИЛАХГҮЙ) */}
                   <div className="flex items-center gap-1.5 flex-1 lg:flex-none">
                     <div className="w-56">
                       <SearchableSelect
@@ -587,7 +587,7 @@ export default function ProductsPanel({
                           new Set(recipes.map((r: any) => r.product_name)),
                         ).map((rName: any) => ({
                           value: rName,
-                          label: `📖 ${rName}`,
+                          label: `${rName}`,
                         }))}
                         onChange={(chosenRecipe) => {
                           // Сонголтыг найдвартай хадгална (Арилж алга болохгүй)
@@ -602,7 +602,7 @@ export default function ProductsPanel({
                     <button
                       type="button"
                       onClick={async () => {
-                        // ⚡ Сонгосон жорыг санах ойноос шууд уншина
+                        // Сонгосон жорыг санах ойноос шууд уншина
                         const selectedOldName = mergeSelections[item.name];
                         if (!selectedOldName) {
                           alert("Сольж нэгтгэх хуучин жороо сонгоно уу!");
@@ -643,7 +643,7 @@ export default function ProductsPanel({
                             onConflict: "client_id,product_name,ingredient_id",
                           });
 
-                          // 3. ⚡ ТҮҮХИЙГ ШУУД БААЗАД БҮРТГЭХ:
+                          // 3. ТҮҮХИЙГ ШУУД БААЗАД БҮРТГЭХ:
                           const {
                             data: { session },
                           } = await supabase.auth.getSession();
@@ -657,7 +657,7 @@ export default function ProductsPanel({
                               client_id: activeClient,
                               product_name: posName,
                               action: "created",
-                              ingredients_snapshot: rowsToClone, // 👈 Хуулсан орцуудаа шууд түүх рүү оруулна
+                              ingredients_snapshot: rowsToClone, // Хуулсан орцуудаа шууд түүх рүү оруулна
                               author: `${currentActor} (ПОС нэгтгэл)`,
                             },
                           ]);
@@ -690,7 +690,7 @@ export default function ProductsPanel({
                           );
                         }
 
-                        // 5. "🔗 СОЛЬЖ НЭГТГЭХ" дарахад системийг сургах (learned_menus-д хадгалах):
+                        // 5. "СОЛЬЖ НЭГТГЭХ" дарахад системийг сургах (learned_menus-д хадгалах):
                         if (
                           cleanString(posName).toLowerCase() !==
                           cleanString(selectedOldName).toLowerCase()
@@ -715,7 +715,7 @@ export default function ProductsPanel({
                       }}
                       className="bg-white hover:bg-zinc-200 text-zinc-950 px-3.5 py-2 rounded-xl font-black text-xs transition active:scale-95 whitespace-nowrap shadow cursor-pointer"
                     >
-                      🔗 Сольж нэгтгэх
+                      Сольж нэгтгэх
                     </button>
                   </div>
 
@@ -723,7 +723,7 @@ export default function ProductsPanel({
                     эсвэл
                   </span>
 
-                  {/* ⚡ СОНГОЛТ 2: ЦОО ШИНЭЭР ЦЭСЭНД НЭМЭХ */}
+                  {/* СОНГОЛТ 2: ЦОО ШИНЭЭР ЦЭСЭНД НЭМЭХ */}
                   <button
                     type="button"
                     onClick={async () => {
@@ -762,7 +762,7 @@ export default function ProductsPanel({
         </div>
       )}
 
-      {/* 🔍 Хайлт ба Инлайн Шинэ цэс нэмэх */}
+      {/* Хайлт ба Инлайн Шинэ цэс нэмэх */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
         <input
           type="text"
@@ -793,7 +793,7 @@ export default function ProductsPanel({
               }}
               className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-sm font-black transition active:scale-95 flex items-center gap-1.5 shadow"
             >
-              <span>🗑️ Сонгосон ({selectedProdIds.length}) устгах</span>
+              <span>Сонгосон ({selectedProdIds.length}) устгах</span>
             </button>
           )}
 
@@ -814,7 +814,7 @@ export default function ProductsPanel({
         </div>
       </div>
 
-      {/* 📋 МЕНЮНИЙ ХҮСНЭГТ (МӨР ДОТРОО ЖОР СОНГОЖ ХОЛБОХ БАГАНАТАЙ) */}
+      {/* МЕНЮНИЙ ХҮСНЭГТ (МӨР ДОТРОО ЖОР СОНГОЖ ХОЛБОХ БАГАНАТАЙ) */}
       <div className="overflow-x-auto max-h-[440px] border border-zinc-800 rounded-2xl">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-950 text-zinc-400 uppercase font-bold sticky top-0 border-b border-zinc-800 z-10">
@@ -956,7 +956,7 @@ export default function ProductsPanel({
                       .includes(menuSearch.toLowerCase().trim())),
               )
               .map((prod, idx) => {
-                // 👈 idx нэмсэн
+                // idx нэмсэн
                 const isEditingThis = editingProdId === prod.id;
 
                 if (isEditingThis) {
@@ -1054,7 +1054,7 @@ export default function ProductsPanel({
                                 })
                                 .eq("id", prod.id);
 
-                              // 🧠 ⚡ ЭЗЭН МЕНЮ ДЭЭР АНГИЛЛЫГ ЗАСМАГЦ LEARNED_CATEGORIES БААЗ ДАВХАР ЗАСАГДАНА:
+                              // ЭЗЭН МЕНЮ ДЭЭР АНГИЛЛЫГ ЗАСМАГЦ LEARNED_CATEGORIES БААЗ ДАВХАР ЗАСАГДАНА:
                               await supabase.from("learned_categories").upsert(
                                 [
                                   {
@@ -1124,7 +1124,7 @@ export default function ProductsPanel({
                     <td className="py-2.5 px-3 text-right text-zinc-200 font-mono font-black text-sm">
                       {parseFloat(prod.selling_price || 0).toLocaleString()} ₮
                     </td>
-                    {/* ⚡ УХААЛАГ ЖОРЫН ТӨЛӨВ & ХОЛБООС БАГАНА */}
+                    {/* УХААЛАГ ЖОРЫН ТӨЛӨВ & ХОЛБООС БАГАНА */}
                     <td className="py-2.5 px-3 text-center">
                       {(() => {
                         const status = productRecipeStatus.get(prod.id);
@@ -1212,7 +1212,7 @@ export default function ProductsPanel({
       </div>
 
       {/* ========================================================================= */}
-      {/* ➕ 2. ШИНЭ МЕНЮНИЙ ЦЭС НЭМЭХ МОДАЛ                                         */}
+      {/* 2. ШИНЭ МЕНЮНИЙ ЦЭС НЭМЭХ МОДАЛ                                         */}
       {/* ========================================================================= */}
       {showAddProdModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1296,7 +1296,7 @@ export default function ProductsPanel({
         </div>
       )}
 
-      {/* ✏️ МЕНЮ БҮТЭЭГДЭХҮҮН ЗАСАХ МОДАЛ (Нэр болон Зарах үнийг хамтад нь засна) */}
+      {/* МЕНЮ БҮТЭЭГДЭХҮҮН ЗАСАХ МОДАЛ (Нэр болон Зарах үнийг хамтад нь засна) */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">

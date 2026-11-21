@@ -432,7 +432,7 @@ export async function getAnalyticsData(
 //fixed
 
 // =========================================================================
-  // 🎯 АГУУЛАХЫН ТООЛЛОГЫГ ЦАГ ХУГАЦААНЫ ДАРААЛЛААР ЗӨВ ТАНИХ ШИНЭ ЛОГИК
+  // АГУУЛАХЫН ТООЛЛОГЫГ ЦАГ ХУГАЦААНЫ ДАРААЛЛААР ЗӨВ ТАНИХ ШИНЭ ЛОГИК
   // =========================================================================
   const itemCountsHistory: Record<string, Array<{ date: string; qty: number }>> = {};
 
@@ -1156,7 +1156,7 @@ for (const key in master) {
   }));
 
   // ===========================================================================
-  // 🧠 УХААЛАГ ӨРТӨГ & МЕНЮТЭЙ 100% ЯГ ТААРДАГ ЖОРГҮЙ ЦЭСИЙН ТООЛОЛТ (ЯГ 7)
+  // УХААЛАГ ӨРТӨГ & МЕНЮТЭЙ 100% ЯГ ТААРДАГ ЖОРГҮЙ ЦЭСИЙН ТООЛОЛТ (ЯГ 7)
   // ===========================================================================
   const effectiveActualCogs = verifiedActual;
   const estimatedCogs = verifiedActual + unverifiedTheo;
@@ -1269,7 +1269,7 @@ for (const key in master) {
       data_trust: dataTrust,
       is_theoretical_mode: false,
       has_unmapped_recipes: unmappedCount > 0,
-      unmapped_recipes_count: unmappedCount, // 👈 Яг таны меню дээрх 7 гарна!
+      unmapped_recipes_count: unmappedCount, // Яг таны меню дээрх 7 гарна!
       gross_margin: effectiveNetRevenue > 0 ? ((effectiveGrossProfit / effectiveNetRevenue) * 100).toFixed(2) + "%" : "0%",
       opex: adjustedOpex,
       depreciation: totalMonthlyDepreciation,
@@ -1323,7 +1323,7 @@ for (const key in master) {
     waste_act_items: wasteAuditItems,
     top_wasters: fullInventory.filter(i => i.is_waste).sort((a,b) => b.impact - a.impact).slice(0, 3),
       //  Ажилтнуудын Kiosk-оор бүртгэсэн бодит хаягдлуудын нэгдсэн жагсаалт:
-   // ⚡ Ажилтны нэр (worker) болон ээлжийн тэмдэглэлтэй нь хамт гаргах:
+   // Ажилтны нэр (worker) болон ээлжийн тэмдэглэлтэй нь хамт гаргах:
 logged_spoilage_items: (rawInventoryLogs || [])
   .filter((log: any) => log.type === 'spoilage' && (log.date ? ubDay(log.date) >= startDay && ubDay(log.date) <= endDay : true))
   .map((log: any) => {

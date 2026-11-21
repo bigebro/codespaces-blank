@@ -28,8 +28,8 @@ assert.equal(localizedItemName("Milk (Сүү) (ТУРШИЛТ)", "mn"), "Сүү"
 assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Kiosk (Хаягдал)", worker: "Kiosk (Хаягдал)" }), "Таблет (Хаягдал) · Муудсан");
 assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан/Алдаа");
 assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Таблет (Хаягдал) · Муудсан" }), "Таблет (Хаягдал) · Муудсан");
-assert.equal(cleanLogNotes("сүү 200мл асгасан (🧠 Суралцсан үг)"), "сүү 200мл асгасан");
-assert.doesNotMatch(cleanLogNotes("foo (⚡ Local Parser)"), /Local Parser|Суралцсан/);
+assert.equal(cleanLogNotes("сүү 200мл асгасан (Суралцсан үг)"), "сүү 200мл асгасан");
+assert.doesNotMatch(cleanLogNotes("foo (Local Parser)"), /Local Parser|Суралцсан/);
 assert.equal(tabletSourceNote("Хаягдал", "Асгарсан"), "Таблет (Хаягдал) · Асгарсан");
 assert.equal(wasteBucket("spoilage", "Асгарсан"), "spill");
 assert.equal(wasteBucket("spoilage", "Асгарсан/Алдаа"), "spill");
@@ -42,7 +42,7 @@ assert.equal(logTypeLabel("spoilage", "Асгарсан"), "Асгарсан/А�
 assert.equal(wasteFeedDetail({ type: "spoilage", notes: "Асгарсан", worker: "TEST Бариста" }), "Таблет (Хаягдал) · Асгарсан/Алдаа");
 assert.equal(wasteFeedDetail({ type: "other", notes: "Бусад", worker: "Анхтуул" }), "Таблет (Хаягдал) · Бусад");
 assert.equal(
-  wasteFeedDetail({ type: "spoilage", notes: "Сүү 100 мл асгарсан (🧠 Суралцсан үг)", worker: "staff (TEST Бариста)" }),
+  wasteFeedDetail({ type: "spoilage", notes: "Сүү 100 мл асгарсан (Суралцсан үг)", worker: "staff (TEST Бариста)" }),
   "Таблет (Хаягдал) · Асгарсан/Алдаа",
 );
 assert.equal(

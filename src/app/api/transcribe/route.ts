@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     let groqText = '';
 
     // =========================================================================
-    // ⚡ STAGE 1: Try Groq Whisper (150ms)
+    // STAGE 1: Try Groq Whisper (150ms)
     // =========================================================================
     const groqKey = process.env.GROQ_API_KEY;
     if (groqKey) {
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // 🚨 STAGE 2: Gemini Audio Listener (Runs if Groq hallucinated "мэллэйтэрс")
+    // STAGE 2: Gemini Audio Listener (Runs if Groq hallucinated "мэллэйтэрс")
     // =========================================================================
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64Audio = buffer.toString('base64');
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     }
 
     if (geminiText) {
-      return NextResponse.json({ text: geminiText }); // ⚡ Gemini fixed Groq's mistake!
+      return NextResponse.json({ text: geminiText }); // Gemini fixed Groq's mistake!
     }
 
     if (groqText) {

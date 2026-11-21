@@ -89,7 +89,7 @@ export default function GeneralSettings({
   const [newAssetCost, setNewAssetCost] = useState("");
   const [newAssetMonths, setNewAssetMonths] = useState("60");
   const newAssetDate = new Date().toISOString().split("T")[0];
-  // 📱 KIOSK ТӨХӨӨРӨМЖ УДИРДАХ
+  // KIOSK ТӨХӨӨРӨМЖ УДИРДАХ
   const [kioskDevices, setKioskDevices] = useState<any[]>([]);
   const [activePairingCode, setActivePairingCode] = useState<string | null>(null);
    const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -104,7 +104,7 @@ export default function GeneralSettings({
     if (data) setKioskDevices(data);
   }, [activeClient]);
 
-  // 2. ⚡ Realtime live listener + Broadcast
+  // 2. Realtime live listener + Broadcast
   useEffect(() => {
     if (!activeClient) return;
     fetchKioskDevices();
@@ -126,7 +126,7 @@ export default function GeneralSettings({
     };
   }, [activeClient, fetchKioskDevices]);
 
-  // 3. ⚡ Background poller: if ANY pending code exists, refresh every 2s until connected
+  // 3. Background poller: if ANY pending code exists, refresh every 2s until connected
   useEffect(() => {
     const hasPending = kioskDevices.some((d) => d.pairing_code);
     if (!hasPending) return;
@@ -150,7 +150,7 @@ export default function GeneralSettings({
     setLoading(true);
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const deviceToken = "kiosk_" + crypto.randomUUID().replace(/-/g, "");
-      // ⚡ 15 MINUTES EXPIRATION (Industry standard for 6-digit codes)
+      // 15 MINUTES EXPIRATION (Industry standard for 6-digit codes)
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
     const { error } = await supabase.from("kiosk_devices").insert([
@@ -241,7 +241,7 @@ export default function GeneralSettings({
         setKioskLogoUrl(settData.logo_url || null);
       }
 
-      // 🎯 Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
+      // Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
       if (
         settData.category_margins &&
         Object.keys(settData.category_margins).length > 0
@@ -353,7 +353,7 @@ export default function GeneralSettings({
                             </span>
                           </div>
 
-                          {/* 🔢 THE 6-DIGIT CODE DISPLAYED RIGHT INSIDE THE CARD */}
+                          {/* THE 6-DIGIT CODE DISPLAYED RIGHT INSIDE THE CARD */}
                           <div className="flex items-center gap-2.5 mt-2">
                             <div className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-xl font-mono text-xl sm:text-2xl font-black text-white tracking-[0.2em]">
                               {dev.pairing_code}
@@ -425,7 +425,7 @@ export default function GeneralSettings({
               Мөнгөн данс ба татварын горим
           </h3>
 
-          {/* 🖼️ KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
+          {/* KIOSK ТӨХӨӨРӨМЖИЙН ЛОГО (Авсаархан, дизайн эвдэхгүй) */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">
               Таблетын лого
