@@ -4480,8 +4480,8 @@ const handleCloseShift = async () => {
                                   className="h-10 w-10 object-cover rounded-xl border border-zinc-700 cursor-pointer shrink-0 hover:scale-105 transition"
                                 />
                               ) : (
-                                <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[10px] font-black text-zinc-300 shrink-0 text-center leading-tight px-1">
-                                  {typeLabel}
+                      <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-base font-black text-zinc-300 shrink-0">
+                                  {typeLabel.charAt(0)}
                                 </div>
                               )}
 
