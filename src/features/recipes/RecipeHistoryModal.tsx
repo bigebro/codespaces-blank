@@ -266,7 +266,7 @@ export default function RecipeHistoryModal({
                       onClick={() => restoreRecipeFromSnapshot(snap)}
                       className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition active:scale-95 shadow cursor-pointer shrink-0"
                     >
-                      ↩️ Сэргээх
+                      Сэргээх
                     </button>
                   </div>
 
@@ -355,8 +355,8 @@ export default function RecipeHistoryModal({
         </div>
 
         <div className="pt-2 border-t border-zinc-800 text-xs text-zinc-500 text-center">
-          Та хүссэн хуучин хувилбарынхаа "↩ Сэргээх" товчийг дарахад тухайн
-          жор тэр дороо сэргэнэ.
+          Та хүссэн хуучин хувилбарынхаа "↩ Сэргээх" товчийг дарахад тухайн жор
+          тэр дороо сэргэнэ.
         </div>
       </div>
     </div>

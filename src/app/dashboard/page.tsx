@@ -815,7 +815,7 @@ function Home() {
       });
 
       alert(
-        `↩️ "${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`,
+        `"${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`,
       );
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
@@ -3619,7 +3619,7 @@ function Home() {
                                     }
                                     className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer"
                                   >
-                                    ↩️ Сэргээх
+                                    Сэргээх
                                   </button>
                                 </div>
                               );

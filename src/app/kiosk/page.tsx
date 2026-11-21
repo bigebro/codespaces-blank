@@ -819,7 +819,7 @@ function KioskAiChatSection({
       const newHistory = [...chatHistory];
       newHistory[index] = {
         sender: "ai",
-        text: "↩️ Бүртгэл цуцлагдаж, буруу таасан үгийг систем санах ойгоосоо устгалаа.",
+        text: "Бүртгэл цуцлагдаж, буруу таасан үгийг систем санах ойгоосоо устгалаа.",
       };
       setChatHistory(newHistory);
     } catch (err) {
@@ -4548,7 +4548,7 @@ const handleCloseShift = async () => {
                               className="bg-zinc-900 hover:bg-rose-500/20 hover:text-rose-300 text-zinc-400 border border-zinc-800 hover:border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
                               title="Бүртгэлийг цуцлах"
                             >
-                              ↩️ Буцаах
+                               Буцаах
                             </button>
                           </div>
                         );

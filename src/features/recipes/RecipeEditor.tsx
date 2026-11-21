@@ -486,8 +486,8 @@ export default function RecipeEditor({
           {/* ЧИРЧ УНАГАХ ЗААВАР ТУУЗ */}
           <div className="bg-zinc-900 border border-dashed border-zinc-800/50 p-2.5 rounded-xl text-center">
             <p className="text-xs text-zinc-300 font-bold">
-              Зөвлөмж: Доорх бэлэн жорыг (эсвэл орцуудыг) хулганаараа чирж
-              энэ хайрцаг руу унагавал шууд хуулагдана!
+              Зөвлөмж: Доорх бэлэн жорыг (эсвэл орцуудыг) хулганаараа чирж энэ
+              хайрцаг руу унагавал шууд хуулагдана!
             </p>
           </div>
 
@@ -987,7 +987,7 @@ export default function RecipeEditor({
                           className="text-zinc-500 hover:text-rose-400 p-0.5 text-xs transition cursor-pointer ml-1"
                           title="Орц хасах"
                         >
-                      <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     );
@@ -1186,7 +1186,7 @@ export default function RecipeEditor({
                       onClick={() => handleRestoreSingleRecipe(pName)}
                       className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer"
                     >
-                      ↩️ Сэргээх
+                      Сэргээх
                     </button>
                   </div>
                 );
