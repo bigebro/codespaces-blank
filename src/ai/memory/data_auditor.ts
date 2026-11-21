@@ -222,7 +222,7 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
           client_id: clientId,
           experience_id: exp.id,
           inventory_log_id: inc.id,
-          evidence_type: "incident_damage_proof", // 👈 Төрөл 2: Зөрчлийн нотлох баримт
+          evidence_type: "incident_damage_proof", // Төрөл 2: Зөрчлийн нотлох баримт
           note: `Гомдол: ${reporter} -> ${accused}`,
         },
       ]);
@@ -287,7 +287,7 @@ export async function runNightlyAuditForTenant(clientId: string): Promise<{ anom
             client_id: clientId,
             experience_id: exp.id,
             inventory_log_id: pur.id,
-            evidence_type: "price_spike_evidence", // 👈 Төрөл 3: Үнийн өсөлтийн нотлох баримт
+            evidence_type: "price_spike_evidence", // Төрөл 3: Үнийн өсөлтийн нотлох баримт
             note: `Үнийн өсөлт: ${oldUnitPrice}₮ -> ${boughtUnitPrice}₮ (+${hikePct}%)`,
           },
         ]);

@@ -180,7 +180,7 @@ export default function FinanceTab({
           <TeamBoard scorecard={liveAnalytics?.scorecard} team={liveAnalytics?.team_goal} />
         ) : (
         <>
-        {/* 💳 ТӨЛБӨРИЙН САНУУЛГА / БАНКНЫ ДАНСНЫ БАННЕР */}
+        {/* ТӨЛБӨРИЙН САНУУЛГА / БАНКНЫ ДАНСНЫ БАННЕР */}
         {tenantInfo?.isExpired && (
           <div className="bg-gradient-to-r from-amber-500/20 via-zinc-900 to-zinc-900 border-2 border-amber-500/50 p-5 rounded-2xl shadow-2xl ">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -214,7 +214,7 @@ export default function FinanceTab({
             </div>
           </div>
         )}
-        {/* 🚨 ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТ (АНХНААСАА ХУМИГДСАН, ДАРАХАД ДЭЛГЭГДДЭГ) */}
+        {/* ТҮҮХИЙ ЭДИЙН ҮНИЙН ӨСӨЛТ (АНХНААСАА ХУМИГДСАН, ДАРАХАД ДЭЛГЭГДДЭГ) */}
         {priceSpikeAlerts.length > 0 &&
           (() => {
             const filteredSpikes = priceSpikeAlerts.filter((item: any) =>
@@ -325,7 +325,7 @@ export default function FinanceTab({
             );
           })()}
         {/* ========================================================================= */}
-        {/* БҮС 1: ОГНООНЫ КОНТРОЛ + 🚦 ӨРТГИЙН НИЙЦЛИЙН ЗААГУУР (HERO STATUS)         */}
+        {/* БҮС 1: ОГНООНЫ КОНТРОЛ + ӨРТГИЙН НИЙЦЛИЙН ЗААГУУР (HERO STATUS)         */}
         {/* ========================================================================= */}
         <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 bg-zinc-900 p-4 rounded-2xl border border-zinc-700/50 shadow-lg">
           <div className="flex items-center gap-3">
@@ -340,7 +340,7 @@ export default function FinanceTab({
             </div>
           </div>
 
-          {/* 🚦 1. COGS ALIGNMENT INDICATOR (ЭЗНИЙ ХАРАХ ГОЛ ДОХИО) */}
+          {/* 1. COGS ALIGNMENT INDICATOR (ЭЗНИЙ ХАРАХ ГОЛ ДОХИО) */}
           {isLive &&
             liveAnalytics &&
             (() => {
@@ -527,7 +527,7 @@ export default function FinanceTab({
           )}
         </div>
 
-        {/* 🚨 ТОХИОЛДОЛ 1: ХЭРЭВ БОРЛУУЛСАН ЦЭС ДҮНД ЖОРГҮЙ БАРАА БАЙВАЛ ШУУД ТҮГЖИНЭ */}
+        {/* ТОХИОЛДОЛ 1: ХЭРЭВ БОРЛУУЛСАН ЦЭС ДҮНД ЖОРГҮЙ БАРАА БАЙВАЛ ШУУД ТҮГЖИНЭ */}
         {liveAnalytics?.financial_ladder?.has_unmapped_recipes ? (
           <div className="bg-zinc-800/60 border-2 border-zinc-700 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
             <div className="space-y-1">
@@ -553,7 +553,7 @@ export default function FinanceTab({
               }}
               className="bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 shrink-0 shadow-md cursor-pointer"
             >
-              🔗 Жоргүй цэсийг холбох ➔
+              Жоргүй цэсийг холбох ➔
             </button>
           </div>
         ) : dataState === "empty" ? (
@@ -562,7 +562,7 @@ export default function FinanceTab({
             <p className="text-xs text-zinc-400 mt-2">{PERIOD_EMPTY_HINT}</p>
           </div>
         ) : (
-          /* 🟢 ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */
+          /* ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. НИЙТ ОРЛОГО */}
             <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-700/50 shadow-lg">
@@ -836,7 +836,7 @@ export default function FinanceTab({
               </div>
             </div>
 
-            {/* 🔍 ШАЛТГААНГҮЙ АЛДАГДЛЫН ДҮГНЭЛТ (ЭЗЭНД ӨГӨХ AI ОНОШ) */}
+            {/* ШАЛТГААНГҮЙ АЛДАГДЛЫН ДҮГНЭЛТ (ЭЗЭНД ӨГӨХ AI ОНОШ) */}
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <div className="flex justify-between items-center text-xm">
                 <span className="text-zinc-400 font-bold uppercase tracking-wider">
@@ -917,7 +917,7 @@ export default function FinanceTab({
                 )}
               </div>
 
-              {/* ⚡ ӨДРИЙН БҮРТГЭГДСЭН ЗАРЛАГУУДЫН УРСГАЛ (LIVE FEED) */}
+              {/* ӨДРИЙН БҮРТГЭГДСЭН ЗАРЛАГУУДЫН УРСГАЛ (LIVE FEED) */}
               <div>
                 <p className="text-xs font-black uppercase text-zinc-500 mb-3 tracking-widest">
                   Ажилтнуудын Сүүлийн Бүртгэлүүд
@@ -970,7 +970,7 @@ export default function FinanceTab({
         </div>
         </>
         )}
-        {/* 🛡️ МАРЖИН ХАМГААЛАГЧ (УЯН ХАТАН ТОХИРУУЛГАТАЙ) */}
+        {/* МАРЖИН ХАМГААЛАГЧ (УЯН ХАТАН ТОХИРУУЛГАТАЙ) */}
         {liveAnalytics?.margin_guard_alerts?.length > 0 &&
           (() => {
             const filteredMargins = liveAnalytics.margin_guard_alerts.filter(
@@ -1022,14 +1022,14 @@ export default function FinanceTab({
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {filteredMargins.map((marginItem: any, idx: number) => {
-                        // ⚡ 1. Эзэн гараар үнэ бичсэн бол тэрийг авна, үгүй бол Системийн зөвлөсөн үнийг харуулна
+                        // 1. Эзэн гараар үнэ бичсэн бол тэрийг авна, үгүй бол Системийн зөвлөсөн үнийг харуулна
                         const currentEditingPrice =
                           customMarginPrices[marginItem.product_name] !==
                           undefined
                             ? customMarginPrices[marginItem.product_name]
                             : marginItem.suggested_price;
 
-                        // ⚡ 2. Тухайн бичиж байгаа үнээс хамаарч Бохир ашиг хэдэн % болохыг ШУУД бодож харуулна
+                        // 2. Тухайн бичиж байгаа үнээс хамаарч Бохир ашиг хэдэн % болохыг ШУУД бодож харуулна
                         const dynamicMarginPct =
                           currentEditingPrice > 0
                             ? ((currentEditingPrice - marginItem.cost_price) /
@@ -1037,7 +1037,7 @@ export default function FinanceTab({
                               100
                             : 0;
 
-                        // ⚡ 3. Зорилтот %-даа хүрсэн үү үгүй юу гэдгийг шалгах
+                        // 3. Зорилтот %-даа хүрсэн үү үгүй юу гэдгийг шалгах
                         const targetPct = parseFloat(
                           marginItem.target_margin_pct,
                         );
@@ -1083,7 +1083,7 @@ export default function FinanceTab({
                               </div>
                             </div>
 
-                            {/* 🎛️ ИНТЕРАКТИВ ҮНЭ ӨӨРЧЛӨХ ХЭСЭГ */}
+                            {/* ИНТЕРАКТИВ ҮНЭ ӨӨРЧЛӨХ ХЭСЭГ */}
                             <div className="mt-3 pt-3 border-t border-zinc-800/80">
                               <label className="flex justify-between text-[10px] text-zinc-400 font-bold mb-1.5 uppercase">
                                 <span>Шинэ зарах үнэ (Тохируулах):</span>

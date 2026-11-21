@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@/lib/ai/genai";
 import { tabletSourceNote } from "@/lib/shiftCycle";
 
 // =========================================================================
-// 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
+// 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
 const MN_NUMBERS = [
   { w: "нэг зуун", v: 100 },
@@ -65,7 +65,7 @@ const MN_NUMBERS = [
 ];
 
 // =========================================================================
-// 🇲🇳 2. ТАНЫ ЖАГСААЛТЫН БҮХ БАРАА БАГТСАН АВАРГА ТОЛЬ БИЧИГ (100% COMPLETE)
+// 2. ТАНЫ ЖАГСААЛТЫН БҮХ БАРАА БАГТСАН АВАРГА ТОЛЬ БИЧИГ (100% COMPLETE)
 // =========================================================================
 const EN_TO_MN_DICT: Record<string, string[]> = {
   // Товчлолууд
@@ -244,7 +244,7 @@ const EN_TO_MN_DICT: Record<string, string[]> = {
 };
 
 // =========================================================================
-// 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
+// 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
 
 export function advancedMongolianVoiceParser(
@@ -283,7 +283,7 @@ export function advancedMongolianVoiceParser(
 
   if (!type) return null;
 
-  // 4. 🧠 FEEDBACK LOOP: Өмнө нь Gemini-аас суралцсан үгсийг хамгийн түрүүнд шалгах! (0.001ms)
+  // 4. FEEDBACK LOOP: Өмнө нь Gemini-аас суралцсан үгсийг хамгийн түрүүнд шалгах! (0.001ms)
   for (const alias of learnedAliases) {
     if (text.includes(alias.phrase.toLowerCase().trim())) {
       const matched = ingredients.find((i) => i.id === alias.ingredient_id);
@@ -362,7 +362,7 @@ export function advancedMongolianVoiceParser(
   };
 }
 
-// ⚡ LOCAL FAST PARSER (0.01ms Local Deterministic Matching)
+// LOCAL FAST PARSER (0.01ms Local Deterministic Matching)
 export function fastLocalParse(text: string, ingredientsList: string[]) {
   const lower = text.toLowerCase().trim();
 
@@ -521,7 +521,7 @@ async function parseReceiptWithGroqVision(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "qwen/qwen3.8-27b", // 🚀 Groq Vision Model
+      model: "qwen/qwen3.8-27b", // Groq Vision Model
       messages: [
         {
           role: "user",
@@ -603,7 +603,7 @@ export async function parseReceiptImage(
     .replace(/["']/g, "")
     .trim();
 
-  // ⚡ 1. Primary Attempt: Google Gemini 3.5 Flash-Lite
+  // 1. Primary Attempt: Google Gemini 3.5 Flash-Lite
   if (geminiKey) {
     try {
       const ai = new GoogleGenerativeAI(geminiKey);
@@ -612,8 +612,8 @@ export async function parseReceiptImage(
         generationConfig: {
           temperature: 0.1, // Strict, deterministic factual reading
           responseMimeType: "application/json", // Enforces clean JSON
-          maxOutputTokens: 2048, // 🛡️ Safe ceiling: never cuts off 10-20 item receipts
-          thinkingConfig: { thinkingLevel: "LOW" }, // ⚡ Fast, but smart enough to read blurry text correctly
+          maxOutputTokens: 2048, // Safe ceiling: never cuts off 10-20 item receipts
+          thinkingConfig: { thinkingLevel: "LOW" }, // Fast, but smart enough to read blurry text correctly
         } as any,
       });
 
@@ -641,7 +641,7 @@ export async function parseReceiptImage(
     }
   }
 
-  // ⚡ 2. Fallback: Groq Qwen 3.8 27B Vision
+  // 2. Fallback: Groq Qwen 3.8 27B Vision
   try {
     const groqResult = await parseReceiptWithGroqVision(
       cleanBase64,
@@ -649,7 +649,7 @@ export async function parseReceiptImage(
     );
     return groqResult;
   } catch (groqErr: any) {
-    console.error("❌ Both Gemini and Groq Vision failed:", groqErr.message);
+    console.error("Both Gemini and Groq Vision failed:", groqErr.message);
     return {
       success: false,
       error_message: "Зургийг уншиж чадсангүй. Арай тод дарж дахин илгээнэ үү.",

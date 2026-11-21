@@ -120,11 +120,11 @@ export default function IngredientsPanel({
               }}
               className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2.5 rounded-xl text-sm font-black transition active:scale-95 flex items-center gap-1.5 shadow"
             >
-              <span>🗑️ Сонгосон ({selectedIngIds.length}) устгах</span>
+              <span>Сонгосон ({selectedIngIds.length}) устгах</span>
             </button>
           )}
 
-          {/* ⚡ Шинэ мөр нээх товч (Поп-ап ЦОНХГҮЙ!) */}
+          {/* Шинэ мөр нээх товч (Поп-ап ЦОНХГҮЙ!) */}
           <button
             type="button"
             onClick={() => {
@@ -174,7 +174,7 @@ export default function IngredientsPanel({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 bg-zinc-950/40 font-medium">
-            {/* ⚡ 1. ХҮСНЭГТ ДОТОР НЭЭГДЭХ ШИНЭ МӨР (ЦОНХГҮЙ!) */}
+            {/* 1. ХҮСНЭГТ ДОТОР НЭЭГДЭХ ШИНЭ МӨР (ЦОНХГҮЙ!) */}
             {isAddingIngRow && (
               <tr className="bg-emerald-950/40 border-b-2 border-zinc-700/60 animate-in fade-in duration-150">
                 <td className="py-2 px-3 text-zinc-200 font-bold">New</td>
@@ -303,7 +303,7 @@ export default function IngredientsPanel({
               .map((ing) => {
                 const isEditingThis = editingIngId === ing.id;
 
-                // ⚡ 2. ХҮСНЭГТ ДОТОР МӨР ШУУД ЗАСАГДАХ ГОРИМ
+                // 2. ХҮСНЭГТ ДОТОР МӨР ШУУД ЗАСАГДАХ ГОРИМ
                 if (isEditingThis) {
                   return (
                     <tr
@@ -392,7 +392,7 @@ export default function IngredientsPanel({
                                   parseFloat(editingIngDraft.price) || 0,
                                 par_level: parseFloat(editingIngDraft.par) || 0,
                               };
-                              // ⚡ 0ms Optimistic UI
+                              // 0ms Optimistic UI
                               setIngredients((prev) =>
                                 prev.map((i) =>
                                   i.id === ing.id ? updatedObj : i,
@@ -506,7 +506,7 @@ export default function IngredientsPanel({
       </div>
 
       {/* ========================================================================= */}
-      {/* ➕ 1. ШИНЭ ТҮҮХИЙ ЭД НЭМЭХ МОДАЛ                                           */}
+      {/* 1. ШИНЭ ТҮҮХИЙ ЭД НЭМЭХ МОДАЛ                                           */}
       {/* ========================================================================= */}
       {showAddIngModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -587,7 +587,7 @@ export default function IngredientsPanel({
         </div>
       )}
 
-      {/* ✏️ ТҮҮХИЙ ЭД БҮРЭН ЗАСАХ МОДАЛ */}
+      {/* ТҮҮХИЙ ЭД БҮРЭН ЗАСАХ МОДАЛ */}
       {editingIngredient && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-700 p-5 rounded-3xl max-w-sm w-full space-y-3">

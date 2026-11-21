@@ -136,11 +136,11 @@ export async function getFraudAndLeakagePackage(
 
   return {
     totalLoggedWaste,
-    totalUnexplainedWaste: totalUnexplainedWasteMNT, // 👈 100% бодитоор бодогдож гарна
+    totalUnexplainedWaste: totalUnexplainedWasteMNT, // 100% бодитоор бодогдож гарна
     topWasters,
     crossShiftIncidents: fraudMatrix,
     logged_spoilage_items,
-    waste_act_items: wasteAuditItems, // 👈 100% татварын акт үүснэ
+    waste_act_items: wasteAuditItems, // 100% татварын акт үүснэ
     abc_summary: {
       total_items: (ingredients || []).length,
       counted_in_last_30_days: countedItems,

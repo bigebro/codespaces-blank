@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const pairingCode = (body.pairingCode || body.code || "").trim();
-    // ⚡ 1. NEW: Extract the device info sent from the tablet
+    // 1. NEW: Extract the device info sent from the tablet
     const deviceInfo = body.deviceInfo || "Үл мэдэгдэх төхөөрөмж";
     const subject = clientAddress(request);
     const gate = await rateLimit("kiosk_pair", subject, false);
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
 
 
-    // ⚡ 2. Update the device_name in the database with the real iPad/iPhone name
+    // 2. Update the device_name in the database with the real iPad/iPhone name
     await supabaseAdmin
       .from("kiosk_devices")
       .update({
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       })
       .eq("id", device.id);
 
-      //⚡ 3. Broadcast live event to Dashboard immediately!
+      //3. Broadcast live event to Dashboard immediately!
     const channel = supabaseAdmin.channel(`kiosk_events_${device.client_id}`);
     await channel.send({
       type: "broadcast",

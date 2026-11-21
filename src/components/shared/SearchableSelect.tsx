@@ -52,7 +52,7 @@ export default function SearchableSelect({
     setActiveIndex(0);
   }, [search]);
 
-  // ⚡ АВТОМАТ SCROLL: Сумаар ⬇️ ⬆️ явахад гүйлгэгч нь сонгосон бараагаа дагаж доошилно!
+  // АВТОМАТ SCROLL: Сумаар ⬇ ⬆ явахад гүйлгэгч нь сонгосон бараагаа дагаж доошилно!
   useEffect(() => {
     if (isOpen && listRef.current) {
       const activeEl = listRef.current.querySelector(
@@ -137,7 +137,7 @@ export default function SearchableSelect({
             className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-xs sm:text-sm text-white outline-none font-bold placeholder:text-zinc-500"
           />
 
-          {/* 📜 БАРААНУУДЫН ГҮЙДЭГ ХЭСЭГ (max-h-72 буюу 290px өндөртэй болсон) */}
+          {/* БАРААНУУДЫН ГҮЙДЭГ ХЭСЭГ (max-h-72 буюу 290px өндөртэй болсон) */}
           <div
             ref={listRef}
             className="max-h-72 overflow-y-auto space-y-1 pr-1 overscroll-contain"
@@ -153,7 +153,7 @@ export default function SearchableSelect({
                 }}
                 className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-zinc-800/60 text-zinc-300 border border-zinc-700 hover:bg-white/30 transition flex items-center justify-between cursor-pointer mb-1"
               >
-                <span>➕ Шинээр үүсгэх: "{search.trim()}"</span>
+                <span>Шинээр үүсгэх: "{search.trim()}"</span>
                 <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded font-mono">
                   Enter ↵
                 </span>
@@ -171,7 +171,7 @@ export default function SearchableSelect({
                   <button
                     key={opt.value}
                     type="button"
-                    data-active={isHighlighted ? "true" : undefined} // 👈 Автомат scroll-д зориулсан тэмдэглэгээ
+                    data-active={isHighlighted ? "true" : undefined} // Автомат scroll-д зориулсан тэмдэглэгээ
                     onClick={() => {
                       onChange(opt.value);
                       setIsOpen(false);

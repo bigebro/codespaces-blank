@@ -99,7 +99,7 @@ export async function getProfitabilityPackage(
   });
 
 
-  // ⚡ ШИНЭ: 1. E-Barimt-ийн харьцааг бодох (purchases_summary)
+  // ШИНЭ: 1. E-Barimt-ийн харьцааг бодох (purchases_summary)
   let ebarimtPurchases = 0;
   let noEbarimtPurchases = 0;
   (inventoryLogs || []).forEach((l) => {
@@ -110,7 +110,7 @@ export async function getProfitabilityPackage(
     }
   });
 
-   // ⚡ ШИНЭ: 2. Аль цэс хамгийн сайн зарагдсаныг бодох (menu_performance)
+   // ШИНЭ: 2. Аль цэс хамгийн сайн зарагдсаныг бодох (menu_performance)
   const menuSalesMap: Record<string, { qty: number, revenue: number }> = {};
   (sales || []).forEach((s) => {
     const name = s.product_name;

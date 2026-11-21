@@ -68,7 +68,7 @@ function confirmUi(text: string) {
   return pushAsk(text);
 }
 // =========================================================================
-// 🇲🇳 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
+// 1. КИРИЛЛ ТООГ ЦИФР БОЛГОХ
 // =========================================================================
 const MN_NUMBERS = [
   { w: "нэг зуун", v: 100 },
@@ -131,7 +131,7 @@ const MN_NUMBERS = [
 ];
 
 // =========================================================================
-// 🚀 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
+// 3. АЯНГА ШИГ ХУРДАН ОНООНЫ МАШИН + АВТОМАТ СУРАЛЦАХ СИСТЕМ
 // =========================================================================
 function advancedMongolianVoiceParser(
   rawText: string,
@@ -169,7 +169,7 @@ function advancedMongolianVoiceParser(
 
   if (!type) return null;
 
-  // 4. 🧠 FEEDBACK LOOP: Өмнө нь Gemini-аас суралцсан үгсийг хамгийн түрүүнд шалгах! (0.001ms)
+  // 4. FEEDBACK LOOP: Өмнө нь Gemini-аас суралцсан үгсийг хамгийн түрүүнд шалгах! (0.001ms)
   for (const alias of learnedAliases) {
     if (text.includes(alias.phrase.toLowerCase().trim())) {
       const matched = ingredients.find((i) => i.id === alias.ingredient_id);
@@ -247,7 +247,7 @@ function advancedMongolianVoiceParser(
   };
 }
 
-// ⚡ Зургийг 10 дахин хөнгөн болгож шахах функц
+// Зургийг 10 дахин хөнгөн болгож шахах функц
 async function compressImageForUpload(
   file: File,
 ): Promise<{ file: File; base64: string }> {
@@ -296,7 +296,7 @@ async function compressImageForUpload(
 }
 
 // =========================================================================
-// 📸 2. UPLOAD EVIDENCE PHOTO TO SUPABASE STORAGE
+// 2. UPLOAD EVIDENCE PHOTO TO SUPABASE STORAGE
 // =========================================================================
 async function uploadEvidencePhoto(
   file: File,
@@ -323,7 +323,7 @@ async function uploadEvidencePhoto(
   }
 }
 // =========================================================================
-// 🎙️ 3. KIOSK AI CHAT & VOICE RECORDING SECTION
+// 3. KIOSK AI CHAT & VOICE RECORDING SECTION
 // =========================================================================
 function KioskAiChatSection({
   selectedWorker,
@@ -375,7 +375,7 @@ function KioskAiChatSection({
     };
   }, [chatHistory, isAiLoading]);
 
-  // 📱 ТӨХӨӨРӨМЖ ТАНИГЧ: iOS (iPhone/iPad) мөн эсэхийг шалгах
+  // ТӨХӨӨРӨМЖ ТАНИГЧ: iOS (iPhone/iPad) мөн эсэхийг шалгах
   const isAppleDevice = () => {
     if (typeof window === "undefined") return false;
     return (
@@ -384,10 +384,10 @@ function KioskAiChatSection({
     );
   };
 
-  // ❌ INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
+  // INSTANT CANCEL & RESET: Aborts network fetch and removes ghost bubbles
   const cancelVoiceRecording = () => {
     isCancelledRef.current = true;
-    abortControllerRef.current?.abort(); // ⚡ Kills any in-flight request!
+    abortControllerRef.current?.abort(); // Kills any in-flight request!
 
     if (
       mediaRecorderRef.current &&
@@ -401,7 +401,7 @@ function KioskAiChatSection({
     setIsListening(false);
     setIsAiLoading(false);
 
-    // ⚡ Erase the temporary "sending..." bubble so the screen looks clean
+    // Erase the temporary "sending..." bubble so the screen looks clean
     setChatHistory((prev) => {
       const updated = [...prev];
       if (
@@ -413,9 +413,9 @@ function KioskAiChatSection({
       return updated;
     });
   };
-  // 🎙️ УХААЛАГ ДУУТ БҮРТГЭЛ (Android ба Apple хоёуланг нь бүрэн агуулсан)
+  // УХААЛАГ ДУУТ БҮРТГЭЛ (Android ба Apple хоёуланг нь бүрэн агуулсан)
   const startVoiceRecording = async () => {
-    // ⚡ 1. If already listening, tap to stop immediately
+    // 1. If already listening, tap to stop immediately
     if (isListening) {
       if (
         mediaRecorderRef.current &&
@@ -427,7 +427,7 @@ function KioskAiChatSection({
       return;
     }
 
-    // 🍏 АЛХАМ 1: ХЭРЭВ IPAD / IPHONE БАЙВАЛ
+    // АЛХАМ 1: ХЭРЭВ IPAD / IPHONE БАЙВАЛ
     if (isAppleDevice()) {
       isCancelledRef.current = false;
       abortControllerRef.current = new AbortController();
@@ -491,7 +491,7 @@ function KioskAiChatSection({
 
           const formData = new FormData();
           formData.append("file", audioBlob, `audio.${ext}`);
-          formData.append("mimeType", cleanMime); // ⚡ Sends real MIME so Gemini never crashes
+          formData.append("mimeType", cleanMime); // Sends real MIME so Gemini never crashes
           formData.append("slangHints", slangHints);
 
           try {
@@ -550,7 +550,7 @@ function KioskAiChatSection({
       return;
     }
 
-    // 🤖 АЛХАМ 2: ХЭРЭВ ANDROID / CHROME БАЙВАЛ (Одоо буцаж орсон!)
+    // АЛХАМ 2: ХЭРЭВ ANDROID / CHROME БАЙВАЛ (Одоо буцаж орсон!)
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
@@ -598,7 +598,7 @@ function KioskAiChatSection({
     const textToProcess = directText || chatInput.trim();
     if (!textToProcess && !file) return;
 
-    // ⚡ Optimistic Bubble: Хэрэглэгчийн бичсэн зүйл дэлгэцэнд 0 миллисекундэд шууд гарна!
+    // Optimistic Bubble: Хэрэглэгчийн бичсэн зүйл дэлгэцэнд 0 миллисекундэд шууд гарна!
     setChatHistory((prev) => [
       ...prev,
       {
@@ -611,7 +611,7 @@ function KioskAiChatSection({
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsAiLoading(true);
 
-    // 📶 ОФЛАЙН ГОРИМ ШАЛГАЛТ (Интернэт тасарсан бол LocalStorage-д хадгалах)
+    // ОФЛАЙН ГОРИМ ШАЛГАЛТ (Интернэт тасарсан бол LocalStorage-д хадгалах)
     if (!navigator.onLine && !file) {
       setChatHistory((prev) => [
         ...prev,
@@ -630,10 +630,10 @@ function KioskAiChatSection({
     if (file) {
       base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onerror = () => resolve(null); // ⚡ Never freeze
+        reader.onerror = () => resolve(null); // Never freeze
         reader.onload = (event) => {
           const img = new Image();
-          img.onerror = () => resolve(null); // ⚡ Never freeze on HEIC/Safari
+          img.onerror = () => resolve(null); // Never freeze on HEIC/Safari
           img.onload = () => {
             try {
               const canvas = document.createElement("canvas");
@@ -668,7 +668,7 @@ function KioskAiChatSection({
         return;
       }
     } else {
-      // ⚡ 0.01ms LOCAL MONGOLIAN MATCH (Сервер, AI дуудахгүйгээр шууд баазад хадгалах)
+      // 0.01ms LOCAL MONGOLIAN MATCH (Сервер, AI дуудахгүйгээр шууд баазад хадгалах)
       const localMatch = advancedMongolianVoiceParser(
         textToProcess,
         ingredients,
@@ -687,7 +687,7 @@ function KioskAiChatSection({
             ],
           );
           const newLogId = saved.ids?.[0];
-          // 🧠 FEEDBACK LOOP: Clean numbers/units and save the spoken phrase to learned_aliases
+          // FEEDBACK LOOP: Clean numbers/units and save the spoken phrase to learned_aliases
           let cleanPhrase = textToProcess.toLowerCase();
 
           // 1. Remove spoken numbers
@@ -708,7 +708,7 @@ function KioskAiChatSection({
             .replace(
               /\b(асг|ав|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түл)[а-яөү]*\b/gi,
               "",
-            ) // ⚡ Strips "авав", "аву", "асгачихсан"
+            ) // Strips "авав", "аву", "асгачихсан"
             .replace(/\s+/g, " ")
             .trim();
 
@@ -913,7 +913,7 @@ function KioskAiChatSection({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ⚡ 1-TAP ХУРДАН ХАЯГДАЛ СОНГОХ ТОВЧНУУД (Гар бохир үед шууд товших) */}
+      {/* 1-TAP ХУРДАН ХАЯГДАЛ СОНГОХ ТОВЧНУУД (Гар бохир үед шууд товших) */}
       <div className="flex gap-1.5 overflow-x-auto py-1.5 shrink-0 no-scrollbar">
         {QUICK_SPILLS.map((preset, idx) => (
           <button
@@ -952,7 +952,7 @@ function KioskAiChatSection({
             }}
             placeholder={
               isListening
-                ? "🎙️ Ярьж байна... '2 литр сүү асгасан' гэж хэлнэ үү"
+                ? "Ярьж байна... '2 литр сүү асгасан' гэж хэлнэ үү"
                 : "Зарлага бичих эсвэл микрофоноор ярих..."
             }
             className={`w-full bg-transparent text-white text-[15px] leading-relaxed resize-none outline-none placeholder:text-zinc-500 px-1 ${isListening ? " text-zinc-200 font-bold" : ""}`}
@@ -962,7 +962,7 @@ function KioskAiChatSection({
           <div className="flex justify-between items-center pt-1.5 border-t border-zinc-800/60 shrink-0 w-full gap-1">
             {/* ⬅️ Зүүн талын товчнууд: Камер, Цомог, Ярих, Цуцлах */}
             <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 overflow-x-auto no-scrollbar py-0.5">
-              {/* 📸 1. Камераар шууд зураг дарах */}
+              {/* 1. Камераар шууд зураг дарах */}
               <input
                 type="file"
                 accept="image/*"
@@ -985,7 +985,7 @@ function KioskAiChatSection({
                 <span className="hidden min-[360px]:inline">Камер</span>
               </label>
 
-              {/* 🖼️ 2. Галерей / Утасны цомгоос зураг оруулах */}
+              {/* 2. Галерей / Утасны цомгоос зураг оруулах */}
               <input
                 type="file"
                 accept="image/*"
@@ -1003,11 +1003,10 @@ function KioskAiChatSection({
                 className="h-8 sm:h-9 px-2 sm:px-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 rounded-xl flex items-center gap-1 cursor-pointer text-zinc-300 font-bold text-xs sm:text-xs transition shrink-0 select-none"
                 title="iPad эсвэл утасны цомгоос сонгох"
               >
-                <span className="text-xs shrink-0">🖼️</span>
                 <span className="hidden min-[360px]:inline">Цомог</span>
               </label>
 
-              {/* 🎙️ 3. Монгол дуу хоолойгоор ярих (Mic) */}
+              {/* 3. Монгол дуу хоолойгоор ярих (Mic) */}
               <button
                 type="button"
                 onClick={startVoiceRecording}
@@ -1026,7 +1025,7 @@ function KioskAiChatSection({
                 <span>{isListening ? "Сонсож байна..." : "Ярих"}</span>
               </button>
 
-              {/* ❌ 4. Цуцлах товч (Зөвхөн ярьж эсвэл AI ажиллаж байх үед гарна) */}
+              {/* 4. Цуцлах товч (Зөвхөн ярьж эсвэл AI ажиллаж байх үед гарна) */}
               {(isListening || isAiLoading) && (
                 <button
                   type="button"
@@ -1061,7 +1060,7 @@ function KioskAiChatSection({
 }
 
 // =========================================================================
-// 📱 4. MAIN COMPONENT: KIOSK PAGE
+// 4. MAIN COMPONENT: KIOSK PAGE
 // =========================================================================
 function KioskPage() {
   const router = useRouter();
@@ -1078,7 +1077,7 @@ function KioskPage() {
     | "close_shift"
     | "opening_recount"
   >("initializing");
-// 🔐 ХОЛБОЛТЫН СТЭЙТ (PAIRING)
+// ХОЛБОЛТЫН СТЭЙТ (PAIRING)
   const [pairingCodeInput, setPairingCodeInput] = useState("");
   const [isPairing, setIsPairing] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState(""); 
@@ -1128,7 +1127,7 @@ function KioskPage() {
   const [msg, setMsg] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // 🌐 ХОС ХЭЛНИЙ ТОХИРГОО (tenantClientId-ийн дараа байрлана)
+  // ХОС ХЭЛНИЙ ТОХИРГОО (tenantClientId-ийн дараа байрлана)
   const [lang, setLang] = useState<"mn" | "en">("mn");
   const [translationsCache, setTranslationsCache] = useState<
     Record<string, string>
@@ -1266,18 +1265,18 @@ function KioskPage() {
   const [countDraft, setCountDraft] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [posZFile, setPosZFile] = useState<File | null>(null);
-  // ⚡ ШИНЭ: Kiosk 2-Tap Горим & Numpad State-үүд
+  // ШИНЭ: Kiosk 2-Tap Горим & Numpad State-үүд
   const [kioskMode, setKioskMode] = useState<
     "spoilage" | "staff_meal" | "testing" | "purchase"| "count"
   >("spoilage");
   const [quickItemModal, setQuickItemModal] = useState<any | null>(null);
   const [numpadTarget, setNumpadTarget] = useState<"qty" | "cost">("qty");
   const [kioskBulkStock, setKioskBulkStock] = useState<Record<string, string>>({});
-   // ⚡ 1. Заагч (Cursor)-ийг удирдах рефүүд:
+   // 1. Заагч (Cursor)-ийг удирдах рефүүд:
   const qtyInputRef = useRef<HTMLInputElement>(null);
   const costInputRef = useRef<HTMLInputElement>(null);
 
-// ⚡ 0ms Чичиргээ үүсгэгч (Тооны машин шиг хурдан мэдрэмж)
+// 0ms Чичиргээ үүсгэгч (Тооны машин шиг хурдан мэдрэмж)
   const triggerHaptic = (ms = 8) => {
     if (typeof window !== "undefined" && window.navigator?.vibrate) {
       window.navigator.vibrate(ms);
@@ -1343,7 +1342,7 @@ const handleKioskBulkSave = async () => {
             ingredient_id: id,
             quantity: parseFloat(val) || 0,
             type: "count",
-            incident_type: "kiosk_count", // 👈 ЗӨВХӨН ЭНЭ Л БАЙНА, ӨӨР ИЛҮҮ ДУТУУ ТААМАГЛАЛ БАЙХГҮЙ
+            incident_type: "kiosk_count", // ЗӨВХӨН ЭНЭ Л БАЙНА, ӨӨР ИЛҮҮ ДУТУУ ТААМАГЛАЛ БАЙХГҮЙ
             notes: `Таблет Тооллого: ${val}`,
             date: currentDate,
             worker_name: currentWorkerName,
@@ -1385,7 +1384,7 @@ const handleKioskBulkSave = async () => {
       setIsAiLoading(false);
     }
   };
-  // ⚡ Хуруу хүрэх тэр агшинд 0ms-д тоо оруулах
+  // Хуруу хүрэх тэр агшинд 0ms-д тоо оруулах
   const handleFastInsert = (digit: string) => {
     triggerHaptic(8);
     const isQty = numpadTarget === "qty";
@@ -1411,7 +1410,7 @@ const handleKioskBulkSave = async () => {
   };
 
 
-  // ⚡ 1 тоо устгах суурь функц
+  // 1 тоо устгах суурь функц
   const executeSingleDelete = () => {
     triggerHaptic(6);
     const isQty = numpadTarget === "qty";
@@ -1444,7 +1443,7 @@ const handleKioskBulkSave = async () => {
     }
   };
 
-  // ⚡ ДАРААД БАЙВАЛ ТОНЫ МАШИН ШИГ ХУРДАН ТАСРАЛТГҮЙ УСТГАХ
+  // ДАРААД БАЙВАЛ ТОНЫ МАШИН ШИГ ХУРДАН ТАСРАЛТГҮЙ УСТГАХ
   const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
   const deleteIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1463,7 +1462,7 @@ const handleKioskBulkSave = async () => {
     if (deleteIntervalRef.current) clearInterval(deleteIntervalRef.current);
   };
 
-  // ⚡ "C" (Бүгдийг арилгах) товч
+  // "C" (Бүгдийг арилгах) товч
   const handleClearAll = () => {
     triggerHaptic(15);
     if (numpadTarget === "qty") {
@@ -1481,7 +1480,7 @@ const handleKioskBulkSave = async () => {
     id: string;
     text: string;
   } | null>(null);
-  // 🛒 САГСНЫ STATE (Олон барааг бөөнд нь зураг дарахад зориулав)
+  // САГСНЫ STATE (Олон барааг бөөнд нь зураг дарахад зориулав)
   const [purchaseCart, setPurchaseCart] = useState<
     Array<{
       ing_id: string;
@@ -1493,7 +1492,7 @@ const handleKioskBulkSave = async () => {
   >([]);
   const [showCartModal, setShowCartModal] = useState(false);
   const [cartFile, setCartFile] = useState<File | null>(null);
-  // 💵 Бэлэн мөнгө гаргах (Cash Out) & Хаалтын касс тоолох State-үүд
+  // Бэлэн мөнгө гаргах (Cash Out) & Хаалтын касс тоолох State-үүд
   const [cashOutModal, setCashOutModal] = useState(false);
   const [cashOutType, setCashOutType] = useState<"owner_draw" | "petty_cash">(
     "owner_draw",
@@ -1502,30 +1501,30 @@ const handleKioskBulkSave = async () => {
   const [cashOutNote, setCashOutNote] = useState("");
   const [cashOutFile, setCashOutFile] = useState<File | null>(null);
   const [actualCashDrawer, setActualCashDrawer] = useState(""); // Ээлж хаах үеийн бодит бэлэн мөнгө
-  // 📖 1. Дижитал Жор (SOP) харах State-үүд
+  // 1. Дижитал Жор (SOP) харах State-үүд
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [recipesList, setRecipesList] = useState<any[]>([]);
   const [selectedProductRecipe, setSelectedProductRecipe] = useState<
     string | null
   >(null);
-  // 📸 1. E-Barimt-гүй үед барааны зураг хавсаргах State
+  // 1. E-Barimt-гүй үед барааны зураг хавсаргах State
   const [noEbarimtFile, setNoEbarimtFile] = useState<File | null>(null);
   const [purchasePayMethod, setPurchasePayMethod] = useState<"bank" | "cash">(
     "bank",
   );
   const [isScanningReceipt, setIsScanningReceipt] = useState(false);
-  // 📋 Өнөөдрийн бүх үйлдлүүдийн гүйдэг жагсаалт:
+  // Өнөөдрийн бүх үйлдлүүдийн гүйдэг жагсаалт:
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
   const [showLogsDrawer, setShowLogsDrawer] = useState(false);
   const [previewLogImage, setPreviewLogImage] = useState<string | null>(null);
-  // ➕ ШИНЭ БАРАА НЭМЭХЭД ДУТАГДАЖ БАЙСАН STATE-ҮҮД:
+  // ШИНЭ БАРАА НЭМЭХЭД ДУТАГДАЖ БАЙСАН STATE-ҮҮД:
   const [showAddNewItemModal, setShowAddNewItemModal] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("ш");
   const [newItemQty, setNewItemQty] = useState("");
   const [newItemCost, setNewItemCost] = useState("");
   const [newItemFile, setNewItemFile] = useState<File | null>(null);
-  // 🧾 2. E-Barimt уншсаны дараа ШАЛГАХ / ЗАСАХ (Preview/Approve) Modal-ийн State
+  // 2. E-Barimt уншсаны дараа ШАЛГАХ / ЗАСАХ (Preview/Approve) Modal-ийн State
   const [ebarimtReview, setEbarimtReview] = useState<{
     file: File;
     previewUrl: string;
@@ -1577,7 +1576,7 @@ const handleKioskBulkSave = async () => {
     return () => window.removeEventListener("kiosk-logs-changed", onChanged);
   }, []);
 
-// ⚡ DEEP HARDWARE & DEVICE MODEL PROFILER
+// DEEP HARDWARE & DEVICE MODEL PROFILER
   const getDeepDeviceInfo = async (): Promise<string> => {
     if (typeof window === "undefined") return "Үл мэдэгдэх төхөөрөмж";
 
@@ -1836,7 +1835,7 @@ const initKioskContext = async () => {
   };
 
   const openTasksScreen = () => {
-    // ⚡ Шууд дэлгэцийг нээнэ (0ms)
+    // Шууд дэлгэцийг нээнэ (0ms)
     setStep("tasks");
 
     // Цаана нь датаг сэмхэн шинэчлэх (Background sync)
@@ -2102,7 +2101,7 @@ const initKioskContext = async () => {
     }
   };
 
-  // ⚡ 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
+  // 0 МИЛЛИСЕКУНДЭД ШУУД ХААГДАЖ ГАРДАГ ХАМГИЙН ХУРДАН ХААЛТ
 
 const handleCloseShift = async () => {
     if (!cycleResult || cycleResult.counts.length === 0) {
@@ -2236,7 +2235,7 @@ const handleCloseShift = async () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 🌐 ХЭЛ СОЛИХ ТОВЧ */}
+          {/* ХЭЛ СОЛИХ ТОВЧ */}
           <button
             type="button"
             onClick={() => setLang(lang === "mn" ? "en" : "mn")}
@@ -2250,7 +2249,7 @@ const handleCloseShift = async () => {
           >
             Самбар
           </Link>
-          {/* 🟢 ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
+          {/* ЭНЭ НЬ button ХЭВЭЭРЭЭ БАЙНА (Хуудас солихгүй тул): */}
           {selectedWorker && (
             <button
               onClick={() => {
@@ -2268,9 +2267,9 @@ const handleCloseShift = async () => {
         </div>
       </header>
 
-      {/* 🚀 MAIN CONTENT */}
+      {/* MAIN CONTENT */}
        <main className="w-full max-w-2xl lg:max-w-3xl flex-1 min-h-0 flex flex-col overflow-hidden">
-        {/* ⚡ 1. CLEAN LOADING SCREEN WHILE VERIFYING (Eliminates the glimpse!) */}
+        {/* 1. CLEAN LOADING SCREEN WHILE VERIFYING (Eliminates the glimpse!) */}
         {isLoadingKiosk ? (
           <div className="w-full h-full bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-3 select-none">
             <div className="h-10 w-1/2 rounded-xl bg-zinc-800 animate-pulse" />
@@ -2314,7 +2313,7 @@ const handleCloseShift = async () => {
                   setIsPairing(true);
                   setMsg("");
                   try {
-                    // ⚡ Await the deep hardware inspection
+                    // Await the deep hardware inspection
                     const deepHardwareInfo = await getDeepDeviceInfo();
 
                     const res = await fetch("/api/kiosk/pair", {
@@ -2365,7 +2364,7 @@ const handleCloseShift = async () => {
             </div>
 
             <div className="space-y-3 w-full my-auto overflow-y-auto max-h-[60vh] px-1">
-              {/* ⚡ 1. Хэрэв дата ачаалж байгаа бол түр зуур 2 саарал товчлуур лугшина (Гацалтгүй шууд онгойно) */}
+              {/* 1. Хэрэв дата ачаалж байгаа бол түр зуур 2 саарал товчлуур лугшина (Гацалтгүй шууд онгойно) */}
               {isLoadingKiosk ? (
                 <div className="space-y-3 ">
                   <div className="h-20 bg-zinc-900/60 border border-zinc-800 rounded-2xl w-full" />
@@ -2424,7 +2423,7 @@ const handleCloseShift = async () => {
               </p>
               <div className="mt-1.5 inline-block bg-zinc-950 px-3.5 py-1 rounded-xl border border-zinc-800">
                 <span className="text-xs sm:text-sm text-zinc-300 font-black">
-                  👤{" "}
+                  {" "}
                   {selectedWorker?.full_name ||
                     selectedWorker?.email.split("@")[0]}{" "}
                   ({roleLabel(selectedWorker?.role) || "Ажилтан"})
@@ -2608,14 +2607,14 @@ const handleCloseShift = async () => {
         {/* 4. MAIN ACTION MENU & DIGITAL KITCHEN */}
         {step === "menu" && (
           <div className="w-full h-full bg-zinc-900 p-3 sm:p-4 rounded-3xl border border-zinc-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
-            {/* 🟢 СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
+            {/* СҮҮЛИЙН ҮЙЛДЭЛ (ХЭЗЭЭ Ч АЛГА БОЛОХГҮЙ, ХҮССЭН ЦАГТАА БУЦААХ БОЛОМЖТОЙ) */}
 
 
-            {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
+            {/* ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
-              {/* 🔝 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
+              {/* 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
                            <div className="flex justify-between items-center gap-2 pb-3 border-b border-zinc-800/80 mb-3 px-1">
-                {/* 👤 Ажилтан тусдаа тод статус пайзтай */}
+                {/* Ажилтан тусдаа тод статус пайзтай */}
 
                 <div className="flex items-center gap-2 bg-zinc-900 rounded-xl shadow-inner min-w-0">
                   <span className="relative flex h-2 w-2 shrink-0">
@@ -2785,7 +2784,7 @@ const handleCloseShift = async () => {
               </div>
             </div>
 
-            {/* 📦 1. ОЛОН БАРААТАЙ E-BARIMT УНШУУЛАХ КАРТ */}
+            {/* 1. ОЛОН БАРААТАЙ E-BARIMT УНШУУЛАХ КАРТ */}
     {kioskMode === "purchase" && (
   <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-2xl my-2 shrink-0 flex items-center justify-between shadow-sm">
                 <div>
@@ -2808,7 +2807,7 @@ const handleCloseShift = async () => {
                         const rawFile = e.target.files[0];
                         setIsScanningReceipt(true);
 
-                        // ⚡ iPad дээр зургийг 0.05 секундэд 97% жижигрүүлж авна:
+                        // iPad дээр зургийг 0.05 секундэд 97% жижигрүүлж авна:
                         const { file: compressedFile, base64 } =
                           await compressImageForUpload(rawFile);
 
@@ -2828,7 +2827,7 @@ const handleCloseShift = async () => {
 
                           if (data.success && data.purchases) {
                             setEbarimtReview({
-                              file: compressedFile, // 👈 Жижигхэн шахсан файлыг хадгалалтад бэлдэнэ
+                              file: compressedFile, // Жижигхэн шахсан файлыг хадгалалтад бэлдэнэ
                               previewUrl: URL.createObjectURL(compressedFile),
                               items: data.purchases,
                               payMethod: "bank",
@@ -2860,7 +2859,7 @@ const handleCloseShift = async () => {
                     onChange={async (e) => {
                       if (e.target.files?.[0]) {
                         const file = e.target.files[0];
-                        setIsScanningReceipt(true); // 👈 Сканнерын дэлгэцийг нээх
+                        setIsScanningReceipt(true); // Сканнерын дэлгэцийг нээх
 
                         const reader = new FileReader();
                         reader.onload = async () => {
@@ -2879,7 +2878,7 @@ const handleCloseShift = async () => {
                               body: JSON.stringify({ imageBase64: base64 }),
                             });
                             const data = await res.json();
-                            setIsScanningReceipt(false); // 👈 Уншиж дуусмагц сканнерыг хаах
+                            setIsScanningReceipt(false); // Уншиж дуусмагц сканнерыг хаах
 
                             if (data.success && data.purchases) {
                               setEbarimtReview({
@@ -2914,7 +2913,7 @@ const handleCloseShift = async () => {
             )}
 
 {kioskMode === "count" ? (
-  /* ⚡ ХУРДАН ТООЛЛОГЫН ХҮСНЭГТ (DASHBOARD ШИГ ШУУД ШИВЭХ) */
+  /* ХУРДАН ТООЛЛОГЫН ХҮСНЭГТ (DASHBOARD ШИГ ШУУД ШИВЭХ) */
   <div className="flex-1 min-h-0 flex flex-col bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden p-2">
     <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
       <span className="text-xs font-bold text-zinc-400">Бодит тоогоо бичээд "Хадгалах" дарна уу:</span>
@@ -2961,11 +2960,11 @@ const handleCloseShift = async () => {
                   placeholder="Бараа хайх (нэг товшилтоор бүртгэнэ)..."
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700"
                 />
-                {/* ➕ ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
+                {/* ХЭРЭВ БААЗАД БАЙХГҮЙ БАРАА ХАЙВАЛ ШУУД НЭМЭХ ТОВЧ ГАРНА */}
                 {kioskSearch.trim() &&
                   !ingredients.some((i) => {
                     const q = kioskSearch.toLowerCase().trim();
-                    return tName(i.name).toLowerCase().trim() === q; // 👈 Зөвхөн идэвхтэй хэлээрээ шалгана
+                    return tName(i.name).toLowerCase().trim() === q; // Зөвхөн идэвхтэй хэлээрээ шалгана
                   }) && (
                     <button
                       type="button"
@@ -2989,7 +2988,7 @@ const handleCloseShift = async () => {
                   .filter((ing) => {
                     if (kioskSearch.trim()) {
                       const q = kioskSearch.toLowerCase().trim();
-                      // 💡 Зөвхөн тухайн сонгосон хэлнийхээ (MN эсвэл EN) нэрээр л хайна!
+                      // Зөвхөн тухайн сонгосон хэлнийхээ (MN эсвэл EN) нэрээр л хайна!
                       return tName(ing.name).toLowerCase().includes(q);
                     }
                     return true;
@@ -3063,7 +3062,7 @@ const handleCloseShift = async () => {
 
           
 
-            {/* 🔘 ДООД 3 ТОМ ТОВЧ: Даалгавар / Мөнгө гаргах / Ээлж хаах */}
+            {/* ДООД 3 ТОМ ТОВЧ: Даалгавар / Мөнгө гаргах / Ээлж хаах */}
             <div className="grid grid-cols-3 gap-1.5 pt-1.5 shrink-0 border-t border-zinc-800/80">
               <button
                 type="button"
@@ -3099,7 +3098,7 @@ const handleCloseShift = async () => {
             </div>
 
             {/* ========================================================================= */}
-            {/* 📖 ДИЖИТАЛ ЖОР (SOP) ХАРАХ МОДАЛ (Ээжийн оролцоог бүрэн хаах хэсэг) */}
+            {/* ДИЖИТАЛ ЖОР (SOP) ХАРАХ МОДАЛ (Ээжийн оролцоог бүрэн хаах хэсэг) */}
             {/* ========================================================================= */}
             {showRecipeModal && (
               <div
@@ -3137,7 +3136,7 @@ const handleCloseShift = async () => {
                  {/* Бүтээгдэхүүн сонгох хэсэг */}
                   {!selectedProductRecipe ? (
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                      {/* 🔍 ХАЙЛТЫН ТАЛБАР */}
+                      {/* ХАЙЛТЫН ТАЛБАР */}
                       <input
                         type="text"
                         value={recipeSearch}
@@ -3230,7 +3229,7 @@ const handleCloseShift = async () => {
                       </div>
 
                       <div className="bg-zinc-800/60 border border-zinc-700/20 p-3 rounded-2xl text-xs text-zinc-300 space-y-1">
-                        <p className="font-bold">💡 Санамж:</p>
+                        <p className="font-bold">Санамж:</p>
                         <p>
                           Дээрх граммыг яг баримталснаар кофены амт үргэлж
                           стандартын дагуу 100% жигд гарна.
@@ -3243,7 +3242,7 @@ const handleCloseShift = async () => {
             )}
 
             {/* ========================================================================= */}
-            {/* 💵 БИЕ ДААСАН МӨНГӨ ГАРГАХ МОДАЛ (Гадаа гарч бие даасан) */}
+            {/* БИЕ ДААСАН МӨНГӨ ГАРГАХ МОДАЛ (Гадаа гарч бие даасан) */}
             {/* ========================================================================= */}
             {cashOutModal && (
               <div
@@ -3268,7 +3267,7 @@ const handleCloseShift = async () => {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
-                    {/* 👑 ЭЗНИЙ ТАТАЛТ (Яг голдоо тэгшхэн байрлана) */}
+                    {/* ЭЗНИЙ ТАТАЛТ (Яг голдоо тэгшхэн байрлана) */}
                     <button
                       type="button"
                       onClick={() => setCashOutType("owner_draw")}
@@ -3282,7 +3281,7 @@ const handleCloseShift = async () => {
                       <span>Эзний таталт</span>
                     </button>
 
-                    {/* 🧾 ЖИЖИГ ЗАРДАЛ (Яг голдоо тэгшхэн байрлана) */}
+                    {/* ЖИЖИГ ЗАРДАЛ (Яг голдоо тэгшхэн байрлана) */}
                     <button
                       type="button"
                       onClick={() => setCashOutType("petty_cash")}
@@ -3394,19 +3393,19 @@ const handleCloseShift = async () => {
                       const typeToSave = cashOutType;
                       const noteToSave = cashOutNote;
 
-                      // ⚡ 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
+                      // 1. ЦОНХ ТЭР ДОРОО АЛГА БОЛНО (0 миллисекунд!)
                       setCashOutModal(false);
                       setCashOutAmount("");
                       setCashOutNote("");
                       setCashOutFile(null);
 
-                      // ⚡ 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
+                      // 2. ДЭЭД ТАЛД МЭДЭЭЛЭЛ ШУУД ГАРНА
                       setRecentToast({
                         id: "temp-" + Date.now(),
                         text: `Касснаас гарсан: ${amount.toLocaleString()}₮ (${typeToSave === "owner_draw" ? "Эзний таталт" : "Жижиг зардал"})`,
                       });
 
-                      // ⚡ 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
+                      // 3. ЗУРАГ БА ДАТАГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ (Background)
                       (async () => {
                         try {
                           let uploadedImg = null;
@@ -3462,7 +3461,7 @@ const handleCloseShift = async () => {
             )}
 
             {/* ========================================================================= */}
-            {/* 🔢 NUMPAD ЦОНХ (Бараан дээр дарахад гарах тооны машин) */}
+            {/* NUMPAD ЦОНХ (Бараан дээр дарахад гарах тооны машин) */}
             {/* ========================================================================= */}
             {quickItemModal && (
               <div
@@ -3605,7 +3604,7 @@ const handleCloseShift = async () => {
                             return (
                               <div className="bg-rose-500/10 border border-rose-500/30 p-2 rounded-xl text-center">
                                 <span className="text-xs font-black text-rose-400">
-                                  🔺 ҮНЭ ӨССӨН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
+                                  ҮНЭ ӨССӨН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ (+{pct}%)
                                 </span>
                               </div>
                             );
@@ -3613,7 +3612,7 @@ const handleCloseShift = async () => {
                             return (
                               <div className="bg-zinc-800/60 border border-zinc-800 p-2 rounded-xl text-center">
                                 <span className="text-xs font-black text-zinc-200">
-                                  🟢 ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}%)
+                                  ҮНЭ ХЯМДАРСАН: {oldPrice.toLocaleString()}₮ ➔ {currentUnitPrice.toLocaleString()}₮ ({pct}%)
                                 </span>
                               </div>
                             );
@@ -3672,7 +3671,7 @@ const handleCloseShift = async () => {
                     </div>
                   )}
 
-              {/* ⚡ ХУРДАН ХЭРЭГСЛҮҮД: [ C Арилгах ] болон [ Дараах: Үнэ ➔ ] */}
+              {/* ХУРДАН ХЭРЭГСЛҮҮД: [ C Арилгах ] болон [ Дараах: Үнэ ➔ ] */}
                   <div className="flex items-center justify-between gap-2 pt-1 pb-1">
                     <button
                       type="button"
@@ -3708,7 +3707,7 @@ const handleCloseShift = async () => {
                     )}
                   </div>
 
-                  {/* 🔢 ДЭЛГЭЦИЙН ТОМ ТООВЧЛУУР (Хуруу хүрэхэд шууд 0ms-д бичнэ + Чичирнэ) */}
+                  {/* ДЭЛГЭЦИЙН ТОМ ТООВЧЛУУР (Хуруу хүрэхэд шууд 0ms-д бичнэ + Чичирнэ) */}
                   <div className="grid grid-cols-3 gap-2">
                     {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"].map((digit) => (
                       <button
@@ -3856,7 +3855,7 @@ const handleCloseShift = async () => {
                           ? "БАТЛАХ"
                           : "БАТЛАХ"}
                   </button>
-                  {/* 🛒 ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
+                  {/* ШИНЭ: САГСАНД НЭМЭХ ТОВЧ (Зөвхөн Орлого горимд гарна) */}
                   {kioskMode === "purchase" && (
                     <button
                       type="button"
@@ -3898,7 +3897,7 @@ const handleCloseShift = async () => {
             {/* 2. ТАНЫ ХОЁР ДАХЬ ЦОНХ: E-BARIMT ШАЛГАХ БИЕ ДААСАН МОДАЛ    */}
             {/* ========================================================= */}
             {/* ========================================================================= */}
-            {/* 🧾 E-BARIMT ШАЛГАХ, ЗАСАХ, БАТЛАХ & БУЦААХ (UNDO) МОДАЛ */}
+            {/* E-BARIMT ШАЛГАХ, ЗАСАХ, БАТЛАХ & БУЦААХ (UNDO) МОДАЛ */}
             {/* ========================================================================= */}
             {ebarimtReview && (
               <div
@@ -3913,7 +3912,7 @@ const handleCloseShift = async () => {
                   <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-1.5">
-                        <span>🧾 E-Barimt Шалгах</span>
+                        <span>E-Barimt Шалгах</span>
                       </h3>
                       <p className="text-xs text-zinc-400">
                         AI-ийн таньсан тоо, үнийг шалгаж засна уу
@@ -3962,7 +3961,7 @@ const handleCloseShift = async () => {
                           : "bg-zinc-950 text-zinc-400"
                       }`}
                     >
-                      💳 Банк / Дансаар
+                      Банк / Дансаар
                     </button>
                     <button
                       type="button"
@@ -3982,7 +3981,7 @@ const handleCloseShift = async () => {
                     </button>
                   </div>
 
-                  {/* ✏️ ТАНЬСАН БАРААНУУДЫН ЖАГСААЛТ (ШУУД ЗАСАХ БОЛОМЖТОЙ) */}
+                  {/* ТАНЬСАН БАРААНУУДЫН ЖАГСААЛТ (ШУУД ЗАСАХ БОЛОМЖТОЙ) */}
                   <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/80">
                     {ebarimtReview.items.map((item, idx) => (
                       <div
@@ -4099,13 +4098,13 @@ const handleCloseShift = async () => {
 
                       setEbarimtReview(null);
 
-                      // ⚡ 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
+                      // 2. ДЭЭД ТАЛД TOAST МЭДЭЭЛЭЛ ШУУД ГАРНА
                       setRecentToast({
                         id: "temp-" + Date.now(),
-                        text: `⚡ ${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`,
+                        text: `${reviewData.items.length} бараа E-Barimt-аар хадгалагдаж байна...`,
                       });
 
-                      // ⚡ 3. ЗУРАГ БА ЛОГИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ
+                      // 3. ЗУРАГ БА ЛОГИЙГ ЦААНА НЬ ЧИМЭЭГҮЙ ХАДГАЛАХ
                       (async () => {
                         try {
                           const uploadedImgUrl = await uploadEvidencePhoto(
@@ -4161,7 +4160,7 @@ const handleCloseShift = async () => {
               </div>
             )}
             {/* ========================================================================= */}
-            {/* 5. 👉 ЭНД ТАНЫ showAddNewItemModal (ШИНЭ БАРАА ҮҮСГЭХ) ЦОНХ БАЙРЛАНА:       */}
+            {/* 5. ЭНД ТАНЫ showAddNewItemModal (ШИНЭ БАРАА ҮҮСГЭХ) ЦОНХ БАЙРЛАНА:       */}
             {/* ========================================================================= */}
             {showAddNewItemModal && (
               <div
@@ -4309,7 +4308,7 @@ const handleCloseShift = async () => {
                     onClick={() => {
                       const cost = parseFloat(newItemCost) || 0;
 
-                      // 💡 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
+                      // 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
                       if (cost >= 10000 && !newItemFile) {
                         document.getElementById("new-item-cam")?.click();
                         return;
@@ -4373,7 +4372,7 @@ const handleCloseShift = async () => {
             )}
 
             {/* ========================================================================= */}
-            {/* 📸 БАРИМТЫГ УНШИЖ БАЙГААГ МЭДЭГДЭХ ТОМ ХӨДӨЛГӨӨНТ ЦОНХ */}
+            {/* БАРИМТЫГ УНШИЖ БАЙГААГ МЭДЭГДЭХ ТОМ ХӨДӨЛГӨӨНТ ЦОНХ */}
             {/* ========================================================================= */}
             {isScanningReceipt && (
               <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 select-none">
@@ -4402,7 +4401,7 @@ const handleCloseShift = async () => {
               </div>
             )}
             {/* ========================================================================= */}
-            {/* 📋 ӨНӨӨДРИЙН БҮХ БҮРТГЭЛИЙГ ДЭЛГЭРЭНГҮЙ ХАРУУЛАХ ТУХТАЙ ЦОНХ (DRAWER)        */}
+            {/* ӨНӨӨДРИЙН БҮХ БҮРТГЭЛИЙГ ДЭЛГЭРЭНГҮЙ ХАРУУЛАХ ТУХТАЙ ЦОНХ (DRAWER)        */}
             {/* ========================================================================= */}
             {showLogsDrawer && (
               <div
@@ -4560,7 +4559,7 @@ const handleCloseShift = async () => {
               </div>
             )}
 
-            {/* 🖼️ Зургийг томоор харах цонх */}
+            {/* Зургийг томоор харах цонх */}
             {previewLogImage && (
               <div
                 className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
@@ -4890,7 +4889,7 @@ const handleCloseShift = async () => {
           </div>
         )}
         {/* ========================================================================= */}
-        {/* 🛒 ХӨВӨГЧ САГСНЫ ТОВЧЛУУР (Бараа нэмэгдсэн үед л гарч ирнэ) */}
+        {/* ХӨВӨГЧ САГСНЫ ТОВЧЛУУР (Бараа нэмэгдсэн үед л гарч ирнэ) */}
         {/* ========================================================================= */}
         {purchaseCart.length > 0 && !showCartModal && !quickItemModal && (
           <div
@@ -4921,7 +4920,7 @@ const handleCloseShift = async () => {
         )}
 
         {/* ========================================================================= */}
-        {/* 🛒 САГСНЫ ДЭЛГЭРЭНГҮЙ ЦОНХ (Бөөнд нь зураг дарж батлах) */}
+        {/* САГСНЫ ДЭЛГЭРЭНГҮЙ ЦОНХ (Бөөнд нь зураг дарж батлах) */}
         {/* ========================================================================= */}
         {showCartModal && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
@@ -5050,7 +5049,7 @@ const handleCloseShift = async () => {
                       //  1. ЗӨВХӨН УНШИЖ БАЙХАД Л ТҮГЖИНЭ (Камер нээгдэхэд саад болохгүй)
                       disabled={purchaseCart.length === 0 || isAiLoading}
                       onClick={() => {
-                        // 💡 2. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
+                        // 2. 10,000₮ давсан мөртлөө зураггүй бол ДАРМАГЦ КАМЕР ШУУД НЭЭГДЭНЭ!
                         if (totalCartCost >= 10000 && !cartFile) {
                           document.getElementById("cart-cam")?.click();
                           return;

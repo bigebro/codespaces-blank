@@ -54,7 +54,7 @@ export default function MasterAdminPage() {
     checkAdmin();
     fetchRequests();
 
-    // 🔔 REALTIME СУВАГ: Шинэ төлбөр ирмэгц шууд дэлгэцэнд орж ирнэ
+    // REALTIME СУВАГ: Шинэ төлбөр ирмэгц шууд дэлгэцэнд орж ирнэ
     const channel = supabaseMaster
       .channel("payment_alerts_channel")
       .on(
@@ -69,7 +69,7 @@ export default function MasterAdminPage() {
           } catch (e) {}
 
           setRequests((prev) => [payload.new, ...prev]);
-          alert(`🔔 Шинэ хүсэлт ирлээ: ${payload.new.client_id}`);
+          alert(`Шинэ хүсэлт ирлээ: ${payload.new.client_id}`);
         },
       )
       .subscribe();
@@ -98,9 +98,9 @@ export default function MasterAdminPage() {
       .maybeSingle();
 
   const monthsToAdd = req.billing_cycle === "yearly" ? 12 : 1;
-let baseDate = new Date(); // 👈 Defaults to TODAY
+let baseDate = new Date(); // Defaults to TODAY
 
-// ⚡ Only stack time if they are ALREADY a paid active customer extending their subscription.
+// Only stack time if they are ALREADY a paid active customer extending their subscription.
 // If they were on a trial, the trial is replaced immediately and paid time starts TODAY.
 if (
   tenant?.status === "active" && 
@@ -112,7 +112,7 @@ if (
 
 baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
 
-    // ⚡ ШИНЭ: Одоо байгаа тохиргоонуудыг устгалгүйгээр модал харуулах тушаалыг нэмэх
+    // ШИНЭ: Одоо байгаа тохиргоонуудыг устгалгүйгээр модал харуулах тушаалыг нэмэх
     const currentFlags = tenant?.feature_flags || {};
     const newFlags = { ...currentFlags, show_success_modal: true };
 
@@ -128,7 +128,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
       .eq("client_id", req.client_id.trim());
 
     if (tenantErr) {
-      alert("❌ Байгууллагын эрх сунгахад алдаа гарлаа: " + tenantErr.message);
+      alert("Байгууллагын эрх сунгахад алдаа гарлаа: " + tenantErr.message);
       setLoading(false);
       return;
     }
@@ -143,7 +143,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
       .eq("id", req.id);
 
     if (reqErr) {
-      alert("❌ Төлбөрийн хүсэлтийн төлөв өөрчлөхөд алдаа: " + reqErr.message);
+      alert("Төлбөрийн хүсэлтийн төлөв өөрчлөхөд алдаа: " + reqErr.message);
       setLoading(false);
       return;
     }
@@ -169,7 +169,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
     });
   };
 
-  // ❌ ЦУЦЛАХ ҮЙЛДЭЛ (Reject)
+  // ЦУЦЛАХ ҮЙЛДЭЛ (Reject)
   const handleReject = async (req: any) => {
     const reason = prompt(
       "Цуцлах шалтгаанаа бичнэ үү (Жишээ нь: Дансанд мөнгө ороогүй):",
@@ -188,12 +188,12 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
     if (reqErr) {
       alert("Цуцлахад алдаа гарлаа: " + reqErr.message);
     } else {
-      alert("❌ Хүсэлтийг цуцаллаа.");
+      alert("Хүсэлтийг цуцаллаа.");
     }
     await fetchRequests();
   };
 
-  // 🚪 ГАРАХ ҮЙЛДЭЛ
+  // ГАРАХ ҮЙЛДЭЛ
   const handleLogout = async () => {
     await supabaseMaster.auth.signOut();
     router.replace("/master-login");
@@ -217,7 +217,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl">
           <div>
             <h1 className="text-2xl font-black text-white flex items-center gap-2">
-              👑 Operlink Master Admin
+              Operlink Master Admin
             </h1>
             <p className="text-xs text-zinc-400 mt-1">
               Бүх салбарын төлбөр, эрхийг удирдах төв
@@ -294,7 +294,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
                           {req.client_id}
                         </div>
                         <div className="text-xs text-zinc-400 font-mono mt-0.5">
-                          📞 {req.phone_number}
+                          {req.phone_number}
                         </div>
                       </td>
                       <td className="p-4">
@@ -314,7 +314,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
                       <td className="p-4 text-center">
                         {req.status === "pending" && (
                           <span className="text-zinc-300 bg-zinc-800/60 border border-amber-500/20 px-2 py-1 rounded text-xs font-bold ">
-                            Хүлээгдэж буй ⏳
+                            Хүлээгдэж буй
                           </span>
                         )}
                         {req.status === "approved" && (
@@ -324,7 +324,7 @@ baseDate.setMonth(baseDate.getMonth() + monthsToAdd);
                         )}
                         {req.status === "rejected" && (
                           <span className="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded text-xs font-bold">
-                            Цуцлагдсан ❌
+                            Цуцлагдсан
                           </span>
                         )}
                       </td>

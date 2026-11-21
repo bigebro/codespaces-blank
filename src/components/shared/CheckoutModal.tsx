@@ -15,7 +15,7 @@ interface CheckoutModalProps {
   upsellFeature?: string | null;
 }
 
-// 🏛️ Үнийн нэгдсэн толь (Жилээр төлбөл 2 сар үнэгүй буюу 10 сараар бодогдоно)
+// Үнийн нэгдсэн толь (Жилээр төлбөл 2 сар үнэгүй буюу 10 сараар бодогдоно)
 const PLANS_CATALOG: Record<string, { monthly: number; yearly: number }> = {
   starter: { monthly: 149000, yearly: 1490000 },
   professional: { monthly: 299000, yearly: 2990000 },
@@ -66,7 +66,7 @@ export default function CheckoutModal({
           .maybeSingle(),
       ]).then(([{ data: tenantData }, { data: reqData }]) => {
         if (tenantData?.plan) setActivePlan(tenantData.plan);
-        // ⚡ Үлдсэн хоногийг динамикаар бодох:
+        // Үлдсэн хоногийг динамикаар бодох:
         if (tenantData?.subscription_end_date) {
           const diffTime =
             new Date(tenantData.subscription_end_date).getTime() - Date.now();
@@ -83,7 +83,7 @@ export default function CheckoutModal({
 
   if (!isOpen) return null;
 
-  // ⚡ 2. ДИНАМИК ҮНЭ БА ЗӨРҮҮ БОДОХ (PRORATION ENGINE):
+  // 2. ДИНАМИК ҮНЭ БА ЗӨРҮҮ БОДОХ (PRORATION ENGINE):
   const targetConfig = PLANS_CATALOG[plan] || PLANS_CATALOG.professional;
   // Сар эсвэл Жилийн (2 сар үнэгүй) үнийг авах
   const baseTargetAmount =
@@ -111,7 +111,7 @@ export default function CheckoutModal({
     totalAmount = Math.ceil(diff / 1000) * 1000;
   }
 
-  // ⚡ Автомат Гүйлгээний утга:
+  // Автомат Гүйлгээний утга:
   const transferNote = `${clientId} ${userPhone || ""}`.trim();
 
   const handleCopy = (text: string, key: string) => {
@@ -218,7 +218,7 @@ export default function CheckoutModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
-      {/* 📱 УТАС БА КОМПЬЮТЕРТ 100% ТОХИРСОН БҮТЭЦ: max-h-[92dvh] flex flex-col */}
+      {/* УТАС БА КОМПЬЮТЕРТ 100% ТОХИРСОН БҮТЭЦ: max-h-[92dvh] flex flex-col */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden">
         {/* Толгой хэсэг */}
         <div className="flex justify-between items-center border-b border-zinc-800 pb-2.5 shrink-0">
@@ -273,9 +273,9 @@ export default function CheckoutModal({
           </div>
         ) : !isSubmitted ? (
           <>
-            {/* 📜 ДУНД ТАЛЫН ГҮЙДЭГ ХЭСЭГ */}
+            {/* ДУНД ТАЛЫН ГҮЙДЭГ ХЭСЭГ */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 my-2 overscroll-contain">
-              {/* 💡 БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
+              {/* БАГЦ АХИУЛАХ ЭСВЭЛ 3 АЛХАМТ ЗААВАР */}
              {isUpgrading ? (
                 <div className="bg-zinc-800/60 border border-zinc-700/80 p-3 rounded-2xl text-xs text-zinc-300 flex items-start gap-2.5">
                   <span className="text-zinc-200 mt-0.5"></span>
@@ -483,7 +483,7 @@ export default function CheckoutModal({
                     </div>
                   </div>
 
-                  {/* ⚖️ ГЭРЭЭНИЙ ӨРГӨН ХАЙРЦАГ (БҮХ 3 ЗААЛТ БҮРЭН СЭРГЭЭГДСЭН) */}
+                  {/* ГЭРЭЭНИЙ ӨРГӨН ХАЙРЦАГ (БҮХ 3 ЗААЛТ БҮРЭН СЭРГЭЭГДСЭН) */}
                   <div className="space-y-1.5">
                     <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
                       Мэдээллийн Нууцлалын Баталгаа (NDA):
@@ -559,7 +559,7 @@ export default function CheckoutModal({
               )}
             </div>
 
-            {/* 🔒 4. ДООД ТОВЧ */}
+            {/* 4. ДООД ТОВЧ */}
             <div className="shrink-0 pt-2 border-t border-zinc-800">
               {plan === "enterprise" ? (
                 <button

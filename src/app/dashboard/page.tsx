@@ -163,7 +163,7 @@ export function OperlinkLogo({
     </svg>
   );
 }
-// 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
+// Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -176,7 +176,7 @@ function cleanString(str: string) {
     .trim();
 }
 
-// 🧠 Үгсийн төстэй байдлыг (Fuzzy match) шалгах функц:
+// Үгсийн төстэй байдлыг (Fuzzy match) шалгах функц:
 function getSimilarity(s1: string, s2: string): number {
   let longer = (s1 || "").toLowerCase().trim();
   let shorter = (s2 || "").toLowerCase().trim();
@@ -209,7 +209,7 @@ function getSimilarity(s1: string, s2: string): number {
 }
 
 // =====================================================================
-// ⚡ УНИВЕРСАЛ SKELETON ENGINE (Ачаалж байх үед датаг орлох ухаалаг дүрс)
+// УНИВЕРСАЛ SKELETON ENGINE (Ачаалж байх үед датаг орлох ухаалаг дүрс)
 // =====================================================================
 
 // 1. Тоон үзүүлэлтүүд (Мөнгө, Хувь) харуулах компонент
@@ -322,7 +322,7 @@ function Home() {
   const [shifts, setShifts] = useState<any[]>([]);
   const [activeClient, setActiveClient] = useState<string>("");
   const [tasks, setTasks] = useState<any[]>([]);
-// ⚡ 1. Сарыг динамикаар эхлүүлэх (Одоогийн сар)
+// 1. Сарыг динамикаар эхлүүлэх (Одоогийн сар)
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
     const y = now.getFullYear();
@@ -384,7 +384,7 @@ function Home() {
   const [overwriteSales, setOverwriteSales] = useState(false);
 
 
-  // 🌐 ОРЧУУЛГЫН ХЯНАЛТЫН СТЭЙТҮҮД (Dashboard)
+  // ОРЧУУЛГЫН ХЯНАЛТЫН СТЭЙТҮҮД (Dashboard)
   const [translationsCache, setTranslationsCache] = useState<
     Record<string, string>
   >({});
@@ -392,7 +392,7 @@ function Home() {
     original: string;
     text: string;
   } | null>(null);
-  // ➕ Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
+  // Шинээр 1 бараа / цэс / жор нэмэх Modal State-үүд
   const [showAddIngModal, setShowAddIngModal] = useState(false);
   const [learnedMenus, setLearnedMenus] = useState<any[]>([]);
   const [learnedCategories, setLearnedCategories] = useState<any[]>([]);
@@ -410,7 +410,7 @@ function Home() {
   const [checkoutInitialCycle, setCheckoutInitialCycle] = useState("monthly");
   const [userPhone, setUserPhone] = useState("");
   const [showUpgradeSuccess, setShowUpgradeSuccess] = useState(false);
-  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
+  // УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
   const UNIVERSAL_CATEGORIES = [
     {
       id: "HOT_BEVERAGE",
@@ -450,7 +450,7 @@ function Home() {
     },
   ];
 
-  // 🎯 6 АНГИЛЛЫН АНХДАГЧ ГЛОБАЛ МАРЖИН
+  // 6 АНГИЛЛЫН АНХДАГЧ ГЛОБАЛ МАРЖИН
   const DEFAULT_GLOBAL_MARGINS: Record<string, number> = {
     HOT_BEVERAGE: 82,
     COLD_BEVERAGE: 78,
@@ -467,7 +467,7 @@ function Home() {
     Record<string, number>
   >({});
 
-  // 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
+  // Хүснэгт дээр эможитой пайз харуулах туслах функц:
   const renderCategoryBadge = (catId: string) => {
     const found =
       UNIVERSAL_CATEGORIES.find((c) => c.id === catId) ||
@@ -511,7 +511,7 @@ function Home() {
   const [quickIngId, setQuickIngId] = useState("");
   const [quickIngAmount, setQuickIngAmount] = useState("");
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
-  // 📋 ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ STATE-ҮҮД (ЦОНХГҮЙ)
+  // ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ STATE-ҮҮД (ЦОНХГҮЙ)
   const [productsList, setProductsList] = useState<any[]>([]);
   const [catalogTab, setCatalogTab] = useState<
     "ingredients" | "products" | "recipes"
@@ -564,7 +564,7 @@ function Home() {
 
   const aliasMap: Record<string, string> = {};
 
-  // ⚡ 0.001 СЕКУНДЭД ШАЛГАХ ХЭТ ХУРДАН ХУВИЛБАР (CPU ХӨЛДӨХГҮЙ)
+  // 0.001 СЕКУНДЭД ШАЛГАХ ХЭТ ХУРДАН ХУВИЛБАР (CPU ХӨЛДӨХГҮЙ)
 
   const unmappedSales = React.useMemo(() => {
     // Бүх нэрсийг санах ойд (Set) 1 удаа бэлтгэх (O(1) хурд)
@@ -579,7 +579,7 @@ function Home() {
         knownSet.add(transliterate(clean));
     });
 
-    // 🧠 САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
+    // САНАХ ОЙ: learned_menus дээр сурсан БҮХ товчлолуудыг шалгах!
     (learnedMenus || []).forEach((lm: any) => {
       if (lm.pos_name) {
         const cleanPos = cleanString(lm.pos_name).toLowerCase();
@@ -610,7 +610,7 @@ function Home() {
             ? transliterate(pNameLower)
             : pNameLower;
 
-        // ⚡ 300 сая биш, 0.00001 миллисекундэд шууд шалгана:
+        // 300 сая биш, 0.00001 миллисекундэд шууд шалгана:
         const isKnown =
           knownSet.has(pNameLower) ||
           knownSet.has(pClean) ||
@@ -632,11 +632,11 @@ function Home() {
 
     return missingItems;
   }, [salesLogs, productsList, activeClient, learnedMenus]);
-  // 🔗 ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
+  // ШАР САНУУЛГА ДЭЭР СОНГОСОН ЖОРЫГ НАЙДВАРТАЙ ХАДГАЛАХ СТЭЙТ:
   const [mergeSelections, setMergeSelections] = useState<
     Record<string, string>
   >({});
-  // ⚡ БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
+  // БҮХ ЦЭСНИЙ ЖОРТОЙ ЭСЭХИЙГ 0.001ms-Д УРЬДЧИЛАН БОДОХ (CPU ГАЦАХГҮЙ)
   const productRecipeStatus = React.useMemo(() => {
     const map = new Map<string, { count: number }>();
 
@@ -686,7 +686,7 @@ function Home() {
     return map;
   }, [recipes, productsList, activeClient]);
 
-  // 🚨 Түүхий эдийн үнийн өсөлтийн дохио (% бодох):
+  // Түүхий эдийн үнийн өсөлтийн дохио (% бодох):
   const priceSpikeAlerts = React.useMemo(() => {
     const alerts: any[] = [];
     const seenIngs = new Set<string>();
@@ -726,7 +726,7 @@ function Home() {
 
     return alerts;
   }, [inventoryLogs, ingredients, activeClient, startDate, endDate]);
-  // 📖 Шинэ жор инлайнаар үүсгэх төлөвүүд
+  // Шинэ жор инлайнаар үүсгэх төлөвүүд
   const [isCreatingRecipeCard, setIsCreatingRecipeCard] = useState(false);
   const [newRecipeNameDraft, setNewRecipeNameDraft] = useState("");
   const [newRecipePriceDraft, setNewRecipePriceDraft] = useState("");
@@ -743,7 +743,7 @@ function Home() {
 
   const [showChangesModal, setShowChangesModal] = useState(false);
 
-  // ⚡ 1-CLICK ЗӨВ БУЦААХ (UNDO) ФУНКЦ
+  // 1-CLICK ЗӨВ БУЦААХ (UNDO) ФУНКЦ
   const handleSingleUndo = async (changeId: string) => {
     if (!autoPilotActivity) return;
     const targetChange = autoPilotActivity.changes.find(
@@ -823,7 +823,7 @@ function Home() {
       setLoading(false);
     }
   };
-  // 🔒 Kiosk түгжээний State-үүд:
+  // Kiosk түгжээний State-үүд:
 
   const [isKioskLocked, setIsKioskLocked] = useState(false);
 
@@ -839,9 +839,9 @@ function Home() {
   const [unlockError, setUnlockError] = useState("");
   const [isUnlocking, setIsUnlocking] = useState(false);
 
-  // 💾 ЗӨВХӨН ТУХАЙН ХАРИЛЦАГЧИЙН (activeClient) ЖОРЫГ ТАТАХ
+  // ЗӨВХӨН ТУХАЙН ХАРИЛЦАГЧИЙН (activeClient) ЖОРЫГ ТАТАХ
   const handleExportRecipeBackup = () => {
-    // 🔒 Өөр салбарын жор хутгалдахаас хамгаалж activeClient-ээр нарийн шүүнэ
+    // Өөр салбарын жор хутгалдахаас хамгаалж activeClient-ээр нарийн шүүнэ
     const clientRecipes = recipes.filter(
       (r: any) =>
         cleanString(r.client_id).toLowerCase() ===
@@ -873,7 +873,7 @@ function Home() {
     URL.revokeObjectURL(url);
   };
 
-  // 📥 EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
+  // EXCEL РҮҮ МЕНЮ БА ЖОРЫГ ТАТАЖ АВАХ ФУНКЦ
   const handleExportToExcel = () => {
     // 1. Меню (Products) өгөгдлийг бэлтгэх
     const menuData = productsList
@@ -912,7 +912,7 @@ function Home() {
     const fileName = `Menu_Recipes_${activeClient.replace(/\s+/g, "_")}_${getLocalDateStr()}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
-  // 📥 JSON НӨӨЦ ФАЙЛЫГ УНШИХ & СОНГОЖ СЭРГЭЭХ СТЭЙТҮҮД
+  // JSON НӨӨЦ ФАЙЛЫГ УНШИХ & СОНГОЖ СЭРГЭЭХ СТЭЙТҮҮД
   const [jsonBackupModal, setJsonBackupModal] = useState<{
     fileData: any;
     recipesByProduct: Record<string, any[]>;
@@ -1048,7 +1048,7 @@ function Home() {
     }
   };
 
-  // 🕒 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
+  // 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
   const recordRecipeSnapshot = async (
     productName: string,
     arg2?: "created" | "updated" | "deleted" | any[],
@@ -1112,7 +1112,7 @@ function Home() {
   };
   const createSnapshotFromDb = recordRecipeSnapshot;
 
-  // ⚡ 1. ОДООГИЙН ЖОР БА ХУУЧИН ХУВИЛБАРЫГ ХАРЬЦУУЛАХ (VISUAL DIFF)
+  // 1. ОДООГИЙН ЖОР БА ХУУЧИН ХУВИЛБАРЫГ ХАРЬЦУУЛАХ (VISUAL DIFF)
   const computeRecipeDiff = (snapshotItems: any[], productName: string) => {
     // Одоо баазад байгаа тухайн бүтээгдэхүүний идэвхтэй орцууд
     const currentActiveRows = recipes.filter(
@@ -1195,7 +1195,7 @@ function Home() {
   };
 
   // =========================================================================
-  // 🔍 ХАЙЛТТАЙ УХААЛАГ УНАДАГ ЦЭС (SEARCHABLE DROPDOWN)
+  // ХАЙЛТТАЙ УХААЛАГ УНАДАГ ЦЭС (SEARCHABLE DROPDOWN)
   // =========================================================================
   function SearchableSelect({
     options,
@@ -1265,7 +1265,7 @@ function Home() {
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔍 Нэрээр хайх..."
+              placeholder="Нэрээр хайх..."
               className="w-full bg-zinc-950 border border-zinc-800/60 rounded-xl px-3 py-2 text-sm text-white outline-none font-bold placeholder:text-zinc-500"
             />
 
@@ -1412,7 +1412,7 @@ function Home() {
     },
   };
 
-  // 💡 Шинэ салбар нээгдэхэд crash болохоос сэргийлэх fallback
+  // Шинэ салбар нээгдэхэд crash болохоос сэргийлэх fallback
   const currentDemoStats = demoStats[activeClient] ||
     demoStats["SF Coffee"] || {
       revenue: 0,
@@ -1529,7 +1529,7 @@ function Home() {
     } else {
       setUser(session.user);
 
-      // ✍️ ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
+      // ЗАСВАР: Жинхэнэ үүргийг нь шууд авах:
       const { data: profile } = await supabase
         .from("profiles")
         .select("role, client_id, phone")
@@ -1552,7 +1552,7 @@ function Home() {
         setUserClient(realBranch);
         setActiveClient(realBranch);
 
-        // 🔒 Үүргийг цэвэрлэж шалгах:
+        // Үүргийг цэвэрлэж шалгах:
         const rawRole = (
           profile?.role ||
           session.user.user_metadata?.role ||
@@ -1598,8 +1598,8 @@ function Home() {
     }
   }, []);
 
-  // 💡 Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг анхнаасаа зөв татах
-  // ⚡ БҮХ ТОВЧЛУУРЫГ 0ms ХУРДТАЙ БОЛГОХ ХӨНГӨН ФУНКЦ
+  // Огноо болон Салбарын дагуу санхүүгийн бодит тооцооллыг анхнаасаа зөв татах
+  // БҮХ ТОВЧЛУУРЫГ 0ms ХУРДТАЙ БОЛГОХ ХӨНГӨН ФУНКЦ
   // Range бүрийн аналитикийг санах ойд хадгалж, буцаж ороход шууд харуулна.
   const analyticsCacheRef = useRef<Map<string, any>>(new Map());
   const analyticsReqRef = useRef(0);
@@ -1656,7 +1656,7 @@ function Home() {
     clientId?: string,
     start?: string,
     end?: string,
-    includeAnalytics: boolean = false, // 👈 Байнга хүнд аналитик дуудахгүй!
+    includeAnalytics: boolean = false, // Байнга хүнд аналитик дуудахгүй!
     targetTab?: string,
   ) => {
     const targetClient = (clientId || activeClient || userClient || "").trim();
@@ -1758,7 +1758,7 @@ function Home() {
         setTaxMode(settData.tax_mode || "auto");
         setKioskLogoUrl(settData.logo_url || null);
 
-        // 🎯 Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
+        // Хэрэв эзэн өөрөө маржин тохируулсан бол тэрийг авна, үгүй бол глобал стандартыг авна:
         if (
           settData.category_margins &&
           Object.keys(settData.category_margins).length > 0
@@ -1774,7 +1774,7 @@ function Home() {
       if (prodData) setProductsList(prodData);
       if (lmData) setLearnedMenus(lmData);
 
-      // 🚀 LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
+      // LAZY LOADING: ЗӨВХӨН "ТОХИРГОО" БА "ДААЛГАВАР" ТАБ РУУ ОРОХОД Л ЭНЭ ХҮНД 7 ХҮСНЭГТИЙГ ТАТНА!
       if (tabToLoad === "settings" || tabToLoad === "tasks") {
         const [
           { data: taskData },
@@ -1828,7 +1828,7 @@ function Home() {
         }
       }
 
-      // 💳 1. Эрх сунгагдсан эсэхийг шалгах
+      // 1. Эрх сунгагдсан эсэхийг шалгах
 
       const { data: tenantData } = await supabase
         .from("tenants")
@@ -1855,7 +1855,7 @@ function Home() {
           formattedEndDate,
         });
 
-        // ⚡ ШИНЭ ЛОГИК: Хэрэв админ шинээр огноо сунгасан бөгөөд хэрэглэгч хараахан "Хаах" дараагүй бол 1 удаа харуулна
+        // ШИНЭ ЛОГИК: Хэрэв админ шинээр огноо сунгасан бөгөөд хэрэглэгч хараахан "Хаах" дараагүй бол 1 удаа харуулна
         const ackKey = `ack_sub_${targetClient.toLowerCase().trim()}`;
         const lastAckDate = localStorage.getItem(ackKey);
 
@@ -1935,14 +1935,14 @@ function Home() {
 
     const channel = supabase
       .channel(channelName)
-      // ⚡ 2. БААЗААС БИШ, АДМИНААС ШУУД ИРЭХ ДОХИОГ БАРЬЖ АВАХ (Broadcast)
+      // 2. БААЗААС БИШ, АДМИНААС ШУУД ИРЭХ ДОХИОГ БАРЬЖ АВАХ (Broadcast)
       .on("broadcast", { event: "payment_approved" }, () => {
-        console.log("⚡ Админаас шууд дохио ирлээ! Батлагдлаа!");
+        console.log("Админаас шууд дохио ирлээ! Батлагдлаа!");
         fetchDatabaseData(activeClient);
         // 1. ТӨЛБӨРИЙН ЦОНХЫГ АВТОМАТААР ХААХ:
         setShowCheckoutModal(false);
         setShowUpgradeSuccess(true);
-          // ⚡ 2. URL ЦЭВЭРЛЭХ (Refresh хийхэд дахиж гарч ирэхээс сэргийлнэ)
+          // 2. URL ЦЭВЭРЛЭХ (Refresh хийхэд дахиж гарч ирэхээс сэргийлнэ)
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);
           url.searchParams.delete("checkout");
@@ -1974,7 +1974,7 @@ function Home() {
         () => fetchDatabaseData(activeClient),
       )
       .subscribe((status) => {
-        console.log("📡 Холболтын төлөв:", status);
+        console.log("Холболтын төлөв:", status);
       });
 
     return () => {
@@ -2045,7 +2045,7 @@ function Home() {
     }
   };
 
-  // ⚡ МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
+  // МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
   const parseSafeDate = (
     rawDate: string | undefined,
     fallbackIso?: string,
@@ -2128,7 +2128,7 @@ function Home() {
     }
   };
   // =========================================================================
-  // ⚡ ЭЦСИЙН ХАДГАЛАЛТ ХИЙХ ЦӨМ ФУНКЦ (БҮХ НЭРСИЙГ ЖИГДЭЛСЭН)
+  // ЭЦСИЙН ХАДГАЛАЛТ ХИЙХ ЦӨМ ФУНКЦ (БҮХ НЭРСИЙГ ЖИГДЭЛСЭН)
   // =========================================================================
   const commitFinalSales = async (
     sales: any[],
@@ -2173,7 +2173,7 @@ function Home() {
         if (prodErr) throw prodErr;
         if (data) insertedNewProds = data;
 
-        // 🧠 Сурсан ангиллуудыг learned_categories рүү хадгалах:
+        // Сурсан ангиллуудыг learned_categories рүү хадгалах:
         const learnedCatsToInsert = newProductsList.map((p: any) => ({
           client_id: activeClient,
           product_name: p.name,
@@ -2210,7 +2210,7 @@ function Home() {
         );
       }
 
-      // ⚡ АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
+      // АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
       const newProductChanges: AutoPilotChange[] = insertedNewProds.map(
         (p: any) => ({
           id: `new-${p.id}-${Date.now()}`,
@@ -2236,7 +2236,7 @@ function Home() {
         });
       }
 
-      // ⚡ SessionStorage болон Попап цонхыг бүрэн хаах:
+      // SessionStorage болон Попап цонхыг бүрэн хаах:
       updatePendingReview(null);
       await fetchDatabaseData(activeClient);
     } catch (err: any) {
@@ -2246,7 +2246,7 @@ function Home() {
     }
   };
 
-  // 💡 Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
+  // Тухайн сонгогдсон салбарын дататай БҮХ саруудыг автоматаар илрүүлж жагсаах
 
   const availableMonths = React.useMemo(() => {
   const monthsSet = new Set<string>();
@@ -2316,7 +2316,7 @@ function Home() {
   // console.log(liveAnalytics?.total_logged_other,"total_logged_other")
   // console.log(liveAnalytics?.total_surplus_savings,"total_surplus_savings")
   // console.log(liveAnalytics?.efficiency,"efficiency")
-  // 🔒 ХЭРЭВ KIOSK ГАЛ ТОГООНЫ ТӨХӨӨРӨМЖӨӨС ОРОХ ГЭЖ БАЙГАА БОЛ ЭНЭ ДЭЛГЭЦ ГАРНА:
+  // ХЭРЭВ KIOSK ГАЛ ТОГООНЫ ТӨХӨӨРӨМЖӨӨС ОРОХ ГЭЖ БАЙГАА БОЛ ЭНЭ ДЭЛГЭЦ ГАРНА:
   if (isKioskLocked) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4">
@@ -2356,7 +2356,7 @@ function Home() {
             </button>
           </form>
 
-          {/* 🔄 ӨӨР ХАЯГААР НЭВТРЭХ: Safari дээр найдвартай гарахын тулд window.location ашиглана */}
+          {/* ӨӨР ХАЯГААР НЭВТРЭХ: Safari дээр найдвартай гарахын тулд window.location ашиглана */}
           <div className="mt-4 text-center">
             <button
               type="button"
@@ -2370,7 +2370,7 @@ function Home() {
             </button>
           </div>
 
-          {/*  📱 KIOSK РУУ БУЦАХ ТОМ ТОВЧИЙГ Link БОЛГОХ: */}
+          {/*  KIOSK РУУ БУЦАХ ТОМ ТОВЧИЙГ Link БОЛГОХ: */}
           <div className="mt-4 pt-4 border-t border-zinc-800">
             <Link
               href="/kiosk"
@@ -2383,7 +2383,7 @@ function Home() {
       </div>
     );
   }
-  // ⚡ АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй
+  // АЛТАН ХАМГААЛАЛТ: Эрхийг шалгаж дуустал Ажилтны дэлгэцийг огт харуулахгүй
   //   if (loading && userRole !=="owner") {
   //   return (
   //     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center select-none">
@@ -2400,7 +2400,7 @@ function Home() {
       {/* ========================================== */}
       {/* 1. LEFT SIDEBAR (БОСОО ЦЭС) */}
       {/* ========================================== */}
-      {/* 📱 УТСАН ДЭЭР: Цэс нээлттэй үед арын дэвсгэрийг бүдгэрүүлэх (Backdrop) */}
+      {/* УТСАН ДЭЭР: Цэс нээлттэй үед арын дэвсгэрийг бүдгэрүүлэх (Backdrop) */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-30 md:hidden"
@@ -2408,7 +2408,7 @@ function Home() {
         />
       )}
 
-      {/* 🖥️ БОСОО ЦЭС (Sidebar) */}
+      {/* БОСОО ЦЭС (Sidebar) */}
       <aside
         className={`
           fixed md:relative inset-y-0 left-0 z-40 h-full
@@ -2429,7 +2429,7 @@ function Home() {
             </div>
           </div>
 
-          {/* 👈 ХУРААХ ТОВЧ */}
+          {/* ХУРААХ ТОВЧ */}
           <button
             onClick={() => setIsSidebarOpen(false)}
             className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors md:block"
@@ -2442,7 +2442,7 @@ function Home() {
         {/* Menu Items */}
         <div className="flex-1 overflow-y-auto py-6 flex flex-col gap-1 px-3">
           {isAuthChecking ? (
-            /* ⚡ Ачаалж байх үед харагдах зүүн талын Скелетон (Гялсхийхээс хамгаална) */
+            /* Ачаалж байх үед харагдах зүүн талын Скелетон (Гялсхийхээс хамгаална) */
             <div className="space-y-3  px-2 pt-4">
               <div className="h-10 bg-zinc-800/60 rounded-xl w-full"></div>
               <div className="h-10 bg-zinc-800/60 rounded-xl w-full"></div>
@@ -2454,7 +2454,7 @@ function Home() {
                 Үйл ажиллагаа
               </div>
 
-              {/* 🚀 AI CFO ЗӨВЛӨХ (LAZY LOAD НЭМСЭН) */}
+              {/* AI CFO ЗӨВЛӨХ (LAZY LOAD НЭМСЭН) */}
               {isOwner && (
                 <>
                   <button
@@ -2489,7 +2489,7 @@ function Home() {
                           endDate,
                           true,
                           "ai_cfo",
-                        ); // 👈 CFO нь аналитик шаардана
+                        ); // CFO нь аналитик шаардана
                       });
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "ai_cfo" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
@@ -2532,7 +2532,7 @@ function Home() {
                       endDate,
                       false,
                       "inventory",
-                    ); // 👈 Аналитик татахгүй хурдан онгойно
+                    ); // Аналитик татахгүй хурдан онгойно
                   });
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "inventory" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
@@ -2551,7 +2551,7 @@ function Home() {
                       endDate,
                       false,
                       "import",
-                    ); // 👈 Аналитик татахгүй хурдан онгойно
+                    ); // Аналитик татахгүй хурдан онгойно
                   });
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "import" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
@@ -2574,7 +2574,7 @@ function Home() {
                         endDate,
                         false,
                         "tasks",
-                      ); // 👈 Зөвхөн Tasks-ийн хүнд датаг татна
+                      ); // Зөвхөн Tasks-ийн хүнд датаг татна
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "tasks" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
@@ -2590,7 +2590,7 @@ function Home() {
                         endDate,
                         false,
                         "settings",
-                      ); // 👈 Тохиргооны 10 хүснэгтийг дөнгөж одоо л татна
+                      ); // Тохиргооны 10 хүснэгтийг дөнгөж одоо л татна
                     }}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === "settings" ? "bg-zinc-800/60 text-zinc-200" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"}`}
                   >
@@ -2601,7 +2601,7 @@ function Home() {
             </>
           )}
         </div>
-        {/* ⚡ CHATGPT ЗАГВАРЫН UPGRADE ТОBЧ (Зөвхөн туршилттай үед зүүн цэсэнд ил харагдана) */}
+        {/* CHATGPT ЗАГВАРЫН UPGRADE ТОBЧ (Зөвхөн туршилттай үед зүүн цэсэнд ил харагдана) */}
         {tenantInfo?.isTrial && (
           <div className="px-3 pb-2">
             <button
@@ -2654,7 +2654,7 @@ function Home() {
         {/* TOP HEADER BAR */}
         <header className="h-16 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* 👈 HAMBURGER MENU (Зөвхөн цэс хураагдсан үед л гарч ирнэ) */}
+            {/* HAMBURGER MENU (Зөвхөн цэс хураагдсан үед л гарч ирнэ) */}
             {!isSidebarOpen && (
               <button
                 onClick={() => setIsSidebarOpen(true)}
@@ -2678,7 +2678,7 @@ function Home() {
             </select>
           </div>
 
-          {/* ⚡ Ачаалж байх үед Header дээр гарч ирэх гоёмсог ногоон цагираг */}
+          {/* Ачаалж байх үед Header дээр гарч ирэх гоёмсог ногоон цагираг */}
 
           <div className="flex items-center gap-2 bg-zinc-900/80 p-1 rounded-xl border border-zinc-800">
             <button
@@ -2698,7 +2698,7 @@ function Home() {
         {/* SCROLLABLE BODY (Tab Contents go here) */}
       <main className={`flex-1 p-4  relative w-full ${activeTab === "ai_cfo" ? "overflow-hidden md:p-2" : "overflow-y-auto overflow-x-hidden md:p-8 "}`}>
           <div className="max-w-7xl mx-auto w-full max-w-full relative">
-            {/* 🚨 ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
+            {/* ЭРХ ДУУССАН ҮЕД ДЭЛГЭЦИЙГ БҮХЭЛД НЬ ТҮГЖИХ (FIXED VIEWPORT LOCK) */}
             {tenantInfo?.isExpired && (
               <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
                 <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 " />
@@ -2721,13 +2721,12 @@ function Home() {
               </div>
             )}
 
-            {/* 🟡 3 ХОНОГ ҮЛДСЭН ҮЕД ХАРАГДАХ ДАРУУХАН ШАР ТУУЗ (Vercel, ChatGPT загвар) */}
+            {/* 3 ХОНОГ ҮЛДСЭН ҮЕД ХАРАГДАХ ДАРУУХАН ШАР ТУУЗ (Vercel, ChatGPT загвар) */}
             {tenantInfo &&
               tenantInfo.daysLeft <= 3 &&
               !tenantInfo.isExpired && (
                 <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-amber-400 text-base">⚠️</span>
                     <p className="text-xs text-zinc-300">
                       Таны{" "}
                       {tenantInfo.isTrial
@@ -2836,7 +2835,7 @@ function Home() {
                       </p>
                      <button
                   onClick={() => {
-                    setUpsellFeature("AI CFO Санхүүгийн зөвлөх"); // 👈 Шалтгаан
+                    setUpsellFeature("AI CFO Санхүүгийн зөвлөх"); // Шалтгаан
                     setCheckoutInitialPlan("professional");
                     setShowCheckoutModal(true);
                   }}
@@ -2858,7 +2857,7 @@ function Home() {
                   {/* 3.  STAFF PORTAL (INPUTS) */}
                   {activeTab === "operations" && (
                     <div>
-                      {/* 🔐 ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
+                      {/* ЗӨВХӨН АЖИЛТАНД ХАРАГДАХ PIN ТОХИРУУЛАХ КАРТ */}
                       {userRole !== "owner" && (
                         <div className="bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800 mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-4">
                           <div>
@@ -3243,10 +3242,10 @@ function Home() {
                       </div>
                     )}
 
-                  {/* 8. ⚙️ 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
+                  {/* 8. 100% ДИНАМИК САНХҮҮ, ХӨРӨНГӨ, ТОХИРГООНЫ ТАБ */}
                   {activeTab === "settings" && userRole === "owner" && (
                     <div className="space-y-6">
-                      {/* 🟢 ХЭРЭГЛЭГЧИЙН ИДЭВХТЭЙ БАГЦЫН МЭДЭЭЛЭЛ (SETTINGS) */}
+                      {/* ХЭРЭГЛЭГЧИЙН ИДЭВХТЭЙ БАГЦЫН МЭДЭЭЛЭЛ (SETTINGS) */}
                       <div className="bg-zinc-900/60 p-5 rounded-2xl border border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -3315,7 +3314,7 @@ function Home() {
                     </div>
                   )}
 
-                  {/* 📸 FULL-SCREEN EVIDENCE IMAGE VIEWER MODAL */}
+                  {/* FULL-SCREEN EVIDENCE IMAGE VIEWER MODAL */}
                   {selectedImageModal && (
                     <div
                       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
@@ -3370,7 +3369,7 @@ function Home() {
                     </div>
                   )}
 
-                  {/* 💡 UNEXPLAINED WASTE ANALYSIS GUIDE MODAL */}
+                  {/* UNEXPLAINED WASTE ANALYSIS GUIDE MODAL */}
                   {showWasteGuideModal && (
                     <div
                       className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
@@ -3400,7 +3399,7 @@ function Home() {
                             ✕ Хаах
                           </button>
                         </div>
-                        {/* 🤖 AI ЗӨВЛӨХТЭЙ ЯРИЛЦАХ ЗААВАР */}
+                        {/* AI ЗӨВЛӨХТЭЙ ЯРИЛЦАХ ЗААВАР */}
                         <div className="bg-zinc-800/60 border border-blue-500/30 p-5 rounded-2xl mb-6">
                           <h4 className="font-black text-zinc-300 text-sm flex items-center gap-2 mb-2">
                             <Bot className="h-5 w-5" />
@@ -3408,7 +3407,7 @@ function Home() {
                           </h4>
                           <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
                             Та дээрх алдагдал хулгай мөн эсэхийг өөрөө таах
-                            шаардлагагүй. <strong>"🤖 AI Зөвлөх"</strong> таб
+                            шаардлагагүй. <strong>"AI Зөвлөх"</strong> таб
                             руу ороод доорх асуултуудаас хуулж асуугаарай. AI
                             өөрөө датаг шинжлээд хулгай юу, эсвэл алдаа юу
                             гэдгийг магадлалаар нь гаргаж өгнө.
@@ -3540,7 +3539,7 @@ function Home() {
                   )}
 
                   {/* ========================================================================= */}
-                  {/* 📥 JSON НӨӨЦӨӨС БҮГДИЙГ ЭСВЭЛ СОНГОЖ СЭРГЭЭХ ЦОНХ                        */}
+                  {/* JSON НӨӨЦӨӨС БҮГДИЙГ ЭСВЭЛ СОНГОЖ СЭРГЭЭХ ЦОНХ                        */}
                   {/* ========================================================================= */}
                   {jsonBackupModal && (
                     <div
@@ -3554,7 +3553,7 @@ function Home() {
                         <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                           <div>
                             <h3 className="text-base font-black text-white flex items-center gap-2">
-                              <span>📥 Нөөц Файлаас Жор Сэргээх</span>
+                              <span>Нөөц Файлаас Жор Сэргээх</span>
                             </h3>
                             <p className="text-xs text-zinc-400 mt-0.5">
                               Файлд нийт{" "}
@@ -3576,7 +3575,7 @@ function Home() {
                           </button>
                         </div>
 
-                        {/* ⚡ БҮГДИЙГ НЭГ ДОР СЭРГЭЭХ ТОМ ТОВЧ */}
+                        {/* БҮГДИЙГ НЭГ ДОР СЭРГЭЭХ ТОМ ТОВЧ */}
                         <button
                           type="button"
                           onClick={handleRestoreAllFromJson}
@@ -3593,7 +3592,7 @@ function Home() {
                           <div className="flex-grow border-t border-zinc-800"></div>
                         </div>
 
-                        {/* 🔍 ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
+                        {/* ТУХАЙЛСАН ЖОРЫГ СОНГОЖ СЭРГЭЭХ ЖАГСААЛТ (Жишээ нь: Chicken Sandwich) */}
                         <div className="flex-1 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-800/60">
                           {Object.keys(jsonBackupModal.recipesByProduct).map(
                             (pName) => {
@@ -3647,7 +3646,7 @@ function Home() {
               currentPlan={tenantInfo?.plan || "trial"}
               upsellFeature={upsellFeature}
             />
-            {/* 🎉 АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
+            {/* АМЖИЛТТАЙ СУНГАГДСАНЫГ МЭДЭГДЭХ ЦОНХ */}
             {showUpgradeSuccess && (
               <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
                 <div className="bg-zinc-950 border-2 border-zinc-700 rounded-3xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(16,185,129,0.2)] text-center space-y-4">

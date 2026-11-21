@@ -129,7 +129,7 @@ export default function ImportTab({
       .trim()
       .toLowerCase();
   };
-  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
+  // УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
   const UNIVERSAL_CATEGORIES = [
     {
       id: "HOT_BEVERAGE",
@@ -182,7 +182,7 @@ export default function ImportTab({
   );
 
   const aliasMap: Record<string, string> = {};
-  // 🇲🇳 Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
+  // Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
   function getLocalDateStr(d: Date = new Date()): string {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -197,7 +197,7 @@ export default function ImportTab({
   // 1. Олон сул зай, tab-ийг автоматаар 1 зай болгож цэвэрлэх ("Caffe   Latte" -> "Кафе латте")
   const cleanCell = (str: string) =>
     (str || "").replace(/[\u00a0\s]+/g, " ").trim();
-  // ⚡ МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
+  // МОНГОЛЫН ЦАГИЙН БҮСЭЭР БОДИТ ЦАГ, МИНУТЫГ ЗАЛГАЖ ХАДГАЛАХ
   const parseSafeDate = (
     rawDate: string | undefined,
     fallbackIso?: string,
@@ -274,7 +274,7 @@ export default function ImportTab({
   // ... бусад import paste state-үүд
 
   // =========================================================================
-  // ⚡ ЭЦСИЙН ХАДГАЛАЛТ ХИЙХ ЦӨМ ФУНКЦ (БҮХ НЭРСИЙГ ЖИГДЭЛСЭН)
+  // ЭЦСИЙН ХАДГАЛАЛТ ХИЙХ ЦӨМ ФУНКЦ (БҮХ НЭРСИЙГ ЖИГДЭЛСЭН)
   // =========================================================================
   const commitFinalSales = async (
     sales: any[],
@@ -319,7 +319,7 @@ export default function ImportTab({
         if (prodErr) throw prodErr;
         if (data) insertedNewProds = data;
 
-        // 🧠 Сурсан ангиллуудыг learned_categories рүү хадгалах:
+        // Сурсан ангиллуудыг learned_categories рүү хадгалах:
         const learnedCatsToInsert = newProductsList.map((p: any) => ({
           client_id: activeClient,
           product_name: p.name,
@@ -356,7 +356,7 @@ export default function ImportTab({
         );
       }
 
-      // ⚡ АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
+      // АВТО-ПИЛОТ: Үнэ өөрчлөгдсөн ч бай, Шинэ бараа нэмэгдсэн ч бай ЗААВАЛ МЭДЭГДЭХ!
       const newProductChanges: AutoPilotChange[] = insertedNewProds.map(
         (p: any) => ({
           id: `new-${p.id}-${Date.now()}`,
@@ -382,7 +382,7 @@ export default function ImportTab({
         });
       }
 
-      // ⚡ SessionStorage болон Попап цонхыг бүрэн хаах:
+      // SessionStorage болон Попап цонхыг бүрэн хаах:
       updatePendingReview(null);
       await fetchDatabaseData(activeClient);
     } catch (err: any) {
@@ -392,10 +392,10 @@ export default function ImportTab({
     }
   };
   // =========================================================================
-  // 📈 БОРЛУУЛАЛТ ИМПОРТЛОХ ЦӨМ ФУНКЦ (Дараалал нь 100% зөв)
+  // БОРЛУУЛАЛТ ИМПОРТЛОХ ЦӨМ ФУНКЦ (Дараалал нь 100% зөв)
   // =========================================================================
   const handleBulkSalesPaste = async (e: React.FormEvent) => {
-    // 🧠 AI ЦЭС ТААГЧ: Танигдаагүй ПОС нэрсийг 20 жишээ харуулан таалгах
+    // AI ЦЭС ТААГЧ: Танигдаагүй ПОС нэрсийг 20 жишээ харуулан таалгах
 
     e.preventDefault();
     if (!salesPasteText.trim()) return;
@@ -547,7 +547,7 @@ export default function ImportTab({
               id: `price-${target.id}-${Date.now()}`,
               productId: target.id,
               productName: target.name,
-              type: "PRICE_UPDATE", // 👈 Үргэлж ЦЭВЭР ҮНИЙН ӨӨРЧЛӨЛТ гэж бүртгэнэ
+              type: "PRICE_UPDATE", // Үргэлж ЦЭВЭР ҮНИЙН ӨӨРЧЛӨЛТ гэж бүртгэнэ
               oldName: target.name,
               newName:
                 rawPosName !== target.name
@@ -564,7 +564,7 @@ export default function ImportTab({
         }
       }
       // =========================================================================
-      // 🧠 AI ЦЭС ТААГЧ: 20 жишээ харуулан таалгаж, Auto-Pilot Pop-up цонхонд бүртгэх
+      // AI ЦЭС ТААГЧ: 20 жишээ харуулан таалгаж, Auto-Pilot Pop-up цонхонд бүртгэх
       // =========================================================================
       if (rawNewProducts.length > 0) {
         try {
@@ -614,14 +614,14 @@ export default function ImportTab({
                     });
                   }
 
-                  // 3. ⚡ AUTO-PILOT POP-UP ЦОНХОНД ХАРУУЛАХ МЭДЭЭЛЭЛ НЭМЭХ (Буцаах товчтойгоо гарна)
+                  // 3. AUTO-PILOT POP-UP ЦОНХОНД ХАРУУЛАХ МЭДЭЭЛЭЛ НЭМЭХ (Буцаах товчтойгоо гарна)
                   existingAutoPilotChanges.push({
                     id: `ai-resolve-${targetProd.id}-${Date.now()}`,
                     productId: targetProd.id,
                     productName: posItem.name,
                     type: "NAME_MERGE",
                     oldName: posItem.name, // ПОС дээрх нэр: "americo"
-                    newName: `${targetProd.name} (AI таасан 🤖)`, // Үндсэн цэс: "Американо"
+                    newName: `${targetProd.name} (AI таасан )`, // Үндсэн цэс: "Американо"
                     oldPrice: oldPrice,
                     newPrice: newPrice,
                     oldCategory: targetProd.category || "General",
@@ -646,7 +646,7 @@ export default function ImportTab({
         }
       }
       // =========================================================================
-      // ⚡ 1. ЭХЛЭЭД productsToReview ХУВЬСАГЧАА ЗАРЛАЖ БЭЛТГЭНЭ
+      // 1. ЭХЛЭЭД productsToReview ХУВЬСАГЧАА ЗАРЛАЖ БЭЛТГЭНЭ
       // =========================================================================
       const productsToReview: Array<{
         name: string;
@@ -671,7 +671,7 @@ export default function ImportTab({
           productsToReview.push({
             name: item.name,
             category: learned.category,
-            method: "🧠 Систем сурсан",
+            method: "Систем сурсан",
             price: item.price,
             isUnknown: false,
           });
@@ -681,7 +681,7 @@ export default function ImportTab({
             productsToReview.push({
               name: item.name,
               category: localCat,
-              method: "🤖 Толь бичиг",
+              method: "Толь бичиг",
               price: item.price,
               isUnknown: false,
             });
@@ -690,7 +690,7 @@ export default function ImportTab({
             productsToReview.push({
               name: item.name,
               category: "GENERAL",
-              method: "⏳ AI ангилж байна...",
+              method: "AI ангилж байна...",
               price: item.price,
               isUnknown: true,
             });
@@ -723,7 +723,7 @@ export default function ImportTab({
                 UNIVERSAL_CATEGORIES.some((c) => c.id === detected)
               ) {
                 productsToReview[item.index].category = detected;
-                productsToReview[item.index].method = "✨ AI таамагласан";
+                productsToReview[item.index].method = "AI таамагласан";
                 productsToReview[item.index].isUnknown = false;
               } else {
                 productsToReview[item.index].category = "GENERAL";
@@ -748,7 +748,7 @@ export default function ImportTab({
       }
 
       // =========================================================================
-      // ⚡ ДАРАА НЬ БОРЛУУЛАЛТАА ХАДГАЛЖ, САНАХ ОЙД ХАДГАЛНА
+      // ДАРАА НЬ БОРЛУУЛАЛТАА ХАДГАЛЖ, САНАХ ОЙД ХАДГАЛНА
       // =========================================================================
       await commitFinalSales(
         salesToInsert,
@@ -780,7 +780,7 @@ export default function ImportTab({
   };
 
   // =========================================================================
-  // 📦 ТАТАН АВАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
+  // ТАТАН АВАЛТ ХУУЛАХ ЭЦСИЙН УХААЛАГ ФУНКЦ (HEADER-BASED)
   // =========================================================================
 
   const handleBulkPurchasePaste = async (e: React.FormEvent) => {
@@ -795,7 +795,7 @@ export default function ImportTab({
         setLoading(false);
         return;
       }
-      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      // Мөрийг Tab эсвэл 2+ зайгаар салгагч
       const splitRow = (line: string) => {
         const trimmed = line.trim();
         if (trimmed.includes("\t"))
@@ -883,7 +883,7 @@ export default function ImportTab({
         if (!row) continue;
         const cols = splitRow(row);
 
-        // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
+        // Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
         if (cols.length < 2) {
           alert(
             `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
@@ -1157,7 +1157,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
     }
   };
 
-  // 🎯 ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ БҮРЭН АВТОМАТ УХААЛАГ ФУНКЦ
+  // ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ БҮРЭН АВТОМАТ УХААЛАГ ФУНКЦ
   // =========================================================================
   const handleBulkRecipesPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1188,7 +1188,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         }
       });
 
-      // 2. ⚡ ТОЛГОЙ МӨР (HEADER)-ИЙГ ШАЛГАХ
+      // 2. ТОЛГОЙ МӨР (HEADER)-ИЙГ ШАЛГАХ
       const splitCols = (line: string) =>
         line.includes("\t") ? line.split("\t") : line.split(/\s{2,}/);
       const firstRowCols = splitCols(rows[0]).map(cleanHeader);
@@ -1246,7 +1246,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         let rawIng = cleanCell(cols[ingIdx] || "");
         let rawAmt = cols[amtIdx] !== undefined ? cleanCell(cols[amtIdx]) : "";
 
-        // 💡 АВТОМАТ ШАЛГАЛТ: Хэрэв тоо нь 1-р баганад, орц нь 2-р баганад байвал байрыг нь солих!
+        // АВТОМАТ ШАЛГАЛТ: Хэрэв тоо нь 1-р баганад, орц нь 2-р баганад байвал байрыг нь солих!
         const isIngNumeric =
           !isNaN(parseFloat(rawIng.replace(/[^0-9.-]/g, ""))) &&
           !isNaN(Number(rawIng.trim()[0]));
@@ -1286,7 +1286,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         }
       }
 
-      // 4. ⚡ БААЗАД БАЙХГҮЙ ТҮҮХИЙ ЭДИЙГ ӨӨРӨӨ ШУУД ҮҮСГЭХ (Жор хэзээ ч гацахгүй!)
+      // 4. БААЗАД БАЙХГҮЙ ТҮҮХИЙ ЭДИЙГ ӨӨРӨӨ ШУУД ҮҮСГЭХ (Жор хэзээ ч гацахгүй!)
       if (newIngsToCreate.size > 0) {
         const toInsert = Array.from(newIngsToCreate.values()).map((it) => ({
           client_id: activeClient,
@@ -1359,7 +1359,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
     try {
       const rows = productsPasteText.replace(/\r/g, "").trim().split("\n");
       const productsToUpsert: any[] = [];
-      // ⚡ Мөрийг Tab эсвэл 2+ зайгаар салгагч
+      // Мөрийг Tab эсвэл 2+ зайгаар салгагч
       const splitRow = (line: string) => {
         const trimmed = line.trim();
         if (trimmed.includes("\t"))
@@ -1397,7 +1397,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             !name.toLowerCase().includes("item") &&
             !name.toLowerCase().includes("нэр")
           ) {
-            // 🧠 СИСТЕМ ӨӨРӨӨ СУРСАН САНАХ ОЙ БА ТОЛЬ БИЧГЭЭРЭЭ 6 АНГИЛАЛД ОНООНО:
+            // СИСТЕМ ӨӨРӨӨ СУРСАН САНАХ ОЙ БА ТОЛЬ БИЧГЭЭРЭЭ 6 АНГИЛАЛД ОНООНО:
             const learned = (learnedCategories || []).find(
               (lc: any) => sanitizeName(lc.product_name) === sanitizeName(name),
             );
@@ -1407,7 +1407,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             productsToUpsert.push({
               client_id: activeClient,
               name: name,
-              category: smartCategory, // 👈 100% автомат ангилал!
+              category: smartCategory, // 100% автомат ангилал!
               selling_price: price,
             });
           }
@@ -1435,7 +1435,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
     }
   };
   // =========================================================================
-  // 🗑️ ГАЛ ТОГООНЫ ХАЯГДАЛ ХУУЛАХ (ОГНООГҮЙ Ч СОНГОСОН САРД ЗӨВ ОРНО)
+  // ГАЛ ТОГООНЫ ХАЯГДАЛ ХУУЛАХ (ОГНООГҮЙ Ч СОНГОСОН САРД ЗӨВ ОРНО)
   // =========================================================================
   const handleBulkKitchenLogsPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1447,7 +1447,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
       if (rows.length < 1) return;
 
       const logsToInsert: any[] = [];
-      // 💡 Огноо байхгүй бол тухайн сонгосон сарын (9-р сарын) огноог авах:
+      // Огноо байхгүй бол тухайн сонгосон сарын (9-р сарын) огноог авах:
          const todayUb = ubDay(new Date());
       const activeMonthFallback = importFallbackIso(startDate, endDate, todayUb);
 
@@ -1479,7 +1479,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         if (!row) continue;
         const cols = splitRow(row).map((c) => c.trim());
 
-        // 🚨 Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
+        // Хэрэв 1 зай авсан бол (cols.length нь 1 байх тул) анхааруулга өгч зогсоно:
         if (cols.length < 2) {
           alert(
             `Алдаа: Багануудын хооронд заавал TAB эсвэл 2-оос дээш зай (Space) авна уу!\nБуруу мөр: "${row}"`,
@@ -1494,7 +1494,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
         let qty = 0;
         let note = "";
 
-        // 💡 ОГНОО БАЙГАА ЭСЭХИЙГ УХААЛГААР ТАНИХ:
+        // ОГНОО БАЙГАА ЭСЭХИЙГ УХААЛГААР ТАНИХ:
         if (cols[0] && /\d{4}[./-]\d{2}/.test(cols[0])) {
           // 1. Хэрэв 1-р багана нь Огноо бол: [Огноо, Төрөл, Бараа, Хэмжээ, Тайлбар]
           dateVal = parseSafeDate(cols[0], activeMonthFallback);
@@ -1593,7 +1593,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
     }
   };
   // =========================================================================
-  // 🗂️ БОСОО ТООЛЛОГО (SMART HEADER & AUTO-DETECT)
+  // БОСОО ТООЛЛОГО (SMART HEADER & AUTO-DETECT)
   // =========================================================================
   const handleBulkInventoryPaste = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1899,7 +1899,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           </form>
         </div>
 
-        {/* 🗂️ БОСОО ТООЛЛОГО ИМПОРТЛОХ КАРТ */}
+        {/* БОСОО ТООЛЛОГО ИМПОРТЛОХ КАРТ */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 col-span-1 md:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
@@ -1933,7 +1933,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
             </div>
           )}
 
-          {/* 📅 ОГНОО БА ТӨРӨЛ СОНГОХ (УХААЛАГ КОНТРОЛ) */}
+          {/* ОГНОО БА ТӨРӨЛ СОНГОХ (УХААЛАГ КОНТРОЛ) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
         <div>
   <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">
@@ -2062,7 +2062,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               </span>
             ) : (
               <span className="text-zinc-400 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-zinc-600" />⚪{" "}
+                <span className="h-2 w-2 rounded-full bg-zinc-600" />{" "}
                 {startDate} - {endDate} хооронд хаягдал бүртгэгдээгүй байна.
               </span>
             )}
@@ -2258,7 +2258,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
           </>
         )}
 
-        {/* 🔍 БҮХ 7 ТӨРЛИЙН EXCEL ЖИШЭЭ ХАРУУЛАХ ПОПАП ЦОНХ (MODAL) */}
+        {/* БҮХ 7 ТӨРЛИЙН EXCEL ЖИШЭЭ ХАРУУЛАХ ПОПАП ЦОНХ (MODAL) */}
         {templateNotice && (
           <div className="fixed top-4 left-1/2 z-[210] -translate-x-1/2 bg-zinc-800 border border-zinc-600 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-xl">
             {templateNotice}
@@ -2513,7 +2513,7 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     </div>
                   </div>
 
-                  {/* 💡 БҮХ 4 ТӨРЛИЙН САНХҮҮГИЙН НАРИЙН ТАЙЛБАР */}
+                  {/* БҮХ 4 ТӨРЛИЙН САНХҮҮГИЙН НАРИЙН ТАЙЛБАР */}
                   <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-300 space-y-1.5">
                     <p className="font-bold text-white">
                       Төрлийн сонголт ба санхүүгийн ялгаа:

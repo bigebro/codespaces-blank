@@ -36,7 +36,7 @@ export default function RecipeHistoryModal({
   const [recipeSnapshots, setRecipeSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  //🕒 ЦОНХ НЭЭГДЭХЭД 30 ХОНОГИЙН ТҮҮХИЙГ ӨӨРӨӨ ТАТАХ ХЭСЭГ:
+  //ЦОНХ НЭЭГДЭХЭД 30 ХОНОГИЙН ТҮҮХИЙГ ӨӨРӨӨ ТАТАХ ХЭСЭГ:
   useEffect(() => {
     if (isOpen && productName && activeClient) {
       const thirtyDaysAgo = new Date(
@@ -57,7 +57,7 @@ export default function RecipeHistoryModal({
 
   if (!isOpen) return null;
 
-  // ⚡ 1. ОДООГИЙН ЖОР БА ХУУЧИН ХУВИЛБАРЫГ ХАРЬЦУУЛАХ (VISUAL DIFF)
+  // 1. ОДООГИЙН ЖОР БА ХУУЧИН ХУВИЛБАРЫГ ХАРЬЦУУЛАХ (VISUAL DIFF)
   const computeRecipeDiff = (snapshotItems: any[], productName: string) => {
     // Одоо баазад байгаа тухайн бүтээгдэхүүний идэвхтэй орцууд
     const currentActiveRows = recipes.filter(
@@ -190,7 +190,7 @@ export default function RecipeHistoryModal({
         <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
           <div>
             <h3 className="text-base font-black text-white flex items-center gap-2">
-              <span>🕒 Жорын Хувилбарын Түүх</span>
+              <span>Жорын Хувилбарын Түүх</span>
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
               Бүтээгдэхүүн:{" "}
@@ -237,7 +237,7 @@ export default function RecipeHistoryModal({
                           }`}
                         >
                           {isDeleted
-                            ? "🗑️ Устгагдсан (Хогийн сав)"
+                            ? "Устгагдсан (Хогийн сав)"
                             : idx === 0
                               ? "Одоогийн хувилбар"
                               : "Хуучин хувилбар"}
@@ -260,7 +260,7 @@ export default function RecipeHistoryModal({
                       </p>
                     </div>
 
-                    {/* ⚡ СЭРГЭЭХ ТОBЧ */}
+                    {/* СЭРГЭЭХ ТОBЧ */}
                     <button
                       type="button"
                       onClick={() => restoreRecipeFromSnapshot(snap)}
@@ -271,7 +271,7 @@ export default function RecipeHistoryModal({
                   </div>
 
                   {/* Тухайн хувилбарт байсан орцууд */}
-                  {/* ⚡ VISUAL DIFF ОРЦУУДЫН ӨНГӨТ ЖАГСААЛТ */}
+                  {/* VISUAL DIFF ОРЦУУДЫН ӨНГӨТ ЖАГСААЛТ */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800/80">
                     {computeRecipeDiff(items, productName || "").map(
                       (diff, i) => {
@@ -355,7 +355,7 @@ export default function RecipeHistoryModal({
         </div>
 
         <div className="pt-2 border-t border-zinc-800 text-xs text-zinc-500 text-center">
-          💡 Та хүссэн хуучин хувилбарынхаа "↩️ Сэргээх" товчийг дарахад тухайн
+          Та хүссэн хуучин хувилбарынхаа "↩ Сэргээх" товчийг дарахад тухайн
           жор тэр дороо сэргэнэ.
         </div>
       </div>

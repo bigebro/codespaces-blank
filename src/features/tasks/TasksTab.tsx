@@ -34,14 +34,14 @@ export default function TasksTab({
     <>
       <div className="space-y-8">
         {" "}
-        {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
-        {/* 🚀 АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
+        {/* ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
+        {/* АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-8 space-y-6">
           {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-800">
             <div>
               <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                🔗 Ажилтан урих холбоос
+                Ажилтан урих холбоос
               </h4>
               <p className="text-sm text-zinc-400 mt-1">
                 Энэ линкийг ажилтандаа явуулснаар тэд салбарын нэрийг
@@ -61,7 +61,7 @@ export default function TasksTab({
             </button>
           </div>
 
-          {/* ➕ ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
+          {/* ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
           <div className="mb-6">
             <h3 className="text-base font-bold mb-3 text-zinc-200">
               Салбартаа шинэ ажилтан нэмэх (Таблет дээр шууд гарна)
@@ -139,7 +139,7 @@ export default function TasksTab({
                 className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold outline-none focus:border-zinc-700 text-center"
               />
 
-              {/* 💡 ДИНАМИК ҮҮРГҮҮДИЙН СОНГОЛТ (Эзний үүсгэсэн бүх үүрэг энд гарч ирнэ): */}
+              {/* ДИНАМИК ҮҮРГҮҮДИЙН СОНГОЛТ (Эзний үүсгэсэн бүх үүрэг энд гарч ирнэ): */}
               <select
                 name="workerRole"
                 required
@@ -147,7 +147,7 @@ export default function TasksTab({
               >
                 <option value="">-- Үүрэг сонгох --</option>
                 <option value="Ажилтан">Ерөнхий ажилтан</option>
-                {/* 🚀 ТАНЫ COMPANY_ROLES ДАХЬ БҮХ ҮҮРЭГ АВТОМАТААР ГАРНА: */}
+                {/* ТАНЫ COMPANY_ROLES ДАХЬ БҮХ ҮҮРЭГ АВТОМАТААР ГАРНА: */}
                 {companyRoles.map((r) => (
                   <option key={r.id} value={r.role_name}>
                     {r.role_name}

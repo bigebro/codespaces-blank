@@ -28,7 +28,7 @@ interface ChatMessage {
   timeTakenMs?: number; 
 }
 
-// 🛡️ THE EMOJI SHIELD: Mathematically strips all Unicode emojis
+// THE EMOJI SHIELD: Mathematically strips all Unicode emojis
 const stripEmojis = (str: string) => {
   if (!str) return "";
   return str.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "");
@@ -73,7 +73,7 @@ const fetchChatHistory = useCallback(async () => {
         .from("ai_chat_messages")
         .select("id, role, content, created_at")
         .eq("client_id", activeClient.trim())
-        .order("created_at", { ascending: false }) // 👈 1. Хамгийн сүүлийн ШИНЭ мессежүүдийг татна
+        .order("created_at", { ascending: false }) // 1. Хамгийн сүүлийн ШИНЭ мессежүүдийг татна
         .limit(40);
 
       if (!error && data && data.length > 0) {
@@ -189,7 +189,7 @@ const fetchChatHistory = useCallback(async () => {
 
     const msgId = Date.now().toString();
     
-    // 🛡️ Strip emojis from user input too, maintaining the strict terminal vibe
+    // Strip emojis from user input too, maintaining the strict terminal vibe
     setCfoChatHistory((prev) => [...prev, { id: `u-${msgId}`, sender: "owner", text: stripEmojis(text) }]);
     setCfoChatInput("");
     setIsCfoLoading(true);
@@ -241,7 +241,7 @@ const fetchChatHistory = useCallback(async () => {
           const { done, value } = await reader.read();
           if (done) break;
           
-          // 🛡️ Immediately strip emojis from the incoming stream chunks
+          // Immediately strip emojis from the incoming stream chunks
           const chunk = decoder.decode(value, { stream: true });
           accumulatedText = fixMnBusinessSpelling(accumulatedText + stripEmojis(chunk));
 
@@ -273,7 +273,7 @@ const fetchChatHistory = useCallback(async () => {
 
 
   const renderMessageContent = (fullText: string, messageIndex: number) => {
-    // 🛡️ Final safeguard: Double check the full text has no emojis before rendering
+    // Final safeguard: Double check the full text has no emojis before rendering
     const cleanText = fixMnBusinessSpelling(stripEmojis(fullText));
     
     const proposalRegex = /:::PROPOSAL_CARD\n([\s\S]*?)\n:::/g;
@@ -431,7 +431,7 @@ const fetchChatHistory = useCallback(async () => {
       <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 p-4 space-y-6 sm:p-6 overflow-y-auto space-y-6 no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         
         {/* ========================================================= */}
-        {/* 📚 THE EMPTY STATE GUIDANCE (Only shows at the start) */}
+        {/* THE EMPTY STATE GUIDANCE (Only shows at the start) */}
         {/* ========================================================= */}
         {cfoChatHistory.length === 0 && (
           <div className="max-w-2xl mx-auto mt-4 sm:mt-10 space-y-8 animate-in fade-in zoom-in-95 duration-500">
@@ -484,7 +484,7 @@ const fetchChatHistory = useCallback(async () => {
               </div>
             </div>
 
-            {/* 🎯 CLICKABLE QUICK PROMPTS */}
+            {/* CLICKABLE QUICK PROMPTS */}
             <div className="space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 text-center">Шууд асуух жишээнүүд:</p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -525,7 +525,7 @@ const fetchChatHistory = useCallback(async () => {
                   {renderMessageContent(msg.text, i)}
                 </div>
 
-                {/* ⏱️ GROK-STYLE TIMER */}
+                {/* GROK-STYLE TIMER */}
                 {msg.timeTakenMs && (
                   <div className="pl-4 pt-2 flex items-center gap-1.5 text-xs font-mono text-zinc-600">
                    

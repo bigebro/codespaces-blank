@@ -18,7 +18,7 @@ export function useRecipes(activeClient: string, ingredients: any[]) {
   useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
 
 
-              // 🕒 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
+              // 1. БҮТЭЭГДЭХҮҮНИЙ ЖОР ӨӨРЧЛӨГДӨХ БҮРД ТҮҮХ ХАДГАЛАХ (ТӨГС УХААЛАГ ХУВИЛБАР)
                 const recordRecipeSnapshot = async (
                   productName: string, 
                   arg2?: 'created' | 'updated' | 'deleted' | any[],

@@ -138,7 +138,7 @@ export default function SettingsTab({
   const [draftRecipeIngId, setDraftRecipeIngId] = useState("");
   const [draftRecipeIngAmt, setDraftRecipeIngAmt] = useState("");
 
-  // 🌍 УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
+  // УНИВЕРСАЛ 6 АНГИЛАЛ (ЭМОЖИ БА ӨНГӨТЭЙ)
   const UNIVERSAL_CATEGORIES = [
     {
       id: "HOT_BEVERAGE",
@@ -177,7 +177,7 @@ export default function SettingsTab({
       color: "text-zinc-400 bg-zinc-950 border-zinc-800",
     },
   ];
-  // 🎨 Хүснэгт дээр эможитой пайз харуулах туслах функц:
+  // Хүснэгт дээр эможитой пайз харуулах туслах функц:
   const renderCategoryBadge = (catId: string) => {
     const found =
       UNIVERSAL_CATEGORIES.find((c) => c.id === catId) ||
@@ -224,7 +224,7 @@ export default function SettingsTab({
       <div className="space-y-8">
         <StaffInvitePanel clientId={activeClient} />
         {/* ========================================================================= */}
-        {/* 🎯 МАСТЕР КАТАЛОГ (ЦОНХГҮЙ, ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ)            */}
+        {/* МАСТЕР КАТАЛОГ (ЦОНХГҮЙ, ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ)            */}
         {/* ========================================================================= */}
         <div className="col-span-1 md:col-span-2 bg-zinc-900/60 p-6 rounded-3xl border border-zinc-800 shadow-2xl mt-8">
           {/* ТОЛГОЙ БА 3 ТАБ СОЛИГЧ */}
@@ -347,7 +347,7 @@ export default function SettingsTab({
                       activeClient={activeClient}
                       ingredients={ingredients}
                       productsList={productsList}
-                      initialDraft={targetRecipeDraft} // 👈 Тэр цээжилсэн нэр, үнээ RecipeEditor руу өгнө
+                      initialDraft={targetRecipeDraft} // Тэр цээжилсэн нэр, үнээ RecipeEditor руу өгнө
                       onDraftCleared={() => setTargetRecipeDraft(null)}
                       setProductsList={setProductsList}
                     />
@@ -368,7 +368,7 @@ export default function SettingsTab({
               <div className="flex justify-between items-start border-b border-zinc-800 pb-3">
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-2">
-                    <span>✨ Шинэ цэсүүдийг ангилах</span>
+                    <span>Шинэ цэсүүдийг ангилах</span>
                   </h3>
                   <p className="text-xs text-zinc-300 font-bold mt-1 leading-relaxed bg-zinc-800/60 border border-zinc-700 p-2.5 rounded-xl">
                     ℹ Шинээр орж ирсэн{" "}
@@ -376,7 +376,7 @@ export default function SettingsTab({
                     ангиллыг шалгаад баталгаажуулна уу.
                   </p>
                 </div>
-                {/* ❌ 1. ЦУЦЛАХ ТОВЧ (SessionStorage-оос устгаж цонхыг хаана): */}
+                {/* 1. ЦУЦЛАХ ТОВЧ (SessionStorage-оос устгаж цонхыг хаана): */}
                 <button
                   type="button"
                   onClick={() => updatePendingReview(null)}
@@ -418,7 +418,7 @@ export default function SettingsTab({
                                   ...pendingCategoryReview.productsToReview,
                                 ];
                                 updated[idx].category = e.target.value;
-                                updated[idx].method = "👤 Гараар зассан";
+                                updated[idx].method = "Гараар зассан";
                                 updatePendingReview({
                                   ...pendingCategoryReview,
                                   productsToReview: updated,
