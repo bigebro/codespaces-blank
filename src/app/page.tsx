@@ -185,7 +185,7 @@ export default function PremiumLandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-center lg:text-left">
             <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
-          Бизнесээ нэг самбараас удирдлага.
+          Бизнесээ нэг самбараас удирд.
             </h1>
             <p className="text-zinc-400 text-lg sm:text-xl mb-10 leading-relaxed font-medium">
               OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаягдал, өртгийг хянаж, асуудлыг олж, багтаа даалгавар санал болгож, танд юу хийхийг хэлнэ. Та зөвхөн шийднэ.
