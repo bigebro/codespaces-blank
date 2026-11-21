@@ -160,7 +160,7 @@ function advancedMongolianVoiceParser(
 
   // 3. Үйлдлийг язгуураар нь таних
   let type: "spoilage" | "purchase" | "staff_meal" | "testing" | null = null;
-  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс/.test(text))
+  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс|хэтрүүл|overpour|over pour/.test(text) || /илүү\s*(хий|цутга|хэм|нэм)/.test(text))
     type = "spoilage";
   else if (/ава|авс|татан|ирл|нэм|худалд|оруул|авчир/.test(text))
     type = "purchase";

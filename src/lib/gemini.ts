@@ -274,7 +274,7 @@ export function advancedMongolianVoiceParser(
 
   // 3. Үйлдлийг язгуураар нь таних
   let type: "spoilage" | "purchase" | "staff_meal" | "testing" | null = null;
-  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс/.test(text))
+  if (/асг|мууд|гаш|хая|цуц|хагар|уна|дуус|эвд|алд|урс|түлс|хэтрүүл|overpour|over pour/.test(text) || /илүү\s*(хий|цутга|хэм|нэм)/.test(text))
     type = "spoilage";
   else if (/ава|авс|татан|ирл|нэм|худалд|оруул|авчир/.test(text))
     type = "purchase";
@@ -381,7 +381,7 @@ export function fastLocalParse(text: string, ingredientsList: string[]) {
 
   // 2. Үйлдлийн төрөл олох
   let type: "spoilage" | "purchase" | "staff_meal" | "testing" | null = null;
-  if (/асга|мууд|гашил|хая/.test(lower)) type = "spoilage";
+  if (/асга|мууд|гашил|хая|хэтрүүл|overpour|over pour/.test(lower) || /илүү\s*(хий|цутга|хэм|нэм)/.test(lower)) type = "spoilage";
   else if (/ава|авсан|татан/.test(lower)) type = "purchase";
   else if (/хоол|идсэн/.test(lower)) type = "staff_meal";
   else if (/турш|амт/.test(lower)) type = "testing";
@@ -444,7 +444,7 @@ export async function parseOperationalText(
 
     Rules:
     1. Standardize units: "литр/l" to "ml" (multiply by 1000), "кг/kg" to "gram" (multiply by 1000).
-    2. Spoilage/Waste (e.g., "асгав", "асгарсан", "муудсан"): quantity must be NEGATIVE, type must be "spoilage".
+    2. Spoilage/Waste (e.g., "асгав", "асгарсан", "муудсан", "илүү хийсэн", "хэтрүүлж цутгасан", "overpoured"): quantity must be NEGATIVE, type must be "spoilage". For overpouring, keep the words "илүү хийсэн" in "notes".
     3. Purchase (e.g., "авав", "авсан", "татан авалт"): quantity must be POSITIVE, type must be "purchase".
     4. Staff Meal (e.g., "хоолонд орсон", "хооллосон"): quantity must be NEGATIVE, type must be "staff_meal".
     5. Testing (e.g., "туршилт", "амталгаа"): quantity must be NEGATIVE, type must be "testing".

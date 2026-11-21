@@ -89,3 +89,15 @@ assert.notEqual(wasteLoggedTotal(buckets), 41800);
 assert.notEqual(wasteLoggedTotal(buckets), 44200);
 
 console.log("waste and item label checks passed");
+
+// Илүү хийсэн / overpour нь «Асгарсан/Алдаа» руу орно, «Муудсан» биш.
+{
+  const { notesPointToSpill } = require("../src/lib/shiftCycle");
+  for (const note of ["Таблет (Хаягдал) · 200мл сүү илүү хийсэн", "сүү хэтрүүлж цутгасан", "overpoured milk 100ml", "жороос илүү хийчихлээ", "сүү асгачихлаа"]) {
+    if (!notesPointToSpill(note)) throw new Error(`should be spill: ${note}`);
+  }
+  for (const note of ["сүү муудсан", "хугацаа дууссан", "Таблет (Хаягдал) · 1л сүү гашилсан"]) {
+    if (notesPointToSpill(note)) throw new Error(`should not be spill: ${note}`);
+  }
+  console.log("overpour spill checks passed");
+}

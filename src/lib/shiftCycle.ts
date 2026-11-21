@@ -53,11 +53,15 @@ function normalizeLogType(type: string) {
 }
 
 // Хадгалагдсан төрөл (spoilage гэх мэт) өөрчлөгдөхгүй. Асгарсан мөрийг тооцоолол/харуулалтад тусад нь ялгана, өгөгдлийг засаж бичихгүй.
+/** Жороос илүү хийсэн, хэтрүүлж цутгасан нь ажилтны алдаа: «Асгарсан/Алдаа» хувин руу орно. */
+export const OVERPOUR_RE = /илүү\s*(хий|цутга|хэм|нэм)|хэтрүүл|жороос\s*илүү|over\s*-?\s*pour/;
+
 export function notesPointToSpill(text?: string | null) {
   const t = String(text || "").toLowerCase();
   if (!t) return false;
-  if (/мууд|хугацаа\s*дуус|expired/.test(t) && !/асга|spill|алдаа|унага|дахин\s*хий|remake|dropped/.test(t)) return false;
-  return /асга|spill|spillage|алдаа|унагасан|унагаад|дахин\s*хий|remake|dropped/.test(t);
+  const spill = /асга|spill|алдаа|унага|дахин\s*хий|remake|dropped/.test(t) || OVERPOUR_RE.test(t);
+  if (/мууд|хугацаа\s*дуус|expired/.test(t) && !spill) return false;
+  return spill || /spillage|унагасан|унагаад/.test(t);
 }
 
 const WASTE_TYPE_KEYS = new Set([
