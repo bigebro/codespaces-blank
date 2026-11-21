@@ -209,7 +209,7 @@ export default function ProductsPanel({
       });
 
       alert(
-        `↩️ "${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`,
+        `"${targetChange.newName}" амжилттай буцаж "${targetChange.oldName}" (${targetChange.oldPrice.toLocaleString()}₮) боллоо!`,
       );
     } catch (err: any) {
       alert(`Алдаа гарлаа: ${err.message}`);
@@ -507,7 +507,7 @@ export default function ProductsPanel({
                       <td className="py-2.5 px-3 text-center">
                         {ch.reverted ? (
                           <span className="text-xs text-zinc-500 font-bold">
-                            Буцаагдсан ↩️
+                            Буцаагдсан
                           </span>
                         ) : (
                           <button
@@ -516,7 +516,7 @@ export default function ProductsPanel({
                             className="bg-zinc-800 hover:bg-rose-500/20 hover:text-rose-300 text-zinc-300 border border-zinc-700 hover:border-rose-500/40 px-2.5 py-1 rounded-xl text-sm font-bold transition active:scale-95 cursor-pointer"
                             title="Хуучин нэр ба үнэ рүү нь буцаах"
                           >
-                            ↩️ Буцаах
+                            Буцаах
                           </button>
                         )}
                       </td>
@@ -528,8 +528,8 @@ export default function ProductsPanel({
 
             <div className="flex justify-between items-center pt-2">
               <p className="text-xs text-zinc-500">
-                Буцаах товч дармагц тухайн бараа хуучин нэр болон үнэ рүүгээ
-                тэр дороо шилжинэ.
+                Буцаах товч дармагц тухайн бараа хуучин нэр болон үнэ рүүгээ тэр
+                дороо шилжинэ.
               </p>
               <button
                 type="button"
@@ -1132,8 +1132,8 @@ export default function ProductsPanel({
 
                         if (hasRecipe) {
                           return (
-                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300">
-      <span className="h-1.5 w-1.5 rounded-full bg-zinc-950 shadow-[0_0_15px_rgba(52,211,153,0.25)] shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300">
+                              <span className="h-1.5 w-1.5 rounded-full bg-zinc-950 shadow-[0_0_15px_rgba(52,211,153,0.25)] shrink-0" />
                               <span> Жортой</span>
                               <span className="text-xs text-zinc-200/80">
                                 ({status.count} орц)
