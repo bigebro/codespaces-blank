@@ -1,0 +1,72 @@
+diff --git a/src/ai/agents/coo.agent.ts b/src/ai/agents/coo.agent.ts
+index bfa7b7e..80a173d 100644
+--- a/src/ai/agents/coo.agent.ts
++++ b/src/ai/agents/coo.agent.ts
+@@ -1,4 +1,5 @@
+ import { ubDay } from "@/lib/ubDate";
++import { lessonCutoffIso } from "@/ai/memory/ledger.memory";
+ import { cooSkills } from "@/ai/tools/skills.network";
+ import { getVitals } from "@/core/packages/pkg_vitals";
+ import { AgentContext } from "@/types/agent.types";
+@@ -32,6 +33,7 @@ export async function runCooAgent(context: AgentContext, userMessage: string): P
+       .select("situation, lesson")
+       .eq("client_id", context.clientId.trim())
+       .eq("status", "open")
++      .gte("created_at", lessonCutoffIso())
+       .order("created_at", { ascending: false })
+       .limit(3),
+   ]);
+diff --git a/src/ai/memory/ledger.memory.ts b/src/ai/memory/ledger.memory.ts
+index 97ef96d..d5324a2 100644
+--- a/src/ai/memory/ledger.memory.ts
++++ b/src/ai/memory/ledger.memory.ts
+@@ -1,5 +1,18 @@
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
+ 
++/** Шөнийн аудитын сургамж 60 хоногоос хуучин бол хуучирсан гэж үзэж AI-д өгөхгүй. Асуудал давтагдвал аудитор шинэ мөр нэмдэг тул шинэ өгөгдөл баталсан сургамж үлдэнэ. */
++export const LESSON_MAX_AGE_DAYS = 60;
++
++export function lessonCutoffIso(now: number = Date.now()) {
++  return new Date(now - LESSON_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
++}
++
++export function isLessonFresh(createdAt: string | null | undefined, now: number = Date.now()) {
++  if (!createdAt) return false;
++  const t = Date.parse(createdAt);
++  return Number.isFinite(t) && t >= now - LESSON_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
++}
++
+ export async function searchPastExperiences(clientId: string, topic: string, limit = 3) {
+   // We only pull REAL (is_test = false) and COMPLETED (status = resolved) experiments
+   const { data, error } = await supabaseAdmin
+@@ -8,6 +21,7 @@ export async function searchPastExperiences(clientId: string, topic: string, lim
+     .eq("client_id", clientId)
+     .eq("is_test", false)
+     .eq("status", "resolved")
++    .gte("resolved_at", lessonCutoffIso())
+     .order("resolved_at", { ascending: false })
+     .limit(limit * 3); // Pull extra to filter locally
+ 
+diff --git a/src/ai/memory/memory.service.ts b/src/ai/memory/memory.service.ts
+index 6185edd..e547886 100644
+--- a/src/ai/memory/memory.service.ts
++++ b/src/ai/memory/memory.service.ts
+@@ -1,4 +1,5 @@
+ import { supabaseAdmin } from "@/lib/supabaseAdmin";
++import { isLessonFresh } from "@/ai/memory/ledger.memory";
+ import { embedText, TaskType } from "@/lib/ai/genai";
+ import { MODELS } from "@/lib/ai/models";
+ import { filterEvidenceLogIds } from "@/ai/memory/evidence";
+@@ -39,7 +40,11 @@ export async function searchBusinessMemory(
+     console.error("Vector search RPC error:", error);
+     return [];
+   }
+-  return data;
++  // Хуучирсан (60+ хоног) аудитын сургамжийг хасна. Эзний баталсан дүрэм (fact) хэвээр үлдэнэ.
++  const fresh: any = (data as any[]).filter(
++    (row: any) => row.memory_type !== "experience" || isLessonFresh(row.created_at),
++  );
++  return fresh;
+ }
+ 
+ export async function saveBusinessRule(clientId: string, topic: string, fact: string) {

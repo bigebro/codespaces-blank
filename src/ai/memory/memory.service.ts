@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isLessonFresh } from "@/ai/memory/ledger.memory";
 import { embedText, TaskType } from "@/lib/ai/genai";
 import { MODELS } from "@/lib/ai/models";
 import { filterEvidenceLogIds } from "@/ai/memory/evidence";
@@ -39,7 +40,11 @@ export async function searchBusinessMemory(
     console.error("Vector search RPC error:", error);
     return [];
   }
-  return data;
+  // Хуучирсан (60+ хоног) аудитын сургамжийг хасна. Эзний баталсан дүрэм (fact) хэвээр үлдэнэ.
+  const fresh: any = (data as any[]).filter(
+    (row: any) => row.memory_type !== "experience" || isLessonFresh(row.created_at),
+  );
+  return fresh;
 }
 
 export async function saveBusinessRule(clientId: string, topic: string, fact: string) {

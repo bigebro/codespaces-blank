@@ -1,4 +1,5 @@
 import { ubDay } from "@/lib/ubDate";
+import { lessonCutoffIso } from "@/ai/memory/ledger.memory";
 import { cooSkills } from "@/ai/tools/skills.network";
 import { getVitals } from "@/core/packages/pkg_vitals";
 import { AgentContext } from "@/types/agent.types";
@@ -32,6 +33,7 @@ export async function runCooAgent(context: AgentContext, userMessage: string): P
       .select("situation, lesson")
       .eq("client_id", context.clientId.trim())
       .eq("status", "open")
+      .gte("created_at", lessonCutoffIso())
       .order("created_at", { ascending: false })
       .limit(3),
   ]);
