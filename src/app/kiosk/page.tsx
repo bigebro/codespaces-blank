@@ -2614,10 +2614,10 @@ const handleCloseShift = async () => {
             {/* 🔝 ТОЛГОЙ БА ШУУРХАЙ ТОХИРГОО */}
             <div className="shrink-0 space-y-2">
               {/* 🔝 1-Р ЭГНЭЭ: АЖИЛТАН ТУСДАА + 3 АВСААРХАН ТОВЧ */}
-              <div className="flex justify-between items-center pb-3 border-b border-zinc-800/80 mb-3 px-1">
+                           <div className="flex justify-between items-center gap-2 pb-3 border-b border-zinc-800/80 mb-3 px-1">
                 {/* 👤 Ажилтан тусдаа тод статус пайзтай */}
 
-                <div className="flex items-center gap-2 bg-zinc-900  rounded-xl shadow-inner">
+                <div className="flex items-center gap-2 bg-zinc-900 rounded-xl shadow-inner min-w-0">
                   <span className="relative flex h-2 w-2 shrink-0">
                     <span className=" absolute inline-flex h-full w-full rounded-full bg-zinc-200 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
@@ -2629,7 +2629,7 @@ const handleCloseShift = async () => {
                 </div>
 
                 {/* Авсаархан 3 товч (Үгсийг богиносгосон) */}
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -2639,7 +2639,7 @@ const handleCloseShift = async () => {
                     className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <ListOrdered className="h-3.5 w-3.5" />
-                    <span className="hidden min-[360px]:inline">Түүх</span>
+              <span className="hidden sm:inline">Түүх</span>
                     <span>({todayLogs.length})</span>
                   </button>
 
@@ -2652,7 +2652,7 @@ const handleCloseShift = async () => {
                     className="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
-                    <span className="hidden min-[360px]:inline">Жор</span>
+                       <span className="hidden sm:inline">Жор</span>
                   </button>
 
                   <button
@@ -2663,14 +2663,14 @@ const handleCloseShift = async () => {
                     Алдагдал
                   </button>
 
-                  <button
+                  {/* <button
                     type="button"
                     onClick={() => setStep("ai_chat")}
                     className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
                   >
                     <Mic className="h-3.5 w-3.5" />
-                    <span className="hidden min-[360px]:inline">Чат</span>
-                  </button>
+                       <span className="hidden sm:inline">Чат</span>
+                  </button> */}
                 </div>
               </div>
 
