@@ -6,7 +6,7 @@ import { ubDay, ubDayEndIso, ubDayStartIso, type RangeMode } from "../../lib/ubD
 import { displayAnalytics, rangeKey, shouldApplyAnalytics } from "../../lib/analyticsRange";
 import { readDashboardRangeStorage, writeDashboardRangeStorage } from "../../lib/dashboardRangeStore";
 import { roleLabel } from "../../lib/roleLabel";
-import { displaySourceNote, staffDisplayName, wasteFeedDetail } from "../../lib/shiftCycle";
+import { displaySourceNote, logTypeLabel, staffDisplayName, wasteFeedDetail } from "../../lib/shiftCycle";
 import { planLabel } from "../../lib/planLabel";
 import { SignedImg } from "../../components/shared/SignedImg";
 import Link from "next/link";
@@ -3156,7 +3156,7 @@ function Home() {
                                                   : "bg-rose-500/10 text-rose-400"
                                             }`}
                                           >
-                                            {log.type}
+                                            {log.non_food_item?.includes("Касс") ? "Касс" : logTypeLabel(log.type, log.notes)}
                                           </span>
                                         </td>
                                         {/* АЖИЛТАН БАГАНА */}
