@@ -185,7 +185,7 @@ export default function PremiumLandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-center lg:text-left">
             <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
-          Бизнесээ нэг самбараас удирдлага.
+          Бизнесээ нэг самбараас удирд.
             </h1>
             <p className="text-zinc-400 text-lg sm:text-xl mb-10 leading-relaxed font-medium">
               OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаягдал, өртгийг хянаж, асуудлыг олж, багтаа даалгавар санал болгож, танд юу хийхийг хэлнэ. Та зөвхөн шийднэ.
@@ -242,7 +242,7 @@ export default function PremiumLandingPage() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/60 blur-3xl"></div>
             <ShieldCheck className="h-12 w-12 text-zinc-200 mx-auto mb-6 relative z-10" />
             <h2 className="text-2xl sm:text-3xl font-black text-white mb-4 relative z-10">
-               Нэг удаа тохируулаад, самбараас удирдлага.
+               Нэг удаа тохируулаад, самбараас удирд.
             </h2>
             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto relative z-10">
             Эхлээд жор, эхний тооллого, таблетаа нэг удаа тохируулна. Цаашид таблетаас бүртгэнэ. Бүх тоо самбарт гарч, AI бизнесийн байдлыг тайлбарлаж, юу хийхийг зөвлөнө.{" "}
