@@ -70,8 +70,8 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
       maxOutputTokens: overviewAdvice ? 512 : 256,
       modelTimeoutMs: overviewAdvice ? 25000 : 15000,
       disableThinking: true,
-      // Ерөнхий тоймын зөвлөмжийг самбарын төлөвөөс шууд бүтээнэ, загвар дуудахгүй.
-      skipModel: overviewAdvice,
+      // Тоймын зөвлөмж болон нэг барааны карт хоёулаа самбараас шууд бүтнэ, загвар дуудахгүй.
+      skipModel: overviewAdvice || Boolean(namedUp),
       tools: [],
       preamble: "",
       numberGuard: (modelText) => {
