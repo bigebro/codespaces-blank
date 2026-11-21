@@ -99,5 +99,10 @@ console.log("waste and item label checks passed");
   for (const note of ["сүү муудсан", "хугацаа дууссан", "Таблет (Хаягдал) · 1л сүү гашилсан"]) {
     if (notesPointToSpill(note)) throw new Error(`should not be spill: ${note}`);
   }
+  const { logTypeLabel } = require("../src/lib/shiftCycle");
+  if (logTypeLabel("spoilage", "Өмнөх ээлжийн алдагдал: Тайлбаргүй зөрүү илэрсэн") !== "Асгарсан/Алдаа") throw new Error("incident loss label");
+  if (logTypeLabel("spoilage", "Өмнөх ээлжийн алдагдал: хөргөгч дутуу хаагдаж муудсан") !== "Муудсан") throw new Error("incident spoiled label");
+  if (logTypeLabel("spoilage", "Таблет (Хаягдал) · Муудсан") !== "Муудсан") throw new Error("kiosk spoiled label");
+  if (logTypeLabel("spoilage", "Таблет (Хаягдал) · Асгарсан/Алдаа") !== "Асгарсан/Алдаа") throw new Error("kiosk spill label");
   console.log("overpour spill checks passed");
 }
