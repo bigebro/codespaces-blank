@@ -173,9 +173,9 @@ assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны/);
 assert.doesNotMatch(unknownBlock, /Баталгаажсан барааны тайлбаргүй зөрүү/);
 assert.match(unknownBlock, /2026-11-30-нд эсвэл түүнээс хойш тооллого алга/);
 assert.match(unknownBlock, /Худалдан авалт 0₮\. Өртөгт оруулаагүй\./);
-assert.match(unknownBlock, /1\. Таблет дээр энэ барааг одоо тоол/);
-assert.match(unknownBlock, /2\. /);
-assert.match(unknownBlock, /3\. /);
+assert.match(unknownBlock, /1\\\. Таблет дээр энэ барааг одоо тоол/);
+assert.match(unknownBlock, /2\\\. /);
+assert.match(unknownBlock, /3\\\. /);
 
 const coda = "Сүүний орлого болон зарцуулалтын зөрүүг нягтлах хэрэгтэй. Энэ нь бизнесийн үрэлгэн байдлыг багасгана.";
 assert.equal(sanitizeItemAdvice(coda), "");
@@ -200,3 +200,23 @@ assert.equal(findNamedGrade([milkUnknownEnd], "Сүү яагаад шалгах 
 assert.equal(findNamedGrade([milkUnknownEnd], "milk waste")?.name, "Milk (Сүү)");
 
 console.log("ai dashboard facts checks passed");
+
+// qa8: тоймын зөвлөмж бараагаа нэрлэнэ, тоо зохиохгүй.
+{
+  const { overviewAdviceLine, renderItemFactsBlock: render } = require("../src/lib/dashboardFactsBlock");
+  const adv = overviewAdviceLine([
+    { name: "Сүү (ТУРШИЛТ)", status: "Missing" },
+    { name: "Кофе үр (ТУРШИЛТ)", status: "Missing" },
+    { name: "Цаасан аяга", status: "Check" },
+    { name: "Ус", status: "Verified" },
+  ]);
+  if (!adv.startsWith("Зөвлөмж: ")) throw new Error(`advice label: ${adv}`);
+  if (!/Сүү/.test(adv) || !/Кофе үр/.test(adv) || !/Цаасан аяга/.test(adv)) throw new Error(`advice names: ${adv}`);
+  if (/Ус\b/.test(adv.replace("Зөвлөмж: ", ""))) throw new Error(`verified item named: ${adv}`);
+  if (/туслах|бэлэн байна/.test(adv)) throw new Error(`offer of help: ${adv}`);
+  if (overviewAdviceLine([{ name: "Ус", status: "Verified" }]).indexOf("Бүх бараа баталгаажсан") < 0) throw new Error("all verified advice");
+  const block = render({ name: "Сүү", status: "Missing", reasons: ["Эцсийн тоо алга"] });
+  if (/^\d+\. /m.test(block)) throw new Error("steps must not be markdown list items");
+  if (!block.includes("\n\n")) throw new Error("card lines must be separate paragraphs");
+  console.log("qa8 advice and step format checks passed");
+}

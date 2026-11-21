@@ -10,6 +10,7 @@ import { getCachedAnalytics } from "@/lib/analyticsCache";
 import {
   findNamedGrade,
   isGradeStatusQuestion,
+  overviewAdviceLine,
   renderItemFactsBlock,
   renderOverviewFactsBlock,
   sanitizeItemAdvice,
@@ -56,21 +57,21 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
 
   const official = { text: "", itemName: "" };
   const overviewAdvice = isOverviewQuestion(userMessage) && !isGradeStatusQuestion(userMessage) && !looksLikeItemFacts && !namedUp;
-  const overviewContext = overviewAdvice && pre.data
-    ? renderOverviewFactsBlock(pre.data, overviewPeriod.label).slice(0, 3000)
-    : "";
+
 
   if (factsFirst) {
     return runToolAgent({
       context,
       userMessage: overviewAdvice
-        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Доорх мэдээллээс «Шалгах» эсвэл «Дутуу» төлөвтэй барааг нэрээр нь дурдаж, юуг шалгахыг хамгийн ихдээ хоёр богино өгүүлбэрээр зөвлө. Тоо бичихгүй.${overviewContext ? `\n\nСамбарын мэдээлэл (зөвхөн үндэслэл):\n${overviewContext}` : ""}`
+        ? `${userMessage}\n\nСамбарын тоо хэрэглэгчид аль хэдийн харагдана. Тоо бүү давта. Хамгийн ихдээ хоёр богино зөвлөмж бич.`
         : `${userMessage}\n\nСамбарын карт дээрх мөр, зөвлөмж хэрэглэгчид аль хэдийн харагдана. Тоо, бизнесийн өргөн мэдэгдэл бүү бич. Нэг богино өгүүлбэр, эсвэл хоосон.`,
       disableTools: true,
       historyLimit: 0,
       maxOutputTokens: overviewAdvice ? 512 : 256,
       modelTimeoutMs: overviewAdvice ? 25000 : 15000,
       disableThinking: true,
+      // Ерөнхий тоймын зөвлөмжийг самбарын төлөвөөс шууд бүтээнэ, загвар дуудахгүй.
+      skipModel: overviewAdvice,
       tools: [],
       preamble: "",
       numberGuard: (modelText) => {
@@ -79,8 +80,6 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
           cleaned = stripAllItemBoardTotals(cleaned);
           cleaned = sanitizeItemAdvice(cleaned);
         }
-        cleaned = cleaned.trim();
-        if (overviewAdvice && cleaned) cleaned = `Зөвлөмж: ${cleaned.replace(/^Зөвлөмж\s*:\s*/i, "")}`;
         return cleaned;
       },
       prepareLeadingText: async () => {
@@ -95,6 +94,7 @@ export async function runCfoAgent(context: AgentContext, userMessage: string): P
           ? renderItemFactsBlock(named)
           : renderOverviewFactsBlock(data, overviewPeriod.label);
         official.text = `${periodLine}\n\n${body}`;
+        if (overviewAdvice && !named) return `${official.text}\n\n${overviewAdviceLine(data?.grades || [])}`;
         return official.text;
       },
       systemInstruction: `

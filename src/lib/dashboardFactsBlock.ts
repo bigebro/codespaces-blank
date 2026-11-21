@@ -71,10 +71,12 @@ export function renderItemFactsBlock(row: GradeRow): string {
     const joined = lines.join("\n");
     if (!joined.includes(String(Math.round(Math.abs(unexplainedMnt))))) lines.push(extra);
   }
+  // «1\\.» нь markdown жагсаалт болж дугаар нь алга болохоос сэргийлнэ.
   for (let i = 0; i < guide.steps.length; i++) {
-    lines.push(`${i + 1}. ${guide.steps[i]}`);
+    lines.push(`${i + 1}\\. ${guide.steps[i]}`);
   }
-  return lines.filter((line) => Boolean(line && String(line).trim())).join("\n");
+  // Хоосон мөрөөр тусгаарлаж, чатад мөр бүр тусдаа харагдана.
+  return lines.filter((line) => Boolean(line && String(line).trim())).join("\n\n");
 }
 
 /**
@@ -139,6 +141,32 @@ export function renderOverviewFactsBlock(data: any, label: string): string {
     gradeFactLines(data?.grades || []),
   ];
   return lines.filter(Boolean).join("\n");
+}
+
+function adviceItemName(row: GradeRow) {
+  const raw = String(row?.name || "").trim();
+  return (localizedItemName(raw, "mn") || itemDisplayName(raw) || raw).trim();
+}
+
+function adviceNameList(names: string[]) {
+  const shown = names.slice(0, 3);
+  const rest = names.length - shown.length;
+  if (rest > 0) return `${shown.join(", ")} болон бусад ${rest} бараа`;
+  if (shown.length <= 1) return shown.join("");
+  return `${shown.slice(0, -1).join(", ")} болон ${shown[shown.length - 1]}`;
+}
+
+/** Самбарын төлөвөөс шууд бүтээсэн зөвлөмж. Загварчлалгүй, тоо зохиохгүй, бараагаа нэрлэнэ. */
+export function overviewAdviceLine(grades: GradeRow[] = []): string {
+  const rows = (grades || []).filter((row) => String(row?.name || "").trim());
+  if (rows.length === 0) return "Зөвлөмж: Энэ хугацаанд барааны өгөгдөл алга. Эхлээд таблет дээр тооллого хий.";
+  const missing = rows.filter((row) => normalizeStatus(row.status) === "Missing").map(adviceItemName);
+  const check = rows.filter((row) => normalizeStatus(row.status) === "Check").map(adviceItemName);
+  const parts: string[] = [];
+  if (missing.length) parts.push(`${adviceNameList(missing)} барааны тооллогыг таблет дээр хийж, дутуу тоог гүйцээ.`);
+  if (check.length) parts.push(`${adviceNameList(check)} барааны тайлбаргүй зөрүүг хаягдлын бүртгэлтэй тулгаж шалга.`);
+  if (parts.length === 0) parts.push("Бүх бараа баталгаажсан. Хаягдлаа өдөр бүр бүртгэсээр бай.");
+  return `Зөвлөмж: ${parts.join(" ")}`;
 }
 
 function gradeMatchKeys(name: string): string[] {

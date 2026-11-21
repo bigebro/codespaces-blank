@@ -121,6 +121,8 @@ export async function runToolAgent(opts: {
   modelTimeoutMs?: number;
   /** Skip thinkingConfig so short advice calls start faster. */
   disableThinking?: boolean;
+  /** Leading text is the whole answer; no model call. */
+  skipModel?: boolean;
 }): Promise<ReadableStream> {
   const encoder = new TextEncoder();
 
@@ -141,6 +143,14 @@ export async function runToolAgent(opts: {
           if (lead) {
             enqueueRaw(lead.endsWith("\n") ? lead : `${lead}\n\n`);
             sentLead = true;
+          }
+          if (opts.skipModel) {
+            flushSpelling();
+            if (lead) {
+              after(() => recordChatMessage(opts.context.clientId, "ai", lead).catch(console.error));
+            }
+            controller.close();
+            return;
           }
         }
         const periodLabel = sentLead ? "" : String(opts.preamble || "").trim();
