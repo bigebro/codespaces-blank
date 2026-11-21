@@ -1,5 +1,18 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+/** Шөнийн аудитын сургамж 60 хоногоос хуучин бол хуучирсан гэж үзэж AI-д өгөхгүй. Асуудал давтагдвал аудитор шинэ мөр нэмдэг тул шинэ өгөгдөл баталсан сургамж үлдэнэ. */
+export const LESSON_MAX_AGE_DAYS = 60;
+
+export function lessonCutoffIso(now: number = Date.now()) {
+  return new Date(now - LESSON_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+export function isLessonFresh(createdAt: string | null | undefined, now: number = Date.now()) {
+  if (!createdAt) return false;
+  const t = Date.parse(createdAt);
+  return Number.isFinite(t) && t >= now - LESSON_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export async function searchPastExperiences(clientId: string, topic: string, limit = 3) {
   // We only pull REAL (is_test = false) and COMPLETED (status = resolved) experiments
   const { data, error } = await supabaseAdmin
@@ -8,6 +21,7 @@ export async function searchPastExperiences(clientId: string, topic: string, lim
     .eq("client_id", clientId)
     .eq("is_test", false)
     .eq("status", "resolved")
+    .gte("resolved_at", lessonCutoffIso())
     .order("resolved_at", { ascending: false })
     .limit(limit * 3); // Pull extra to filter locally
 
