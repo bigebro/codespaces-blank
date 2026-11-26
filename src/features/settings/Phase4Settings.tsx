@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Phase4Settings({ activeClient }: { activeClient: string }) {
-  const [enabled, setEnabled] = useState(false);
-  const [ingredients, setIngredients] = useState<{ id: string; name: string; unit: string }[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
   const [limit, setLimit] = useState("");
   const [streak, setStreak] = useState("");
   const [reward, setReward] = useState("");
@@ -16,23 +13,22 @@ export default function Phase4Settings({ activeClient }: { activeClient: string 
   useEffect(() => {
     if (!activeClient) return;
     let cancelled = false;
-    Promise.all([
-      supabase.from("ingredients").select("id, name, unit").eq("client_id", activeClient).order("name", { ascending: true }),
-      supabase.from("client_settings").select("cup_check_enabled, cup_ingredient_ids, team_goal").eq("client_id", activeClient).maybeSingle(),
-    ]).then(([ingredientRes, settingRes]) => {
-      if (cancelled) return;
-      if (ingredientRes.error || settingRes.error) {
-        setError("Мэдээлэл дутуу");
-        return;
-      }
-      setIngredients(ingredientRes.data || []);
-      const goal = settingRes.data?.team_goal || {};
-      setEnabled(settingRes.data?.cup_check_enabled === true);
-      setSelected(settingRes.data?.cup_ingredient_ids || []);
-      setLimit(goal.unexplained_limit == null ? "" : String(goal.unexplained_limit));
-      setStreak(goal.streak_shifts == null ? "" : String(goal.streak_shifts));
-      setReward(goal.reward_amount == null ? "" : String(goal.reward_amount));
-    });
+    supabase
+      .from("client_settings")
+      .select("team_goal")
+      .eq("client_id", activeClient)
+      .maybeSingle()
+      .then((settingRes) => {
+        if (cancelled) return;
+        if (settingRes.error) {
+          setError("Мэдээлэл дутуу");
+          return;
+        }
+        const goal = settingRes.data?.team_goal || {};
+        setLimit(goal.unexplained_limit == null ? "" : String(goal.unexplained_limit));
+        setStreak(goal.streak_shifts == null ? "" : String(goal.streak_shifts));
+        setReward(goal.reward_amount == null ? "" : String(goal.reward_amount));
+      });
     return () => {
       cancelled = true;
     };
@@ -45,8 +41,6 @@ export default function Phase4Settings({ activeClient }: { activeClient: string 
     const { error: saveError } = await supabase.from("client_settings").upsert(
       {
         client_id: activeClient,
-        cup_check_enabled: enabled,
-        cup_ingredient_ids: selected,
         team_goal: {
           unexplained_limit: numberOrNull(limit),
           streak_shifts: numberOrNull(streak),
@@ -62,34 +56,6 @@ export default function Phase4Settings({ activeClient }: { activeClient: string 
 
   return (
     <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-      <div>
-        <h3 className="text-base font-black text-white">Аяга шалгах</h3>
-        <p className="text-xs text-zinc-400 mt-1">Анхдагчаар унтраалттай. Асаасан үед л санхүү болон таблет дээр харагдана.</p>
-      </div>
-      <button
-        type="button"
-        onClick={() => setEnabled((value) => !value)}
-        className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-sm font-bold text-white"
-      >
-        {enabled ? "Асаалттай" : "Унтраалттай"}
-      </button>
-      {enabled ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {ingredients.map((item) => {
-            const on = selected.includes(item.id);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setSelected((rows) => (on ? rows.filter((id) => id !== item.id) : [...rows, item.id]))}
-                className={`text-left px-3 py-2 rounded-xl border text-sm ${on ? "border-amber-400 text-amber-100" : "border-zinc-800 text-zinc-300"}`}
-              >
-                {item.name} {on ? "сонгосон" : ""}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
       <div className="space-y-2">
         <h3 className="text-base font-black text-white">Багийн зорилт</h3>
         <label className="block text-xs text-zinc-400">
