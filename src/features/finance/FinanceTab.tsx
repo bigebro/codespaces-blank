@@ -20,6 +20,7 @@ import { exportAuditExcel } from "@/lib/exportAudit";
 import { supabase } from "@/lib/supabase";
 import DataGradePanel from "./DataGradePanel";
 import UnexplainedGaps from "./UnexplainedGaps";
+import BetweenCounts from "./BetweenCounts";
 import CupCheck from "./CupCheck";
 import TeamBoard from "./TeamBoard";
 import TruthMeter from "./TruthMeter";
@@ -715,6 +716,7 @@ export default function FinanceTab({
           onChanged={() => fetchDatabaseData(activeClient, startDate, endDate, true)}
         />
         <UnexplainedGaps rows={liveAnalytics?.unexplained_gaps} />
+        <BetweenCounts refreshKey={liveAnalytics} />
         <CupCheck data={liveAnalytics?.cup_check} />
         {/* ========================================================================= */}
         {/* БҮС 3: ДЭЛГЭРЭНГҮЙ ДҮН ШИНЖИЛГЭЭ (P&L LADDER + LIVE FEED БҮТЭЦ)             */}

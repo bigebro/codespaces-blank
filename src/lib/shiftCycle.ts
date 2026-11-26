@@ -245,7 +245,17 @@ export type CycleCandidate = {
   purchaseValue30d: number;
   shiftsSinceCount: number;
   active?: boolean;
+  /** Сүүлийн тооллогоос хойш жороор зарагдсан, хаягдал бүртгэгдсэн, эсвэл орлого орсон. */
+  movedSinceCount?: boolean;
+  /** Огт тоолоогүй бараа: эхний тоо хэрэгтэй тул хөдөлсөнтэй адил түрүүлнэ. */
+  neverCounted?: boolean;
 };
+
+/**
+ * Хөдөлсөн барааны нэмэгдэл (ээлжээр). Хөдлөөгүй бараа хамгийн сүүлд тоолсон хөдөлсөн бараанаас
+ * ойролцоогоор ийм олон ээлжийн дараа ээлж ирж тоологдоно, тиймээс бүртгэгдээгүй алдагдал далд үлдэхгүй.
+ */
+export const MOVED_PRIORITY_SHIFTS = 10;
 
 function sameSet(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
@@ -262,7 +272,8 @@ export function pickCloseItems(items: CycleCandidate[], previousIds: string[]) {
   const score = (item: CycleCandidate) => {
     const value = Number(item.purchaseValue30d) || 0;
     const boost = maxValue > 0 ? (value / maxValue) * 0.75 : 0;
-    return (Number(item.shiftsSinceCount) || 0) + boost;
+    const moved = item.movedSinceCount === true || item.neverCounted === true ? MOVED_PRIORITY_SHIFTS : 0;
+    return (Number(item.shiftsSinceCount) || 0) + boost + moved;
   };
   const ranked = [...active].sort((a, b) => {
     const diff = score(b) - score(a);
