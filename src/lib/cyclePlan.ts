@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { calculateMatchScore } from "@/lib/autoReconcile";
 import { countStreak, newestCount, pickCloseItems, sumBetween, type CycleCandidate, type CycleItem } from "@/lib/shiftCycle";
+import { movedSinceLastCount, recipeUsageEvents } from "@/lib/betweenCounts";
 
 type CountRow = {
   id: string;
@@ -103,6 +104,61 @@ export async function buildCyclePlan(clientId: string, activeShiftId?: string | 
   const closeShifts = [...closeGroups.entries()].sort((a, b) => b[1].at - a[1].at || b[1].created - a[1].created);
   const previousIds = closeShifts[0]?.[1].ids || [];
 
+  // Бүх идэвхтэй барааны сүүлийн тооллого (ямар ч төрлийн). Хөдөлгөөнийг түүнээс хойш хайна.
+  const lastCountAt = new Map<string, string>();
+  for (const row of counts) {
+    if (!row.ingredient_id || !row.date) continue;
+    const seen = lastCountAt.get(row.ingredient_id);
+    if (!seen || new Date(row.date).getTime() > new Date(seen).getTime()) lastCountAt.set(row.ingredient_id, row.date);
+  }
+  // Нэг удаагийн багц татлага: хамгийн эртний сүүлийн тооллогоос (дээд тал нь 30 хоног) хойш.
+  const lastDates = [...lastCountAt.values()].map((date) => new Date(date).getTime()).filter(Number.isFinite);
+  const moveFromMs = lastDates.length ? Math.max(Math.min(...lastDates), new Date(since30).getTime()) : null;
+  const moveFrom = moveFromMs == null ? null : new Date(moveFromMs).toISOString();
+
+  const [moveLogs, moveSales, allRecipes] = await Promise.all([
+    moveFrom
+      ? fetchRows((from, to) =>
+          supabaseAdmin
+            .from("inventory_logs")
+            .select("ingredient_id, type, quantity, notes, incident_type, date")
+            .eq("client_id", clientId)
+            .neq("type", "count")
+            .not("ingredient_id", "is", null)
+            .gt("date", moveFrom)
+            .lte("date", nowIso)
+            .range(from, to),
+        )
+      : Promise.resolve([] as any[]),
+    moveFrom
+      ? fetchRows((from, to) =>
+          supabaseAdmin
+            .from("sales_logs")
+            .select("product_name, quantity_sold, date")
+            .eq("client_id", clientId)
+            .gt("date", moveFrom)
+            .lte("date", nowIso)
+            .range(from, to),
+        )
+      : Promise.resolve([] as any[]),
+    fetchRows((from, to) =>
+      supabaseAdmin
+        .from("recipes")
+        .select("product_name, ingredient_id, amount")
+        .eq("client_id", clientId)
+        .range(from, to),
+    ),
+  ]);
+  const moved = movedSinceLastCount({
+    lastCountAt,
+    purchases: moveLogs
+      .filter((row) => row.type === "purchase" && row.date)
+      .map((row) => ({ ingredient_id: row.ingredient_id, qty: Number(row.quantity) || 0, date: row.date })),
+    usage: recipeUsageEvents(moveSales, allRecipes),
+    wasteLogs: moveLogs.filter((row) => row.type !== "purchase" && row.date),
+    now: nowIso,
+  });
+
   const candidates: CycleCandidate[] = ingredients
     .filter((row) => row.id && row.name)
     .map((row) => {
@@ -111,6 +167,8 @@ export async function buildCyclePlan(clientId: string, activeShiftId?: string | 
         id: row.id,
         purchaseValue30d: purchaseValue.get(row.id) || 0,
         shiftsSinceCount: index === -1 ? closeShifts.length + 1 : index,
+        movedSinceCount: moved.has(row.id),
+        neverCounted: !lastCountAt.has(row.id),
       };
     });
   const pickedIds = pickCloseItems(candidates, previousIds);
@@ -173,14 +231,7 @@ export async function buildCyclePlan(clientId: string, activeShiftId?: string | 
             .lte("date", nowIso)
             .range(from, to),
         ),
-        fetchRows((from, to) =>
-          supabaseAdmin
-            .from("recipes")
-            .select("product_name, ingredient_id, amount")
-            .eq("client_id", clientId)
-            .in("ingredient_id", focusIds.length ? focusIds : ["00000000-0000-0000-0000-000000000000"])
-            .range(from, to),
-        ),
+        Promise.resolve(allRecipes.filter((recipe) => focusIds.includes(recipe.ingredient_id))),
       ])
     : [[], [], []];
 
