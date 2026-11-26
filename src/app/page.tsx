@@ -208,7 +208,7 @@ export default function PremiumLandingPage() {
               controls
               playsInline
               preload="metadata"
-              className="aspect-video w-full bg-zinc-950"
+              className="aspect-[24/11] w-full bg-zinc-950"
               aria-label="OPERLINK-ийн танилцуулга бичлэг"
             >
               Таны хөтөч энэ бичлэгийг тоглуулахгүй байна.
