@@ -194,7 +194,7 @@ export default function PremiumLandingPage() {
               14 хоног үнэгүй турших
             </Link>
             <p className="text-xs text-zinc-400 mt-4">
-              Дараа нь сард 149,000₮. Карт шаардлагагүй.
+              Карт шаардлагагүй.
             </p>
           </div>
 
