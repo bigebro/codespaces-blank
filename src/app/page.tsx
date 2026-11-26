@@ -7,15 +7,12 @@ import {
   ArrowRight,
   Calculator,
   ShieldCheck,
-  Play,
   ChevronDown,
-  Clock,
   Sparkles,
   DollarSign,
   Zap,
   Compass,
-  CheckCircle2,
-   ShoppingCart
+  ShoppingCart,
 } from "lucide-react";
 
 export function OperlinkLogo({
@@ -201,21 +198,21 @@ export default function PremiumLandingPage() {
             </p>
           </div>
 
-          {/* 20 секундын дэлгэц бичлэгийн оронд тавьсан түр хайрцаг.
-              Бичлэг бэлэн болоход энэ div-ийг дараах <video>-оор соль:
-              <video src="/hero.mp4" autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" /> */}
           <div
             id="hero-media"
-            className="relative aspect-video w-full rounded-3xl overflow-hidden border border-white/10 bg-zinc-900/50"
+            className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.85)]"
           >
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-              <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center">
-                <Play className="h-7 w-7 text-zinc-950 fill-current ml-1" />
-              </div>
-              <p className="text-sm font-bold text-zinc-300">
-                Тун удахгүй: таблет → самбар → AI
-              </p>
-            </div>
+            <video
+              src="/hero.mp4"
+              poster="/hero-poster.jpg"
+              controls
+              playsInline
+              preload="metadata"
+              className="aspect-video w-full bg-zinc-950"
+              aria-label="OPERLINK-ийн танилцуулга бичлэг"
+            >
+              Таны хөтөч энэ бичлэгийг тоглуулахгүй байна.
+            </video>
           </div>
         </div>
 
