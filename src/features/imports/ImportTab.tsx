@@ -20,7 +20,9 @@ import {
   ingredientSaveError,
   nameKey,
   parseIngredientPaste,
+  parseLooseNumber,
 } from "@/lib/ingredientPaste";
+import { matchIngredientName, parseRecipePaste } from "@/lib/recipePaste";
 import { defaultAuditDate, importFallbackIso, ubDay, ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { inventoryImportMessage, parseInventoryCountPaste } from "@/lib/inventoryPaste";
 import {
@@ -188,6 +190,28 @@ export default function ImportTab({
     () => ingredientCatalogNotes(ingredientPreview, ingredients, activeClient, "before"),
     [ingredientPreview, ingredients, activeClient],
   );
+  const [recipeIngDraft, setRecipeIngDraft] = useState<Record<string, { unit: string; price: string }>>({});
+  const recipePreview = useMemo(
+    () =>
+      parseRecipePaste(recipesPasteText, {
+        ingredientNames: (ingredients || []).map((item) => String(item?.name || "")),
+        productNames: (productsList || []).map((item) => String(item?.name || "")),
+      }),
+    [recipesPasteText, ingredients, productsList],
+  );
+  useEffect(() => {
+    setRecipeIngDraft((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const name of recipePreview.missingIngredients) {
+        if (!next[name]) {
+          next[name] = { unit: "гр", price: "" };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [recipePreview.missingIngredients]);
 
   const existingKitchenCount = inventoryLogs.filter((l) => {
     if (
@@ -1199,189 +1223,96 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
   // ТЕХНОЛОГИЙН КАРТ (ЖОР) БӨӨНӨӨР ОРУУЛАХ БҮРЭН АВТОМАТ УХААЛАГ ФУНКЦ
   // =========================================================================
-  const handleBulkRecipesPaste = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBulkRecipesPaste = async (e?: React.FormEvent, createMissing = false) => {
+    e?.preventDefault();
     if (!recipesPasteText.trim()) return;
+
+    const catalogNames = (ingredients || []).map((item) => String(item?.name || ""));
+    const parsed = parseRecipePaste(recipesPasteText, {
+      ingredientNames: catalogNames,
+      productNames: (productsList || []).map((item) => String(item?.name || "")),
+    });
+    if (parsed.errors.length > 0) {
+      const hint = parsed.singleColumn
+        ? " Excel-ээс нүд хуулбал TAB-аар салгагдана."
+        : "";
+      alert(`Хадгалаагүй. ${parsed.errors.length} мөр засах хэрэгтэй.${hint}`);
+      return;
+    }
+    if (parsed.rows.length === 0) {
+      alert("Хадгалаагүй. Оруулах мөр алга.");
+      return;
+    }
+    if (parsed.missingIngredients.length > 0 && !createMissing) {
+      alert("Хадгалаагүй. Дутуу түүхий эд байна. Нэрийг засах эсвэл дутуу түүхий эдийг үүсгэнэ үү.");
+      return;
+    }
 
     setLoading(true);
     try {
-      const rows = recipesPasteText.replace(/\r/g, "").trim().split("\n");
-      if (rows.length === 0) return;
-
-      // 1. Баазад байгаа түүхий эдүүдийн санах ой бэлтгэх (Англи ба Монголоор нь хоёулангаар нь танина)
-      const { data: currentIngs } = await supabase
-        .from("ingredients")
-        .select("id, name")
-        .eq("client_id", activeClient.trim());
-
-      const ingMap = new Map<string, string>();
-      currentIngs?.forEach((i) => {
-        // Бүтэн нэр: "milk (сүү)"
-        ingMap.set(cleanNameForMatch(i.name), i.id);
-        // Англи суурь нэр: "milk"
-        const enPart = cleanNameForMatch(i.name.split("(")[0]);
-        if (enPart) ingMap.set(enPart, i.id);
-        // Монгол хэсэг: "сүү"
-        const mnMatch = i.name.match(/\((.*?)\)/);
-        if (mnMatch && mnMatch[1]) {
-          ingMap.set(cleanNameForMatch(mnMatch[1]), i.id);
+      const known = [...(ingredients || [])];
+      if (createMissing && parsed.missingIngredients.length > 0) {
+        const toInsert = parsed.missingIngredients.map((name) => {
+          const draft = recipeIngDraft[name] || { unit: "гр", price: "" };
+          const priceText = String(draft.price || "").trim();
+          const unitPrice = priceText ? parseLooseNumber(priceText) : 0;
+          return {
+            client_id: activeClient,
+            name,
+            unit: draft.unit || "гр",
+            unit_price: unitPrice,
+            par_level: 0,
+            current_stock: 0,
+          };
+        });
+        const invalidPrice = toInsert.some((row) => !Number.isFinite(row.unit_price) || row.unit_price < 0);
+        if (invalidPrice) {
+          alert("Хадгалаагүй. Түүхий эдийн үнэ тоо байх ёстой. Хоосон бол 0.");
+          return;
         }
-      });
-
-      // 2. ТОЛГОЙ МӨР (HEADER)-ИЙГ ШАЛГАХ
-      const splitCols = (line: string) =>
-        line.includes("\t") ? line.split("\t") : line.split(/\s{2,}/);
-      const firstRowCols = splitCols(rows[0]).map(cleanHeader);
-
-      let prodIdx = firstRowCols.findIndex(
-        (c) =>
-          c.includes("бүтээгдэхүүн") ||
-          c.includes("product") ||
-          c.includes("цэс") ||
-          c.includes("хоол") ||
-          c.includes("menu"),
-      );
-      let ingIdx = firstRowCols.findIndex(
-        (c) =>
-          c.includes("орц") ||
-          c.includes("түүхий") ||
-          c.includes("ingredient") ||
-          c.includes("item") ||
-          c.includes("материал"),
-      );
-      let amtIdx = firstRowCols.findIndex(
-        (c) =>
-          c.includes("хэмжээ") ||
-          c.includes("тоо") ||
-          c.includes("amount") ||
-          c.includes("qty") ||
-          c.includes("грамм") ||
-          c.includes("мл"),
-      );
-
-      const hasHeader = prodIdx !== -1 || ingIdx !== -1 || amtIdx !== -1;
-      const startIdx = hasHeader ? 1 : 0;
-
-      // Анхдагч дараалал: 0=Бүтээгдэхүүн, 1=Орц, 2=Тоо хэмжээ
-      if (prodIdx === -1) prodIdx = 0;
-      if (ingIdx === -1) ingIdx = 1;
-      if (amtIdx === -1) amtIdx = 2;
-
-      const newIngsToCreate = new Map<string, { name: string; unit: string }>();
-      const parsedRecipeRows: Array<{
-        prodName: string;
-        rawIng: string;
-        amount: number;
-      }> = [];
-
-      // 3. МӨР БҮРИЙГ УХААЛГААР ТАНИХ
-      for (let r = startIdx; r < rows.length; r++) {
-        const row = rows[r].trim();
-        if (!row) continue;
-
-        const cols = splitCols(row);
-        if (cols.length < 2) continue;
-
-        let prodName = cleanCell(cols[prodIdx] || "");
-        let rawIng = cleanCell(cols[ingIdx] || "");
-        let rawAmt = cols[amtIdx] !== undefined ? cleanCell(cols[amtIdx]) : "";
-
-        // АВТОМАТ ШАЛГАЛТ: Хэрэв тоо нь 1-р баганад, орц нь 2-р баганад байвал байрыг нь солих!
-        const isIngNumeric =
-          !isNaN(parseFloat(rawIng.replace(/[^0-9.-]/g, ""))) &&
-          !isNaN(Number(rawIng.trim()[0]));
-        const isAmtText = isNaN(parseFloat(rawAmt.replace(/[^0-9.-]/g, "")));
-
-        if (isIngNumeric && isAmtText) {
-          const temp = rawIng;
-          rawIng = rawAmt;
-          rawAmt = temp;
-        }
-
-        // Хэрэв 3 дахь багана байхгүй ч 2 баганатай (Бараа, Тоо) байвал
-        if (!rawAmt && cols.length === 2) {
-          rawAmt = rawIng;
-          rawIng = prodName;
-        }
-
-        const amount = parseFloat(rawAmt.replace(/[^0-9.-]/g, "")) || 0;
-        if (!prodName || !rawIng || amount <= 0) continue;
-        if (
-          prodName.toLowerCase().includes("product") ||
-          prodName.toLowerCase().includes("бүтээгдэхүүн")
-        )
-          continue;
-
-        parsedRecipeRows.push({ prodName, rawIng, amount });
-
-        // Баазад байхгүй түүхий эд байвал өөрөө автоматаар үүсгэх жагсаалтад оруулах
-        const cleanKey = cleanNameForMatch(rawIng);
-        const enKey = cleanNameForMatch(rawIng.split("(")[0]);
-        if (
-          !ingMap.has(cleanKey) &&
-          !ingMap.has(enKey) &&
-          !newIngsToCreate.has(cleanKey)
-        ) {
-          newIngsToCreate.set(cleanKey, { name: rawIng, unit: "гр" });
-        }
-      }
-
-      // 4. БААЗАД БАЙХГҮЙ ТҮҮХИЙ ЭДИЙГ ӨӨРӨӨ ШУУД ҮҮСГЭХ (Жор хэзээ ч гацахгүй!)
-      if (newIngsToCreate.size > 0) {
-        const toInsert = Array.from(newIngsToCreate.values()).map((it) => ({
-          client_id: activeClient,
-          name: it.name,
-          unit: "гр",
-          unit_price: 0,
-          current_stock: 0,
-        }));
-        const { data: createdIngs } = await supabase
+        const { data: createdIngs, error: createError } = await supabase
           .from("ingredients")
           .insert(toInsert)
-          .select();
-        if (createdIngs) {
-          createdIngs.forEach((ci) => {
-            ingMap.set(cleanNameForMatch(ci.name), ci.id);
-            ingMap.set(cleanNameForMatch(ci.name.split("(")[0]), ci.id);
-          });
+          .select("id, name");
+        if (createError || !createdIngs?.length) {
+          alert(ingredientSaveError(createError?.message || "Түүхий эд үүссэнгүй."));
+          return;
         }
+        known.push(...createdIngs);
       }
 
-      // 5. Жорыг баазад оруулах
       const recipesToUpsert: any[] = [];
-      parsedRecipeRows.forEach((rowItem) => {
-        const cleanKey = cleanNameForMatch(rowItem.rawIng);
-        const enKey = cleanNameForMatch(rowItem.rawIng.split("(")[0]);
-        const ingId = ingMap.get(cleanKey) || ingMap.get(enKey);
-
-        if (ingId) {
-          recipesToUpsert.push({
-            client_id: activeClient,
-            product_name: rowItem.prodName,
-            ingredient_id: ingId,
-            amount: rowItem.amount,
-          });
+      for (const row of parsed.rows) {
+        const matched = known.find((item) => {
+          const name = String(item?.name || "");
+          return matchIngredientName(row.ingredientName, [name]) === name;
+        });
+        if (!matched?.id) {
+          alert("Хадгалаагүй. Зарим орц олдсонгүй.");
+          return;
         }
-      });
-
-      if (recipesToUpsert.length > 0) {
-        const { error } = await supabase
-          .from("recipes")
-          .upsert(recipesToUpsert, {
-            onConflict: "client_id,product_name,ingredient_id",
-          });
-        if (error) throw error;
+        recipesToUpsert.push({
+          client_id: activeClient,
+          product_name: row.productName,
+          ingredient_id: matched.id,
+          amount: row.amount,
+        });
       }
+      const { error } = await supabase.from("recipes").upsert(recipesToUpsert, {
+        onConflict: "client_id,product_name,ingredient_id",
+      });
+      if (error) throw error;
 
       setRecipesImportSuccess(true);
       setRecipesPasteText("");
       await fetchDatabaseData(activeClient);
-      alert(
-        ` Амжилттай! Нийт ${recipesToUpsert.length} технологийн карт (жор) хадгалагдлаа.`,
-      );
+      const menuNote = parsed.missingMenus.length
+        ? `\nЦэсэнд байхгүй нэр жор дээр нэрээрээ үлдсэн: ${parsed.missingMenus.slice(0, 6).join(", ")}.`
+        : "";
+      alert(`Нийт ${recipesToUpsert.length} жор хадгалагдлаа.${menuNote}`);
       setTimeout(() => setRecipesImportSuccess(false), 4000);
     } catch (err: any) {
-      alert(`Жор оруулахад алдаа гарлаа: ${err.message}`);
+      alert(`Хадгалаагүй. ${err?.message || "Жор хадгалагдсангүй."}`);
     } finally {
       setLoading(false);
     }
@@ -2255,8 +2186,9 @@ if (cols.length === 2 && costIdx > qtyIdx) {
               </div>
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
                 Excel-ээс{" "}
-                <strong>Бүтээгдэхүүн, Орцын нэр, Орцын хэмжээ (гр/мл)</strong>{" "}
-                гэсэн 3 баганыг хуулаад доор хуулж тавина уу.
+                <strong>Бүтээгдэхүүн, Орцын нэр, Орцын хэмжээ</strong>{" "}
+                гэсэн 3 баганыг хуулаад доор тавина уу. Хэмжээ 1,5 гэж бичсэн ч 1.5 гэж уншина.
+                Байхгүй түүхий эд өөрөө үүсэхгүй.
               </p>
 
               {recipesImportSuccess && (
@@ -2273,6 +2205,88 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   placeholder="Жишээ:&#10;Кафе латте&#9;Сүү&#9;200&#10;Кафе латте&#9;Кофе үр&#9;16&#10;Тахианы сэндвич&#9;Бяслаг&#9;1"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-800"
                 />
+                {recipesPasteText.trim() && (
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 space-y-2">
+                    <p>
+                      Бэлэн мөр: {recipePreview.rows.length}.{" "}
+                      {recipePreview.errors.length > 0
+                        ? `Алдаатай мөр: ${recipePreview.errors.length}. Алдаатай мөр байгаа тул бүгдийг хадгалахгүй.`
+                        : "Алдаагүй."}
+                    </p>
+                    {recipePreview.errors.length > 0 && (
+                      <ul className="list-disc pl-4 space-y-0.5 text-rose-200">
+                        {recipePreview.errors.slice(0, 12).map((err, index) => (
+                          <li key={`${index}-${err}`}>{err}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {recipePreview.errors.length > 12 && (
+                      <p>Бусад {recipePreview.errors.length - 12} мөр дээр мөн алдаа байна.</p>
+                    )}
+                    {recipePreview.missingIngredients.length > 0 && (
+                      <div className="space-y-2">
+                        <p>Энэ түүхий эд байхгүй: {recipePreview.missingIngredients.join(", ")}.</p>
+                        <p>Үнэ хоосон бол 0 гэж хадгалагдана. Дараа нь засна уу. Дутуу түүхий эдийг үүсгэх товч эдгээрийг үүсгээд жорыг хамт хадгална.</p>
+                        <div className="max-h-64 overflow-y-auto space-y-2">
+                          {recipePreview.missingIngredients.map((name) => {
+                            const draft = recipeIngDraft[name] || { unit: "гр", price: "" };
+                            return (
+                              <div key={name} className="grid grid-cols-[1fr_88px_96px] gap-2 items-center">
+                                <span className="truncate">{name}</span>
+                                <select
+                                  value={draft.unit}
+                                  onChange={(event) =>
+                                    setRecipeIngDraft((prev) => ({
+                                      ...prev,
+                                      [name]: { ...draft, unit: event.target.value },
+                                    }))
+                                  }
+                                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white"
+                                >
+                                  <option value="гр">гр</option>
+                                  <option value="мл">мл</option>
+                                  <option value="ш">ш</option>
+                                  <option value="кг">кг</option>
+                                  <option value="л">л</option>
+                                  <option value="порц">порц</option>
+                                </select>
+                                <input
+                                  value={draft.price}
+                                  onChange={(event) =>
+                                    setRecipeIngDraft((prev) => ({
+                                      ...prev,
+                                      [name]: { ...draft, price: event.target.value },
+                                    }))
+                                  }
+                                  placeholder="Үнэ, хоосон бол 0"
+                                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {recipePreview.duplicateKeys.length > 0 && (
+                      <p>Ижил жор давхардсан, сүүлийн мөр үлдэнэ: {recipePreview.duplicateKeys.slice(0, 6).join(", ")}.</p>
+                    )}
+                    {recipePreview.missingMenus.length > 0 && (
+                      <p>
+                        Цэсэнд байхгүй нэр, жор нэрээр хадгалагдана: {recipePreview.missingMenus.slice(0, 6).join(", ")}.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {recipePreview.missingIngredients.length > 0 && recipePreview.errors.length === 0 && (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleBulkRecipesPaste(undefined, true)}
+                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-bold py-3 rounded-xl transition text-sm"
+                  >
+                    Дутуу түүхий эдийг үүсгэх
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={loading}

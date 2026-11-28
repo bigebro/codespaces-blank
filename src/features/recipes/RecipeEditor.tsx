@@ -25,6 +25,35 @@ function cleanString(str: string) {
     .replace(/[\u00a0\s]+/g, " ")
     .trim();
 }
+
+function menuNameKey(name: string) {
+  return cleanString(name).toLowerCase();
+}
+
+function findMenuProduct(products: any[], clientId: string, typed: string) {
+  const key = menuNameKey(typed);
+  if (!key) return null;
+  return (
+    products.find((product) => {
+      if (
+        product?.client_id &&
+        cleanString(String(product.client_id)) !== cleanString(clientId)
+      ) {
+        return false;
+      }
+      return menuNameKey(product?.name || "") === key;
+    }) || null
+  );
+}
+
+function readOptionalPrice(raw: string): { ok: true; value: number | null } | { ok: false; message: string } {
+  const text = String(raw || "").trim();
+  if (!text) return { ok: true, value: null };
+  const value = Number(text);
+  if (!Number.isFinite(value)) return { ok: false, message: "Зарах үнэ тоо биш байна." };
+  if (value < 0) return { ok: false, message: "Зарах үнэ хасах тоо байна." };
+  return { ok: true, value };
+}
 // Монголын цагийн бүсээр YYYY-MM-DD огноог 100% зөв гаргах функц:
 function getLocalDateStr(d: Date = new Date()): string {
   const year = d.getFullYear();
@@ -76,6 +105,7 @@ export default function RecipeEditor({
 
   const [loading, setLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [builderError, setBuilderError] = useState<string | null>(null);
   // ЖОРЫН ТҮҮХ БА ХОГИЙН САВНЫ СТЭЙТҮҮД
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedHistoryProduct, setSelectedHistoryProduct] = useState<
@@ -522,7 +552,7 @@ export default function RecipeEditor({
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[280px]">
               <SearchableSelect
-                placeholder="-- Жор холбох цэсээ хайж сонгоно уу --"
+                placeholder="Цэс сонгох эсвэл шинэ нэр бичих"
                 value={newRecipeNameDraft}
                 options={productsList.map((p) => {
                   const cleanP = cleanString(p.name).toLowerCase();
@@ -569,7 +599,7 @@ export default function RecipeEditor({
                   newRecipeItemsDraft.length === 0
                 }
                 onClick={async () => {
-                  const pName = newRecipeNameDraft.trim();
+                  const typedName = cleanString(newRecipeNameDraft);
                   setCreateError(null);
                   const knownIds = new Set(ingredients.map((i) => i.id));
                   if (newRecipeItemsDraft.some((it) => !knownIds.has(it.ingredient_id))) {
@@ -580,24 +610,51 @@ export default function RecipeEditor({
                     setCreateError("Орцын хэмжээг 0-ээс их оруулна уу.");
                     return;
                   }
+                  const price = readOptionalPrice(newRecipePriceDraft);
+                  if (!price.ok) {
+                    setCreateError(price.message);
+                    return;
+                  }
+                  const matched = findMenuProduct(productsList, activeClient, typedName);
+                  const pName = matched ? String(matched.name) : typedName;
                   setLoading(true);
                   try {
-                    if (newRecipePriceDraft) {
-                      const { error: priceError } = await supabase.from("products").upsert(
-                        [
+                    if (!matched) {
+                      const { data: created, error: createMenuError } = await supabase
+                        .from("products")
+                        .insert([
                           {
                             client_id: activeClient,
                             name: pName,
-                            category: "General",
-                            selling_price: parseFloat(newRecipePriceDraft) || 0,
+                            category: "COFFEE",
+                            selling_price: price.value ?? 0,
                           },
-                        ],
-                        { onConflict: "client_id,name" },
-                      );
+                        ])
+                        .select()
+                        .single();
+                      if (createMenuError || !created) {
+                        setCreateError("Цэс үүссэнгүй. Нэрээ шалгаад дахин оролдоно уу.");
+                        return;
+                      }
+                      setProductsList?.((prev: any[]) => [
+                        created,
+                        ...prev.filter((item) => item.id !== created.id),
+                      ]);
+                    } else if (price.value !== null && matched.id) {
+                      const savedPrice = price.value;
+                      const { error: priceError } = await supabase
+                        .from("products")
+                        .update({ selling_price: savedPrice })
+                        .eq("id", matched.id);
                       if (priceError) {
                         setCreateError("Жор хадгалагдсангүй. Зарах үнээ шалгаад дахин оролдоно уу.");
                         return;
                       }
+                      setProductsList?.((prev: any[]) =>
+                        prev.map((item) =>
+                          item.id === matched.id ? { ...item, selling_price: savedPrice } : item,
+                        ),
+                      );
                     }
 
                     const recipeRows = newRecipeItemsDraft.map((it) => ({
@@ -612,23 +669,15 @@ export default function RecipeEditor({
                       .insert(recipeRows)
                       .select();
                     if (error || !data?.length) {
-                      setCreateError("Жор хадгалагдсангүй. Орцоо жагсаалтаас сонгоод дахин оролдоно уу.");
+                      setCreateError(
+                        matched
+                          ? "Жор хадгалагдсангүй. Орцоо жагсаалтаас сонгоод дахин оролдоно уу."
+                          : "Цэс үүссэн. Жор хадгалагдсангүй. Дахин оролдоно уу.",
+                      );
+                      setNewRecipeNameDraft(pName);
                       return;
                     }
                     setRecipes((prev) => [...prev, ...data]);
-
-                    if (setProductsList && newRecipePriceDraft) {
-                      setProductsList((prev: any[]) => [
-                        {
-                          id: "prod-" + Date.now(),
-                          client_id: activeClient,
-                          name: pName,
-                          category: "General",
-                          selling_price: parseFloat(newRecipePriceDraft) || 0,
-                        },
-                        ...prev,
-                      ]);
-                    }
                     await recordRecipeSnapshot(pName, "created");
                     setIsCreatingRecipeCard(false);
                     setNewRecipeNameDraft("");
@@ -653,6 +702,17 @@ export default function RecipeEditor({
               </button>
             </div>
           </div>
+          {cleanString(newRecipeNameDraft) &&
+            (findMenuProduct(productsList, activeClient, newRecipeNameDraft) ? (
+              findMenuProduct(productsList, activeClient, newRecipeNameDraft)?.name !==
+                cleanString(newRecipeNameDraft) && (
+                <p className="text-xs text-zinc-400">
+                  Ижил цэс байна: {findMenuProduct(productsList, activeClient, newRecipeNameDraft)?.name}. Шинээр үүсгэхгүй.
+                </p>
+              )
+            ) : (
+              <p className="text-xs text-zinc-400">Шинэ цэс үүснэ. Үнэ хоосон бол 0.</p>
+            ))}
 
           {/* 2-Р МӨР: ОРЦ СОНГОХ + ГРАММ */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-900">
@@ -1286,6 +1346,19 @@ export default function RecipeEditor({
                 placeholder="Бүтээгдэхүүний нэр (Жишээ: Oat Latte, Халуун аньс)"
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-bold outline-none focus:border-zinc-800"
               />
+              {cleanString(recipeBuilder.product_name) &&
+                (findMenuProduct(productsList, activeClient, recipeBuilder.product_name) ? (
+                  <p className="text-xs text-zinc-400">
+                    Ижил цэс байна: {findMenuProduct(productsList, activeClient, recipeBuilder.product_name)?.name}. Шинээр үүсгэхгүй.
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-400">Шинэ цэс үүснэ. Үнэ хоосон бол 0.</p>
+                ))}
+              {builderError && (
+                <p className="text-sm font-bold text-rose-300" role="alert">
+                  {builderError}
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
@@ -1445,49 +1518,86 @@ export default function RecipeEditor({
                 )
               }
               onClick={async () => {
-                setLoading(true);
-                const pName = recipeBuilder.product_name.trim();
-
-                // 1. Бүтээгдэхүүний зарах үнийг Products хүснэгтэд хадгалах
-                if (recipeBuilder.selling_price) {
-                  await supabase.from("products").upsert(
-                    [
-                      {
-                        client_id: activeClient,
-                        name: pName,
-                        category: recipeBuilder.category || "General",
-                        selling_price:
-                          parseFloat(recipeBuilder.selling_price) || 0,
-                      },
-                    ],
-                    { onConflict: "client_id,name" },
-                  );
+                const typedName = cleanString(recipeBuilder.product_name);
+                setBuilderError(null);
+                const price = readOptionalPrice(recipeBuilder.selling_price);
+                if (!price.ok) {
+                  setBuilderError(price.message);
+                  return;
                 }
+                const knownIds = new Set(ingredients.map((i) => i.id));
+                const validItems = recipeBuilder.items.filter(
+                  (it) => it.ingredient_id && parseFloat(it.amount) > 0,
+                );
+                if (validItems.some((it) => !knownIds.has(it.ingredient_id))) {
+                  setBuilderError("Орцыг жагсаалтаас сонгоно уу.");
+                  return;
+                }
+                const matched = findMenuProduct(productsList, activeClient, typedName);
+                const pName = matched ? String(matched.name) : typedName;
+                setLoading(true);
+                try {
+                  if (!matched) {
+                    const { data: created, error: createMenuError } = await supabase
+                      .from("products")
+                      .insert([
+                        {
+                          client_id: activeClient,
+                          name: pName,
+                          category: recipeBuilder.category || "COFFEE",
+                          selling_price: price.value ?? 0,
+                        },
+                      ])
+                      .select()
+                      .single();
+                    if (createMenuError || !created) {
+                      setBuilderError("Цэс үүссэнгүй. Нэрээ шалгаад дахин оролдоно уу.");
+                      return;
+                    }
+                    setProductsList?.((prev: any[]) => [
+                      created,
+                      ...prev.filter((item) => item.id !== created.id),
+                    ]);
+                  } else if (price.value !== null && matched.id) {
+                    const { error: priceError } = await supabase
+                      .from("products")
+                      .update({ selling_price: price.value })
+                      .eq("id", matched.id);
+                    if (priceError) {
+                      setBuilderError("Жор хадгалагдсангүй. Зарах үнээ шалгаад дахин оролдоно уу.");
+                      return;
+                    }
+                  }
 
-                // 2. Бүрэн жорыг Recipes хүснэгтэд оруулах
-                const validRecipeRows = recipeBuilder.items
-                  .filter((it) => it.ingredient_id && parseFloat(it.amount) > 0)
-                  .map((it) => ({
+                  const validRecipeRows = validItems.map((it) => ({
                     client_id: activeClient,
                     product_name: pName,
                     ingredient_id: it.ingredient_id,
                     amount: parseFloat(it.amount),
                   }));
+                  const { error } = await supabase.from("recipes").insert(validRecipeRows);
+                  if (error) {
+                    setBuilderError(
+                      matched
+                        ? "Жор хадгалагдсангүй. Орцоо шалгаад дахин оролдоно уу."
+                        : "Цэс үүссэн. Жор хадгалагдсангүй. Дахин оролдоно уу.",
+                    );
+                    setRecipeBuilder((prev) => ({ ...prev, product_name: pName }));
+                    return;
+                  }
 
-                await supabase.from("recipes").insert(validRecipeRows);
-
-                setLoading(false);
-                setShowAddRecipeModal(false);
-                setRecipeBuilder({
-                  product_name: "",
-                  category: "COFFEE",
-                  selling_price: "",
-                  items: [{ ingredient_id: "", amount: "" }],
-                });
-                fetchRecipes();
-                alert(
-                  ` "${pName}" бүтээгдэхүүний жор болон зарах үнэ амжилттай хадгалагдлаа!`,
-                );
+                  setShowAddRecipeModal(false);
+                  setBuilderError(null);
+                  setRecipeBuilder({
+                    product_name: "",
+                    category: "COFFEE",
+                    selling_price: "",
+                    items: [{ ingredient_id: "", amount: "" }],
+                  });
+                  fetchRecipes();
+                } finally {
+                  setLoading(false);
+                }
               }}
               className="w-full bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-black py-3 rounded-xl text-sm transition"
             >
