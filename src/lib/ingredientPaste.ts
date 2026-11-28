@@ -96,15 +96,15 @@ function unquote(cell: string) {
   return t;
 }
 
-export function splitPasteLine(line: string): string[] {
+export function splitPasteLine(line: string, expectedCols = 4): string[] {
   const raw = line.replace(/^\uFEFF/, "");
   let cells: string[];
   if (raw.includes("\t")) cells = raw.split("\t");
   else if (/[ ]{2,}|\u00a0{2,}/.test(raw.trim())) cells = raw.trim().split(/\s{2,}/);
-  else if (raw.split(";").length >= 4) cells = raw.split(";");
+  else if (raw.split(";").length >= expectedCols) cells = raw.split(";");
   else cells = [raw.trim()];
   const trimmed = cells.map((cell) => unquote(cell.replace(/\u00a0/g, " ")));
-  while (trimmed.length > 4 && trimmed[trimmed.length - 1] === "") trimmed.pop();
+  while (trimmed.length > expectedCols && trimmed[trimmed.length - 1] === "") trimmed.pop();
   return trimmed;
 }
 
