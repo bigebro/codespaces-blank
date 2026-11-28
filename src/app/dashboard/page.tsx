@@ -301,6 +301,7 @@ function Home() {
     | "ai_cfo"
     | "alerts"
   >("dashboard");
+  const [importFocus, setImportFocus] = useState<null | "ingredients">(null);
   const [tabFromUrlReady, setTabFromUrlReady] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2547,6 +2548,7 @@ function Home() {
               <button
                 onClick={() => {
                   startTransition(() => {
+                    setImportFocus(null);
                     setActiveTab("import");
                     setLoading(true);
                     fetchDatabaseData(
@@ -2795,6 +2797,10 @@ function Home() {
                       )}
                     <GettingStarted
                       clientId={activeClient}
+                      onOpenIngredientImport={() => {
+                        setImportFocus("ingredients");
+                        setActiveTab("import");
+                      }}
                       onOpenStep={(step) => {
                         if (step === "count") {
                           setActiveTab("inventory");
@@ -2984,6 +2990,8 @@ function Home() {
 
                   {activeTab === "import" && (
                     <ImportTab
+                      focusSection={importFocus}
+                      onFocusConsumed={() => setImportFocus(null)}
                       activeClient={activeClient}
                       startDate={startDate}
                       endDate={endDate}

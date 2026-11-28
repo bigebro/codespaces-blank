@@ -25,9 +25,11 @@ async function exists(table: string, filter: (q: any) => any) {
 export default function GettingStarted({
   clientId,
   onOpenStep,
+  onOpenIngredientImport,
 }: {
   clientId: string;
   onOpenStep: (step: StartStep) => void;
+  onOpenIngredientImport: () => void;
 }) {
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -134,13 +136,24 @@ export default function GettingStarted({
               {step.done === true ? "Хийгдсэн" : step.done === false ? "Хийгдээгүй" : "Шалгах"}
             </span>
             {step.done !== true && (
-              <button
-                type="button"
-                onClick={() => onOpenStep(step.key)}
-                className="rounded-xl bg-white px-3 py-1.5 text-xs font-black text-zinc-950 shrink-0"
-              >
-                Нээх
-              </button>
+              <div className="flex flex-col items-stretch sm:items-end gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onOpenStep(step.key)}
+                  className="rounded-xl bg-white px-3 py-1.5 text-xs font-black text-zinc-950"
+                >
+                  Нээх
+                </button>
+                {step.key === "ingredients" && (
+                  <button
+                    type="button"
+                    onClick={onOpenIngredientImport}
+                    className="text-[11px] leading-tight font-medium text-zinc-400 underline underline-offset-2 hover:text-zinc-100 text-left sm:text-right"
+                  >
+                    Олон бараатай бол Excel-ээр оруулах
+                  </button>
+                )}
+              </div>
             )}
           </li>
         ))}
