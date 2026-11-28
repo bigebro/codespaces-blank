@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Phase4Settings from "./Phase4Settings";
+import { ContactLinks } from "@/components/shared/ContactLinks";
 
 const UNIVERSAL_CATEGORIES = [
   {
@@ -895,6 +896,7 @@ export default function GeneralSettings({
           })}
         </div>
       </div>
+      <ContactLinks layout="card" />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   Compass,
   ShoppingCart,
 } from "lucide-react";
+import { ContactLinks } from "@/components/shared/ContactLinks";
 
 export function OperlinkLogo({
   className = "h-8 w-8",
@@ -570,14 +571,7 @@ export default function PremiumLandingPage() {
               </ul>
             </div>
 
-            <div className="space-y-2 pt-4 border-t border-zinc-800">
-              <Link
-                href="tel:99112233" // Өөрийн утасны дугаараа бичээрэй
-                className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-black py-3 rounded-xl text-xs flex justify-center items-center gap-1.5 shadow"
-              >
-                 Холбогдох 
-              </Link>
-            </div>
+            <ContactLinks layout="wide" />
           </div>
         </div>
       </section>
@@ -614,12 +608,13 @@ export default function PremiumLandingPage() {
 
       {/* 8. FOOTER */}
       <footer className="border-t border-white/5 py-10 mt-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-4 text-center">
           <div className="flex items-center gap-3">
             <OperlinkLogo className="h-5 w-5" />
           </div>
-          <p className="text-xs text-zinc-600 font-medium">
-            © 2026 Operlink Technologies. Улаанбаатар хот, Монгол Улс.
+          <ContactLinks />
+          <p className="text-xs text-zinc-500 font-medium">
+            OPERLINK, Улаанбаатар. Асуух зүйл байвал Messenger-ээр бичээрэй.
           </p>
         </div>
       </footer>
