@@ -259,10 +259,16 @@ const handleSubmit = async (e: React.FormEvent) => {
             return;
           }
 
+          if (!/^\d{8}$/.test(phoneNumber)) {
+            setErrorMsg("Утасны дугаар 8 оронтой тоо байх ёстой.");
+            setLoading(false);
+            return;
+          }
+
           metadata.client_id = cleanBranch;
           metadata.role = "owner";
           metadata.full_name = fullName.trim();
-          if (phoneNumber.trim()) metadata.phone = phoneNumber.trim();
+          metadata.phone = phoneNumber;
         }
 
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -435,9 +441,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
               <div>
                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
-                  {actionIntent === "pay"
-                    ? "Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)"
-                    : "Утасны дугаар (заавал биш)"}
+                  Утасны дугаар (тусламж хэрэгтэй үед холбогдоно)
                 </label>
                 <input
                   type="tel"
@@ -445,8 +449,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                   onChange={(e) =>
                     setPhoneNumber(e.target.value.replace(/\D/g, ""))
                   }
-                  required={actionIntent === "pay"}
+                  required
+                  minLength={8}
                   maxLength={8}
+                  pattern="\d{8}"
+                  inputMode="numeric"
                   placeholder=""
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                 />
