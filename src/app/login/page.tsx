@@ -136,6 +136,8 @@ export default function LoginPage() {
       if (actionParam === "pay") {
         setActionIntent("pay");
         setIsSignUp(true); // Хэрэв нүүрнээс "Төлөх" гэж ирсэн бол шууд бүртгэлийг онгойлгоно
+      } else if (params.get("signup") === "1") {
+        setIsSignUp(true);
       }
 
       if (params.get("from") === "kiosk") {
@@ -237,8 +239,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           }
 
           const cleanBranch = companyName.trim();
-          if (/[%_]/.test(cleanBranch)) {
-            setErrorMsg("Бизнесийн нэрд % болон _ тэмдэгт оруулах боломжгүй.");
+          if (/[%_\\]/.test(cleanBranch)) {
+            setErrorMsg("Бизнесийн нэрд % , _ , \\ тэмдэгт оруулах боломжгүй.");
             setLoading(false);
             return;
           }
@@ -260,7 +262,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           metadata.client_id = cleanBranch;
           metadata.role = "owner";
           metadata.full_name = fullName.trim();
-          metadata.phone = phoneNumber.trim();
+          if (phoneNumber.trim()) metadata.phone = phoneNumber.trim();
         }
 
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -433,7 +435,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
               <div>
                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
-                  Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)
+                  {actionIntent === "pay"
+                    ? "Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)"
+                    : "Утасны дугаар (заавал биш)"}
                 </label>
                 <input
                   type="tel"
@@ -441,7 +445,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   onChange={(e) =>
                     setPhoneNumber(e.target.value.replace(/\D/g, ""))
                   }
-                  required
+                  required={actionIntent === "pay"}
                   maxLength={8}
                   placeholder=""
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
@@ -460,6 +464,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   placeholder=""
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
                 />
+                <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+                  Энэ танай салбарын нэр. Дараа нь солигдохгүй. % , _ болон \ тэмдэгтийг бүү оруул.
+                </p>
               </div>
             </div>
           )}

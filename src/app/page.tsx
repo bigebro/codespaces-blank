@@ -170,7 +170,7 @@ export default function PremiumLandingPage() {
           </Link>
 
           <Link
-            href="/login"
+            href="/login?signup=1"
             className="hidden sm:flex bg-white text-zinc-950 hover:bg-zinc-200 font-black text-sm px-6 py-2.5 rounded-xl transition items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] cursor-pointer"
           >
             14 хоног үнэгүй турших <ArrowRight className="h-4 w-4" />
@@ -189,7 +189,7 @@ export default function PremiumLandingPage() {
               OPERLINK өдөр тутмын ажлыг хийнэ. Тооллого, хаягдал, өртгийг хянаж, асуудлыг олж, багтаа даалгавар санал болгож, танд юу хийхийг хэлнэ. Та зөвхөн шийднэ.
             </p>
             <Link
-              href="/login"
+              href="/login?signup=1"
               className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-zinc-950 font-black text-base px-10 py-5 rounded-2xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 max-w-sm mx-auto lg:mx-0 cursor-pointer"
             >
               14 хоног үнэгүй турших
