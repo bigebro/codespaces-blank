@@ -560,6 +560,7 @@ export default function FinanceTab({
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
             <p className="text-sm font-bold text-zinc-200">{PERIOD_EMPTY_TITLE}</p>
             <p className="text-xs text-zinc-400 mt-2">{PERIOD_EMPTY_HINT}</p>
+            <p className="text-xs text-zinc-300 mt-2">Эхлээд түүхий эд, дараа нь жор, дараа нь тооллого.</p>
           </div>
         ) : (
           /* ТОХИОЛДОЛ 2: ЖОР БҮРЭН ҮЕД ХАРУУЛАХ БОДИТ КАРТУУД */

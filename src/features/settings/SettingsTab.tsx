@@ -1,6 +1,6 @@
 // src/features/settings/SettingsTab.tsx
 "use client";
-import React, { useState, startTransition } from "react";
+import React, { useEffect, useRef, useState, startTransition } from "react";
 import {
   Coffee,
   BookOpen,
@@ -75,6 +75,12 @@ interface SettingsTabProps {
     updates?: any[],
     existingChanges?: any[],
   ) => Promise<void>;
+  catalogTab?: "ingredients" | "products" | "recipes";
+  setCatalogTab?: (tab: "ingredients" | "products" | "recipes") => void;
+  openAddNonce?: number;
+  openRecipeNonce?: number;
+  focusTablet?: boolean;
+  onTabletFocused?: () => void;
 }
 
 // Хоосон каталогийг «(0)» биш «хоосон» гэж харуулна.
@@ -113,11 +119,37 @@ export default function SettingsTab({
   pendingCategoryReview,
   updatePendingReview,
   commitFinalSales,
+  catalogTab: catalogTabProp,
+  setCatalogTab: setCatalogTabProp,
+  openAddNonce = 0,
+  openRecipeNonce = 0,
+  focusTablet = false,
+  onTabletFocused,
 }: SettingsTabProps) {
-  // Каталогийн дотоод төлөвүүд (ingSearch, menuSearch, recipeSearch, catalogTab, ноорог нэмэх state-үүд энд байрлана)
-  const [catalogTab, setCatalogTab] = useState<
+  const [localCatalogTab, setLocalCatalogTab] = useState<
     "ingredients" | "products" | "recipes"
   >("ingredients");
+  const catalogTab = catalogTabProp ?? localCatalogTab;
+  const setCatalogTab = setCatalogTabProp ?? setLocalCatalogTab;
+  const onTabletFocusedRef = useRef(onTabletFocused);
+  onTabletFocusedRef.current = onTabletFocused;
+
+  useEffect(() => {
+    if (!focusTablet) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById("tablet-pairing")?.scrollIntoView({ block: "start" });
+      onTabletFocusedRef.current?.();
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [focusTablet]);
+
+  useEffect(() => {
+    if (!openAddNonce && !openRecipeNonce) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById("master-catalog")?.scrollIntoView({ block: "start" });
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [openAddNonce, openRecipeNonce]);
   //  Мастер Каталог: Checkbox олноор сонгох & Шинээр нэмэх State-үүд
 
   const { ingredients, setIngredients } = useIngredients(activeClient);
@@ -226,7 +258,7 @@ export default function SettingsTab({
         {/* ========================================================================= */}
         {/* МАСТЕР КАТАЛОГ (ЦОНХГҮЙ, ХҮСНЭГТ ДОТРОО ШУУД НЭМЭХ БА ЗАСАХ)            */}
         {/* ========================================================================= */}
-        <div className="col-span-1 md:col-span-2 bg-zinc-900/60 p-6 rounded-3xl border border-zinc-800 shadow-2xl mt-8">
+        <div id="master-catalog" className="col-span-1 md:col-span-2 bg-zinc-900/60 p-6 rounded-3xl border border-zinc-800 shadow-2xl mt-8">
           {/* ТОЛГОЙ БА 3 ТАБ СОЛИГЧ */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-zinc-800">
             <div>
@@ -314,6 +346,7 @@ export default function SettingsTab({
                   activeClient={activeClient}
                   ingredients={ingredients}
                   setIngredients={setIngredients}
+                  openAddNonce={openAddNonce}
                 />
               )}
 
@@ -347,9 +380,10 @@ export default function SettingsTab({
                       activeClient={activeClient}
                       ingredients={ingredients}
                       productsList={productsList}
-                      initialDraft={targetRecipeDraft} // Тэр цээжилсэн нэр, үнээ RecipeEditor руу өгнө
+                      initialDraft={targetRecipeDraft}
                       onDraftCleared={() => setTargetRecipeDraft(null)}
                       setProductsList={setProductsList}
+                      openCreateNonce={openRecipeNonce}
                     />
                   );
                 })()}

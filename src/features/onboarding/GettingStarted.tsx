@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type Tab = "import" | "tasks" | "settings";
+export type StartStep = "ingredients" | "recipe" | "count" | "tablet";
 
 type Step = {
-  key: string;
+  key: StartStep;
   title: string;
   detail: string;
-  tab: Tab;
-  done: boolean | null; // null = шалгаж чадсангүй
+  done: boolean | null;
 };
 
 async function exists(table: string, filter: (q: any) => any) {
@@ -21,13 +20,13 @@ async function exists(table: string, filter: (q: any) => any) {
   return (count || 0) > 0;
 }
 
-// Шинэ эзэнд эхний 4 алхмыг харуулна. Зөвхөн уншина, юу ч бичихгүй.
+// Шинэ эзэнд эхний алхмуудыг харуулна. Зөвхөн уншина, юу ч бичихгүй.
 export default function GettingStarted({
   clientId,
-  onOpenTab,
+  onOpenStep,
 }: {
   clientId: string;
-  onOpenTab: (tab: Tab) => void;
+  onOpenStep: (step: StartStep) => void;
 }) {
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -41,18 +40,40 @@ export default function GettingStarted({
     }
     let cancelled = false;
     (async () => {
-      const [catalog, firstCount, staff, tablet] = await Promise.all([
+      const [catalog, firstRecipe, firstCount, tablet] = await Promise.all([
         exists("ingredients", (q) => q.eq("client_id", clientId)),
+        exists("recipes", (q) => q.eq("client_id", clientId)),
         exists("inventory_logs", (q) => q.eq("client_id", clientId).eq("type", "count")),
-        exists("profiles", (q) => q.eq("client_id", clientId).neq("role", "owner")),
-        exists("kiosk_devices", (q) => q.eq("client_id", clientId).eq("is_active", true)),
+        exists("kiosk_devices", (q) =>
+          q.eq("client_id", clientId).eq("is_active", true).is("pairing_code", null),
+        ),
       ]);
       if (cancelled) return;
       setSteps([
-        { key: "catalog", title: "Каталог оруулах", detail: "Түүхий эд, нэгж, үнэ, менюгээ «Бөөнөөр Импортлох» хэсэгт оруулна.", tab: "import", done: catalog },
-        { key: "count", title: "Эхний тооллого", detail: "Эхний үлдэгдлээ (Start) оруулна. Үүнгүйгээр зөрүү хэмжигдэхгүй.", tab: "import", done: firstCount },
-        { key: "staff", title: "Ажилтан нэмэх", detail: "«Ажлын Даалгавар» хэсэгт ажилтан нэмж, PIN тавина.", tab: "tasks", done: staff },
-        { key: "tablet", title: "Таблет холбох", detail: "Тохиргоо хэсгээс таблетаа холбоно.", tab: "settings", done: tablet },
+        {
+          key: "ingredients",
+          title: "Түүхий эд нэмэх",
+          detail: "Нэр, нэгж, 1 нэгжийн үнээ оруулна. Дараагийн алхам үүн дээр тулна.",
+          done: catalog,
+        },
+        {
+          key: "recipe",
+          title: "Анхны жор",
+          detail: "Нэг цэсний орцыг тухайн нэгжээр нь бичнэ. Жишээ: сүү 200 мл.",
+          done: firstRecipe,
+        },
+        {
+          key: "count",
+          title: "Агуулахын тооллого",
+          detail: "Бодит үлдэгдлээ Агуулахын тооллого дээр бичнэ. Үүнгүйгээр зөрүү гарахгүй.",
+          done: firstCount,
+        },
+        {
+          key: "tablet",
+          title: "Таблет холбох",
+          detail: "Тохиргоо доторх төхөөрөмжийн хэсгээс 6 оронтой код авч, таблет дээр /kiosk нээнэ.",
+          done: tablet,
+        },
       ]);
     })();
     return () => {
@@ -70,7 +91,9 @@ export default function GettingStarted({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-black text-white">Эхлэх алхмууд</p>
-          <p className="text-xs text-zinc-400 mt-0.5">Дараах алхмуудыг дуусгасны дараа самбар бодит тоо харуулна.</p>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Эхлээд түүхий эд, дараа нь жор, дараа нь тооллого. Дараа нь самбар бодит тоо харуулна.
+          </p>
         </div>
         <button
           type="button"
@@ -111,7 +134,7 @@ export default function GettingStarted({
             {step.done !== true && (
               <button
                 type="button"
-                onClick={() => onOpenTab(step.tab)}
+                onClick={() => onOpenStep(step.key)}
                 className="rounded-xl bg-white px-3 py-1.5 text-xs font-black text-zinc-950 shrink-0"
               >
                 Нээх

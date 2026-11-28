@@ -17,6 +17,7 @@ interface RecipeEditorProps {
   initialDraft?: { name: string; price: string } | null;
   onDraftCleared?: () => void;
   setProductsList?: React.Dispatch<React.SetStateAction<any[]>>;
+  openCreateNonce?: number;
 }
 function cleanString(str: string) {
   return String(str || "")
@@ -41,6 +42,7 @@ export default function RecipeEditor({
   initialDraft,
   onDraftCleared,
   setProductsList,
+  openCreateNonce = 0,
 }: RecipeEditorProps) {
   const [recipeSearch, setRecipeSearch] = useState("");
   const [selectedRecipeProducts, setSelectedRecipeProducts] = useState<
@@ -98,12 +100,16 @@ export default function RecipeEditor({
 
   useEffect(() => {
     if (initialDraft) {
-      setIsCreatingRecipeCard(true); // Ягаан хайрцгаа нээнэ
-      setNewRecipeNameDraft(initialDraft.name); // Нэрийг нь автоматаар бичнэ
-      setNewRecipePriceDraft(initialDraft.price); // Үнийг нь автоматаар бичнэ
+      setIsCreatingRecipeCard(true);
+      setNewRecipeNameDraft(initialDraft.name);
+      setNewRecipePriceDraft(initialDraft.price);
       onDraftCleared?.();
     }
   }, [initialDraft]);
+
+  useEffect(() => {
+    if (openCreateNonce > 0) setIsCreatingRecipeCard(true);
+  }, [openCreateNonce]);
 
   // ЗӨВХӨН ТУХАЙН ХАРИЛЦАГЧИЙН (activeClient) ЖОРЫГ ТАТАХ
   const handleExportRecipeBackup = () => {

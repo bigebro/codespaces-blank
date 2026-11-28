@@ -285,7 +285,7 @@ export default function GeneralSettings({
     <div className="space-y-8">
       <Phase4Settings activeClient={activeClient} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-     <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-xl">
+     <div id="tablet-pairing" className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 shadow-xl">
         {/* Header */}
         <div className="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800">
           <div>

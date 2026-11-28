@@ -1,6 +1,6 @@
 // src/features/ingredients/IngredientsPanel.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useIngredients } from "./useIngredients";
 import { Edit2, Trash2 } from "lucide-react";
@@ -8,10 +8,12 @@ export default function IngredientsPanel({
   activeClient,
   ingredients,
   setIngredients,
+  openAddNonce = 0,
 }: {
   activeClient: string;
   ingredients: any[];
   setIngredients: React.Dispatch<React.SetStateAction<any[]>>;
+  openAddNonce?: number;
 }) {
   const [newIngDraft, setNewIngDraft] = useState({
     name: "",
@@ -40,6 +42,9 @@ export default function IngredientsPanel({
 
   // Түүхий эд: Хүснэгт дотор шинэ мөр нэмэх & мөр засах
   const [isAddingIngRow, setIsAddingIngRow] = useState(false);
+  useEffect(() => {
+    if (openAddNonce > 0) setIsAddingIngRow(true);
+  }, [openAddNonce]);
   const [selectedIngIds, setSelectedIngIds] = useState<string[]>([]);
 
   const handleSaveNewIng = async () => {
