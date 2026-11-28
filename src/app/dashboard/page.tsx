@@ -60,6 +60,7 @@ import {
 } from "../../lib/autoReconcile";
 import FinanceTab from "@/features/finance/FinanceTab";
 import InventoryTab from "@/features/inventory/InventoryTab";
+import OwnerWasteForm from "@/features/inventory/OwnerWasteForm";
 import { AutoPilotChange } from "@/types/dashboard";
 import ImportTab from "@/features/imports/ImportTab";
 import TasksTab from "@/features/tasks/TasksTab";
@@ -516,6 +517,9 @@ function Home() {
   const [catalogTab, setCatalogTab] = useState<
     "ingredients" | "products" | "recipes"
   >("ingredients");
+  const [openAddNonce, setOpenAddNonce] = useState(0);
+  const [openRecipeNonce, setOpenRecipeNonce] = useState(0);
+  const [focusTablet, setFocusTablet] = useState(false);
   const [ingSearch, setIngSearch] = useState("");
   const [menuSearch, setMenuSearch] = useState("");
   const [recipeSearch, setRecipeSearch] = useState("");
@@ -2791,7 +2795,34 @@ function Home() {
                       )}
                     <GettingStarted
                       clientId={activeClient}
-                      onOpenTab={(tab) => setActiveTab(tab)}
+                      onOpenStep={(step) => {
+                        if (step === "count") {
+                          setActiveTab("inventory");
+                          return;
+                        }
+                        if (step === "ingredients") {
+                          setCatalogTab("ingredients");
+                          setOpenAddNonce((n) => n + 1);
+                        } else if (step === "recipe") {
+                          setCatalogTab("recipes");
+                          setOpenRecipeNonce((n) => n + 1);
+                        } else {
+                          setFocusTablet(true);
+                        }
+                        setActiveTab("settings");
+                      }}
+                    />
+                    <OwnerWasteForm
+                      activeClient={activeClient}
+                      ingredients={ingredients}
+                      workerName={
+                        user?.user_metadata?.full_name ||
+                        user?.email?.split("@")[0] ||
+                        "Эзэн"
+                      }
+                      onSaved={() => {
+                        void fetchDatabaseData(activeClient, startDate, endDate, true);
+                      }}
                     />
                     <FinanceTab
                       isLive={isLive}
@@ -2931,6 +2962,11 @@ function Home() {
                   {/* 5. SPREADSHEET BULK STOCK TAKE TAB */}
                   {activeTab === "inventory" && (
                     <InventoryTab
+                      onAddIngredients={() => {
+                        setCatalogTab("ingredients");
+                        setOpenAddNonce((n) => n + 1);
+                        setActiveTab("settings");
+                      }}
                       activeClient={activeClient}
                       ingredients={ingredients}
                       setIngredients={setIngredients}
@@ -3281,6 +3317,12 @@ function Home() {
                       </div>
 
                       <SettingsTab
+                        catalogTab={catalogTab}
+                        setCatalogTab={setCatalogTab}
+                        openAddNonce={openAddNonce}
+                        openRecipeNonce={openRecipeNonce}
+                        focusTablet={focusTablet}
+                        onTabletFocused={() => setFocusTablet(false)}
                         user={user}
                         startDate={startDate}
                         endDate={endDate}

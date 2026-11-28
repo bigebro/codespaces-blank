@@ -1,17 +1,27 @@
 // src/features/ingredients/IngredientsPanel.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useIngredients } from "./useIngredients";
 import { Edit2, Trash2 } from "lucide-react";
+
+function unitPriceLabel(unit: string) {
+  return `1 ${unit || "гр"}-ийн үнэ`;
+}
+
+const UNIT_PRICE_EXAMPLE =
+  "Жишээ: сүүг мл-ээр хөтөлбөл 1 мл ойролцоогоор 5-6₮. Литрийн үнэ биш.";
+
 export default function IngredientsPanel({
   activeClient,
   ingredients,
   setIngredients,
+  openAddNonce = 0,
 }: {
   activeClient: string;
   ingredients: any[];
   setIngredients: React.Dispatch<React.SetStateAction<any[]>>;
+  openAddNonce?: number;
 }) {
   const [newIngDraft, setNewIngDraft] = useState({
     name: "",
@@ -40,6 +50,9 @@ export default function IngredientsPanel({
 
   // Түүхий эд: Хүснэгт дотор шинэ мөр нэмэх & мөр засах
   const [isAddingIngRow, setIsAddingIngRow] = useState(false);
+  useEffect(() => {
+    if (openAddNonce > 0) setIsAddingIngRow(true);
+  }, [openAddNonce]);
   const [selectedIngIds, setSelectedIngIds] = useState<string[]>([]);
 
   const handleSaveNewIng = async () => {
@@ -147,6 +160,7 @@ export default function IngredientsPanel({
         </div>
       </div>
 
+      <p className="text-xs text-zinc-400">{UNIT_PRICE_EXAMPLE}</p>
       <div className="overflow-x-auto max-h-[420px] border border-zinc-800 rounded-2xl">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-950 text-zinc-400 uppercase font-bold sticky top-0 border-b border-zinc-800 z-10">
@@ -168,7 +182,7 @@ export default function IngredientsPanel({
               </th>
               <th className="py-3 px-3">Барааны нэр</th>
               <th className="py-3 px-3">Хэмжих нэгж</th>
-              <th className="py-3 px-3 text-right">Нэгжийн өртөг (₮)</th>
+              <th className="py-3 px-3 text-right">1 нэгжийн үнэ (₮)</th>
               <th className="py-3 px-3 text-right">Хэвийн нөөц</th>
               <th className="py-3 px-3 text-right">Үйлдэл</th>
             </tr>
@@ -216,6 +230,7 @@ export default function IngredientsPanel({
                   </select>
                 </td>
                 <td className="py-2 px-3 text-right">
+                  <p className="text-[10px] font-bold text-zinc-400 mb-1">{unitPriceLabel(newIngDraft.unit)}</p>
                   <input
                     type="number"
                     value={newIngDraft.price}
@@ -228,8 +243,8 @@ export default function IngredientsPanel({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSaveNewIng();
                     }}
-                    placeholder="Өртөг ₮..."
-                    className="w-24 bg-zinc-950 border border-zinc-700/60 rounded-lg px-2 py-1 text-right text-sm text-zinc-200 font-mono font-bold outline-none"
+                    placeholder={unitPriceLabel(newIngDraft.unit)}
+                    className="w-28 bg-zinc-950 border border-zinc-700/60 rounded-lg px-2 py-1 text-right text-sm text-zinc-200 font-mono font-bold outline-none"
                   />
                 </td>
                 <td className="py-2 px-3 text-right">
@@ -348,6 +363,7 @@ export default function IngredientsPanel({
                         </select>
                       </td>
                       <td className="py-2 px-3 text-right">
+                        <p className="text-[10px] font-bold text-zinc-400 mb-1">{unitPriceLabel(editingIngDraft.unit)}</p>
                         <input
                           type="number"
                           value={editingIngDraft.price}
@@ -548,7 +564,7 @@ export default function IngredientsPanel({
                 onChange={(e) =>
                   setNewIngForm({ ...newIngForm, price: e.target.value })
                 }
-                placeholder="Нэгжийн өртөг ₮"
+                placeholder={unitPriceLabel(newIngForm.unit || "гр")}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white outline-none"
               />
             </div>
@@ -638,7 +654,7 @@ export default function IngredientsPanel({
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">
-                  Нэгжийн өртөг (₮):
+                  {unitPriceLabel(editingIngredient.unit || "гр")}:
                 </label>
                 <input
                   type="number"
