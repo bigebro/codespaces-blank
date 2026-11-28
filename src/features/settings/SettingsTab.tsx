@@ -131,6 +131,8 @@ export default function SettingsTab({
   >("ingredients");
   const catalogTab = catalogTabProp ?? localCatalogTab;
   const setCatalogTab = setCatalogTabProp ?? setLocalCatalogTab;
+  const [localAddNonce, setLocalAddNonce] = useState(0);
+  const ingredientNonce = openAddNonce + localAddNonce;
   const onTabletFocusedRef = useRef(onTabletFocused);
   onTabletFocusedRef.current = onTabletFocused;
 
@@ -346,7 +348,7 @@ export default function SettingsTab({
                   activeClient={activeClient}
                   ingredients={ingredients}
                   setIngredients={setIngredients}
-                  openAddNonce={openAddNonce}
+                  openAddNonce={ingredientNonce}
                 />
               )}
 
@@ -384,6 +386,10 @@ export default function SettingsTab({
                       onDraftCleared={() => setTargetRecipeDraft(null)}
                       setProductsList={setProductsList}
                       openCreateNonce={openRecipeNonce}
+                      onAddIngredient={() => {
+                        setCatalogTab("ingredients");
+                        setLocalAddNonce((n) => n + 1);
+                      }}
                     />
                   );
                 })()}
