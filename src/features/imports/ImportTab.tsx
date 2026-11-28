@@ -1,6 +1,6 @@
 // src/features/imports/ImportTab.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileSpreadsheet,
   Check,
@@ -13,7 +13,14 @@ import {
   Package,
   Archive,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
+import {
+  INGREDIENT_TEMPLATE_ROWS,
+  ingredientSaveError,
+  nameKey,
+  parseIngredientPaste,
+} from "@/lib/ingredientPaste";
 import { defaultAuditDate, importFallbackIso, ubDay, ubDayEndIso, ubDayStartIso } from "@/lib/ubDate";
 import { inventoryImportMessage, parseInventoryCountPaste } from "@/lib/inventoryPaste";
 import {
@@ -23,6 +30,60 @@ import {
   transliterate,
 } from "@/lib/autoReconcile";
 import { AutoPilotChange } from "@/types/dashboard";
+function clipList(values: string[]) {
+  const shown = values.slice(0, 6);
+  const more = values.length - shown.length;
+  return more > 0 ? `${shown.join(", ")} (+${more})` : shown.join(", ");
+}
+
+function ingredientCatalogNotes(
+  parsed: ReturnType<typeof parseIngredientPaste>,
+  ingredients: any[],
+  activeClient: string,
+  when: "before" | "after",
+) {
+  const mine = (ingredients || []).filter(
+    (ing) => !ing?.client_id || ing.client_id === activeClient,
+  );
+  const updates: string[] = [];
+  const caseDiff: string[] = [];
+  for (const item of parsed.items) {
+    const exact = mine.find((ing) => String(ing?.name || "") === item.name);
+    if (exact) {
+      updates.push(item.name);
+      continue;
+    }
+    const folded = mine.find(
+      (ing) => nameKey(String(ing?.name || "")) === nameKey(item.name),
+    );
+    if (folded) caseDiff.push(`${item.name} (бүртгэл: ${folded.name})`);
+  }
+  const lines: string[] = [];
+  if (parsed.duplicateNames.length) {
+    lines.push(
+      `Файл дотор ижил нэр давхардсан, сүүлийн мөр ${when === "after" ? "үлдсэн" : "үлдэнэ"}: ${clipList(parsed.duplicateNames)}.`,
+    );
+  }
+  if (parsed.unknownUnits.length) {
+    lines.push(
+      `Танигдаагүй нэгж бичсэнээр ${when === "after" ? "хадгалагдсан" : "хадгалагдана"}: ${clipList(
+        parsed.unknownUnits.map((row) => `${row.lineNo}-р мөр ${row.unit}`),
+      )}.`,
+    );
+  }
+  if (updates.length) {
+    lines.push(
+      `Бүртгэлтэй нэр ${when === "after" ? "шинэчлэгдсэн" : "шинэчлэгдэнэ"}: ${clipList(updates)}.`,
+    );
+  }
+  if (caseDiff.length) {
+    lines.push(
+      `Ижил нэр өөр үсгээр бүртгэлтэй тул шинэ мөр үүсэж магадгүй: ${clipList(caseDiff)}.`,
+    );
+  }
+  return lines.join("\n");
+}
+
 interface ImportTabProps {
   activeClient: string;
   startDate: string;
@@ -41,6 +102,8 @@ interface ImportTabProps {
   fetchDatabaseData: (client?: string) => Promise<void>;
   setAutoPilotActivity: React.Dispatch<React.SetStateAction<any>>;
   updatePendingReview: (val: any) => void;
+  focusSection?: "ingredients" | null;
+  onFocusConsumed?: () => void;
 }
 
 export default function ImportTab({
@@ -61,6 +124,8 @@ export default function ImportTab({
   fetchDatabaseData,
   setAutoPilotActivity,
   updatePendingReview,
+  focusSection = null,
+  onFocusConsumed,
 }: ImportTabProps) {
   const [salesPasteText, setSalesPasteText] = useState("");
   const [purchasePasteText, setPurchasePasteText] = useState("");
@@ -101,6 +166,28 @@ export default function ImportTab({
     setTemplateNotice("Загварыг дэлгэцэн дээр харууллаа.");
     window.setTimeout(() => setTemplateNotice(null), 3500);
   };
+  const downloadIngredientTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet(INGREDIENT_TEMPLATE_ROWS);
+    ws["!cols"] = [{ wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Түүхий_эд");
+    XLSX.writeFile(wb, "Түүхий-эд-загвар.xlsx");
+  };
+  const onFocusConsumedRef = useRef(onFocusConsumed);
+  onFocusConsumedRef.current = onFocusConsumed;
+  useEffect(() => {
+    if (focusSection !== "ingredients") return;
+    document.getElementById("ingredient-bulk-import")?.scrollIntoView({ block: "start" });
+    onFocusConsumedRef.current?.();
+  }, [focusSection]);
+  const ingredientPreview = useMemo(
+    () => parseIngredientPaste(ingredientsPasteText),
+    [ingredientsPasteText],
+  );
+  const ingredientPreviewNotes = useMemo(
+    () => ingredientCatalogNotes(ingredientPreview, ingredients, activeClient, "before"),
+    [ingredientPreview, ingredients, activeClient],
+  );
 
   const existingKitchenCount = inventoryLogs.filter((l) => {
     if (
@@ -1068,90 +1155,43 @@ if (cols.length === 2 && costIdx > qtyIdx) {
     e.preventDefault();
     if (!ingredientsPasteText.trim()) return;
 
+    const parsed = parseIngredientPaste(ingredientsPasteText);
+    if (parsed.errors.length > 0) {
+      const hint = parsed.singleColumn
+        ? " Excel-ээс нүд хуулбал TAB-аар салгагдана. Таслалаар тусгаарласан CSV танихгүй."
+        : "";
+      alert(`Хадгалаагүй. ${parsed.errors.length} мөр засах хэрэгтэй.${hint}`);
+      return;
+    }
+    if (parsed.items.length === 0) {
+      alert("Хадгалаагүй. Оруулах мөр алга.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const rows = ingredientsPasteText.replace(/\r/g, "").split("\n");
-      const itemsMap = new Map<string, any>();
-      const rowErrors: string[] = [];
-      // Мөрийг Tab эсвэл 2+ зайгаар салгана. Tab үед сүүлийн хоосон нүдийг хадгална.
-      const splitRow = (line: string) => {
-        if (line.includes("\t"))
-          return line.replace(/\s+$/, (tail) => tail.replace(/[^\t]/g, "")).split("\t").map((c) => c.trim());
-        const trimmed = line.trim();
-        if (/\s{2,}/.test(trimmed))
-          return trimmed.split(/\s{2,}/).map((c) => c.trim());
-        return [trimmed];
-      };
-      const toNum = (cell: string) => {
-        const cleaned = (cell || "").replace(/[^0-9.-]/g, "");
-        if (!cleaned) return NaN;
-        return Number(cleaned);
-      };
-      rows.forEach((row, idx) => {
-        if (!row.trim()) return;
-        const lineNo = idx + 1;
-        const cols = splitRow(row);
-        const rawName = cols[0]?.trim() || "";
-        if (
-          !rawName ||
-          rawName.toLowerCase().includes("item") ||
-          rawName.toLowerCase().includes("нэр")
-        )
-          return;
-        // Загвар: Нэр, Нэгж, Нэгжийн үнэ, Par. Яг 4 багана шаардана.
-        if (cols.length !== 4) {
-          rowErrors.push(`${lineNo}-р мөр: ${cols.length} багана байна, 4 багана хэрэгтэй ("${row.trim()}")`);
-          return;
-        }
-        const unit = (cols[1] || "").replace(/per\s*|1\s*/gi, "").trim();
-        if (!unit || /^[0-9\s.,₮-]+$/.test(cols[1] || "")) {
-          rowErrors.push(`${lineNo}-р мөр: 2-р багана нэгж байх ёстой (мл/гр/ш)`);
-          return;
-        }
-        const price = toNum(cols[2]);
-        if (!Number.isFinite(price) || price < 0) {
-          rowErrors.push(`${lineNo}-р мөр: 3-р багана нэгжийн үнэ байх ёстой`);
-          return;
-        }
-        const parCell = (cols[3] || "").trim();
-        const par = parCell === "" ? 0 : toNum(parCell);
-        if (!Number.isFinite(par) || par < 0) {
-          rowErrors.push(`${lineNo}-р мөр: 4-р багана хэвийн нөөц тоо байх ёстой`);
-          return;
-        }
-        itemsMap.set(rawName.toLowerCase().trim(), {
-          client_id: activeClient,
-          name: rawName,
-          unit,
-          unit_price: price,
-          par_level: par,
-        });
-      });
-
-      if (rowErrors.length > 0) {
-        const shown = rowErrors.slice(0, 8).join("\n");
-        const more = rowErrors.length > 8 ? `\n... нийт ${rowErrors.length} мөр` : "";
-        alert(
-          `Хадгалаагүй. Загвартай таарахгүй мөр байна:\n${shown}${more}\n\nБагана: Барааны нэр, Нэгж, Нэгжийн үнэ, Хэвийн нөөц. TAB эсвэл 2+ зайгаар салгана.`,
-        );
-        return;
-      }
-
-      const itemsToUpsert = Array.from(itemsMap.values());
-      if (itemsToUpsert.length > 0) {
-        const { error } = await supabase
-          .from("ingredients")
-          .upsert(itemsToUpsert, { onConflict: "client_id,name" });
-        if (error) throw error;
-      }
+      const itemsToUpsert = parsed.items.map((item) => ({
+        client_id: activeClient,
+        name: item.name,
+        unit: item.unit,
+        unit_price: item.unitPrice,
+        par_level: item.parLevel,
+      }));
+      const { error } = await supabase
+        .from("ingredients")
+        .upsert(itemsToUpsert, { onConflict: "client_id,name" });
+      if (error) throw error;
 
       setIngredientsImportSuccess(true);
       setIngredientsPasteText("");
       await fetchDatabaseData(activeClient);
-      alert(` Амжилттай! Нийт ${itemsToUpsert.length} түүхий эд хадгалагдлаа.`);
+      const notes = ingredientCatalogNotes(parsed, ingredients, activeClient, "after");
+      alert(
+        `Нийт ${itemsToUpsert.length} түүхий эд хадгалагдлаа.${notes ? `\n${notes}` : ""}`,
+      );
       setTimeout(() => setIngredientsImportSuccess(false), 4000);
     } catch (err: any) {
-      alert(`Алдаа: ${err.message}`);
+      alert(ingredientSaveError(err?.message));
     } finally {
       setLoading(false);
     }
@@ -2106,7 +2146,10 @@ if (cols.length === 2 && costIdx > qtyIdx) {
 
         {userRole === "owner" && (
           <>
-            <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
+            <div
+              id="ingredient-bulk-import"
+              className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 scroll-mt-4"
+            >
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FileSpreadsheet className="h-6 w-6 text-zinc-200" />
@@ -2114,21 +2157,31 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     1. Түүхий эд, Үнэ бөөнөөр оруулах
                   </h3>
                 </div>
-                {/*  ЖИШЭЭ ХАРАХ ТОВЧ */}
-                <button
-                  type="button"
-                  onClick={() => openTemplate("ingredients")}
-                  className="text-xs hover:bg-zinc-700 hover:text-whitetext-xs font-bold text-zinc-200 hover:text-zinc-300 bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
-                >
-                  Загвар харах
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={downloadIngredientTemplate}
+                    className="text-xs font-bold text-zinc-200 hover:bg-zinc-700 hover:text-white bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                  >
+                    Загвар татах
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openTemplate("ingredients")}
+                    className="text-xs font-bold text-zinc-200 hover:bg-zinc-700 hover:text-white bg-zinc-800/60 border border-zinc-700/20 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                  >
+                    Загвар харах
+                  </button>
+                </div>
               </div>
               <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
                 Excel-ээс{" "}
                 <strong>
-                  Барааны нэр, Нэгж (мл/гр/ш), Нэгжийн үнэ, Хэвийн нөөц
+                  Барааны нэр, Нэгж (мл, гр, ш, кг, л, порц), Нэгжийн үнэ, Хэвийн нөөц
                 </strong>{" "}
-                гэсэн 4 баганыг хуулаад доор хуулж тавина уу.
+                гэсэн 4 баганыг хуулаад доор тавина уу. Таслалтай бутархай (5,8)
+                уншина. Ижил нэр байвал үнэ, нэгж, нөөц шинэчлэгдэнэ. Жор болон
+                хаягдал энд орохгүй. CSV файл шууд оруулахгүй.
               </p>
 
               {ingredientsImportSuccess && (
@@ -2145,6 +2198,32 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                   placeholder="Жишээ:&#10;Сүү&#9;мл&#9;5.8&#9;20000&#10;Кофе үр&#9;гр&#9;85&#9;5000"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-mono focus:outline-none focus:border-zinc-700"
                 />
+                {ingredientsPasteText.trim() && (
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 space-y-1">
+                    <p>
+                      Бэлэн мөр: {ingredientPreview.items.length}.{" "}
+                      {ingredientPreview.errors.length > 0
+                        ? `Алдаатай мөр: ${ingredientPreview.errors.length}. Алдаатай мөр байгаа тул бүгдийг хадгалахгүй.`
+                        : "Алдаагүй. Хадгалахад бүгд хамт орно."}
+                    </p>
+                    {ingredientPreview.errors.length > 0 && (
+                      <ul className="list-disc pl-4 space-y-0.5 text-rose-200">
+                        {ingredientPreview.errors.slice(0, 12).map((err, index) => (
+                          <li key={`${index}-${err}`}>{err}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {ingredientPreview.errors.length > 12 && (
+                      <p>Бусад {ingredientPreview.errors.length - 12} мөр дээр мөн алдаа байна.</p>
+                    )}
+                    {ingredientPreview.singleColumn && ingredientPreview.errors.length > 0 && (
+                      <p>Excel-ээс нүд хуулбал TAB-аар салгагдана. Таслалаар тусгаарласан CSV танихгүй.</p>
+                    )}
+                    {ingredientPreview.errors.length === 0 && ingredientPreviewNotes && (
+                      <p className="whitespace-pre-line">{ingredientPreviewNotes}</p>
+                    )}
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={loading}
@@ -2581,25 +2660,41 @@ if (cols.length === 2 && costIdx > qtyIdx) {
                     </div>
                     <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Сүү</span>
-                      <span>ml</span>
+                      <span>мл</span>
                       <span>5.8</span>
                       <span>20000</span>
                     </div>
-                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300">
+                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300 border-b border-zinc-800">
                       <span>Кофе үр</span>
-                      <span>gram</span>
+                      <span>гр</span>
                       <span>85</span>
                       <span>5000</span>
                     </div>
+                    <div className="grid grid-cols-4 p-2 bg-zinc-900 text-zinc-300">
+                      <span>Өндөг</span>
+                      <span>ш</span>
+                      <span>500</span>
+                      <span>30</span>
+                    </div>
                   </div>
+                  <p className="text-xs text-zinc-400">
+                    Нэгж: мл, гр, ш, кг, л, порц. ml болон gram гэж бичсэн ч мл, гр болно. Үнэ 5,8 гэж бичсэн ч 5.8 гэж уншина.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={downloadIngredientTemplate}
+                    className="w-full bg-white hover:bg-zinc-200 text-zinc-950 py-2 rounded-xl text-sm font-bold transition"
+                  >
+                    Загвар татах
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        "Сүү\tмл\t5.8\t20000\nКофе үр\tгр\t85\t5000",
+                        "Барааны нэр\tНэгж\tНэгжийн үнэ\tХэвийн нөөц\nСүү\tмл\t5.8\t20000\nКофе үр\tгр\t85\t5000\nӨндөг\tш\t500\t30",
                       );
                       alert(
-                        "Жишээ хуулагдлаа! Та талбартаа Ctrl+V дарж тавина уу.",
+                        "Жишээ хуулагдлаа. Талбарт Ctrl+V дарж тавина уу.",
                       );
                     }}
                     className="w-full bg-zinc-800 hover:bg-white/30 text-zinc-200 border border-zinc-800 py-2 rounded-xl text-sm font-bold transition"
