@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import TabletSoloSetup from "@/features/onboarding/TabletSoloSetup";
 
 export type StartStep = "ingredients" | "recipe" | "count" | "tablet";
 
@@ -71,7 +72,7 @@ export default function GettingStarted({
         {
           key: "tablet",
           title: "Таблет холбох",
-          detail: "Тохиргоо доторх төхөөрөмжийн хэсгээс 6 оронтой код авч, таблет дээр /kiosk нээнэ.",
+          detail: "Эхлээд өөрийн 4 оронтой PIN-ээ тавина. Дараа нь кодыг таблет дээр оруулна.",
           done: tablet,
         },
       ]);
@@ -119,6 +120,7 @@ export default function GettingStarted({
                 {i + 1}. {step.title}
               </p>
               <p className="text-xs text-zinc-400">{step.detail}</p>
+              {step.key === "tablet" && step.done !== true && <TabletSoloSetup clientId={clientId} />}
             </div>
             <span
               className={`text-xs font-black px-2 py-1 rounded-lg shrink-0 ${

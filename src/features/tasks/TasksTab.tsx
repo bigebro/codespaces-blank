@@ -37,30 +37,6 @@ export default function TasksTab({
         {/* ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (Нэр зөрөхөөс сэргийлнэ) */}
         {/* АЖИЛТАН БҮРТГЭХ & УРИХ ШИНЭ КАРТ */}
         <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-8 space-y-6">
-          {/* 1. УРИЛГЫН ЛИНК ХУУЛАХ (Хамгийн амархан арга) */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-800">
-            <div>
-              <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                Ажилтан урих холбоос
-              </h4>
-              <p className="text-sm text-zinc-400 mt-1">
-                Энэ линкийг ажилтандаа явуулснаар тэд салбарын нэрийг
-                алдаагүйгээр шууд нэгдэж бүртгүүлнэ.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                const inviteUrl = `${window.location.origin}/login?branch=${encodeURIComponent(activeClient)}&role=staff`;
-                navigator.clipboard.writeText(inviteUrl);
-                alert(` Урилгын холбоос хуулагдлаа:\n${inviteUrl}`);
-              }}
-              className="bg-zinc-200/20 hover:bg-zinc-200/30 text-zinc-300 border border-zinc-800 px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 shrink-0"
-            >
-               Урилгын линк хуулах
-            </button>
-          </div>
-
           {/* ЭЗЭН ШИНЭ АЖИЛТАН ШУУД НЭМЭХ ХЭСЭГ (ДИНАМИК ҮҮРГҮҮДТЭЙ) */}
           <div className="mb-6">
             <h3 className="text-base font-bold mb-3 text-zinc-200">
