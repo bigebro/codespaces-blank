@@ -60,6 +60,7 @@ import {
 } from "../../lib/autoReconcile";
 import FinanceTab from "@/features/finance/FinanceTab";
 import InventoryTab from "@/features/inventory/InventoryTab";
+import OwnerWasteForm from "@/features/inventory/OwnerWasteForm";
 import { AutoPilotChange } from "@/types/dashboard";
 import ImportTab from "@/features/imports/ImportTab";
 import TasksTab from "@/features/tasks/TasksTab";
@@ -2809,6 +2810,18 @@ function Home() {
                           setFocusTablet(true);
                         }
                         setActiveTab("settings");
+                      }}
+                    />
+                    <OwnerWasteForm
+                      activeClient={activeClient}
+                      ingredients={ingredients}
+                      workerName={
+                        user?.user_metadata?.full_name ||
+                        user?.email?.split("@")[0] ||
+                        "Эзэн"
+                      }
+                      onSaved={() => {
+                        void fetchDatabaseData(activeClient, startDate, endDate, true);
                       }}
                     />
                     <FinanceTab
