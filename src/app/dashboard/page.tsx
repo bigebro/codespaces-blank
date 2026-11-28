@@ -2949,6 +2949,11 @@ function Home() {
                   {/* 5. SPREADSHEET BULK STOCK TAKE TAB */}
                   {activeTab === "inventory" && (
                     <InventoryTab
+                      onAddIngredients={() => {
+                        setCatalogTab("ingredients");
+                        setOpenAddNonce((n) => n + 1);
+                        setActiveTab("settings");
+                      }}
                       activeClient={activeClient}
                       ingredients={ingredients}
                       setIngredients={setIngredients}

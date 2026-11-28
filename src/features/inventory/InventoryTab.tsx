@@ -1,6 +1,6 @@
 // src/features/inventory/InventoryTab.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Database, Save, AlertTriangle, Edit2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -19,6 +19,7 @@ interface InventoryTabProps {
   setEditingTranslation: React.Dispatch<
     React.SetStateAction<{ original: string; text: string } | null>
   >;
+  onAddIngredients?: () => void;
 }
 
 export default function InventoryTab({
@@ -32,12 +33,30 @@ export default function InventoryTab({
   setTranslationsCache,
   editingTranslation,
   setEditingTranslation,
+  onAddIngredients,
 }: InventoryTabProps) {
   // Дотоод төлөвүүд:
   const [invSearch, setInvSearch] = useState("");
   const [invFilter, setInvFilter] = useState<"all" | "low" | "critical">("all");
   const [bulkStock, setBulkStock] = useState<Record<string, string>>({});
   const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [hasSavedCount, setHasSavedCount] = useState(false);
+
+  useEffect(() => {
+    if (!activeClient) return;
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from("inventory_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", activeClient)
+        .eq("type", "count");
+      if (!cancelled && !error) setHasSavedCount((count || 0) > 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeClient, ingredients]);
 
   const handleIngredientUpdate = async (
     id: string,
@@ -205,7 +224,7 @@ export default function InventoryTab({
             placeholder="Бараа хайх..."
             className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-sm text-white placeholder:text-zinc-500 outline-none focus:border-zinc-700 w-full sm:w-56"
           />
-          {lowStockItems.length > 0 && (
+          {hasSavedCount && lowStockItems.length > 0 && (
             <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-xl text-sm font-semibold border border-rose-500/20 flex items-center gap-1.5 ">
               <AlertTriangle className="h-4 w-4" />
               {lowStockItems.length} Барааны нөөц дуусаж байна!
@@ -233,7 +252,19 @@ export default function InventoryTab({
           </div>
         </div>
 
-        {loading ? (
+        {!loading && ingredients.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-sm font-bold text-zinc-200">Тоолох түүхий эд алга.</p>
+            <p className="text-xs text-zinc-400 mt-1">Эхлээд түүхий эдээ нэмнэ. Дараа нь үлдэгдлээ энд бичнэ.</p>
+            <button
+              type="button"
+              onClick={() => onAddIngredients?.()}
+              className="mt-4 bg-white hover:bg-zinc-200 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-sm"
+            >
+              Түүхий эд нэмэх
+            </button>
+          </div>
+        ) : loading ? (
           <div className="relative flex items-center gap-2 text-zinc-200 text-xs font-bold animate-in fade-in duration-200 justify-center">
             <div className="translate-y-2.5 h-4 w-4 border-2 border-zinc-700 border-t-transparent rounded-full animate-spin " />
             <span className="hidden sm:inline-block tracking-wide"></span>
