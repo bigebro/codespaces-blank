@@ -230,6 +230,12 @@ const handleSubmit = async (e: React.FormEvent) => {
           metadata.invite_token = inviteToken;
           metadata.full_name = fullName.trim();
         } else {
+          if (!fullName.trim()) {
+            setErrorMsg("Нэрээ оруулна уу.");
+            setLoading(false);
+            return;
+          }
+
           const cleanBranch = companyName.trim();
           if (/[%_]/.test(cleanBranch)) {
             setErrorMsg("Бизнесийн нэрд % болон _ тэмдэгт оруулах боломжгүй.");
@@ -271,6 +277,15 @@ const handleSubmit = async (e: React.FormEvent) => {
           setErrorMsg("Бүртгэлтэй имэйл хаяг байна. Нэвтэрч орно уу.");
           setLoading(false);
           return;
+        }
+
+        if (!inviteToken && data.user?.id) {
+          void fetch("/api/signup-alert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: data.user.id }),
+            keepalive: true,
+          }).catch(() => {});
         }
 
         // 3. УХААЛАГ AUTO-LOGIN (Хэрэв Supabase автоматаар сесси өгөөгүй бол л нэвтэрнэ)
@@ -404,6 +419,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {isSignUp && !inviteToken && (
             <div className="space-y-4">
+              <div>
+                <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  Таны нэр
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-zinc-700 text-sm font-semibold transition"
+                />
+              </div>
               <div>
                 <label className="block text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">
                   Утасны дугаар (Төлбөр баталгаажуулахад хэрэгтэй)
